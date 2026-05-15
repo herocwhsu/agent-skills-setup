@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 # credentials/jira.ps1 — manage Jira credentials
-# Usage: .\jira.ps1 <add|update|delete|list>
-param([Parameter(Mandatory)][ValidateSet('add','update','delete','list')][string]$Action)
+# Usage: .\jira.ps1 <add|update|delete|list|verify>
+param([Parameter(Mandatory)][ValidateSet('add','update','delete','list','verify')][string]$Action)
 
 . "$PSScriptRoot\_store.ps1"
 
@@ -18,15 +18,18 @@ switch ($Action) {
                      [Runtime.InteropServices.Marshal]::SecureStringToBSTR($pass))
         $slug = Get-Slug $url
         Store-AgentCredential $slug $user $plain
-        Add-ProfileExport $slug $user 'JIRA_PASS'
-        Write-Host "  v Jira credentials saved (env: JIRA_PASS)"
+        Write-Host "  v Jira credentials saved"
+        Write-Host "  Use in scripts: Read-AgentCredential '$slug' '$user'"
     }
     'delete' {
         $url  = Read-Host "Jira URL"
         $user = Read-Host "Username"
-        $slug = Get-Slug $url
-        Remove-AgentCredential $slug $user
-        Remove-ProfileExport $slug
+        Remove-AgentCredential (Get-Slug $url) $user
     }
-    'list' { List-AgentCredentials }
+    'list'   { List-AgentCredentials }
+    'verify' {
+        $url  = Read-Host "Jira URL"
+        $user = Read-Host "Username"
+        Verify-AgentCredential (Get-Slug $url) $user
+    }
 }

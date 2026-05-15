@@ -44,38 +44,35 @@ cmdkey /add:confluence-vivotek /user:hero.hsu /pass
 # or via GUI: Control Panel > Credential Manager > Windows Credentials
 ```
 
-## Shell Profile Setup
-
-Add to `~/.zshrc` or `~/.bashrc` so `$CONFLUENCE_PASS` is always available:
+## Credential Verification (safe — no value revealed)
 
 ```bash
-if [[ "$(uname)" == "Darwin" ]]; then
-  export CONFLUENCE_PASS=$(security find-generic-password -s confluence-vivotek -a hero.hsu -w 2>/dev/null)
-elif command -v secret-tool &>/dev/null; then
-  export CONFLUENCE_PASS=$(secret-tool lookup service confluence-vivotek username hero.hsu 2>/dev/null)
-fi
-# Linux headless/CI: set CONFLUENCE_PASS via pipeline secret injection
-# Windows: read via PowerShell before invoking kiro
-```
-
-**Always validate before fetching:**
-```bash
-if [ -z "$CONFLUENCE_PASS" ]; then
-  echo "ERROR: CONFLUENCE_PASS is not set. Run credential setup first." >&2
-  exit 1
-fi
+# Check credential exists without printing it
+bash /path/to/agent-skills-setup/scripts/setup-credentials.sh confluence verify
 ```
 
 ## Security Rule
 
-**Never put the password in command text.** Tool call display shows the full command — any inline value is visible.
+**Never put the password in command text, and never store it in a persistent env var.**
+Read from keychain at the moment of use, then immediately unset.
 
 ```bash
-# ✅ GOOD
-curl -s -u "hero.hsu:$CONFLUENCE_PASS" "$URL"
+# ✅ GOOD — read at use-time, unset after
+_PASS=$(security find-generic-password -s "agent-skills:confluence-vivotek-com" -a "hero.hsu" -w 2>/dev/null)
+curl -s -u "hero.hsu:$_PASS" "$URL"
+unset _PASS
 
-# ❌ BAD — visible in logs
-curl -s -u "hero.hsu:plaintext" "$URL"
+# ❌ BAD — persistent env var, visible in `env`, shell history, process list
+export CONFLUENCE_PASS="..."
+curl -s -u "hero.hsu:$CONFLUENCE_PASS" "$URL"
+```
+
+**Verify credential is stored (without revealing it):**
+```bash
+bash ~/.kiro/skills/../../../Project/agent-skills-setup/scripts/setup-credentials.sh confluence verify
+# or directly:
+[ -n "$(security find-generic-password -s 'agent-skills:confluence-vivotek-com' -a 'hero.hsu' -w 2>/dev/null)" ] \
+  && echo "✓ credential found" || echo "✗ not found"
 ```
 
 ## Implementation
@@ -83,18 +80,27 @@ curl -s -u "hero.hsu:plaintext" "$URL"
 ### Confluence URL (REST API path)
 
 ```bash
-# Extract page body via REST API (returns clean XML storage format)
+# Read credential at use-time only — never store in persistent env var
+_PASS=$(security find-generic-password -s "agent-skills:confluence-vivotek-com" -a "hero.hsu" -w 2>/dev/null)
+# Linux: _PASS=$(secret-tool lookup service "agent-skills:confluence-vivotek-com" username "hero.hsu" 2>/dev/null)
+
+if [ -z "$_PASS" ]; then
+  echo "ERROR: credential not found. Run setup-credentials.sh confluence add" >&2
+  exit 1
+fi
+
 SPACE="PP2"
 TITLE="My Page Title"
 API="https://confluence.vivotek.com/rest/api/content"
 
-BODY=$(curl -s -u "hero.hsu:$CONFLUENCE_PASS" \
-  "${API}?spaceKey=${SPACE}&title=${TITLE}&expand=body.storage" | \
-  python3 -c "import sys,json; r=json.load(sys.stdin)['results'][0]; print(r['title']+'|||'+r['body']['storage']['value'])")
+RESPONSE=$(curl -s -u "hero.hsu:$_PASS" \
+  "${API}?spaceKey=${SPACE}&title=${TITLE}&expand=body.storage")
+unset _PASS  # clear immediately after use
 
-TITLE=$(echo "$BODY" | cut -d'|' -f1)
-HTML=$(echo "$BODY" | cut -d'|' -f4-)
-SLUG=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | cut -c1-40)
+PAGE_TITLE=$(echo "$RESPONSE" | python3 -c "import sys,json; r=json.load(sys.stdin)['results'][0]; print(r['title'])")
+HTML=$(echo "$RESPONSE" | python3 -c "import sys,json; r=json.load(sys.stdin)['results'][0]; print(r['body']['storage']['value'])")
+
+SLUG=$(echo "$PAGE_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | cut -c1-40)
 DATE=$(date +%Y-%m-%d)
 
 mkdir -p ./docs/pre-specs
@@ -118,9 +124,11 @@ mkdir -p ./docs/pre-specs
 curl -s "$URL" | python3 ~/.kiro/skills/fetch-page-to-markdown/html2md.py \
   > "./docs/pre-specs/${DATE}-${SLUG}-reference.md"
 
-# With auth (Basic Auth):
-curl -s -u "user:$CONFLUENCE_PASS" "$URL" | python3 ~/.kiro/skills/fetch-page-to-markdown/html2md.py \
+# With auth (Basic Auth) — read and unset immediately:
+_PASS=$(security find-generic-password -s "agent-skills:<service-slug>" -a "<username>" -w 2>/dev/null)
+curl -s -u "<username>:$_PASS" "$URL" | python3 ~/.kiro/skills/fetch-page-to-markdown/html2md.py \
   > "./docs/pre-specs/${DATE}-${SLUG}-reference.md"
+unset _PASS
 ```
 
 ## File Naming

@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 # credentials/apidog.ps1 — manage Apidog credentials
-# Usage: .\apidog.ps1 <add|update|delete|list>
-param([Parameter(Mandatory)][ValidateSet('add','update','delete','list')][string]$Action)
+# Usage: .\apidog.ps1 <add|update|delete|list|verify>
+param([Parameter(Mandatory)][ValidateSet('add','update','delete','list','verify')][string]$Action)
 
 . "$PSScriptRoot\_store.ps1"
 
@@ -14,13 +14,16 @@ switch ($Action) {
         $plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
                      [Runtime.InteropServices.Marshal]::SecureStringToBSTR($pass))
         Store-AgentCredential $Slug $user $plain
-        Add-ProfileExport $Slug $user 'APIDOG_TOKEN'
-        Write-Host "  v Apidog credentials saved (env: APIDOG_TOKEN)"
+        Write-Host "  v Apidog credentials saved"
+        Write-Host "  Use in scripts: Read-AgentCredential '$Slug' '$user'"
     }
     'delete' {
         $user = Read-Host "Apidog username / email"
         Remove-AgentCredential $Slug $user
-        Remove-ProfileExport $Slug
     }
-    'list' { List-AgentCredentials }
+    'list'   { List-AgentCredentials }
+    'verify' {
+        $user = Read-Host "Apidog username / email"
+        Verify-AgentCredential $Slug $user
+    }
 }

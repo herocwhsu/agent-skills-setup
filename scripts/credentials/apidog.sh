@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # credentials/apidog.sh — manage Apidog credentials
-# Usage: bash apidog.sh <add|update|delete|list>
+# Usage: bash apidog.sh <add|update|delete|list|verify>
 source "$(dirname "$0")/_store.sh"
 
 ACTION="${1:-}"
 if [[ -z "$ACTION" ]]; then
-  echo "Usage: $0 <add|update|delete|list>"; exit 1
+  echo "Usage: $0 <add|update|delete|list|verify>"; exit 1
 fi
 
-# Apidog uses a fixed service slug (no per-URL variation)
 SLUG="apidog"
 
 case "$ACTION" in
@@ -16,17 +15,20 @@ case "$ACTION" in
     read -rp  "Apidog username / email: " USER
     read -rsp "API token (hidden): " PASS; echo
     store_credential "$SLUG" "$USER" "$PASS"
-    add_profile_export "$SLUG" "$USER" "APIDOG_TOKEN"
-    echo "  ✓ Apidog credentials saved (env: APIDOG_TOKEN)"
+    echo "  ✓ Apidog credentials saved"
+    echo "  Use in scripts: TOKEN=\$($(read_credential_inline "$SLUG" "$USER"))"
     ;;
   delete)
     read -rp "Apidog username / email: " USER
     delete_credential "$SLUG" "$USER"
-    remove_profile_export "$SLUG"
     ;;
   list)
     list_credentials
     ;;
+  verify)
+    read -rp "Apidog username / email: " USER
+    verify_credential "$SLUG" "$USER"
+    ;;
   *)
-    echo "Unknown action: $ACTION. Use add|update|delete|list."; exit 1 ;;
+    echo "Unknown action: $ACTION. Use add|update|delete|list|verify."; exit 1 ;;
 esac
