@@ -61,17 +61,22 @@ When prompted, choose one or more:
 
 ## Credential Setup
 
-`setup-credentials.sh` (bash) and `setup-credentials.ps1` (PowerShell) manage credentials for multiple services. Run interactively — it prompts for service, action, and credentials.
+`setup-credentials.sh` (bash) and `setup-credentials.ps1` (PowerShell) manage credentials for multiple services. Passwords are stored in the platform keychain only — **never exported to env vars**.
 
 **Supported services:**
 
-| Service | Env var set | Used by |
-|---|---|---|
-| Confluence | `$CONFLUENCE_PASS` | `fetch-page-to-markdown` skill |
-| Jira | `$JIRA_PASS` | future Jira skills |
-| Apidog | `$APIDOG_TOKEN` | future Apidog skills |
+| Service | Used by |
+|---|---|
+| Confluence | `fetch-page-to-markdown` skill |
+| Jira | future Jira skills |
+| Apidog | future Apidog skills |
 
-**Actions:** `add` · `update` · `delete` · `list`
+**Actions:** `add` · `update` · `delete` · `list` · `verify`
+
+**Verify a credential is stored (safe — value never printed):**
+```bash
+bash scripts/setup-credentials.sh confluence verify
+```
 
 **Platform storage:**
 
@@ -79,7 +84,7 @@ When prompted, choose one or more:
 |---|---|---|
 | macOS | Keychain (`security`) | `setup-credentials.sh` |
 | Linux (GUI) | GNOME Keyring (`secret-tool`) | `setup-credentials.sh` |
-| Linux (headless/CI) | Inject env var via pipeline secret | — |
+| Linux (headless/CI) | Inject via pipeline secret at use-time | — |
 | Windows 11 | Credential Manager (`CredentialManager` PS module) | `setup-credentials.ps1` |
 
 All entries are namespaced `agent-skills:<service>` to avoid collisions with system or browser keychain entries.

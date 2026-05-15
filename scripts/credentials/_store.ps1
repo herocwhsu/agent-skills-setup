@@ -1,14 +1,16 @@
+#Requires -Version 5.1
 # credentials/_store.ps1 — Windows Credential Manager CRUD
 # Dot-source this file: . "$PSScriptRoot\_store.ps1"
 #
 # All entries are prefixed with "agent-skills:" to avoid collisions.
-# Requires: CredentialManager module (auto-installed if missing).
+# Passwords are NEVER exported to env vars — read from keychain at use-time only.
 #
 # Public functions:
-#   Store-Credential   <service-slug> <username> <password>
-#   Read-Credential    <service-slug> <username>  -> SecureString (or $null)
-#   Remove-Credential  <service-slug> <username>
-#   List-Credentials                              -> prints stored entries
+#   Store-AgentCredential  <slug> <username> <password>
+#   Read-AgentCredential   <slug> <username>  -> plaintext (use immediately, don't store)
+#   Remove-AgentCredential <slug> <username>
+#   Verify-AgentCredential <slug> <username>  -> writes OK/FAIL, returns bool
+#   List-AgentCredentials                     -> prints entries (no passwords)
 
 Set-StrictMode -Version Latest
 
@@ -28,21 +30,29 @@ function _SvcKey([string]$Slug) { "$script:KeychainPrefix`:$Slug" }
 function Store-AgentCredential([string]$Slug, [string]$Username, [string]$Password) {
     _EnsureCredentialManager
     $target = _SvcKey $Slug
-    # New-StoredCredential overwrites if target already exists
     New-StoredCredential -Target "$target`:$Username" -UserName $Username `
         -Password $Password -Type Generic -Persist LocalMachine | Out-Null
     Write-Host "  v Stored in Windows Credential Manager ($target)"
 }
 
-# Returns plaintext password string, or empty string if not found
+# Returns plaintext password — use immediately, never assign to a persistent variable
 function Read-AgentCredential([string]$Slug, [string]$Username) {
     _EnsureCredentialManager
     $target = _SvcKey $Slug
     $cred = Get-StoredCredential -Target "$target`:$Username" -ErrorAction SilentlyContinue
-    if ($cred) {
-        return $cred.GetNetworkCredential().Password
-    }
+    if ($cred) { return $cred.GetNetworkCredential().Password }
     return ''
+}
+
+# ---------------------------------------------------------------------------
+function Verify-AgentCredential([string]$Slug, [string]$Username) {
+    $val = Read-AgentCredential $Slug $Username
+    if ($val) {
+        Write-Host "  v Credential found for $Slug / $Username (value hidden)"
+        return $true
+    }
+    Write-Warning "  x No credential found for $Slug / $Username"
+    return $false
 }
 
 # ---------------------------------------------------------------------------
@@ -70,49 +80,4 @@ function List-AgentCredentials {
     } else {
         Write-Host "  (none)"
     }
-}
-
-# ---------------------------------------------------------------------------
-# Add export block to PowerShell profile (idempotent)
-function Add-ProfileExport([string]$Slug, [string]$Username, [string]$EnvVar) {
-    $target = _SvcKey $Slug
-    $marker = "# agent-skills:$Slug"
-    $profile_path = $PROFILE  # $PROFILE is the current user's PS profile path
-
-    if (-not (Test-Path $profile_path)) {
-        New-Item -ItemType File -Path $profile_path -Force | Out-Null
-    }
-
-    $content = Get-Content $profile_path -Raw -ErrorAction SilentlyContinue
-    if ($content -and $content.Contains($marker)) {
-        Write-Host "  Profile already has export for $EnvVar, skipping."
-        return
-    }
-
-    $block = @"
-
-$marker
-`$env:$EnvVar = (Get-StoredCredential -Target '$target`:$Username' -ErrorAction SilentlyContinue)?.GetNetworkCredential().Password
-"@
-    Add-Content -Path $profile_path -Value $block
-    Write-Host "  v Added `$env:$EnvVar export to $profile_path"
-}
-
-# Remove export block from PowerShell profile
-function Remove-ProfileExport([string]$Slug) {
-    $marker = "# agent-skills:$Slug"
-    $profile_path = $PROFILE
-    if (-not (Test-Path $profile_path)) { return }
-
-    $lines = Get-Content $profile_path
-    # Remove marker line and the line immediately after it (the export line)
-    $filtered = @()
-    $skip = 0
-    foreach ($line in $lines) {
-        if ($line.Trim() -eq $marker) { $skip = 2; continue }
-        if ($skip -gt 0) { $skip--; continue }
-        $filtered += $line
-    }
-    Set-Content -Path $profile_path -Value $filtered
-    Write-Host "  v Removed export block for $Slug from $profile_path"
 }

@@ -30,11 +30,11 @@ bash scripts/setup-credentials.sh
 # Choose: 1) Confluence → 1) add
 ```
 
-Then restart your shell. The script stores the password in the platform keychain and adds an export block so `$CONFLUENCE_PASS` is set automatically on every shell start.
+Then restart your shell. The script stores the password in the platform keychain.
 
-To verify:
+To verify (without revealing the value):
 ```bash
-echo $CONFLUENCE_PASS   # should be non-empty
+bash scripts/setup-credentials.sh confluence verify
 ```
 
 ## Output Location
