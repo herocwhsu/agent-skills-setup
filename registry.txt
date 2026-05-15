@@ -23,3 +23,6 @@
 pip    agent-superpowers
 github obra/superpowers        skills
 local  fetch-page-to-markdown
+local  fetch-jira-story
+local  plan-story
+local  create-story-tasks
