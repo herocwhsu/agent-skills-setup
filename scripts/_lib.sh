@@ -89,6 +89,8 @@ remove_skill() {
 # ---------------------------------------------------------------------------
 
 # install_pip_skill <package> <target_dir>
+# Only installs the pip package itself (for future use).
+# Skill files are installed via install_github_skill — avoids interactive prompts.
 install_pip_skill() {
   local pkg="$1"
   local pip_cmd
@@ -97,14 +99,11 @@ install_pip_skill() {
   elif command -v pip &>/dev/null; then
     pip_cmd="pip"
   else
-    echo "  pip not found — use github fallback for $pkg" >&2
-    return 1
+    echo "  pip not found — skipping pip install for $pkg" >&2
+    return 0
   fi
-  "$pip_cmd" install --quiet --upgrade "$pkg"
-  if command -v agent-superpowers &>/dev/null; then
-    agent-superpowers install --skip-existing 2>/dev/null || true
-  fi
-  echo "  ✓ $pkg (pip)"
+  "$pip_cmd" install --quiet --upgrade "$pkg" 2>/dev/null || true
+  echo "  ✓ $pkg (pip package updated)"
 }
 
 # install_github_skill <owner/repo> <skills-subpath> <target_dir>
