@@ -16,18 +16,25 @@ The agent will:
 
 ## Credential Prerequisite
 
-Run once per machine:
+Run once per machine to store your Confluence password in the platform keychain:
 
+**macOS / Linux:**
 ```bash
 bash scripts/setup-credentials.sh
+# Choose: 1) Confluence → 1) add
 ```
 
-Then restart your shell. The script stores your password in the platform keychain and adds an export block to your shell profile.
+**Windows:**
+```powershell
+.\scripts\setup-credentials.ps1
+# Choose: 1) Confluence → 1) add
+```
 
-To verify it's working:
+Then restart your shell. The script stores the password in the platform keychain and adds an export block so `$CONFLUENCE_PASS` is set automatically on every shell start.
 
+To verify:
 ```bash
-echo $CONFLUENCE_PASS   # should print your password (non-empty)
+echo $CONFLUENCE_PASS   # should be non-empty
 ```
 
 ## Output Location

@@ -24,8 +24,8 @@ skills/
 
 1. Create `skills/<skill-name>/SKILL.md` following the [agentskills.io spec](https://agentskills.io/specification)
 2. Add a `README.md` with human-readable usage examples
-3. Add `<skill-name>` to `../manifest.txt`
-4. Run `bash ../scripts/install.sh` to deploy
+3. Add `local  <skill-name>` to `../registry.txt`
+4. Run `bash ../scripts/install.sh` (or `.\scripts\install.ps1` on Windows) to deploy
 
 **Minimum `SKILL.md` structure:**
 
@@ -55,4 +55,4 @@ Steps or examples.
 
 ## What This Repo Does NOT Manage
 
-Skills from [superpowers](https://github.com/obra/superpowers) (brainstorming, TDD, systematic-debugging, etc.) are installed by `scripts/install.sh` but live in a separate upstream repo. To update them, run `bash scripts/update.sh`.
+Skills from [superpowers](https://github.com/obra/superpowers) (brainstorming, TDD, systematic-debugging, etc.) are installed via `registry.txt` from the upstream repo. To update them, run `bash scripts/update.sh`.
