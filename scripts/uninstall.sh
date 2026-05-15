@@ -1,54 +1,42 @@
 #!/usr/bin/env bash
-# uninstall.sh — remove superpowers + custom skills for one or more agents
+# uninstall.sh — remove all skills declared in registry.txt
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/_lib.sh
 source "$REPO_DIR/scripts/_lib.sh"
 
 select_agents
 
-# ---------------------------------------------------------------------------
-# 1. Remove superpowers
-# ---------------------------------------------------------------------------
 echo ""
-echo "==> Removing superpowers skills..."
+echo "==> Removing skills from registry.txt..."
 
 for agent in "${SELECTED_AGENTS[@]}"; do
-  dir=$(agent_skills_dir "$agent")
-  if [[ ! -d "$dir" ]]; then continue; fi
+  target_dir=$(agent_skills_dir "$agent")
+  echo ""
+  echo "  Agent: $agent → $target_dir"
 
-  # Remove each superpowers skill directory (known list from agent-superpowers)
-  for skill in brainstorming test-driven-development systematic-debugging \
-               writing-plans executing-plans subagent-driven-development \
-               requesting-code-review receiving-code-review \
-               dispatching-parallel-agents verification-before-completion \
-               finishing-a-development-branch using-git-worktrees \
-               writing-skills using-superpowers; do
-    remove_skill "$skill" "$dir"
-  done
-  echo "  ✓ superpowers removed from $dir"
+  while IFS=' ' read -r type id subpath_or_empty; do
+    case "$type" in
+      ""|\#*) continue ;;
+    esac
+
+    case "$type" in
+      pip)
+        uninstall_pip_skill "$id" || true
+        ;;
+      github)
+        uninstall_github_skill "$id" "${subpath_or_empty:-.}" "$target_dir" || true
+        ;;
+      local)
+        uninstall_local_skill "$id" "$target_dir" || true
+        ;;
+      *)
+        echo "  WARNING: unknown type '$type' for '$id', skipping." >&2
+        ;;
+    esac
+  done < "$REPO_DIR/registry.txt"
 done
-
-# Uninstall pip package if present (optional, doesn't affect skill files)
-if command -v pip3 &>/dev/null; then
-  pip3 uninstall agent-superpowers -y 2>/dev/null || true
-elif command -v pip &>/dev/null; then
-  pip uninstall agent-superpowers -y 2>/dev/null || true
-fi
-
-# ---------------------------------------------------------------------------
-# 2. Remove custom skills from manifest
-# ---------------------------------------------------------------------------
-echo ""
-echo "==> Removing custom skills from manifest..."
-
-while IFS= read -r skill; do
-  [[ "$skill" =~ ^#|^[[:space:]]*$ ]] && continue
-  for agent in "${SELECTED_AGENTS[@]}"; do
-    dir=$(agent_skills_dir "$agent")
-    remove_skill "$skill" "$dir"
-  done
-done < "$REPO_DIR/manifest.txt"
 
 echo ""
 echo "Done."

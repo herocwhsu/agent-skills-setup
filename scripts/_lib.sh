@@ -84,6 +84,132 @@ remove_skill() {
   fi
 }
 
+# ---------------------------------------------------------------------------
+# Registry-based install handlers
+# ---------------------------------------------------------------------------
+
+# install_pip_skill <package> <target_dir>
+install_pip_skill() {
+  local pkg="$1"
+  local pip_cmd
+  if command -v pip3 &>/dev/null; then
+    pip_cmd="pip3"
+  elif command -v pip &>/dev/null; then
+    pip_cmd="pip"
+  else
+    echo "  pip not found — use github fallback for $pkg" >&2
+    return 1
+  fi
+  "$pip_cmd" install --quiet --upgrade "$pkg"
+  if command -v agent-superpowers &>/dev/null; then
+    agent-superpowers install --skip-existing 2>/dev/null || true
+  fi
+  echo "  ✓ $pkg (pip)"
+}
+
+# install_github_skill <owner/repo> <skills-subpath> <target_dir>
+install_github_skill() {
+  local repo="$1" subpath="$2" target_dir="$3"
+  local reponame="${repo##*/}"
+  local zip extract branch_dir
+  zip=$(mktemp /tmp/agent-skills-XXXXXX.zip)
+  extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
+
+  download_file "https://github.com/${repo}/archive/refs/heads/main.zip" "$zip" || {
+    rm -f "$zip"; rm -rf "$extract"; return 1
+  }
+  unzip -q "$zip" -d "$extract"
+  rm -f "$zip"
+
+  branch_dir=$(find "$extract" -maxdepth 1 -type d -name "${reponame}-*" | head -1)
+  if [[ -z "$branch_dir" ]]; then
+    echo "  ERROR: extracted dir not found for $repo" >&2
+    rm -rf "$extract"; return 1
+  fi
+
+  local src_dir="${branch_dir}/${subpath}"
+  if [[ ! -d "$src_dir" ]]; then
+    echo "  ERROR: subpath '$subpath' not found in $repo" >&2
+    rm -rf "$extract"; return 1
+  fi
+
+  mkdir -p "$target_dir"
+  local count=0
+  for skill_dir in "$src_dir"/*/; do
+    [[ -d "$skill_dir" ]] || continue
+    local skill_name
+    skill_name=$(basename "$skill_dir")
+    cp -r "$skill_dir" "$target_dir/$skill_name"
+    count=$((count + 1))
+  done
+  rm -rf "$extract"
+  echo "  ✓ $repo ($count skills)"
+}
+
+# install_local_skill <skill_name> <repo_dir> <target_dir>
+install_local_skill() {
+  local name="$1" repo_dir="$2" target_dir="$3"
+  local src="${repo_dir}/skills/${name}"
+  if [[ ! -d "$src" ]]; then
+    echo "  WARNING: local skill '$name' not found at $src" >&2
+    return 1
+  fi
+  install_skill "$src" "$target_dir"
+}
+
+# ---------------------------------------------------------------------------
+# Registry-based uninstall handlers
+# ---------------------------------------------------------------------------
+
+# uninstall_pip_skill <package>
+uninstall_pip_skill() {
+  local pkg="$1"
+  local pip_cmd
+  if command -v pip3 &>/dev/null; then pip_cmd="pip3"
+  elif command -v pip &>/dev/null; then pip_cmd="pip"
+  else return 0; fi
+  "$pip_cmd" uninstall -y "$pkg" 2>/dev/null || true
+  echo "  ✓ $pkg (pip uninstalled)"
+}
+
+# uninstall_github_skill <owner/repo> <skills-subpath> <target_dir>
+# Re-fetches zip to determine which skill dirs to remove.
+uninstall_github_skill() {
+  local repo="$1" subpath="$2" target_dir="$3"
+  local reponame="${repo##*/}"
+  local zip extract branch_dir
+  zip=$(mktemp /tmp/agent-skills-XXXXXX.zip)
+  extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
+
+  download_file "https://github.com/${repo}/archive/refs/heads/main.zip" "$zip" || {
+    echo "  WARNING: could not fetch $repo; skipping uninstall." >&2
+    rm -f "$zip"; rm -rf "$extract"; return 0
+  }
+  unzip -q "$zip" -d "$extract"
+  rm -f "$zip"
+
+  branch_dir=$(find "$extract" -maxdepth 1 -type d -name "${reponame}-*" | head -1)
+  local src_dir="${branch_dir}/${subpath}"
+  local count=0
+  if [[ -d "$src_dir" ]]; then
+    for skill_dir in "$src_dir"/*/; do
+      [[ -d "$skill_dir" ]] || continue
+      local skill_name
+      skill_name=$(basename "$skill_dir")
+      remove_skill "$skill_name" "$target_dir"
+      count=$((count + 1))
+    done
+  fi
+  rm -rf "$extract"
+  echo "  ✓ $repo ($count skills removed)"
+}
+
+# uninstall_local_skill <skill_name> <target_dir>
+uninstall_local_skill() {
+  local name="$1" target_dir="$2"
+  remove_skill "$name" "$target_dir"
+}
+
 AGENTS=("kiro" "claude" "copilot" "codex")
 
 # Prompt user to select one or more agents

@@ -3,6 +3,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/_lib.sh
 source "$REPO_DIR/scripts/_lib.sh"
 
 echo "==> Pulling latest changes..."
