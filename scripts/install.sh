@@ -42,11 +42,6 @@ done
 # Install Kiro steering file if kiro was selected
 for agent in "${SELECTED_AGENTS[@]}"; do
   if [[ "$agent" == "kiro" ]]; then
-    mkdir -p "$HOME/.kiro/steering"
-    cp "$REPO_DIR/steering/superpowers.md" "$HOME/.kiro/steering/superpowers.md"
-    echo ""
-    echo "  ✓ kiro steering → ~/.kiro/steering/superpowers.md"
-
     mkdir -p "$HOME/.kiro/prompts"
     for f in "$REPO_DIR/prompts/"*.md; do
       cp "$f" "$HOME/.kiro/prompts/$(basename "$f")"
