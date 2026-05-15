@@ -43,7 +43,7 @@ done
 for agent in "${SELECTED_AGENTS[@]}"; do
   if [[ "$agent" == "kiro" ]]; then
     mkdir -p "$HOME/.kiro/steering"
-    ln -sfn "$REPO_DIR/steering/superpowers.md" "$HOME/.kiro/steering/superpowers.md"
+    cp "$REPO_DIR/steering/superpowers.md" "$HOME/.kiro/steering/superpowers.md"
     echo ""
     echo "  ✓ kiro steering → ~/.kiro/steering/superpowers.md"
     break
