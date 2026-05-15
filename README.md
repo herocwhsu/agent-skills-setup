@@ -61,7 +61,19 @@ When prompted, choose one or more:
 
 ## Credential Setup
 
-`setup-credentials.sh` (bash) and `setup-credentials.ps1` (PowerShell) store service passwords in the platform keychain and add an export block to your shell profile so env vars are always available.
+`setup-credentials.sh` (bash) and `setup-credentials.ps1` (PowerShell) manage credentials for multiple services. Run interactively — it prompts for service, action, and credentials.
+
+**Supported services:**
+
+| Service | Env var set | Used by |
+|---|---|---|
+| Confluence | `$CONFLUENCE_PASS` | `fetch-page-to-markdown` skill |
+| Jira | `$JIRA_PASS` | future Jira skills |
+| Apidog | `$APIDOG_TOKEN` | future Apidog skills |
+
+**Actions:** `add` · `update` · `delete` · `list`
+
+**Platform storage:**
 
 | Platform | Storage | Script |
 |---|---|---|
@@ -70,6 +82,8 @@ When prompted, choose one or more:
 | Linux (headless/CI) | Inject env var via pipeline secret | — |
 | Windows 11 | Credential Manager (`CredentialManager` PS module) | `setup-credentials.ps1` |
 
+All entries are namespaced `agent-skills:<service>` to avoid collisions with system or browser keychain entries.
+
 **Windows note:** `setup-credentials.ps1` auto-installs the [`CredentialManager`](https://www.powershellgallery.com/packages/CredentialManager) module from PSGallery on first run.
 
 ---
@@ -77,10 +91,10 @@ When prompted, choose one or more:
 ## Adding a New Skill
 
 1. Create `skills/<skill-name>/SKILL.md` (and any supporting files)
-2. Add `<skill-name>` to `manifest.txt`
-3. Run `bash scripts/install.sh` to deploy
+2. Add `local  <skill-name>` to `registry.txt`
+3. Run `bash scripts/install.sh` (or `.\scripts\install.ps1` on Windows) to deploy
 
-The install script only manages skills listed in `manifest.txt` — all other skills in your agent's skills directory are left untouched.
+The install script only manages skills listed in `registry.txt` — all other skills in your agent's skills directory are left untouched.
 
 ---
 
