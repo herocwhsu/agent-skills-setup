@@ -36,7 +36,7 @@ store_credential() {
   case "$(_os)" in
     darwin)
       security delete-generic-password -s "$svc" -a "$user" 2>/dev/null || true
-      security add-generic-password -s "$svc" -a "$user" -w "$pass"
+      security add-generic-password -s "$svc" -a "$user" -w "$pass" 2>/dev/null
       ;;
     linux-gui)
       echo -n "$pass" | secret-tool store --label="$svc" service "$svc" username "$user"
@@ -46,7 +46,7 @@ store_credential() {
       return 1
       ;;
     windows)
-      cmdkey /add:"$svc:$user" /user:"$user" /pass:"$pass"
+      cmdkey /add:"$svc:$user" /user:"$user" /pass:"$pass" >nul 2>&1
       ;;
   esac
 }
@@ -148,12 +148,17 @@ list_credentials() {
   echo "Stored credentials (prefix: ${_KEYCHAIN_PREFIX}:):"
   case "$(_os)" in
     darwin)
-      security dump-keychain 2>/dev/null \
-        | grep -A2 '"svce"' \
-        | awk '/"svce"/{svc=$0} /"acct"/{print svc, $0}' \
-        | grep "${_KEYCHAIN_PREFIX}:" \
-        | sed 's/.*<blob>="//;s/".*//' \
-        || echo "  (none)"
+      local out
+      out=$(security dump-keychain 2>/dev/null | python3 -c "
+import sys, re
+PREFIX = '${_KEYCHAIN_PREFIX}:'
+for entry in sys.stdin.read().split('keychain:'):
+    svce = re.search(r'\"svce\"<blob>=\"([^\"]+)\"', entry)
+    acct = re.search(r'\"acct\"<blob>=\"([^\"]+)\"', entry)
+    if svce and acct and svce.group(1).startswith(PREFIX):
+        print('  ' + svce.group(1) + '  [' + acct.group(1) + ']')
+")
+      [ -n "$out" ] && echo "$out" || echo "  (none)"
       ;;
     linux-gui)
       secret-tool search service "" 2>/dev/null \
