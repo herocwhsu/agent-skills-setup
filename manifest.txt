@@ -1,0 +1,4 @@
+# Skills managed by this repo.
+# One skill name per line. Lines starting with # are ignored.
+# Add a skill here AND place its directory under skills/ to include it.
+fetch-page-to-markdown
