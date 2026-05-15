@@ -1,0 +1,25 @@
+# agent-skills-setup registry
+# Single source of truth for all skills to install/uninstall/update.
+#
+# Format:  <type> <identifier> [skills-subpath]
+#
+#   pip    <package-name>
+#          Install via pip. Package must expose an install command or
+#          copy skills into the target dir itself.
+#          Example: pip agent-superpowers
+#
+#   github <owner/repo> <skills-subpath>
+#          Download zip from GitHub default branch, copy skills from
+#          <skills-subpath> inside the zip into the agent skills dir.
+#          Example: github context7/context7 .
+#
+#   local  <skill-name>
+#          Skill lives in this repo under skills/<skill-name>/.
+#          Installed as a symlink (Unix) or copy (Windows).
+#          Example: local fetch-page-to-markdown
+#
+# Lines starting with # or blank lines are ignored.
+
+pip    agent-superpowers
+github obra/superpowers        skills
+local  fetch-page-to-markdown
