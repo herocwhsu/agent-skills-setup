@@ -12,11 +12,20 @@ Supports: Kiro, Claude Code, GitHub Copilot, Codex · macOS, Linux, Windows
 
 ## Quick Start
 
+**macOS / Linux / Git Bash:**
 ```bash
 git clone https://github.com/reviewer-b/agent-skills-setup
 cd agent-skills-setup
-bash scripts/install.sh          # installs superpowers + custom skills
-bash scripts/setup-credentials.sh  # store Confluence credentials in keychain
+bash scripts/install.sh
+bash scripts/setup-credentials.sh
+```
+
+**Windows 11 (native PowerShell):**
+```powershell
+git clone https://github.com/reviewer-b/agent-skills-setup
+cd agent-skills-setup
+.\scripts\install.ps1
+.\scripts\setup-credentials.ps1
 ```
 
 Restart your shell after setup.
@@ -25,12 +34,14 @@ Restart your shell after setup.
 
 ## Scripts
 
-| Script | What it does |
-|---|---|
-| `scripts/install.sh` | Install superpowers + custom skills. Prompts for target agent(s). |
-| `scripts/uninstall.sh` | Remove installed skills. Only touches skills from this repo. |
-| `scripts/update.sh` | `git pull` + re-install. |
-| `scripts/setup-credentials.sh` | Store Confluence credentials in platform keychain. |
+| Script | Platform | What it does |
+|---|---|---|
+| `scripts/install.sh` | macOS / Linux / Git Bash | Install superpowers + custom skills |
+| `scripts/install.ps1` | Windows PowerShell | Same, native Windows |
+| `scripts/uninstall.sh` | macOS / Linux / Git Bash | Remove installed skills |
+| `scripts/update.sh` | macOS / Linux / Git Bash | `git pull` + re-install |
+| `scripts/setup-credentials.sh` | macOS / Linux / Git Bash | Store service credentials in keychain |
+| `scripts/setup-credentials.ps1` | Windows PowerShell | Same, via Windows Credential Manager |
 
 ---
 
@@ -50,14 +61,16 @@ When prompted, choose one or more:
 
 ## Credential Setup
 
-`setup-credentials.sh` stores your Confluence password in the platform keychain and adds an export block to your shell profile so `$CONFLUENCE_PASS` is always available.
+`setup-credentials.sh` (bash) and `setup-credentials.ps1` (PowerShell) store service passwords in the platform keychain and add an export block to your shell profile so env vars are always available.
 
-| Platform | Storage |
-|---|---|
-| macOS | Keychain (`security`) |
-| Linux (GUI) | GNOME Keyring (`secret-tool`) |
-| Linux (headless/CI) | Inject `CONFLUENCE_PASS` via pipeline secret |
-| Windows | Credential Manager (`cmdkey`) |
+| Platform | Storage | Script |
+|---|---|---|
+| macOS | Keychain (`security`) | `setup-credentials.sh` |
+| Linux (GUI) | GNOME Keyring (`secret-tool`) | `setup-credentials.sh` |
+| Linux (headless/CI) | Inject env var via pipeline secret | — |
+| Windows 11 | Credential Manager (`CredentialManager` PS module) | `setup-credentials.ps1` |
+
+**Windows note:** `setup-credentials.ps1` auto-installs the [`CredentialManager`](https://www.powershellgallery.com/packages/CredentialManager) module from PSGallery on first run.
 
 ---
 
