@@ -1,9 +1,12 @@
 # Superpowers Skills — Always Active
 
-Before responding, decide whether a skill is relevant.
+Before responding to ANY task, check for a relevant skill:
 
-If relevant, read only the needed SKILL.md file from ~/.kiro/skills/.
+- Implementing a feature or bugfix → read ~/.kiro/skills/test-driven-development/SKILL.md
+- Updating a spec or design doc → read ~/.kiro/skills/brainstorming/SKILL.md
+- Debugging a bug or test failure → read ~/.kiro/skills/systematic-debugging/SKILL.md
+- About to commit or claim work is done → read ~/.kiro/skills/verification-before-completion/SKILL.md
+- Writing or editing a plan → read ~/.kiro/skills/writing-plans/SKILL.md
+- Unsure which skill applies → read ~/.kiro/skills/using-superpowers/SKILL.md
 
-For unclear cases, read ~/.kiro/skills/using-superpowers/SKILL.md.
-
-Do not load unrelated skills.
+Read the skill file BEFORE reading any code or writing any response.
