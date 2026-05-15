@@ -39,5 +39,16 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   done < "$REPO_DIR/registry.txt"
 done
 
+# Install Kiro steering file if kiro was selected
+for agent in "${SELECTED_AGENTS[@]}"; do
+  if [[ "$agent" == "kiro" ]]; then
+    mkdir -p "$HOME/.kiro/steering"
+    cp "$REPO_DIR/steering/superpowers.md" "$HOME/.kiro/steering/superpowers.md"
+    echo ""
+    echo "  ✓ kiro steering → ~/.kiro/steering/superpowers.md"
+    break
+  fi
+done
+
 echo ""
 echo "Done. Run scripts/setup-credentials.sh to configure service credentials."
