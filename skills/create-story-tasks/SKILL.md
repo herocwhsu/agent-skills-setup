@@ -24,10 +24,18 @@ For each task in plan.md:
 ```bash
 STORY_ID="EXAMPLE-100"
 JIRA_HOST="example-org.atlassian.net"
-SLUG="jira-$(echo "$JIRA_HOST" | sed 's/[^a-zA-Z0-9]/-/g;s/-\+/-/g;s/-$//')"
+# macOS BSD sed does not strip https://, so slug includes it — matches what jira.sh add stores
+SLUG="jira-$(echo "https://$JIRA_HOST" | sed 's|https\?://||;s|[^a-zA-Z0-9]|-|g;s/-\+/-/g;s/-$//')"
+# Result: jira-https---example-atlassian-net
 
-read -rp "Jira username (email): " _JIRA_USER
+# Jira Cloud requires full email as username
+_JIRA_USER="<user>@example.com"
 _JIRA_PASS=$(security find-generic-password -s "agent-skills:$SLUG" -a "$_JIRA_USER" -w 2>/dev/null)
+
+if [ -z "$_JIRA_PASS" ]; then
+  echo "ERROR: Jira credential not found. Run: bash scripts/credentials/jira.sh add" >&2
+  exit 1
+fi
 
 # Create sub-task
 curl -s -u "$_JIRA_USER:$_JIRA_PASS" \
