@@ -33,7 +33,9 @@ Read every file in `./docs/stories/<STORY-ID>/`:
 
 ### Step 2 — Brainstorm (invoke brainstorming skill)
 
-Read `~/.kiro/skills/brainstorming/SKILL.md` and follow it.
+**Invoke brainstorming sub-skill:**
+- **Claude Code:** Use the `Skill` tool with skill name `superpowers:brainstorming`
+- **Kiro:** Read `~/.kiro/skills/brainstorming/SKILL.md` and follow it
 
 Focus on:
 - What does this story require technically?
@@ -45,7 +47,9 @@ Produce a spec section in `plan.md`.
 
 ### Step 3 — Write plan (invoke writing-plans skill)
 
-Read `~/.kiro/skills/writing-plans/SKILL.md` and follow it.
+**Invoke writing-plans sub-skill:**
+- **Claude Code:** Use the `Skill` tool with skill name `superpowers:writing-plans`
+- **Kiro:** Read `~/.kiro/skills/writing-plans/SKILL.md` and follow it
 
 Each task in the plan must include:
 
