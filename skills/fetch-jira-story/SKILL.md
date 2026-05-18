@@ -23,12 +23,12 @@ Fetch a Jira story and all linked reference pages, save to `./docs/stories/<STOR
 Jira credentials are stored per-instance. Slug pattern: `jira-<host-with-dashes>`.
 
 ```bash
-# Store (one-time):
-bash ~/.kiro/skills/../../../agent-skills-setup/scripts/credentials/jira.sh add
+# Store (one-time) — run from your agent-skills-setup repo:
+bash /path/to/agent-skills-setup/scripts/credentials/jira.sh add
 # e.g. https://vivotek.atlassian.net → slug: jira-vivotek-atlassian-net
 
 # Verify (safe — no value printed):
-bash ~/.kiro/skills/../../../agent-skills-setup/scripts/credentials/jira.sh verify
+bash /path/to/agent-skills-setup/scripts/credentials/jira.sh verify
 ```
 
 ## Security Rule
@@ -116,7 +116,15 @@ For each extracted URL:
 ```bash
 URL="https://..."
 SLUG=$(echo "$URL" | sed 's|.*://||;s/[^a-z0-9]/-/g' | cut -c1-40)
-curl -s "$URL" | python3 ~/.kiro/skills/fetch-page-to-markdown/html2md.py \
+
+# Detect html2md.py location across agent skills dirs
+_HTML2MD=""
+for _d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills"; do
+  [[ -f "$_d/fetch-page-to-markdown/html2md.py" ]] && { _HTML2MD="$_d/fetch-page-to-markdown/html2md.py"; break; }
+done
+[[ -z "$_HTML2MD" ]] && { echo "ERROR: html2md.py not found" >&2; exit 1; }
+
+curl -s "$URL" | python3 "$_HTML2MD" \
   > "./docs/stories/$STORY_ID/apidog-${SLUG}.md"
 ```
 
