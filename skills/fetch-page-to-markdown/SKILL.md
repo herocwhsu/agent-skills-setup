@@ -121,8 +121,10 @@ out_dir = './docs/pre-specs'
 os.makedirs(out_dir, exist_ok=True)
 out = f"{out_dir}/{date.today()}-{slug}-reference.md"
 
-import glob as _glob
-_candidates = _glob.glob(os.path.expanduser('~/.*/fetch-page-to-markdown/html2md.py'))
+_candidates = [
+    os.path.expanduser(f'~/{d}/fetch-page-to-markdown/html2md.py')
+    for d in ['.kiro/skills', '.claude/skills', '.copilot/skills', '.codex/skills']
+]
 _html2md = next((p for p in _candidates if os.path.isfile(p)), None)
 if not _html2md:
     raise FileNotFoundError("html2md.py not found in any agent skills directory")
