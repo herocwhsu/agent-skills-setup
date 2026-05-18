@@ -49,13 +49,13 @@ Restart your shell after setup.
 
 When prompted, choose one or more:
 
-| # | Agent | Skills directory |
-|---|---|---|
-| 1 | Kiro | `~/.kiro/skills/` |
-| 2 | Claude Code | `~/.claude/skills/` |
-| 3 | GitHub Copilot | `~/.copilot/skills/` |
-| 4 | Codex | `~/.codex/skills/` |
-| 5 | All | all of the above |
+| # | Agent | Skills directory | Custom skills |
+|---|---|---|---|
+| 1 | Kiro | `~/.kiro/skills/` | ✓ |
+| 2 | Claude Code | `~/.claude/skills/` | ✓ |
+| 3 | GitHub Copilot | `~/.copilot/skills/` | planned |
+| 4 | Codex | `~/.codex/skills/` | planned |
+| 5 | All | all of the above | — |
 
 ---
 
@@ -115,6 +115,8 @@ Fetch Confluence pages or any web URL and save as a dated markdown reference fil
 - Bundled `html2md.py` converter handles tables, headings, lists, code blocks
 
 See [`skills/fetch-page-to-markdown/SKILL.md`](skills/fetch-page-to-markdown/SKILL.md) for full usage.
+
+> **Claude Code users:** Sub-skill invocations use the `Skill` tool (e.g. `Skill("superpowers:brainstorming")`). The `html2md.py` converter is auto-detected from whichever agent skills directory is present (`~/.kiro/skills/`, `~/.claude/skills/`, etc.).
 
 ---
 
