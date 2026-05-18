@@ -61,6 +61,10 @@ bash scripts/setup-credentials.sh confluence verify
 
 For non-Confluence URLs the agent uses plain `curl` — no auth required unless the site needs it. If the site requires Basic Auth, set the appropriate env var and tell the agent.
 
+## Agent Compatibility
+
+Works with Kiro, Claude Code, GitHub Copilot, and Codex. The `html2md.py` converter is located at install time by scanning `~/.kiro/skills/`, `~/.claude/skills/`, `~/.copilot/skills/`, and `~/.codex/skills/` in order — whichever is found first is used.
+
 ## Files
 
 | File | Purpose |
