@@ -73,8 +73,9 @@ echo "Worktree created: ../<repo>-$BRANCH"
 
 **Dependency rule:** Only create a worktree for T2 if T1 has no blocking dependency that prevents parallel work. If T2 strictly requires T1's merged code, note it in plan.md and create T2's worktree after T1 merges.
 
-**Read `using-git-worktrees` skill** for full worktree workflow:
-`~/.kiro/skills/using-git-worktrees/SKILL.md`
+**Invoke using-git-worktrees sub-skill** for full worktree workflow:
+- **Claude Code:** Use the `Skill` tool with skill name `superpowers:using-git-worktrees`
+- **Kiro:** Read `~/.kiro/skills/using-git-worktrees/SKILL.md` and follow it
 
 ### Step 4 — Report
 
