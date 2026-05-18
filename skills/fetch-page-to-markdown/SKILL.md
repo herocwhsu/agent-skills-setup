@@ -22,26 +22,19 @@ Is the URL a Confluence instance?
 
 ## Credential Setup (one-time per platform)
 
-**macOS — Keychain:**
+**macOS — Keychain (via confluence.sh add):**
 ```bash
-security add-generic-password -s confluence-example-org -a <user> -w
-# prompts securely, no echo
-```
-
-**Linux (GNOME/KDE) — libsecret:**
-```bash
-secret-tool store --label="Confluence" service confluence-example-org username <user>
-```
-
-**Linux headless / CI — env var directly:**
-```bash
-export CONFLUENCE_PASS="your-password"   # inject via CI secret, not hardcoded
-```
-
-**Windows — Credential Manager:**
-```powershell
-cmdkey /add:confluence-example-org /user:<user> /pass
-# or via GUI: Control Panel > Credential Manager > Windows Credentials
+bash /path/to/agent-skills-setup/scripts/credentials/confluence.sh add
+# When prompted:
+#   Confluence URL: https://confluence.example.com
+#   Username:       <user>
+#   Password:       <your password>
+#
+# Resulting keychain entry:
+#   service: agent-skills:confluence-https---confluence-example-org-com
+#   account: <user>
+#
+# Note: macOS BSD sed does not strip https://, so slug includes it.
 ```
 
 ## Credential Verification (safe — no value revealed)
@@ -58,7 +51,8 @@ Read from keychain at the moment of use, then immediately unset.
 
 ```bash
 # ✅ GOOD — read at use-time, unset after
-_PASS=$(security find-generic-password -s "agent-skills:confluence-example-org-com" -a "<user>" -w 2>/dev/null)
+# Slug: confluence-https---confluence-example-org-com (macOS BSD sed keeps https://)
+_PASS=$(security find-generic-password -s "agent-skills:confluence-https---confluence-example-org-com" -a "<user>" -w 2>/dev/null)
 curl -s -u "<user>:$_PASS" "$URL"
 unset _PASS
 
@@ -72,7 +66,7 @@ curl -s -u "<user>:$CONFLUENCE_PASS" "$URL"
 # Run from your agent-skills-setup repo:
 bash /path/to/agent-skills-setup/scripts/setup-credentials.sh confluence verify
 # or directly:
-[ -n "$(security find-generic-password -s 'agent-skills:confluence-example-org-com' -a '<user>' -w 2>/dev/null)" ] \
+[ -n "$(security find-generic-password -s 'agent-skills:confluence-https---confluence-example-org-com' -a '<user>' -w 2>/dev/null)" ] \
   && echo "✓ credential found" || echo "✗ not found"
 ```
 
