@@ -69,7 +69,8 @@ curl -s -u "hero.hsu:$CONFLUENCE_PASS" "$URL"
 
 **Verify credential is stored (without revealing it):**
 ```bash
-bash ~/.kiro/skills/../../../Project/agent-skills-setup/scripts/setup-credentials.sh confluence verify
+# Run from your agent-skills-setup repo:
+bash /path/to/agent-skills-setup/scripts/setup-credentials.sh confluence verify
 # or directly:
 [ -n "$(security find-generic-password -s 'agent-skills:confluence-vivotek-com' -a 'hero.hsu' -w 2>/dev/null)" ] \
   && echo "✓ credential found" || echo "✗ not found"
@@ -120,8 +121,13 @@ out_dir = './docs/pre-specs'
 os.makedirs(out_dir, exist_ok=True)
 out = f"{out_dir}/{date.today()}-{slug}-reference.md"
 
+import glob as _glob
+_candidates = _glob.glob(os.path.expanduser('~/.*/fetch-page-to-markdown/html2md.py'))
+_html2md = next((p for p in _candidates if os.path.isfile(p)), None)
+if not _html2md:
+    raise FileNotFoundError("html2md.py not found in any agent skills directory")
 result = subprocess.run(
-    ['python3', os.path.expanduser('~/.kiro/skills/fetch-page-to-markdown/html2md.py')],
+    ['python3', _html2md],
     stdin=open('/tmp/_cf_body.html'), capture_output=True, text=True
 )
 with open(out, 'w') as f:
@@ -144,12 +150,19 @@ SLUG=$(echo "$URL" | sed 's|.*://||' | sed 's/[^a-z0-9]/-/g' | cut -c1-40)
 DATE=$(date +%Y-%m-%d)
 
 mkdir -p ./docs/pre-specs
-curl -s "$URL" | python3 ~/.kiro/skills/fetch-page-to-markdown/html2md.py \
+# Detect html2md.py location across agent skills dirs
+_HTML2MD=""
+for _d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills"; do
+  [[ -f "$_d/fetch-page-to-markdown/html2md.py" ]] && { _HTML2MD="$_d/fetch-page-to-markdown/html2md.py"; break; }
+done
+[[ -z "$_HTML2MD" ]] && { echo "ERROR: html2md.py not found" >&2; exit 1; }
+
+curl -s "$URL" | python3 "$_HTML2MD" \
   > "./docs/pre-specs/${DATE}-${SLUG}-reference.md"
 
 # With auth (Basic Auth) — read and unset immediately:
 _PASS=$(security find-generic-password -s "agent-skills:<service-slug>" -a "<username>" -w 2>/dev/null)
-curl -s -u "<username>:$_PASS" "$URL" | python3 ~/.kiro/skills/fetch-page-to-markdown/html2md.py \
+curl -s -u "<username>:$_PASS" "$URL" | python3 "$_HTML2MD" \
   > "./docs/pre-specs/${DATE}-${SLUG}-reference.md"
 unset _PASS
 ```
