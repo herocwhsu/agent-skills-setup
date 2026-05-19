@@ -70,6 +70,7 @@ install_skill() {
     ln -sfn "$src" "$target_dir/$name"
   fi
   echo "  ✓ $name"
+  record_installed "$name"
 }
 
 # Remove a single skill from a target skills dir (safe: only removes if it's
@@ -139,6 +140,7 @@ install_github_skill() {
     local skill_name
     skill_name=$(basename "$skill_dir")
     cp -r "$skill_dir" "$target_dir/$skill_name"
+    record_installed "$skill_name"
     count=$((count + 1))
   done
   rm -rf "$extract"
@@ -157,6 +159,48 @@ install_local_skill() {
 }
 
 # ---------------------------------------------------------------------------
+# install_runtime_dir <repo_dir>
+#   Create ~/.agent-skills-setup/ and copy runtime files (lib.sh, _store.sh)
+#   into it. Idempotent.
+# ---------------------------------------------------------------------------
+install_runtime_dir() {
+  local repo_dir="$1"
+  local rtdir="$HOME/.agent-skills-setup"
+  mkdir -p "$rtdir"
+  cp -f "$repo_dir/lib/lib.sh" "$rtdir/lib.sh"
+  cp -f "$repo_dir/scripts/credentials/_store.sh" "$rtdir/_store.sh"
+  echo "  ✓ runtime → $rtdir"
+}
+
+# ---------------------------------------------------------------------------
+# record_installed <skill_name>
+#   Append a skill name to ~/.agent-skills-setup/installed.txt for offline
+#   uninstall. No-op if INSTALLED_LIST is unset.
+# ---------------------------------------------------------------------------
+record_installed() {
+  [[ -n "${INSTALLED_LIST:-}" ]] || return 0
+  echo "$1" >> "$INSTALLED_LIST"
+}
+
+# ---------------------------------------------------------------------------
+# install_kiro_prompts <repo_dir>
+#   Copy prompts/*.md to ~/.kiro/prompts/. Kiro-specific (no other agent
+#   has a prompts/ concept), so this is appropriately a special case.
+# ---------------------------------------------------------------------------
+install_kiro_prompts() {
+  local repo_dir="$1"
+  local target="$HOME/.kiro/prompts"
+  mkdir -p "$target"
+  local count=0
+  for f in "$repo_dir/prompts/"*.md; do
+    [[ -f "$f" ]] || continue
+    cp -f "$f" "$target/$(basename "$f")"
+    count=$((count + 1))
+  done
+  echo "  ✓ kiro prompts ($count files) → $target"
+}
+
+# ---------------------------------------------------------------------------
 # Registry-based uninstall handlers
 # ---------------------------------------------------------------------------
 
@@ -172,9 +216,27 @@ uninstall_pip_skill() {
 }
 
 # uninstall_github_skill <owner/repo> <skills-subpath> <target_dir>
-# Re-fetches zip to determine which skill dirs to remove.
+# Reads ~/.agent-skills-setup/installed.txt to know which skills to remove.
+# Falls back to network re-fetch only if installed.txt is missing.
 uninstall_github_skill() {
   local repo="$1" subpath="$2" target_dir="$3"
+  local list="$HOME/.agent-skills-setup/installed.txt"
+
+  if [[ -f "$list" ]]; then
+    local count=0
+    while IFS= read -r skill_name; do
+      [[ -n "$skill_name" ]] || continue
+      if [[ -d "$target_dir/$skill_name" || -L "$target_dir/$skill_name" ]]; then
+        remove_skill "$skill_name" "$target_dir"
+        count=$((count + 1))
+      fi
+    done < "$list"
+    echo "  ✓ $repo ($count skills removed via installed.txt)"
+    return 0
+  fi
+
+  # Fallback: network path (legacy behavior preserved for safety)
+  echo "  WARNING: $list missing — falling back to network re-fetch" >&2
   local reponame="${repo##*/}"
   local zip extract branch_dir
   zip=$(mktemp /tmp/agent-skills-XXXXXX.zip)
@@ -200,7 +262,7 @@ uninstall_github_skill() {
     done
   fi
   rm -rf "$extract"
-  echo "  ✓ $repo ($count skills removed)"
+  echo "  ✓ $repo ($count skills removed via fallback)"
 }
 
 # uninstall_local_skill <skill_name> <target_dir>
@@ -211,24 +273,37 @@ uninstall_local_skill() {
 
 AGENTS=("kiro" "claude" "copilot" "codex")
 
-# Prompt user to select one or more agents
-# Sets global SELECTED_AGENTS array
+# Accept agent via $1 (kiro|claude|copilot|codex|all). Prompt only if empty.
+# Sets global SELECTED_AGENTS array.
 select_agents() {
-  echo ""
-  echo "Which agent(s) to target?"
-  echo "  1) Kiro        (~/.kiro/skills/)"
-  echo "  2) Claude Code (~/.claude/skills/)"
-  echo "  3) Copilot     (~/.copilot/skills/)"
-  echo "  4) Codex       (~/.codex/skills/)"
-  echo "  5) All of the above"
-  echo ""
-  read -rp "Choice [1-5]: " choice
+  local choice="${1:-}"
+
+  if [[ -z "$choice" ]]; then
+    echo ""
+    echo "Which agent(s) to target?"
+    echo "  1) Kiro        (~/.kiro/skills/)"
+    echo "  2) Claude Code (~/.claude/skills/)"
+    echo "  3) Copilot     (~/.copilot/skills/)"
+    echo "  4) Codex       (~/.codex/skills/)"
+    echo "  5) All of the above"
+    echo ""
+    read -rp "Choice [1-5]: " input
+    case "$input" in
+      1) choice="kiro" ;;
+      2) choice="claude" ;;
+      3) choice="copilot" ;;
+      4) choice="codex" ;;
+      5) choice="all" ;;
+      *) echo "Invalid choice, defaulting to kiro."; choice="kiro" ;;
+    esac
+  fi
+
   case "$choice" in
-    1) SELECTED_AGENTS=("kiro") ;;
-    2) SELECTED_AGENTS=("claude") ;;
-    3) SELECTED_AGENTS=("copilot") ;;
-    4) SELECTED_AGENTS=("codex") ;;
-    5) SELECTED_AGENTS=("kiro" "claude" "copilot" "codex") ;;
-    *) echo "Invalid choice, defaulting to kiro."; SELECTED_AGENTS=("kiro") ;;
+    kiro)    SELECTED_AGENTS=("kiro") ;;
+    claude)  SELECTED_AGENTS=("claude") ;;
+    copilot) SELECTED_AGENTS=("copilot") ;;
+    codex)   SELECTED_AGENTS=("codex") ;;
+    all)     SELECTED_AGENTS=("kiro" "claude" "copilot" "codex") ;;
+    *)       echo "Invalid agent: $choice"; exit 1 ;;
   esac
 }

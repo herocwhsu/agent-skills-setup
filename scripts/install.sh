@@ -6,7 +6,32 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=scripts/_lib.sh
 source "$REPO_DIR/scripts/_lib.sh"
 
-select_agents
+AGENT_ARG=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --agent)
+      AGENT_ARG="$2"; shift 2 ;;
+    --agent=*)
+      AGENT_ARG="${1#*=}"; shift ;;
+    *)
+      echo "Unknown argument: $1" >&2; exit 1 ;;
+  esac
+done
+
+select_agents "$AGENT_ARG"
+
+echo ""
+echo "==> Installing runtime helpers..."
+install_runtime_dir "$REPO_DIR"
+
+echo ""
+echo "==> Migrating keychain entries (if any)..."
+# shellcheck source=/dev/null
+source "$HOME/.agent-skills-setup/lib.sh"
+migrate_keychain
+
+INSTALLED_LIST="$HOME/.agent-skills-setup/installed.txt"
+> "$INSTALLED_LIST"  # truncate
 
 echo ""
 echo "==> Installing skills from registry.txt..."
@@ -39,14 +64,10 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   done < "$REPO_DIR/registry.txt"
 done
 
-# Install Kiro steering file if kiro was selected
+# Install Kiro prompts if kiro was selected
 for agent in "${SELECTED_AGENTS[@]}"; do
   if [[ "$agent" == "kiro" ]]; then
-    mkdir -p "$HOME/.kiro/prompts"
-    for f in "$REPO_DIR/prompts/"*.md; do
-      cp "$f" "$HOME/.kiro/prompts/$(basename "$f")"
-    done
-    echo "  ✓ kiro prompts → ~/.kiro/prompts/"
+    install_kiro_prompts "$REPO_DIR"
     break
   fi
 done

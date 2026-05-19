@@ -6,7 +6,16 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=scripts/_lib.sh
 source "$REPO_DIR/scripts/_lib.sh"
 
-select_agents
+AGENT_ARG=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --agent)    AGENT_ARG="$2"; shift 2 ;;
+    --agent=*)  AGENT_ARG="${1#*=}"; shift ;;
+    *) echo "Unknown argument: $1" >&2; exit 1 ;;
+  esac
+done
+
+select_agents "$AGENT_ARG"
 
 echo ""
 echo "==> Removing skills from registry.txt..."

@@ -13,6 +13,7 @@ Read confirmed `plan.md` → create Jira sub-tasks via API → write sub-task ID
 
 - `./docs/stories/<STORY-ID>/plan.md` confirmed by user
 - Jira credentials in keychain (same as `fetch-jira-story`)
+- `JIRA_PROJECT_KEY` set in `~/.agent-skills-setup/config.sh`
 - Clean git state on main branch
 
 ## Workflow
@@ -22,33 +23,30 @@ Read confirmed `plan.md` → create Jira sub-tasks via API → write sub-task ID
 For each task in plan.md:
 
 ```bash
-STORY_ID="VOR-29600"
-JIRA_HOST="vivotek.atlassian.net"
-# macOS BSD sed does not strip https://, so slug includes it — matches what jira.sh add stores
-SLUG="jira-$(echo "https://$JIRA_HOST" | sed 's|https\?://||;s|[^a-zA-Z0-9]|-|g;s/-\+/-/g;s/-$//')"
-# Result: jira-https---vivotek-atlassian-net
+source ~/.agent-skills-setup/lib.sh
+load_config || exit 1
 
-# Jira Cloud requires full email as username
-_JIRA_USER="hero.hsu@vivotek.com"
-_JIRA_PASS=$(security find-generic-password -s "agent-skills:$SLUG" -a "$_JIRA_USER" -w 2>/dev/null)
+[[ -z "${JIRA_HOST:-}" ]] && { echo "ERROR: JIRA_HOST not in config.sh" >&2; exit 1; }
+[[ -z "${JIRA_USER:-}" ]] && { echo "ERROR: JIRA_USER not in config.sh" >&2; exit 1; }
+[[ -z "${JIRA_PROJECT_KEY:-}" ]] && { echo "ERROR: JIRA_PROJECT_KEY not in config.sh — run: bash scripts/credentials/service.sh jira add" >&2; exit 1; }
 
-if [ -z "$_JIRA_PASS" ]; then
-  echo "ERROR: Jira credential not found. Run: bash scripts/credentials/jira.sh add" >&2
-  exit 1
-fi
+STORY_ID="$1"   # e.g. PROJ-123
+
+SLUG=$(service_slug jira "https://$JIRA_HOST")
+_JIRA_PASS=$(require_secret "$SLUG" "$JIRA_USER" "bash scripts/credentials/service.sh jira add") || exit 1
 
 # Create sub-task
-curl -s -u "$_JIRA_USER:$_JIRA_PASS" \
+curl -s -u "$JIRA_USER:$_JIRA_PASS" \
   -X POST \
   -H "Content-Type: application/json" \
   "https://$JIRA_HOST/rest/api/2/issue" \
   -d "{
     \"fields\": {
-      \"project\": {\"key\": \"VOR\"},
+      \"project\": {\"key\": \"$JIRA_PROJECT_KEY\"},
       \"parent\": {\"key\": \"$STORY_ID\"},
       \"issuetype\": {\"name\": \"Sub-task\"},
       \"summary\": \"<task title>\",
-      \"description\": \"<task description>\nBranch: <branch-name>\"
+      \"description\": \"<task description>\\nBranch: <branch-name>\"
     }
   }" > /tmp/_jira_subtask.json
 unset _JIRA_PASS
@@ -63,10 +61,12 @@ Update the `## Jira Sub-task IDs` section in plan.md:
 
 ```markdown
 ## Jira Sub-task IDs
-- T1 → VOR-29601
-- T2 → VOR-29602
-- T3 → VOR-29603
+- T1 → <STORY-ID>-1
+- T2 → <STORY-ID>-2
+- T3 → <STORY-ID>-3
 ```
+
+(The actual returned keys come from Jira; the format depends on your project's numbering.)
 
 ### Step 3 — Create git worktrees
 
@@ -74,7 +74,7 @@ For each task, in dependency order (tasks with no dependencies first):
 
 ```bash
 # From repo root
-BRANCH="VOR-29600-t1"
+BRANCH="$STORY_ID-t1"
 git worktree add "../$(basename $(pwd))-$BRANCH" -b "$BRANCH"
 echo "Worktree created: ../<repo>-$BRANCH"
 ```
@@ -89,8 +89,8 @@ echo "Worktree created: ../<repo>-$BRANCH"
 
 Print summary:
 ```
-✓ VOR-29600-t1 → Jira: VOR-29601 → worktree: ../repo-VOR-29600-t1
-✓ VOR-29600-t2 → Jira: VOR-29602 → worktree: ../repo-VOR-29600-t2 (after T1 merges)
+✓ <STORY-ID>-t1 → Jira: <SUBTASK-1> → worktree: ../repo-<STORY-ID>-t1
+✓ <STORY-ID>-t2 → Jira: <SUBTASK-2> → worktree: ../repo-<STORY-ID>-t2 (after T1 merges)
 ```
 
 ## Adding a Task Mid-Implementation
@@ -98,7 +98,7 @@ Print summary:
 For spec changes or bug fixes during implementation:
 
 ```
-@add-task VOR-29600 "fix: description of new task"
+@add-task <STORY-ID> "fix: description of new task"
 ```
 
 1. Create one new Jira sub-task under the story
@@ -110,8 +110,8 @@ For spec changes or bug fixes during implementation:
 
 | Mistake | Fix |
 |---|---|
+| `JIRA_PROJECT_KEY not in config.sh` | Run `bash scripts/credentials/service.sh jira add` |
 | Creating T2 worktree before T1 merges (when T2 depends on T1) | Check `depends_on` in plan.md; wait or note the dependency |
-| Jira project key wrong | Extract from story ID: `VOR-29600` → project key `VOR` |
 | Sub-task type not available | Check project config; use `"Task"` if `"Sub-task"` not configured |
 | Worktree path conflicts | Use `git worktree list` to check existing worktrees |
 | Dirty git state | Run `git status` first; stash or commit before creating worktrees |

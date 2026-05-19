@@ -1,3 +1,6 @@
 .DS_Store
 *.swp
 *.bak
+
+# lib/_store.sh is copied at install time, not source-tracked
+lib/_store.sh

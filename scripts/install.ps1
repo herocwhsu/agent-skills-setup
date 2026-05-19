@@ -18,6 +18,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $RepoDir = Split-Path -Parent $PSScriptRoot
+$RuntimeDir = Join-Path $env:USERPROFILE '.agent-skills-setup'
+$InstalledList = Join-Path $RuntimeDir 'installed.txt'
 
 # ---------------------------------------------------------------------------
 # Agent directory map
@@ -55,6 +57,46 @@ $SelectedAgents = if ($Agent -eq 'all') {
     @('kiro','claude','copilot','codex')
 } else {
     @($Agent)
+}
+
+# ---------------------------------------------------------------------------
+# Cross-agent runtime dir
+# ---------------------------------------------------------------------------
+function Install-RuntimeDir {
+    New-Item -ItemType Directory -Path $RuntimeDir -Force | Out-Null
+    Copy-Item (Join-Path $RepoDir 'lib\lib.sh') (Join-Path $RuntimeDir 'lib.sh') -Force
+    Copy-Item (Join-Path $RepoDir 'scripts\credentials\_store.sh') (Join-Path $RuntimeDir '_store.sh') -Force
+    Write-Host "  v runtime -> $RuntimeDir"
+}
+
+function Invoke-KeychainMigration {
+    # Best-effort warning for any agent-skills:* entries left in Credential Manager.
+    $found = cmdkey /list 2>$null | Select-String 'agent-skills:'
+    if ($found) {
+        Write-Warning "Found credentials with 'agent-skills:' prefix. Re-run setup-credentials.ps1 for each service to migrate to 'agent-skills-setup:'."
+    }
+}
+
+function Initialize-InstalledList {
+    Set-Content -Path $InstalledList -Value '' -Force
+}
+
+function Add-InstalledSkill([string]$Name) {
+    Add-Content -Path $InstalledList -Value $Name
+}
+
+function Install-KiroPrompts {
+    $target = Join-Path $env:USERPROFILE '.kiro\prompts'
+    New-Item -ItemType Directory -Path $target -Force | Out-Null
+    $count = 0
+    $promptsDir = Join-Path $RepoDir 'prompts'
+    if (Test-Path $promptsDir) {
+        foreach ($f in Get-ChildItem $promptsDir -Filter '*.md') {
+            Copy-Item $f.FullName (Join-Path $target $f.Name) -Force
+            $count++
+        }
+    }
+    Write-Host "  v kiro prompts ($count files) -> $target"
 }
 
 # ---------------------------------------------------------------------------
@@ -104,6 +146,7 @@ function Install-GithubSkill([string]$Repo, [string]$Subpath, [string]$TargetDir
         $dest = Join-Path $TargetDir $skillDir.Name
         if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
         Copy-Item $skillDir.FullName $dest -Recurse
+        Add-InstalledSkill $skillDir.Name
         $count++
     }
     Remove-Item $extr -Recurse -Force
@@ -120,6 +163,7 @@ function Install-LocalSkill([string]$SkillName, [string]$TargetDir) {
     $dest = Join-Path $TargetDir $SkillName
     if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
     Copy-Item $src $dest -Recurse
+    Add-InstalledSkill $SkillName
     Write-Host "  v $SkillName (local)"
 }
 
@@ -127,6 +171,15 @@ function Install-LocalSkill([string]$SkillName, [string]$TargetDir) {
 # Main: read registry.txt and install
 # ---------------------------------------------------------------------------
 $registryPath = Join-Path $RepoDir 'registry.txt'
+
+Write-Host "`n==> Installing runtime helpers..."
+Install-RuntimeDir
+
+Write-Host "`n==> Migrating keychain entries (if any)..."
+Invoke-KeychainMigration
+
+Initialize-InstalledList
+
 Write-Host "`n==> Installing skills from registry.txt..."
 
 foreach ($agentName in $SelectedAgents) {
@@ -153,6 +206,11 @@ foreach ($agentName in $SelectedAgents) {
             Write-Warning "Failed to install $id`: $_"
         }
     }
+}
+
+# Install Kiro prompts if kiro was selected
+if ($SelectedAgents -contains 'kiro') {
+    Install-KiroPrompts
 }
 
 Write-Host "`nDone. Run scripts\setup-credentials.ps1 to configure service credentials."

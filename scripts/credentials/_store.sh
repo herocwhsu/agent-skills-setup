@@ -2,7 +2,7 @@
 # credentials/_store.sh — generic keychain CRUD with namespace prefix
 # Source this file: source "$(dirname "$0")/_store.sh"
 #
-# All keychain entries are prefixed with "agent-skills:" to avoid collisions.
+# All keychain entries are prefixed with "agent-skills-setup:" to avoid collisions.
 # Passwords are NEVER exported to env vars — read from keychain at use-time only.
 #
 # Public API:
@@ -13,7 +13,7 @@
 #   list_credentials                                   → prints stored entries
 #   verify_credential      <service-slug> <username>  → exits 1 if not found
 
-readonly _KEYCHAIN_PREFIX="agent-skills"
+readonly _KEYCHAIN_PREFIX="agent-skills-setup"
 
 _svc_key() { echo "${_KEYCHAIN_PREFIX}:$1"; }
 
