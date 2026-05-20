@@ -2,10 +2,32 @@
 # setup-credentials.sh — manage credentials for all services
 # Usage: bash setup-credentials.sh [service] [action]
 #   service: confluence | jira | apidog
-#   action:  add | update | delete | list
+#   action:  add | update | delete | list | verify
 set -euo pipefail
 
 CREDS_DIR="$(cd "$(dirname "$0")/credentials" && pwd)"
+
+# ---------------------------------------------------------------------------
+# Help
+# ---------------------------------------------------------------------------
+case "${1:-}" in
+  -h|--help|help)
+    cat <<EOF
+Usage: $(basename "$0") [service] [action]
+
+Services: confluence | jira | apidog
+Actions:  add | update | delete | list | verify
+
+Examples:
+  $(basename "$0") jira add        # interactive add
+  $(basename "$0") confluence list # list stored credentials
+  $(basename "$0")                 # interactive picker
+
+With no arguments, prompts for service and action.
+EOF
+    exit 0
+    ;;
+esac
 
 # ---------------------------------------------------------------------------
 # Select service

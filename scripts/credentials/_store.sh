@@ -35,7 +35,7 @@ store_credential() {
   local user="$2" pass="$3"
   case "$(_os)" in
     darwin)
-      security delete-generic-password -s "$svc" -a "$user" 2>/dev/null || true
+      security delete-generic-password -s "$svc" -a "$user" >/dev/null 2>&1 || true
       security add-generic-password -s "$svc" -a "$user" -w "$pass" 2>/dev/null
       ;;
     linux-gui)
