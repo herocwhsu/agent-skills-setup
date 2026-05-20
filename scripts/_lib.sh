@@ -179,7 +179,11 @@ install_runtime_dir() {
 # ---------------------------------------------------------------------------
 record_installed() {
   [[ -n "${INSTALLED_LIST:-}" ]] || return 0
-  echo "$1" >> "$INSTALLED_LIST"
+  local name="$1"
+  if [[ -f "$INSTALLED_LIST" ]] && grep -Fxq "$name" "$INSTALLED_LIST"; then
+    return 0
+  fi
+  echo "$name" >> "$INSTALLED_LIST"
 }
 
 # ---------------------------------------------------------------------------
