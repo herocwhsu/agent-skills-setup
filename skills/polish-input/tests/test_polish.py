@@ -102,3 +102,35 @@ def test_lt_error_fails_open():
     assert out == "i want add login"
     assert err == ""
     assert code == 0
+
+
+def test_display_line_default():
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    _, err, _ = run_polish("i want add login", env_overrides=fake)
+    assert err == "[polish] I want to add a login.\n"
+
+
+def test_display_diff_shows_word_changes():
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    overrides = {**fake, "POLISH_DISPLAY": "diff"}
+    _, err, _ = run_polish("i want add login", env_overrides=overrides)
+    assert err.startswith("[polish] ")
+    # Diff format must show added "to" and "a" or removed "i" somehow.
+    assert "+" in err or "-" in err
+
+
+def test_display_box_wraps_in_borders():
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    overrides = {**fake, "POLISH_DISPLAY": "box"}
+    _, err, _ = run_polish("i want add login", env_overrides=overrides)
+    # Box must contain some border character on lines and the polished text.
+    assert "I want to add a login." in err
+    lines = err.strip().split("\n")
+    assert len(lines) >= 3  # top border, content, bottom border
+
+
+def test_display_invalid_falls_back_to_line():
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    overrides = {**fake, "POLISH_DISPLAY": "nonsense"}
+    _, err, _ = run_polish("i want add login", env_overrides=overrides)
+    assert err == "[polish] I want to add a login.\n"

@@ -8,6 +8,7 @@ Reads the prompt on stdin, applies skip rules, runs LanguageTool, and writes:
 
 Always exits 0. Failures fall through silently so the user's prompt is never blocked.
 """
+import difflib
 import json
 import os
 import sys
@@ -61,8 +62,45 @@ def _get_tool(language_tool_python):
     return _TOOL
 
 
-def _emit_polish_line(corrected: str) -> None:
-    sys.stderr.write(f"[polish] {corrected}\n")
+def _format_line(corrected: str, _original: str) -> str:
+    return f"[polish] {corrected}\n"
+
+
+def _format_diff(corrected: str, original: str) -> str:
+    orig_words = original.split()
+    new_words = corrected.split()
+    matcher = difflib.SequenceMatcher(a=orig_words, b=new_words)
+    parts = []
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            parts.extend(orig_words[i1:i2])
+        elif tag == "delete":
+            parts.extend(f"-{w}" for w in orig_words[i1:i2])
+        elif tag == "insert":
+            parts.extend(f"+{w}" for w in new_words[j1:j2])
+        elif tag == "replace":
+            parts.extend(f"-{w}" for w in orig_words[i1:i2])
+            parts.extend(f"+{w}" for w in new_words[j1:j2])
+    return f"[polish] {' '.join(parts)}\n"
+
+
+def _format_box(corrected: str, _original: str) -> str:
+    line = f"  {corrected}  "
+    border = "─" * len(line)
+    return f"┌{border}┐\n│{line}│\n└{border}┘\n"
+
+
+_FORMATTERS = {
+    "line": _format_line,
+    "diff": _format_diff,
+    "box": _format_box,
+}
+
+
+def _emit_polish_line(corrected: str, original: str) -> None:
+    style = os.environ.get("POLISH_DISPLAY", "line")
+    formatter = _FORMATTERS.get(style, _format_line)
+    sys.stderr.write(formatter(corrected, original))
     sys.stderr.flush()
 
 
@@ -87,7 +125,7 @@ def main() -> int:
         sys.stdout.write(text)
         return 0
 
-    _emit_polish_line(corrected)
+    _emit_polish_line(corrected, text)
 
     if os.environ.get("POLISH_REPLACE") == "1":
         sys.stdout.write(corrected)
