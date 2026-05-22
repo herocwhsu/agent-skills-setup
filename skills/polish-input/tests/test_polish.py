@@ -134,3 +134,66 @@ def test_display_invalid_falls_back_to_line():
     overrides = {**fake, "POLISH_DISPLAY": "nonsense"}
     _, err, _ = run_polish("i want add login", env_overrides=overrides)
     assert err == "[polish] I want to add a login.\n"
+
+
+def test_first_run_message_then_suppressed(tmp_path):
+    state_dir = tmp_path / "state"
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    overrides = {**fake, "POLISH_STATE_DIR": str(state_dir)}
+
+    _, err1, _ = run_polish("i want add login", env_overrides=overrides)
+    assert "initializing LanguageTool" in err1
+    assert (state_dir / ".initialized").exists()
+
+    _, err2, _ = run_polish("i want add login", env_overrides=overrides)
+    assert "initializing LanguageTool" not in err2
+
+
+def test_lt_error_writes_one_time_hint_to_debug_log(tmp_path):
+    state_dir = tmp_path / "state"
+    overrides = {
+        "POLISH_TEST_FAKE_LT": "RAISE",
+        "POLISH_TEST_NO_LT": "",
+        "POLISH_STATE_DIR": str(state_dir),
+    }
+
+    _, err, code = run_polish("i want add login", env_overrides=overrides)
+    assert err == ""
+    assert code == 0
+
+    log = state_dir / "debug.log"
+    assert log.exists()
+    body = log.read_text()
+    assert "lt-error" in body
+    assert "Java" in body or "language_tool_python" in body
+
+    size_after_first = log.stat().st_size
+    run_polish("i want add login", env_overrides=overrides)
+    assert log.stat().st_size == size_after_first
+
+
+def test_debug_logs_skip_reason_when_enabled(tmp_path):
+    state_dir = tmp_path / "state"
+    overrides = {
+        "POLISH_DEBUG": "1",
+        "POLISH_STATE_DIR": str(state_dir),
+        "POLISH_TEST_NO_LT": "1",
+    }
+
+    run_polish("/help", env_overrides=overrides)
+
+    log = state_dir / "debug.log"
+    assert log.exists()
+    assert "skip" in log.read_text()
+
+
+def test_debug_silent_when_disabled(tmp_path):
+    state_dir = tmp_path / "state"
+    overrides = {
+        "POLISH_STATE_DIR": str(state_dir),
+        "POLISH_TEST_NO_LT": "1",
+    }
+
+    run_polish("/help", env_overrides=overrides)
+
+    assert not (state_dir / "debug.log").exists()
