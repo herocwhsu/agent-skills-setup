@@ -7,12 +7,17 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 source "$REPO_DIR/scripts/_lib.sh"
 
 AGENT_ARG=""
+HOOK_SKILLS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --agent)
       AGENT_ARG="$2"; shift 2 ;;
     --agent=*)
       AGENT_ARG="${1#*=}"; shift ;;
+    --with-hook)
+      HOOK_SKILLS+=("$2"); shift 2 ;;
+    --with-hook=*)
+      HOOK_SKILLS+=("${1#*=}"); shift ;;
     *)
       echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
@@ -71,6 +76,14 @@ for agent in "${SELECTED_AGENTS[@]}"; do
     break
   fi
 done
+
+if [[ ${#HOOK_SKILLS[@]} -gt 0 ]]; then
+  echo ""
+  echo "==> Wiring hooks..."
+  for skill in "${HOOK_SKILLS[@]}"; do
+    wire_hook "$skill" "$REPO_DIR"
+  done
+fi
 
 echo ""
 echo "Done. Run scripts/setup-credentials.sh to configure service credentials."
