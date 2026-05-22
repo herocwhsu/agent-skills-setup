@@ -60,3 +60,45 @@ def test_empty_input_skips():
     assert out == ""
     assert err == ""
     assert code == 0
+
+
+import json
+
+
+def _fake_lt(mapping: dict[str, str]) -> dict[str, str]:
+    """Return env overrides that inject a fake LT correction map."""
+    return {"POLISH_TEST_FAKE_LT": json.dumps(mapping), "POLISH_TEST_NO_LT": ""}
+
+
+def test_changed_text_emits_stderr_and_keeps_stdout_original():
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    out, err, code = run_polish("i want add login", env_overrides=fake)
+    assert out == "i want add login"
+    assert "[polish]" in err
+    assert "I want to add a login." in err
+    assert code == 0
+
+
+def test_unchanged_text_emits_no_stderr():
+    fake = _fake_lt({"Read the auth file.": "Read the auth file."})
+    out, err, code = run_polish("Read the auth file.", env_overrides=fake)
+    assert out == "Read the auth file."
+    assert err == ""
+    assert code == 0
+
+
+def test_replace_mode_sends_polished_to_stdout():
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    overrides = {**fake, "POLISH_REPLACE": "1"}
+    out, err, code = run_polish("i want add login", env_overrides=overrides)
+    assert out == "I want to add a login."
+    assert "[polish]" in err
+    assert code == 0
+
+
+def test_lt_error_fails_open():
+    overrides = {"POLISH_TEST_FAKE_LT": "RAISE", "POLISH_TEST_NO_LT": ""}
+    out, err, code = run_polish("i want add login", env_overrides=overrides)
+    assert out == "i want add login"
+    assert err == ""
+    assert code == 0
