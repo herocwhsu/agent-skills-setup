@@ -19,6 +19,7 @@ MAX_LEN = 4000
 
 
 def _state_dir() -> Path:
+    # POLISH_STATE_DIR overrides the default location; primarily used by tests.
     raw = os.environ.get("POLISH_STATE_DIR") or "~/.claude/skills/polish-input"
     path = Path(os.path.expanduser(raw))
     path.mkdir(parents=True, exist_ok=True)
@@ -31,7 +32,8 @@ def _debug_log(event: str, detail: str = "") -> None:
     ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     line = f"[{ts}] {event}: {detail}\n" if detail else f"[{ts}] {event}\n"
     try:
-        (_state_dir() / "debug.log").open("a").write(line)
+        with (_state_dir() / "debug.log").open("a") as f:
+            f.write(line)
     except OSError:
         pass
 
@@ -47,27 +49,15 @@ def _write_lt_error_hint_once(reason: str) -> None:
         "and ensure `language_tool_python` is installed: `pip install --user language_tool_python`.\n"
     )
     try:
-        (_state_dir() / "debug.log").open("a").write(hint)
+        with (_state_dir() / "debug.log").open("a") as f:
+            f.write(hint)
         marker.touch()
     except OSError:
         pass
 
 
-def should_skip(text: str) -> bool:
-    if os.environ.get("POLISH_DISABLE") == "1":
-        return True
-    if not text:
-        return True
-    if text.startswith("/"):
-        return True
-    if "\n" in text:
-        return True
-    if len(text) > MAX_LEN:
-        return True
-    return False
-
-
-def _skip_reason(text: str) -> str:
+def _skip_reason(text: str) -> str | None:
+    """Return skip reason if text should be skipped, None otherwise."""
     if os.environ.get("POLISH_DISABLE") == "1":
         return "POLISH_DISABLE=1"
     if not text:
@@ -78,7 +68,11 @@ def _skip_reason(text: str) -> str:
         return "multi-line"
     if len(text) > MAX_LEN:
         return f"over MAX_LEN ({len(text)} > {MAX_LEN})"
-    return "unknown"
+    return None
+
+
+def should_skip(text: str) -> bool:
+    return _skip_reason(text) is not None
 
 
 def _correct(text: str) -> str | None:

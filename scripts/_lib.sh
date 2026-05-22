@@ -376,9 +376,20 @@ wire_hook() {
   if [[ "$skill" == "polish-input" ]]; then
     ensure_java || true
     echo "  Installing language_tool_python via pip..."
-    pip install --user --quiet language_tool_python || {
-      echo "  WARNING: pip install language_tool_python failed. Hook will fail open." >&2
-    }
+    local pip_cmd
+    if command -v pip3 &>/dev/null; then
+      pip_cmd="pip3"
+    elif command -v pip &>/dev/null; then
+      pip_cmd="pip"
+    else
+      echo "  WARNING: pip not found — skipping language_tool_python install" >&2
+      pip_cmd=""
+    fi
+    if [[ -n "$pip_cmd" ]]; then
+      "$pip_cmd" install --user --quiet language_tool_python || {
+        echo "  WARNING: $pip_cmd install language_tool_python failed. Hook will fail open." >&2
+      }
+    fi
   fi
 
   echo "  Merging $skill hook into $settings..."
