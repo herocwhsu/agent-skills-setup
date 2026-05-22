@@ -385,3 +385,25 @@ wire_hook() {
   python3 "$repo_dir/scripts/_settings_merge.py" --merge "$hook_path" "$settings"
   echo "  Hook wired."
 }
+
+# ---------------------------------------------------------------------------
+# unwire_hook <skill_name> <repo_dir>
+#   Remove a skill's hook entry from ~/.claude/settings.json. Idempotent.
+# ---------------------------------------------------------------------------
+unwire_hook() {
+  local skill="$1" repo_dir="$2"
+  local hook_path="$repo_dir/skills/$skill/hook.json"
+  local settings="$HOME/.claude/settings.json"
+
+  if [[ ! -f "$hook_path" ]]; then
+    echo "  WARNING: $skill has no hook.json; nothing to remove." >&2
+    return 0
+  fi
+  if [[ ! -f "$settings" ]]; then
+    echo "  No $settings; nothing to remove."
+    return 0
+  fi
+
+  echo "  Removing $skill hook from $settings..."
+  python3 "$repo_dir/scripts/_settings_merge.py" --remove "$hook_path" "$settings"
+}
