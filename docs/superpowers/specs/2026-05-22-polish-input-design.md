@@ -119,7 +119,7 @@ All optional, sane defaults mean zero-config works.
 | `POLISH_DISABLE` | unset | If `1`, hook is a no-op (instant escape hatch). |
 | `POLISH_REPLACE` | unset | If `1`, replace Claude's prompt with the polished text. |
 | `POLISH_DISPLAY` | `line` | Format: `line` (single stderr line), `diff` (word-level diff with insertions/deletions highlighted), `box` (boxed block). |
-| `POLISH_DEBUG` | unset | If `1`, append diagnostic info to `~/.claude/skills/polish-input/debug.log`. |
+| `POLISH_DEBUG` | unset | If `1`, append diagnostic info to `~/.claude/state/polish-input/debug.log`. |
 
 Set in `~/.claude/settings.json` under the top-level `env` map, or in shell rc.
 
@@ -148,13 +148,13 @@ The runtime requires a JRE. Handling:
 
 - Creates a singleton `LanguageTool` instance lazily (first prompt that survives skip rules).
 - On the first construction, prints `[polish] initializing LanguageTool, this happens once…` to stderr before blocking on the download.
-- Caches a marker file (`~/.claude/skills/polish-input/.initialized`) so the message is suppressed afterward.
+- Caches a marker file (`~/.claude/state/polish-input/.initialized`) so the message is suppressed afterward.
 
 ### Failure modes
 
 | Condition | Behavior |
 |---|---|
-| Java missing at runtime | Fail open (stdout = original, no stderr line). On the first failure (detected via the marker file `~/.claude/skills/polish-input/.lt-error`), append a diagnostic line and a setup hint to `debug.log` regardless of `POLISH_DEBUG`. |
+| Java missing at runtime | Fail open (stdout = original, no stderr line). On the first failure (detected via the marker file `~/.claude/state/polish-input/.lt-error`), append a diagnostic line and a setup hint to `debug.log` regardless of `POLISH_DEBUG`. |
 | LT download fails (network) | Fail open. Same one-time hint mechanism. |
 | LT raises an exception mid-check | Fail open. Log to debug.log. Never block the user's prompt. |
 | `polish.py` itself crashes | Hook exit code is non-zero, but Claude Code falls back to the raw prompt; user sees an error line. Recovery: `POLISH_DISABLE=1`. |

@@ -187,6 +187,46 @@ def test_debug_logs_skip_reason_when_enabled(tmp_path):
     assert "skip" in log.read_text()
 
 
+def test_migrates_state_files_from_old_path(tmp_path):
+    old_dir = tmp_path / "old"
+    new_dir = tmp_path / "new"
+    old_dir.mkdir()
+    (old_dir / ".initialized").touch()
+    (old_dir / ".lt-error").touch()
+    (old_dir / "debug.log").write_text("old log line\n")
+
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    overrides = {
+        **fake,
+        "POLISH_STATE_DIR": str(new_dir),
+        "POLISH_OLD_STATE_DIR": str(old_dir),
+    }
+
+    run_polish("i want add login", env_overrides=overrides)
+
+    assert (new_dir / ".initialized").exists()
+    assert (new_dir / ".lt-error").exists()
+    assert "old log line" in (new_dir / "debug.log").read_text()
+    assert not (old_dir / ".initialized").exists()
+    assert not (old_dir / ".lt-error").exists()
+    assert not (old_dir / "debug.log").exists()
+
+
+def test_migration_is_idempotent_when_old_path_empty(tmp_path):
+    old_dir = tmp_path / "old"  # never created
+    new_dir = tmp_path / "new"
+
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    overrides = {
+        **fake,
+        "POLISH_STATE_DIR": str(new_dir),
+        "POLISH_OLD_STATE_DIR": str(old_dir),
+    }
+
+    _, _, code = run_polish("i want add login", env_overrides=overrides)
+    assert code == 0
+
+
 def test_debug_silent_when_disabled(tmp_path):
     state_dir = tmp_path / "state"
     overrides = {

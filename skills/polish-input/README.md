@@ -35,7 +35,7 @@ All env vars are optional.
 | `POLISH_DISABLE` | unset | If `1`, hook is a no-op. Instant escape hatch. |
 | `POLISH_REPLACE` | unset | If `1`, send the polished text to Claude instead of the original. |
 | `POLISH_DISPLAY` | `line` | `line` / `diff` / `box`. |
-| `POLISH_DEBUG` | unset | If `1`, log diagnostics to `~/.claude/skills/polish-input/debug.log`. |
+| `POLISH_DEBUG` | unset | If `1`, log diagnostics to `~/.claude/state/polish-input/debug.log`. |
 
 Set them in `~/.claude/settings.json` under `env`, or in your shell rc.
 
@@ -58,6 +58,6 @@ Removes the hook entry and unlinks the skill. Java and the pip package are left 
 
 ## Troubleshooting
 
-- **No polish appears on imperfect prompts:** Check `~/.claude/skills/polish-input/debug.log`. Most likely cause: Java is missing.
+- **No polish appears on imperfect prompts:** Check `~/.claude/state/polish-input/debug.log`. Most likely cause: Java is missing.
 - **First prompt hangs for 30+ seconds:** Expected. LanguageTool is downloading on first use; this only happens once.
 - **Windows:** Auto-wiring is not implemented. Install the skill files normally, then manually add the hook from `hook.json` to `%USERPROFILE%\.claude\settings.json`.

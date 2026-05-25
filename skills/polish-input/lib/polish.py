@@ -18,11 +18,47 @@ from pathlib import Path
 MAX_LEN = 4000
 
 
+DEFAULT_STATE_DIR = "~/.claude/state/polish-input"
+LEGACY_STATE_DIR = "~/.claude/skills/polish-input"
+_MIGRATED = False
+
+
+def _migrate_legacy_state(new_dir: Path) -> None:
+    """One-shot best-effort migration from the legacy state path."""
+    global _MIGRATED
+    if _MIGRATED:
+        return
+    _MIGRATED = True
+    legacy_raw = os.environ.get("POLISH_OLD_STATE_DIR") or LEGACY_STATE_DIR
+    legacy = Path(os.path.expanduser(legacy_raw))
+    if legacy.resolve() == new_dir.resolve():
+        return
+    if not legacy.is_dir():
+        return
+    for name in (".initialized", ".lt-error", "debug.log"):
+        src = legacy / name
+        if not src.is_file():
+            continue
+        dst = new_dir / name
+        try:
+            if name == "debug.log" and dst.exists():
+                dst.write_text(dst.read_text() + src.read_text())
+            else:
+                src.replace(dst)
+            try:
+                src.unlink()
+            except FileNotFoundError:
+                pass
+        except OSError:
+            pass
+
+
 def _state_dir() -> Path:
     # POLISH_STATE_DIR overrides the default location; primarily used by tests.
-    raw = os.environ.get("POLISH_STATE_DIR") or "~/.claude/skills/polish-input"
+    raw = os.environ.get("POLISH_STATE_DIR") or DEFAULT_STATE_DIR
     path = Path(os.path.expanduser(raw))
     path.mkdir(parents=True, exist_ok=True)
+    _migrate_legacy_state(path)
     return path
 
 
