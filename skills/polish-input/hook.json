@@ -1,0 +1,9 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "command": "python3 ~/.claude/skills/polish-input/lib/polish.py"
+      }
+    ]
+  }
+}

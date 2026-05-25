@@ -26,3 +26,4 @@ local  fetch-page-to-markdown
 local  fetch-jira-story
 local  plan-story
 local  create-story-tasks
+local  polish-input
