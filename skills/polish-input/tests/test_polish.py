@@ -240,3 +240,75 @@ def test_debug_silent_when_disabled(tmp_path):
     run_polish("/help", env_overrides=overrides)
 
     assert not (state_dir / "debug.log").exists()
+
+
+# ---------- Hook protocol (JSON-on-stdin) mode ----------
+
+
+def _hook_payload(prompt: str, **overrides) -> str:
+    payload = {
+        "session_id": "test-session",
+        "transcript_path": "/tmp/x.jsonl",
+        "cwd": "/tmp",
+        "permission_mode": "default",
+        "hook_event_name": "UserPromptSubmit",
+        "prompt": prompt,
+    }
+    payload.update(overrides)
+    return json.dumps(payload)
+
+
+def test_hook_protocol_changed_text_emits_systemMessage_json():
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    out, err, code = run_polish(_hook_payload("i want add login"), env_overrides=fake)
+    assert code == 0
+    assert err == ""
+    response = json.loads(out)
+    assert "[polish] I want to add a login." in response["systemMessage"]
+    # Without POLISH_REPLACE, no additionalContext is injected.
+    assert "hookSpecificOutput" not in response
+
+
+def test_hook_protocol_unchanged_text_emits_empty_stdout():
+    fake = _fake_lt({"Read the auth file.": "Read the auth file."})
+    out, err, code = run_polish(_hook_payload("Read the auth file."), env_overrides=fake)
+    assert code == 0
+    assert out == ""
+    assert err == ""
+
+
+def test_hook_protocol_skip_on_slash_command():
+    # JSON payload carrying a slash command should produce empty stdout
+    # (the prompt is skipped so no systemMessage is emitted).
+    out, err, code = run_polish(_hook_payload("/help"))
+    assert code == 0
+    assert out == ""
+    assert err == ""
+
+
+def test_hook_protocol_replace_mode_adds_additionalContext():
+    fake = _fake_lt({"i want add login": "I want to add a login."})
+    overrides = {**fake, "POLISH_REPLACE": "1"}
+    out, _, code = run_polish(_hook_payload("i want add login"), env_overrides=overrides)
+    assert code == 0
+    response = json.loads(out)
+    assert response["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
+    assert "I want to add a login." in response["hookSpecificOutput"]["additionalContext"]
+
+
+def test_hook_protocol_lt_failure_falls_through_silently():
+    overrides = {"POLISH_TEST_FAKE_LT": "RAISE", "POLISH_TEST_NO_LT": ""}
+    out, err, code = run_polish(_hook_payload("i want add login"), env_overrides=overrides)
+    assert code == 0
+    assert out == ""
+    assert err == ""
+
+
+def test_hook_protocol_ignores_unknown_event_name():
+    # Other hook events (PreToolUse, etc.) should fall through to legacy mode,
+    # which then sees the JSON as raw text — multi-line, so it skips and echoes.
+    payload = _hook_payload("hello", hook_event_name="PreToolUse")
+    out, _, code = run_polish(payload)
+    assert code == 0
+    # Legacy mode echoes the raw input back to stdout when skipped.
+    assert out == payload

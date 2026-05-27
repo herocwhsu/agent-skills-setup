@@ -2,9 +2,19 @@
 from __future__ import annotations
 """polish-input runtime: invoked as a Claude Code UserPromptSubmit hook.
 
-Reads the prompt on stdin, applies skip rules, runs LanguageTool, and writes:
-- stdout: the prompt Claude will see (original by default, polished if POLISH_REPLACE=1)
-- stderr: a [polish] line for the user when the text changed
+Two stdin modes are supported:
+
+1. Hook-protocol mode (current Claude Code): stdin is a JSON object with
+   `hook_event_name == "UserPromptSubmit"` and a `prompt` field. We emit a
+   JSON response on stdout containing `systemMessage` (user-visible) and,
+   when POLISH_REPLACE=1, `hookSpecificOutput.additionalContext` so the
+   model also sees the polished version. Plain stdout is NOT used here —
+   the docs say plain stdout becomes additional context, which would
+   duplicate the prompt.
+
+2. Legacy raw-text mode (used by tests and direct piping): stdin is the
+   prompt as plain text. We write the original (or polished, if
+   POLISH_REPLACE=1) to stdout and emit `[polish] ...` on stderr.
 
 Always exits 0. Failures fall through silently so the user's prompt is never blocked.
 """
@@ -204,13 +214,75 @@ def _emit_polish_line(corrected: str, original: str) -> None:
     sys.stderr.flush()
 
 
-def main() -> int:
-    text = sys.stdin.read()
-    # Strip a single trailing newline (common when invoked via `echo "..." |`).
-    # Real multi-line input still has internal \n which is caught by the skip rule.
-    if text.endswith("\n"):
-        text = text[:-1]
+def _parse_hook_payload(raw: str) -> dict | None:
+    """Detect the Claude Code hook JSON payload. Returns the parsed dict
+    when it looks like a UserPromptSubmit event, else None."""
+    stripped = raw.lstrip()
+    if not stripped.startswith("{"):
+        return None
+    try:
+        payload = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("hook_event_name") != "UserPromptSubmit":
+        return None
+    if not isinstance(payload.get("prompt"), str):
+        return None
+    return payload
 
+
+def _polish_text(text: str) -> tuple[str | None, str]:
+    """Apply skip rules + LanguageTool. Returns (corrected_or_None, reason).
+
+    `corrected` is None when the text was skipped, LT failed, or the result
+    matched the input. `reason` is a short label for debug logging."""
+    skip = _skip_reason(text)
+    if skip is not None:
+        return None, f"skip:{skip}"
+
+    if os.environ.get("POLISH_TEST_NO_LT") == "1":
+        return None, "test-no-lt"
+
+    try:
+        corrected = _correct(text)
+    except Exception as e:
+        _debug_log("correct-failed", str(e))
+        return None, "correct-failed"
+
+    if corrected is None or corrected == text:
+        return None, "no-change"
+    return corrected, "polished"
+
+
+def _run_hook_protocol(payload: dict) -> int:
+    prompt = payload["prompt"]
+    corrected, reason = _polish_text(prompt)
+
+    if corrected is None:
+        _debug_log(reason.split(":", 1)[0], reason.split(":", 1)[1] if ":" in reason else "")
+        # Empty stdout = no additional context injected.
+        return 0
+
+    _debug_log("polished", corrected)
+
+    style = os.environ.get("POLISH_DISPLAY", "line")
+    formatter = _FORMATTERS.get(style, _format_line)
+    # Strip the trailing newline from formatters; systemMessage renders it as one line.
+    system_message = formatter(corrected, prompt).rstrip("\n")
+
+    response: dict = {"systemMessage": system_message}
+    if os.environ.get("POLISH_REPLACE") == "1":
+        response["hookSpecificOutput"] = {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": f"User's prompt polished to: {corrected}",
+        }
+    sys.stdout.write(json.dumps(response))
+    return 0
+
+
+def _run_legacy_text(text: str) -> int:
     if should_skip(text):
         _debug_log("skip", _skip_reason(text))
         sys.stdout.write(text)
@@ -240,6 +312,20 @@ def main() -> int:
     else:
         sys.stdout.write(text)
     return 0
+
+
+def main() -> int:
+    raw = sys.stdin.read()
+
+    payload = _parse_hook_payload(raw)
+    if payload is not None:
+        return _run_hook_protocol(payload)
+
+    # Legacy raw-text mode: strip a single trailing newline (common when
+    # invoked via `echo "..." |`). Real multi-line input still has internal
+    # \n which is caught by the skip rule.
+    text = raw[:-1] if raw.endswith("\n") else raw
+    return _run_legacy_text(text)
 
 
 if __name__ == "__main__":
