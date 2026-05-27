@@ -103,6 +103,26 @@ The install script only manages skills listed in `registry.txt` — all other sk
 
 ---
 
+## Always-On Engineering Rules (AGENTS.md style)
+
+For cross-cutting rules that should be loaded **on every session** (not invoked on demand like a skill), use `agents/engineering-rules.md` and the `install-agents-md.sh` deploy script. The script writes the rules into a marked block inside each host file:
+
+| Tool | Host file |
+|---|---|
+| Claude Code | `~/.claude/CLAUDE.md` |
+| Gemini CLI | `~/.gemini/GEMINI.md` |
+
+```bash
+bash scripts/install-agents-md.sh             # both Claude + Gemini
+bash scripts/install-agents-md.sh --claude    # Claude only
+bash scripts/install-agents-md.sh --gemini    # Gemini only
+bash scripts/install-agents-md.sh --uninstall # strip the block
+```
+
+The script is **idempotent**: re-running replaces the marked block in place, leaving any other content in the host file untouched. Edit `agents/engineering-rules.md`, re-run, and both tools pick up the change on next session.
+
+---
+
 ## Custom Skills
 
 ### fetch-page-to-markdown
