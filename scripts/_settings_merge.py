@@ -29,14 +29,33 @@ def save_settings(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 
+def _entry_commands(entry: dict) -> set:
+    """Extract command strings an entry represents.
+
+    Hook entries come in two shapes:
+      flat:    {"command": "..."}
+      wrapped: {"matcher": "...", "hooks": [{"command": "..."}, ...]}
+    Claude Code rewrites flat entries to wrapped form, so dedup must
+    compare commands across both shapes.
+    """
+    cmds = set()
+    if "command" in entry:
+        cmds.add(entry["command"])
+    for inner in entry.get("hooks", []) or []:
+        if "command" in inner:
+            cmds.add(inner["command"])
+    return cmds
+
+
 def merge(hook: dict, settings: dict) -> dict:
     settings.setdefault("hooks", {})
     for event, entries in hook.get("hooks", {}).items():
         existing = settings["hooks"].setdefault(event, [])
-        existing_cmds = {h.get("command") for h in existing}
+        existing_cmds = set().union(*(_entry_commands(h) for h in existing)) if existing else set()
         for entry in entries:
-            if entry.get("command") not in existing_cmds:
+            if not _entry_commands(entry) & existing_cmds:
                 existing.append(entry)
+                existing_cmds |= _entry_commands(entry)
     return settings
 
 
@@ -46,9 +65,9 @@ def remove(hook: dict, settings: dict) -> dict:
     for event, entries in hook.get("hooks", {}).items():
         if event not in settings["hooks"]:
             continue
-        cmds_to_drop = {h.get("command") for h in entries}
+        cmds_to_drop = set().union(*(_entry_commands(e) for e in entries)) if entries else set()
         settings["hooks"][event] = [
-            h for h in settings["hooks"][event] if h.get("command") not in cmds_to_drop
+            h for h in settings["hooks"][event] if not (_entry_commands(h) & cmds_to_drop)
         ]
         if not settings["hooks"][event]:
             del settings["hooks"][event]

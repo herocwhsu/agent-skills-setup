@@ -103,3 +103,49 @@ def test_remove_when_settings_missing_is_noop(tmp_path):
     result = run_helper("--remove", str(hook), str(settings))
     assert result.returncode == 0, result.stderr
     assert not settings.exists()
+
+
+def test_merge_idempotent_when_existing_entry_is_wrapped(tmp_path):
+    """Claude Code writes hooks in {matcher, hooks: [{command}]} form. The
+    flat hook.json must dedupe against that wrapped form, not append a duplicate."""
+    settings = tmp_path / "settings.json"
+    write_json(
+        settings,
+        {
+            "hooks": {
+                "UserPromptSubmit": [
+                    {"matcher": "", "hooks": [{"type": "command", "command": "polish.py"}]}
+                ]
+            }
+        },
+    )
+    hook = tmp_path / "hook.json"
+    write_json(hook, {"hooks": {"UserPromptSubmit": [{"command": "polish.py"}]}})
+
+    run_helper("--merge", str(hook), str(settings))
+
+    entries = read_json(settings)["hooks"]["UserPromptSubmit"]
+    assert len(entries) == 1, f"expected 1 entry, got {entries}"
+
+
+def test_remove_drops_wrapped_entry(tmp_path):
+    """--remove must also handle the wrapped form."""
+    settings = tmp_path / "settings.json"
+    write_json(
+        settings,
+        {
+            "hooks": {
+                "UserPromptSubmit": [
+                    {"matcher": "", "hooks": [{"type": "command", "command": "polish.py"}]},
+                    {"command": "user-script.sh"},
+                ]
+            }
+        },
+    )
+    hook = tmp_path / "hook.json"
+    write_json(hook, {"hooks": {"UserPromptSubmit": [{"command": "polish.py"}]}})
+
+    run_helper("--remove", str(hook), str(settings))
+
+    entries = read_json(settings)["hooks"]["UserPromptSubmit"]
+    assert entries == [{"command": "user-script.sh"}], entries
