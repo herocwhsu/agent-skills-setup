@@ -1,6 +1,8 @@
 .DS_Store
 *.swp
 *.bak
+__pycache__/
+.pytest_cache/
 
 # lib/_store.sh is copied at install time, not source-tracked
 lib/_store.sh
