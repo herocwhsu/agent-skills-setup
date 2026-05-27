@@ -65,7 +65,7 @@ def _state_dir() -> Path:
 def _debug_log(event: str, detail: str = "") -> None:
     if os.environ.get("POLISH_DEBUG") != "1":
         return
-    ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     line = f"[{ts}] {event}: {detail}\n" if detail else f"[{ts}] {event}\n"
     try:
         with (_state_dir() / "debug.log").open("a") as f:
@@ -206,6 +206,10 @@ def _emit_polish_line(corrected: str, original: str) -> None:
 
 def main() -> int:
     text = sys.stdin.read()
+    # Strip a single trailing newline (common when invoked via `echo "..." |`).
+    # Real multi-line input still has internal \n which is caught by the skip rule.
+    if text.endswith("\n"):
+        text = text[:-1]
 
     if should_skip(text):
         _debug_log("skip", _skip_reason(text))

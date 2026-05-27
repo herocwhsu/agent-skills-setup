@@ -12,6 +12,9 @@ POLISH = Path(__file__).resolve().parents[1] / "lib" / "polish.py"
 def run_polish(stdin_text: str, env_overrides: dict | None = None) -> tuple[str, str, int]:
     """Run polish.py as a subprocess. Returns (stdout, stderr, returncode)."""
     env = os.environ.copy()
+    # Strip any POLISH_* vars from the host env so tests are deterministic.
+    for k in [k for k in env if k.startswith("POLISH_")]:
+        del env[k]
     # Default: ensure tests don't accidentally hit a real LT install.
     env["POLISH_TEST_NO_LT"] = "1"
     if env_overrides:
