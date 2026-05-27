@@ -8,6 +8,7 @@ source "$REPO_DIR/scripts/_lib.sh"
 
 AGENT_ARG=""
 HOOK_SKILLS=()
+WITH_AGENTS_MD=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --agent)
@@ -18,6 +19,8 @@ while [[ $# -gt 0 ]]; do
       HOOK_SKILLS+=("$2"); shift 2 ;;
     --with-hook=*)
       HOOK_SKILLS+=("${1#*=}"); shift ;;
+    --with-agents-md)
+      WITH_AGENTS_MD=1; shift ;;
     *)
       echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
@@ -83,6 +86,12 @@ if [[ ${#HOOK_SKILLS[@]} -gt 0 ]]; then
   for skill in "${HOOK_SKILLS[@]}"; do
     wire_hook "$skill" "$REPO_DIR"
   done
+fi
+
+if [[ $WITH_AGENTS_MD -eq 1 ]]; then
+  echo ""
+  echo "==> Deploying always-on engineering rules..."
+  bash "$REPO_DIR/scripts/install-agents-md.sh"
 fi
 
 echo ""

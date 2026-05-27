@@ -119,6 +119,13 @@ bash scripts/install-agents-md.sh --gemini    # Gemini only
 bash scripts/install-agents-md.sh --uninstall # strip the block
 ```
 
+Or chain it onto the main installer with `--with-agents-md`:
+
+```bash
+bash scripts/install.sh --with-hook polish-input --with-agents-md
+bash scripts/uninstall.sh --with-hook polish-input --with-agents-md
+```
+
 The script is **idempotent**: re-running replaces the marked block in place, leaving any other content in the host file untouched. Edit `agents/engineering-rules.md`, re-run, and both tools pick up the change on next session.
 
 ---
