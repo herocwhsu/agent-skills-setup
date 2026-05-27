@@ -262,7 +262,8 @@ def test_hook_protocol_changed_text_emits_systemMessage_json():
     fake = _fake_lt({"i want add login": "I want to add a login."})
     out, err, code = run_polish(_hook_payload("i want add login"), env_overrides=fake)
     assert code == 0
-    assert err == ""
+    # stderr is mirrored so terminals that don't render systemMessage still show it.
+    assert "[polish] I want to add a login." in err
     response = json.loads(out)
     assert "[polish] I want to add a login." in response["systemMessage"]
     # Without POLISH_REPLACE, no additionalContext is injected.

@@ -269,10 +269,13 @@ def _run_hook_protocol(payload: dict) -> int:
 
     style = os.environ.get("POLISH_DISPLAY", "line")
     formatter = _FORMATTERS.get(style, _format_line)
-    # Strip the trailing newline from formatters; systemMessage renders it as one line.
-    system_message = formatter(corrected, prompt).rstrip("\n")
+    formatted = formatter(corrected, prompt)
+    # Mirror to stderr so terminals that render hook stderr inline still show
+    # the polish line, even if their client doesn't surface `systemMessage`.
+    sys.stderr.write(formatted)
+    sys.stderr.flush()
 
-    response: dict = {"systemMessage": system_message}
+    response: dict = {"systemMessage": formatted.rstrip("\n")}
     if os.environ.get("POLISH_REPLACE") == "1":
         response["hookSpecificOutput"] = {
             "hookEventName": "UserPromptSubmit",
