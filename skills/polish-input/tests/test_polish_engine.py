@@ -39,8 +39,10 @@ def _install_fake_anthropic(monkeypatch, response_text=None, raises=None):
     class _Client:
         def __init__(self, **_kwargs):
             self.messages = _Messages()
+            fake._last_messages = self.messages  # capture for assertions
 
     fake.Anthropic = _Client
+    fake._last_messages = None
     monkeypatch.setitem(sys.modules, "anthropic", fake)
     return fake
 
@@ -75,10 +77,17 @@ def test_polish_uses_model_env_var(monkeypatch):
     sys.modules.pop("polish_engine", None)
     import polish_engine
     polish_engine.polish("hi")
-    # Re-create a client and call with same model arg to capture last_call
-    client = fake.Anthropic()
-    client.messages.create(model="claude-sonnet-4-6", max_tokens=1, system=[], messages=[])
-    assert client.messages.last_call["model"] == "claude-sonnet-4-6"
+    assert fake._last_messages is not None
+    assert fake._last_messages.last_call["model"] == "claude-sonnet-4-6"
+
+
+def test_polish_uses_default_model_when_env_unset(monkeypatch):
+    fake = _install_fake_anthropic(monkeypatch, response_text="ok")
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+    polish_engine.polish("hi")
+    assert fake._last_messages is not None
+    assert fake._last_messages.last_call["model"] == "claude-haiku-4-5"
 
 
 def test_polish_strips_whitespace(monkeypatch):
