@@ -19,22 +19,33 @@ def _clean_env(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
 
 
-def _install_fake_anthropic(monkeypatch, response_text=None, raises=None):
-    """Stub the `anthropic` module with a controllable client."""
+def _install_fake_anthropic(monkeypatch, response_text=None, raises=None, blocks=None):
+    """Stub the `anthropic` module with a controllable client.
+
+    Pass `response_text` for a single text block, or `blocks` for an explicit
+    list of (type, text_or_thinking) tuples to simulate mixed content (e.g.,
+    a ThinkingBlock followed by a TextBlock as the Kiro gateway returns).
+    """
     fake = types.ModuleType("anthropic")
 
     class _Block:
-        def __init__(self, text): self.text = text
+        def __init__(self, type_, text):
+            self.type = type_
+            self.text = text
 
     class _Resp:
-        def __init__(self, text): self.content = [_Block(text)]
+        def __init__(self):
+            if blocks is not None:
+                self.content = [_Block(t, txt) for t, txt in blocks]
+            else:
+                self.content = [_Block("text", response_text)]
 
     class _Messages:
         def create(self, **kwargs):
             if raises is not None:
                 raise raises
             self.last_call = kwargs
-            return _Resp(response_text)
+            return _Resp()
 
     class _Client:
         def __init__(self, **_kwargs):
@@ -95,3 +106,23 @@ def test_polish_strips_whitespace(monkeypatch):
     sys.modules.pop("polish_engine", None)
     import polish_engine
     assert polish_engine.polish("anything") == "trimmed text"
+
+
+def test_polish_skips_thinking_block_and_returns_text_block(monkeypatch):
+    # Kiro gateway returns extended-thinking responses where content[0] is a
+    # thinking block and content[1] is the actual text. polish() must not
+    # crash on the thinking block (which has no usable .text for our purpose).
+    _install_fake_anthropic(
+        monkeypatch,
+        blocks=[("thinking", "let me consider"), ("text", "I want to add a login.")],
+    )
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+    assert polish_engine.polish("i want add login") == "I want to add a login."
+
+
+def test_polish_returns_none_when_no_text_block(monkeypatch):
+    _install_fake_anthropic(monkeypatch, blocks=[("thinking", "only thinking")])
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+    assert polish_engine.polish("hi") is None

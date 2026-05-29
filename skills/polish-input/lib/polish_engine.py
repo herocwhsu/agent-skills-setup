@@ -74,6 +74,7 @@ def polish(text: str) -> str | None:
             model=os.environ.get("POLISH_MODEL", DEFAULT_MODEL),
             max_tokens=DEFAULT_MAX_TOKENS,
             timeout=timeout_s,
+            thinking={"type": "disabled"},
             system=[
                 {
                     "type": "text",
@@ -83,7 +84,10 @@ def polish(text: str) -> str | None:
             ],
             messages=[{"role": "user", "content": text}],
         )
-        return resp.content[0].text.strip()
+        for block in resp.content:
+            if getattr(block, "type", None) == "text":
+                return block.text.strip()
+        return None
     except Exception as e:
         write_engine_error_hint_once(f"Anthropic API call failed: {e}")
         return None
