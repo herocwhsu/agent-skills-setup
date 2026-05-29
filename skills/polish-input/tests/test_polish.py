@@ -15,8 +15,8 @@ def run_polish(stdin_text: str, env_overrides: dict | None = None) -> tuple[str,
     # Strip any POLISH_* vars from the host env so tests are deterministic.
     for k in [k for k in env if k.startswith("POLISH_")]:
         del env[k]
-    # Default: ensure tests don't accidentally hit a real LT install.
-    env["POLISH_TEST_NO_LT"] = "1"
+    # Default: ensure tests don't accidentally hit a real engine install.
+    env["POLISH_TEST_NO_ENGINE"] = "1"
     if env_overrides:
         env.update(env_overrides)
     proc = subprocess.run(
@@ -68,13 +68,13 @@ def test_empty_input_skips():
 import json
 
 
-def _fake_lt(mapping: dict[str, str]) -> dict[str, str]:
-    """Return env overrides that inject a fake LT correction map."""
-    return {"POLISH_TEST_FAKE_LT": json.dumps(mapping), "POLISH_TEST_NO_LT": ""}
+def _fake_response(mapping: dict[str, str]) -> dict[str, str]:
+    """Return env overrides that inject a fake engine response map."""
+    return {"POLISH_TEST_FAKE_RESPONSE": json.dumps(mapping), "POLISH_TEST_NO_ENGINE": ""}
 
 
 def test_changed_text_emits_stderr_and_keeps_stdout_original():
-    fake = _fake_lt({"i want add login": "I want to add a login."})
+    fake = _fake_response({"i want add login": "I want to add a login."})
     out, err, code = run_polish("i want add login", env_overrides=fake)
     assert out == "i want add login"
     assert "[polish]" in err
@@ -83,7 +83,7 @@ def test_changed_text_emits_stderr_and_keeps_stdout_original():
 
 
 def test_unchanged_text_emits_no_stderr():
-    fake = _fake_lt({"Read the auth file.": "Read the auth file."})
+    fake = _fake_response({"Read the auth file.": "Read the auth file."})
     out, err, code = run_polish("Read the auth file.", env_overrides=fake)
     assert out == "Read the auth file."
     assert err == ""
@@ -91,7 +91,7 @@ def test_unchanged_text_emits_no_stderr():
 
 
 def test_replace_mode_sends_polished_to_stdout():
-    fake = _fake_lt({"i want add login": "I want to add a login."})
+    fake = _fake_response({"i want add login": "I want to add a login."})
     overrides = {**fake, "POLISH_REPLACE": "1"}
     out, err, code = run_polish("i want add login", env_overrides=overrides)
     assert out == "I want to add a login."
@@ -99,8 +99,8 @@ def test_replace_mode_sends_polished_to_stdout():
     assert code == 0
 
 
-def test_lt_error_fails_open():
-    overrides = {"POLISH_TEST_FAKE_LT": "RAISE", "POLISH_TEST_NO_LT": ""}
+def test_engine_error_fails_open():
+    overrides = {"POLISH_TEST_FAKE_RESPONSE": "RAISE", "POLISH_TEST_NO_ENGINE": ""}
     out, err, code = run_polish("i want add login", env_overrides=overrides)
     assert out == "i want add login"
     assert err == ""
@@ -108,13 +108,13 @@ def test_lt_error_fails_open():
 
 
 def test_display_line_default():
-    fake = _fake_lt({"i want add login": "I want to add a login."})
+    fake = _fake_response({"i want add login": "I want to add a login."})
     _, err, _ = run_polish("i want add login", env_overrides=fake)
     assert err == "[polish] I want to add a login.\n"
 
 
 def test_display_diff_shows_word_changes():
-    fake = _fake_lt({"i want add login": "I want to add a login."})
+    fake = _fake_response({"i want add login": "I want to add a login."})
     overrides = {**fake, "POLISH_DISPLAY": "diff"}
     _, err, _ = run_polish("i want add login", env_overrides=overrides)
     assert err.startswith("[polish] ")
@@ -123,7 +123,7 @@ def test_display_diff_shows_word_changes():
 
 
 def test_display_box_wraps_in_borders():
-    fake = _fake_lt({"i want add login": "I want to add a login."})
+    fake = _fake_response({"i want add login": "I want to add a login."})
     overrides = {**fake, "POLISH_DISPLAY": "box"}
     _, err, _ = run_polish("i want add login", env_overrides=overrides)
     # Box must contain some border character on lines and the polished text.
@@ -133,30 +133,17 @@ def test_display_box_wraps_in_borders():
 
 
 def test_display_invalid_falls_back_to_line():
-    fake = _fake_lt({"i want add login": "I want to add a login."})
+    fake = _fake_response({"i want add login": "I want to add a login."})
     overrides = {**fake, "POLISH_DISPLAY": "nonsense"}
     _, err, _ = run_polish("i want add login", env_overrides=overrides)
     assert err == "[polish] I want to add a login.\n"
 
 
-def test_first_run_message_then_suppressed(tmp_path):
-    state_dir = tmp_path / "state"
-    fake = _fake_lt({"i want add login": "I want to add a login."})
-    overrides = {**fake, "POLISH_STATE_DIR": str(state_dir)}
-
-    _, err1, _ = run_polish("i want add login", env_overrides=overrides)
-    assert "initializing LanguageTool" in err1
-    assert (state_dir / ".initialized").exists()
-
-    _, err2, _ = run_polish("i want add login", env_overrides=overrides)
-    assert "initializing LanguageTool" not in err2
-
-
-def test_lt_error_writes_one_time_hint_to_debug_log(tmp_path):
+def test_engine_error_writes_one_time_hint_to_debug_log(tmp_path):
     state_dir = tmp_path / "state"
     overrides = {
-        "POLISH_TEST_FAKE_LT": "RAISE",
-        "POLISH_TEST_NO_LT": "",
+        "POLISH_TEST_FAKE_RESPONSE": "RAISE",
+        "POLISH_TEST_NO_ENGINE": "",
         "POLISH_STATE_DIR": str(state_dir),
     }
 
@@ -167,8 +154,8 @@ def test_lt_error_writes_one_time_hint_to_debug_log(tmp_path):
     log = state_dir / "debug.log"
     assert log.exists()
     body = log.read_text()
-    assert "lt-error" in body
-    assert "Java" in body or "language_tool_python" in body
+    assert "engine-error" in body
+    assert "anthropic" in body
 
     size_after_first = log.stat().st_size
     run_polish("i want add login", env_overrides=overrides)
@@ -180,7 +167,7 @@ def test_debug_logs_skip_reason_when_enabled(tmp_path):
     overrides = {
         "POLISH_DEBUG": "1",
         "POLISH_STATE_DIR": str(state_dir),
-        "POLISH_TEST_NO_LT": "1",
+        "POLISH_TEST_NO_ENGINE": "1",
     }
 
     run_polish("/help", env_overrides=overrides)
@@ -194,11 +181,9 @@ def test_migrates_state_files_from_old_path(tmp_path):
     old_dir = tmp_path / "old"
     new_dir = tmp_path / "new"
     old_dir.mkdir()
-    (old_dir / ".initialized").touch()
-    (old_dir / ".lt-error").touch()
     (old_dir / "debug.log").write_text("old log line\n")
 
-    fake = _fake_lt({"i want add login": "I want to add a login."})
+    fake = _fake_response({"i want add login": "I want to add a login."})
     overrides = {
         **fake,
         "POLISH_STATE_DIR": str(new_dir),
@@ -207,11 +192,7 @@ def test_migrates_state_files_from_old_path(tmp_path):
 
     run_polish("i want add login", env_overrides=overrides)
 
-    assert (new_dir / ".initialized").exists()
-    assert (new_dir / ".lt-error").exists()
     assert "old log line" in (new_dir / "debug.log").read_text()
-    assert not (old_dir / ".initialized").exists()
-    assert not (old_dir / ".lt-error").exists()
     assert not (old_dir / "debug.log").exists()
 
 
@@ -219,7 +200,7 @@ def test_migration_is_idempotent_when_old_path_empty(tmp_path):
     old_dir = tmp_path / "old"  # never created
     new_dir = tmp_path / "new"
 
-    fake = _fake_lt({"i want add login": "I want to add a login."})
+    fake = _fake_response({"i want add login": "I want to add a login."})
     overrides = {
         **fake,
         "POLISH_STATE_DIR": str(new_dir),
@@ -234,7 +215,7 @@ def test_debug_silent_when_disabled(tmp_path):
     state_dir = tmp_path / "state"
     overrides = {
         "POLISH_STATE_DIR": str(state_dir),
-        "POLISH_TEST_NO_LT": "1",
+        "POLISH_TEST_NO_ENGINE": "1",
     }
 
     run_polish("/help", env_overrides=overrides)
@@ -259,7 +240,7 @@ def _hook_payload(prompt: str, **overrides) -> str:
 
 
 def test_hook_protocol_changed_text_emits_systemMessage_json():
-    fake = _fake_lt({"i want add login": "I want to add a login."})
+    fake = _fake_response({"i want add login": "I want to add a login."})
     out, err, code = run_polish(_hook_payload("i want add login"), env_overrides=fake)
     assert code == 0
     # stderr is mirrored so terminals that don't render systemMessage still show it.
@@ -271,7 +252,7 @@ def test_hook_protocol_changed_text_emits_systemMessage_json():
 
 
 def test_hook_protocol_unchanged_text_emits_empty_stdout():
-    fake = _fake_lt({"Read the auth file.": "Read the auth file."})
+    fake = _fake_response({"Read the auth file.": "Read the auth file."})
     out, err, code = run_polish(_hook_payload("Read the auth file."), env_overrides=fake)
     assert code == 0
     assert out == ""
@@ -288,7 +269,7 @@ def test_hook_protocol_skip_on_slash_command():
 
 
 def test_hook_protocol_replace_mode_adds_additionalContext():
-    fake = _fake_lt({"i want add login": "I want to add a login."})
+    fake = _fake_response({"i want add login": "I want to add a login."})
     overrides = {**fake, "POLISH_REPLACE": "1"}
     out, _, code = run_polish(_hook_payload("i want add login"), env_overrides=overrides)
     assert code == 0
@@ -297,8 +278,8 @@ def test_hook_protocol_replace_mode_adds_additionalContext():
     assert "I want to add a login." in response["hookSpecificOutput"]["additionalContext"]
 
 
-def test_hook_protocol_lt_failure_falls_through_silently():
-    overrides = {"POLISH_TEST_FAKE_LT": "RAISE", "POLISH_TEST_NO_LT": ""}
+def test_hook_protocol_engine_failure_falls_through_silently():
+    overrides = {"POLISH_TEST_FAKE_RESPONSE": "RAISE", "POLISH_TEST_NO_ENGINE": ""}
     out, err, code = run_polish(_hook_payload("i want add login"), env_overrides=overrides)
     assert code == 0
     assert out == ""
