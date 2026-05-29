@@ -313,53 +313,6 @@ select_agents() {
 }
 
 # ---------------------------------------------------------------------------
-# ensure_java
-#   Install Java if missing, prompting the user. Returns 0 if Java is available
-#   afterward, 1 if not (caller should fail open).
-# ---------------------------------------------------------------------------
-ensure_java() {
-  if command -v java &>/dev/null; then
-    return 0
-  fi
-
-  case "$(detect_os)" in
-    darwin)
-      if command -v brew &>/dev/null; then
-        echo "  Java not found. Install OpenJDK 17 via brew? [y/N]"
-        read -r reply
-        if [[ "$reply" =~ ^[Yy]$ ]]; then
-          brew install openjdk@17 || return 1
-          return 0
-        fi
-      else
-        echo "  WARNING: Java not found and Homebrew not installed. Install OpenJDK manually." >&2
-        return 1
-      fi
-      ;;
-    linux-gui|linux-headless)
-      if command -v apt-get &>/dev/null; then
-        echo "  Java not found. Install default-jre via apt? [y/N]"
-        read -r reply
-        if [[ "$reply" =~ ^[Yy]$ ]]; then
-          sudo apt-get install -y default-jre || return 1
-          return 0
-        fi
-      else
-        echo "  WARNING: Java not found and apt not available. Install a JRE manually." >&2
-        return 1
-      fi
-      ;;
-    *)
-      echo "  WARNING: Java auto-install not supported on this OS. Install a JRE manually." >&2
-      return 1
-      ;;
-  esac
-
-  echo "  Skipping Java install. polish-input will fail open until Java is available." >&2
-  return 1
-}
-
-# ---------------------------------------------------------------------------
 # wire_hook <skill_name> <repo_dir>
 #   Merge a skill's hook.json into ~/.claude/settings.json.
 # ---------------------------------------------------------------------------
@@ -374,20 +327,19 @@ wire_hook() {
   fi
 
   if [[ "$skill" == "polish-input" ]]; then
-    ensure_java || true
-    echo "  Installing language_tool_python via pip..."
+    echo "  Installing anthropic SDK via pip..."
     local pip_cmd
     if command -v pip3 &>/dev/null; then
       pip_cmd="pip3"
     elif command -v pip &>/dev/null; then
       pip_cmd="pip"
     else
-      echo "  WARNING: pip not found — skipping language_tool_python install" >&2
+      echo "  WARNING: pip not found — skipping anthropic install" >&2
       pip_cmd=""
     fi
     if [[ -n "$pip_cmd" ]]; then
-      "$pip_cmd" install --user --quiet language_tool_python || {
-        echo "  WARNING: $pip_cmd install language_tool_python failed. Hook will fail open." >&2
+      "$pip_cmd" install --user --quiet anthropic || {
+        echo "  WARNING: $pip_cmd install anthropic failed. Hook will fail open." >&2
       }
     fi
   fi
