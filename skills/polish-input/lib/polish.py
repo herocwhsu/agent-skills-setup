@@ -179,8 +179,8 @@ def _polish_text(text: str) -> tuple[str | None, str]:
     fake = os.environ.get("POLISH_TEST_FAKE_RESPONSE")
     if fake is not None:
         if fake == "RAISE":
-            from polish_engine import _write_engine_error_hint_once
-            _write_engine_error_hint_once("simulated engine failure")
+            from polish_engine import write_engine_error_hint_once
+            write_engine_error_hint_once("simulated engine failure")
             return None, "correct-failed"
         try:
             mapping = json.loads(fake)

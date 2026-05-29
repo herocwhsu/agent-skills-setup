@@ -37,7 +37,7 @@ def _state_dir() -> Path:
     return path
 
 
-def _write_engine_error_hint_once(reason: str) -> None:
+def write_engine_error_hint_once(reason: str) -> None:
     marker = _state_dir() / ".engine-error"
     if marker.exists():
         return
@@ -64,7 +64,7 @@ def polish(text: str) -> str | None:
     try:
         import anthropic
     except ImportError as e:
-        _write_engine_error_hint_once(f"anthropic SDK not importable: {e}")
+        write_engine_error_hint_once(f"anthropic SDK not importable: {e}")
         return None
 
     try:
@@ -85,5 +85,5 @@ def polish(text: str) -> str | None:
         )
         return resp.content[0].text.strip()
     except Exception as e:
-        _write_engine_error_hint_once(f"Anthropic API call failed: {e}")
+        write_engine_error_hint_once(f"Anthropic API call failed: {e}")
         return None
