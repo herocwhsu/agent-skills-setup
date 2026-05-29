@@ -15,6 +15,19 @@ Installed automatically as a `local` skill.
 
 `.code-review/playbook.md` must exist. Run `/mine-review-patterns` first.
 
+## How reviews are assembled
+
+The skill feeds the model three references in increasing specificity:
+
+1. **Charter** (`charter.md`, bundled with this skill) — the framework:
+   priority order, severity prefixes, "ask yourself" prompts, what NOT to
+   over-focus on. Same for every repo.
+2. **Mined playbook** (`.code-review/playbook.md`) — repo-specific
+   patterns anchored to past PRs. Required.
+3. **Per-repo override** (`.code-review/REVIEWING.md`) — optional. If
+   present, it supersedes the bundled charter where they conflict. Use
+   this when a team's review norms diverge from the default.
+
 ## Usage
 
 ```bash
