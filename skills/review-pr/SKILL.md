@@ -48,7 +48,25 @@ write the playbook by hand. Aborting.
 
 and stop.
 
-### Step 3: Fetch PR data
+### Step 3: Prepare workspace
+
+```bash
+mkdir -p .code-review/reviews
+```
+
+Ensure `.gitignore` contains the following patterns (use the Edit tool to add any that are missing). These keep per-review reports and any temp files from accidentally landing in commits if cleanup fails mid-run:
+
+```
+.code-review/reviews/
+.code-review/.mining-*.json
+.code-review/.mining-state.json
+.code-review/.pr-*.json
+.code-review/.pr-*.diff
+```
+
+`.code-review/playbook.md` and any `.code-review/REVIEWING.md` are intentionally **not** gitignored — they're team artifacts meant to be committed.
+
+### Step 4: Fetch PR data
 
 ```bash
 gh pr view <n> --json title,body,files,headRefName,baseRefName,additions,deletions,state > .code-review/.pr-<n>-meta.json
@@ -57,7 +75,7 @@ gh pr diff <n> > .code-review/.pr-<n>.diff
 
 If `gh` exits non-zero, print the error verbatim and stop.
 
-### Step 4: Size guard
+### Step 5: Size guard
 
 Read the metadata file and compute `additions + deletions`. If the total exceeds `2000` (or the value of `REVIEW_PR_MAX_DIFF_LINES` if set):
 
@@ -67,11 +85,11 @@ This PR changes <N> lines. Reviews of large PRs tend to be noisy. Continue? (y/n
 
 Wait for the user. If `n`, abort and clean up.
 
-### Step 5: Skip empty PRs
+### Step 6: Skip empty PRs
 
 If the metadata `files` list is empty, tell the user `PR <n> has no file changes; nothing to review.` and stop. Do not write a report file.
 
-### Step 6: Run the review
+### Step 7: Run the review
 
 1. Read the bundled charter: `~/.claude/skills/review-pr/charter.md`
 2. Read the mined playbook: `.code-review/playbook.md`
@@ -85,7 +103,7 @@ If the metadata `files` list is empty, tell the user `PR <n> has no file changes
 6. Use model `claude-sonnet-4-6` (override with `REVIEW_PR_MODEL` env var if set).
 7. Receive two artifacts in the model's output: the full report and the comment draft.
 
-### Step 7: Write outputs
+### Step 8: Write outputs
 
 ```bash
 # full report
@@ -109,7 +127,7 @@ To post the comment:
 Print the comment draft inline below that message so the user can read it
 without opening the file.
 
-### Step 8: Cleanup
+### Step 9: Cleanup
 
 ```bash
 rm .code-review/.pr-<n>-meta.json .code-review/.pr-<n>.diff

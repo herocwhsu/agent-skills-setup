@@ -41,7 +41,17 @@ If `git remote get-url origin` fails: tell the user `cd into the target repo fir
 mkdir -p .code-review/reviews
 ```
 
-If `.gitignore` does not contain `.code-review/reviews/`, add it (use the Edit tool).
+Ensure `.gitignore` contains the following patterns (use the Edit tool to add any that are missing). These keep per-review reports and any temp files from accidentally landing in commits if cleanup fails mid-run:
+
+```
+.code-review/reviews/
+.code-review/.mining-*.json
+.code-review/.mining-state.json
+.code-review/.pr-*.json
+.code-review/.pr-*.diff
+```
+
+`.code-review/playbook.md` is intentionally **not** gitignored — it's a team artifact meant to be committed.
 
 ### Step 3: Fetch closed PRs
 
