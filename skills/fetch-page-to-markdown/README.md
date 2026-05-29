@@ -63,7 +63,7 @@ For non-Confluence URLs the agent uses plain `curl` — no auth required unless 
 
 ## Agent Compatibility
 
-Works with Kiro, Claude Code, GitHub Copilot, and Codex. The `html2md.py` converter is located at install time by scanning `~/.kiro/skills/`, `~/.claude/skills/`, `~/.copilot/skills/`, and `~/.codex/skills/` in order — whichever is found first is used.
+Works with Kiro, Claude Code, GitHub Copilot, Codex, and Gemini CLI. The `html2md.py` converter is located at install time by scanning `~/.kiro/skills/`, `~/.claude/skills/`, `~/.copilot/skills/`, `~/.codex/skills/`, and `~/.gemini/skills/` in order — whichever is found first is used.
 
 ## Files
 
