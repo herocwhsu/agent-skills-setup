@@ -34,7 +34,7 @@ service_slug() {
 # ---------------------------------------------------------------------------
 find_html2md() {
   local d
-  for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills"; do
+  for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills" "$HOME/.gemini/skills"; do
     if [[ -f "$d/fetch-page-to-markdown/html2md.py" ]]; then
       echo "$d/fetch-page-to-markdown/html2md.py"
       return 0

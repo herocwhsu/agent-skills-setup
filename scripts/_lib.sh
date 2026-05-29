@@ -52,6 +52,7 @@ agent_skills_dir() {
     claude)  echo "$HOME/.claude/skills" ;;
     copilot) echo "$HOME/.copilot/skills" ;;
     codex)   echo "$HOME/.codex/skills" ;;
+    gemini)  echo "$HOME/.gemini/skills" ;;
     *)       echo "" ;;
   esac
 }
