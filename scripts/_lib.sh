@@ -275,9 +275,9 @@ uninstall_local_skill() {
   remove_skill "$name" "$target_dir"
 }
 
-AGENTS=("kiro" "claude" "copilot" "codex")
+AGENTS=("kiro" "claude" "copilot" "codex" "gemini")
 
-# Accept agent via $1 (kiro|claude|copilot|codex|all). Prompt only if empty.
+# Accept agent via $1 (kiro|claude|copilot|codex|gemini|all). Prompt only if empty.
 # Sets global SELECTED_AGENTS array.
 select_agents() {
   local choice="${1:-}"
@@ -289,15 +289,17 @@ select_agents() {
     echo "  2) Claude Code (~/.claude/skills/)"
     echo "  3) Copilot     (~/.copilot/skills/)"
     echo "  4) Codex       (~/.codex/skills/)"
-    echo "  5) All of the above"
+    echo "  5) Gemini CLI  (~/.gemini/skills/)"
+    echo "  6) All of the above"
     echo ""
-    read -rp "Choice [1-5]: " input
+    read -rp "Choice [1-6]: " input
     case "$input" in
       1) choice="kiro" ;;
       2) choice="claude" ;;
       3) choice="copilot" ;;
       4) choice="codex" ;;
-      5) choice="all" ;;
+      5) choice="gemini" ;;
+      6) choice="all" ;;
       *) echo "Invalid choice, defaulting to kiro."; choice="kiro" ;;
     esac
   fi
@@ -307,7 +309,8 @@ select_agents() {
     claude)  SELECTED_AGENTS=("claude") ;;
     copilot) SELECTED_AGENTS=("copilot") ;;
     codex)   SELECTED_AGENTS=("codex") ;;
-    all)     SELECTED_AGENTS=("kiro" "claude" "copilot" "codex") ;;
+    gemini)  SELECTED_AGENTS=("gemini") ;;
+    all)     SELECTED_AGENTS=("kiro" "claude" "copilot" "codex" "gemini") ;;
     *)       echo "Invalid agent: $choice"; exit 1 ;;
   esac
 }

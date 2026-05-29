@@ -6,7 +6,7 @@ Installs:
 - **[superpowers](https://github.com/obra/superpowers)** — brainstorming, TDD, systematic debugging, code review, and more
 - **Custom skills** — fetch-page-to-markdown (Confluence + any web page → markdown)
 
-Supports: Kiro, Claude Code, GitHub Copilot, Codex · macOS, Linux, Windows
+Supports: Kiro, Claude Code, GitHub Copilot, Codex, Gemini CLI · macOS, Linux, Windows
 
 ---
 
@@ -14,7 +14,7 @@ Supports: Kiro, Claude Code, GitHub Copilot, Codex · macOS, Linux, Windows
 
 **macOS / Linux / Git Bash:**
 ```bash
-git clone https://github.com/reviewer-b/agent-skills-setup
+git clone https://github.com/herocwhsu/agent-skills-setup
 cd agent-skills-setup
 bash scripts/install.sh
 bash scripts/setup-credentials.sh
@@ -22,7 +22,7 @@ bash scripts/setup-credentials.sh
 
 **Windows 11 (native PowerShell):**
 ```powershell
-git clone https://github.com/reviewer-b/agent-skills-setup
+git clone https://github.com/herocwhsu/agent-skills-setup
 cd agent-skills-setup
 .\scripts\install.ps1
 .\scripts\setup-credentials.ps1
@@ -55,7 +55,8 @@ When prompted, choose one or more:
 | 2 | Claude Code | `~/.claude/skills/` | ✓ |
 | 3 | GitHub Copilot | `~/.copilot/skills/` | planned |
 | 4 | Codex | `~/.codex/skills/` | planned |
-| 5 | All | all of the above | — |
+| 5 | Gemini CLI | `~/.gemini/skills/` | ✓ |
+| 6 | All | all of the above | — |
 
 ---
 
