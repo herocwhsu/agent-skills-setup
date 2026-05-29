@@ -20,7 +20,7 @@ This skill is the entry point for the `/review-pr <number>` slash command.
 
 The skill assembles three review references, in increasing specificity:
 
-1. **Charter** (`~/.claude/skills/review-pr/charter.md`) — the framework: priority order, severity prefixes, the "ask yourself" prompts. Bundled with the skill, same for every repo.
+1. **Charter** (`charter.md` in this skill's directory) — the framework: priority order, severity prefixes, the "ask yourself" prompts. Bundled with the skill, same for every repo.
 2. **Mined playbook** (`.code-review/playbook.md`) — repo-specific patterns anchored to real PR numbers. Required.
 3. **Per-repo override** (`.code-review/REVIEWING.md`) — optional. If present, it's the team's own checked-in review charter, and it takes precedence over the bundled charter when they conflict.
 
@@ -91,10 +91,10 @@ If the metadata `files` list is empty, tell the user `PR <n> has no file changes
 
 ### Step 7: Run the review
 
-1. Read the bundled charter: `~/.claude/skills/review-pr/charter.md`
+1. Read the bundled charter: `charter.md` (in this skill's directory)
 2. Read the mined playbook: `.code-review/playbook.md`
 3. If `.code-review/REVIEWING.md` exists, read it too — this is the per-repo override and takes precedence over the bundled charter when they conflict.
-4. Read the prompt: `~/.claude/skills/review-pr/review-prompt.md`
+4. Read the prompt: `review-prompt.md` (in this skill's directory)
 5. Send to the model with the prompt as the system prompt:
    - Charter (or per-repo override if present)
    - Mined playbook

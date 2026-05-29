@@ -86,7 +86,7 @@ Record any matching commits as potential follow-ups. Read the matched commit mes
 
 For each batch of 10 PRs:
 
-1. Read the prompt at `~/.claude/skills/mine-review-patterns/mining-prompt.md`.
+1. Read `mining-prompt.md` from this skill's directory.
 2. Send the batch (PR data + comments + hotfix matches) to the model with that prompt as the system prompt. Use `claude-sonnet-4-6` for the analysis (Haiku is too aggressive on patterns; Opus is overkill).
 3. Append the batch's findings to a running list in memory.
 
