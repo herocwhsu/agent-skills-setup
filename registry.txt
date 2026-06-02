@@ -22,6 +22,7 @@
 
 pip    agent-superpowers
 github obra/superpowers        skills
+local  confluence
 local  create-story-tasks
 local  fetch-jira-story
 local  fetch-page-to-markdown
