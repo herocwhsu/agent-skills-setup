@@ -64,8 +64,8 @@ left in place; remove manually with `pip uninstall anthropic` if desired.
 ## Troubleshooting
 
 - **No polish appears:** Check `~/.claude/state/polish-input/debug.log`.
-  Common causes: `anthropic` not installed, or `ANTHROPIC_API_KEY` not set in
-  the environment Claude Code runs in.
+  Common causes: `anthropic` not installed, missing transitive deps (`pydantic`, `anyio`), or `ANTHROPIC_API_KEY` not set in
+  the environment Claude Code runs in. Fix: `pip3 install anthropic pydantic anyio`.
 - **Polish is slow (>3s):** The hook times out at 3s by default. Bump
   `POLISH_TIMEOUT_MS` if your gateway is slower.
 - **Wrong model used:** Set `POLISH_MODEL` to an alias your gateway exposes.

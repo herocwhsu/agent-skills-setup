@@ -342,7 +342,7 @@ wire_hook() {
       pip_cmd=""
     fi
     if [[ -n "$pip_cmd" ]]; then
-      "$pip_cmd" install --user --quiet anthropic || {
+      "$pip_cmd" install --user --quiet anthropic pydantic anyio || {
         echo "  WARNING: $pip_cmd install anthropic failed. Hook will fail open." >&2
       }
     fi
