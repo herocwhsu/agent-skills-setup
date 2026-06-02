@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-"""polish-input runtime: invoked as a Claude Code UserPromptSubmit hook.
+"""polish-input runtime: invoked as a UserPromptSubmit hook by Claude Code or Gemini CLI.
 
 Two stdin modes are supported:
 
-1. Hook-protocol mode (current Claude Code): stdin is a JSON object with
+1. Hook-protocol mode (current Claude Code / Gemini): stdin is a JSON object with
    `hook_event_name == "UserPromptSubmit"` and a `prompt` field. We emit a
    JSON response on stdout containing `systemMessage` (user-visible) and,
    when POLISH_REPLACE=1, `hookSpecificOutput.additionalContext` so the
@@ -27,14 +27,42 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 MAX_LEN = 4000
 
-
-DEFAULT_STATE_DIR = "~/.claude/state/polish-input"
+DEFAULT_STATE_DIR = "~/.agent-skills-setup/state/polish-input"
 LEGACY_STATE_DIR = "~/.claude/skills/polish-input"
 _MIGRATED = False
 
 
+# ---------------------------------------------------------------------------
+# Agent detection + provider wiring
+# ---------------------------------------------------------------------------
+
+def detect_agent() -> str:
+    """Identify the calling agent from sys.argv[0] (the literal hook command path)."""
+    path = sys.argv[0]
+    for segment, name in [("/.claude/", "claude"), ("/.gemini/", "gemini")]:
+        if segment in path:
+            return name
+    return "unknown"
+
+
+def build_providers(agent: str) -> list:
+    """Return an ordered list of AuthProviders for the given agent."""
+    from polish_engine import (
+        ClaudeSessionProvider, AnthropicKeyProvider,
+        GeminiSessionProvider, GeminiKeyProvider, GeminiKeychainProvider,
+    )
+    if agent == "claude":
+        return [ClaudeSessionProvider(), AnthropicKeyProvider()]
+    if agent == "gemini":
+        return [GeminiSessionProvider(), GeminiKeyProvider(), GeminiKeychainProvider()]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# State / logging
+# ---------------------------------------------------------------------------
+
 def _migrate_legacy_state(new_dir: Path) -> None:
-    """One-shot best-effort migration from the legacy state path."""
     global _MIGRATED
     if _MIGRATED:
         return
@@ -64,7 +92,6 @@ def _migrate_legacy_state(new_dir: Path) -> None:
 
 
 def _state_dir() -> Path:
-    # POLISH_STATE_DIR overrides the default location; primarily used by tests.
     raw = os.environ.get("POLISH_STATE_DIR") or DEFAULT_STATE_DIR
     path = Path(os.path.expanduser(raw))
     path.mkdir(parents=True, exist_ok=True)
@@ -84,8 +111,11 @@ def _debug_log(event: str, detail: str = "") -> None:
         pass
 
 
+# ---------------------------------------------------------------------------
+# Skip rules
+# ---------------------------------------------------------------------------
+
 def _skip_reason(text: str) -> str | None:
-    """Return skip reason if text should be skipped, None otherwise."""
     if os.environ.get("POLISH_DISABLE") == "1":
         return "POLISH_DISABLE=1"
     if not text:
@@ -102,6 +132,10 @@ def _skip_reason(text: str) -> str | None:
 def should_skip(text: str) -> bool:
     return _skip_reason(text) is not None
 
+
+# ---------------------------------------------------------------------------
+# Display formatters
+# ---------------------------------------------------------------------------
 
 def _format_line(corrected: str, _original: str) -> str:
     return f"[polish] {corrected}\n"
@@ -145,9 +179,11 @@ def _emit_polish_line(corrected: str, original: str) -> None:
     sys.stderr.flush()
 
 
+# ---------------------------------------------------------------------------
+# Hook payload detection
+# ---------------------------------------------------------------------------
+
 def _parse_hook_payload(raw: str) -> dict | None:
-    """Detect the Claude Code hook JSON payload. Returns the parsed dict
-    when it looks like a UserPromptSubmit event, else None."""
     stripped = raw.lstrip()
     if not stripped.startswith("{"):
         return None
@@ -164,13 +200,15 @@ def _parse_hook_payload(raw: str) -> dict | None:
     return payload
 
 
-def _polish_text(text: str) -> tuple[str | None, str]:
-    """Apply skip rules + the LLM engine. Returns (corrected_or_None, reason)."""
+# ---------------------------------------------------------------------------
+# Core logic (providers injected by main)
+# ---------------------------------------------------------------------------
+
+def _polish_text(text: str, providers: list) -> tuple[str | None, str]:
     skip = _skip_reason(text)
     if skip is not None:
         return None, f"skip:{skip}"
 
-    # Touch state dir early so legacy state migration runs on every active call.
     _state_dir()
 
     if os.environ.get("POLISH_TEST_NO_ENGINE") == "1":
@@ -190,7 +228,7 @@ def _polish_text(text: str) -> tuple[str | None, str]:
     else:
         try:
             from polish_engine import polish as _engine_polish
-            corrected = _engine_polish(text)
+            corrected = _engine_polish(text, providers)
         except Exception as e:
             _debug_log("correct-failed", str(e))
             return None, "correct-failed"
@@ -200,13 +238,12 @@ def _polish_text(text: str) -> tuple[str | None, str]:
     return corrected, "polished"
 
 
-def _run_hook_protocol(payload: dict) -> int:
+def _run_hook_protocol(payload: dict, providers: list) -> int:
     prompt = payload["prompt"]
-    corrected, reason = _polish_text(prompt)
+    corrected, reason = _polish_text(prompt, providers)
 
     if corrected is None:
         _debug_log(reason.split(":", 1)[0], reason.split(":", 1)[1] if ":" in reason else "")
-        # Empty stdout = no additional context injected.
         return 0
 
     _debug_log("polished", corrected)
@@ -214,8 +251,6 @@ def _run_hook_protocol(payload: dict) -> int:
     style = os.environ.get("POLISH_DISPLAY", "line")
     formatter = _FORMATTERS.get(style, _format_line)
     formatted = formatter(corrected, prompt)
-    # Mirror to stderr so terminals that render hook stderr inline still show
-    # the polish line, even if their client doesn't surface `systemMessage`.
     sys.stderr.write(formatted)
     sys.stderr.flush()
 
@@ -229,8 +264,8 @@ def _run_hook_protocol(payload: dict) -> int:
     return 0
 
 
-def _run_legacy_text(text: str) -> int:
-    corrected, reason = _polish_text(text)
+def _run_legacy_text(text: str, providers: list) -> int:
+    corrected, reason = _polish_text(text, providers)
     if corrected is None:
         _debug_log(reason.split(":", 1)[0], reason.split(":", 1)[1] if ":" in reason else "")
         sys.stdout.write(text)
@@ -247,17 +282,15 @@ def _run_legacy_text(text: str) -> int:
 
 
 def main() -> int:
+    providers = build_providers(detect_agent())
     raw = sys.stdin.read()
 
     payload = _parse_hook_payload(raw)
     if payload is not None:
-        return _run_hook_protocol(payload)
+        return _run_hook_protocol(payload, providers)
 
-    # Legacy raw-text mode: strip a single trailing newline (common when
-    # invoked via `echo "..." |`). Real multi-line input still has internal
-    # \n which is caught by the skip rule.
     text = raw[:-1] if raw.endswith("\n") else raw
-    return _run_legacy_text(text)
+    return _run_legacy_text(text, providers)
 
 
 if __name__ == "__main__":

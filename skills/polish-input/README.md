@@ -20,12 +20,12 @@ bash scripts/install.sh --with-hook polish-input
 ```
 
 This:
-1. Installs the skill files (symlinks `skills/polish-input/` → `~/.claude/skills/polish-input/`).
+1. Installs the skill files (symlinks `skills/polish-input/` → `~/.<agent>/skills/polish-input/`).
 2. Installs the `anthropic` Python SDK via pip.
-3. Merges the `UserPromptSubmit` hook into `~/.claude/settings.json`.
+3. Merges the `UserPromptSubmit` hook into the selected agent's settings (e.g. `~/.gemini/settings.json`).
 
 The hook reads `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` from the
-environment Claude Code runs in. In Kiro mode these are already set to point
+environment the agent runs in. In Kiro mode these are already set to point
 at the Kiro gateway; no second API key is required.
 
 ## Configuration
@@ -35,13 +35,13 @@ All env vars are optional.
 | Var | Default | Effect |
 |---|---|---|
 | `POLISH_DISABLE` | unset | If `1`, hook is a no-op. Instant escape hatch. |
-| `POLISH_REPLACE` | unset | If `1`, send the polished text to Claude instead of the original. |
+| `POLISH_REPLACE` | unset | If `1`, send the polished text to the agent instead of the original. |
 | `POLISH_DISPLAY` | `line` | `line` / `diff` / `box`. |
-| `POLISH_DEBUG` | unset | If `1`, log diagnostics to `~/.claude/state/polish-input/debug.log`. |
+| `POLISH_DEBUG` | unset | If `1`, log diagnostics to `~/.agent-skills-setup/state/polish-input/debug.log`. |
 | `POLISH_MODEL` | `claude-haiku-4-5` | Override the polish model. |
 | `POLISH_TIMEOUT_MS` | `3000` | API timeout in milliseconds. |
 
-Set them in `~/.claude/settings.json` under `env`, or in your shell rc.
+Set them in your agent's settings file (e.g. `~/.gemini/settings.json`) under `env`, or in your shell rc.
 
 ## Skip rules
 
@@ -63,9 +63,9 @@ left in place; remove manually with `pip uninstall anthropic` if desired.
 
 ## Troubleshooting
 
-- **No polish appears:** Check `~/.claude/state/polish-input/debug.log`.
-  Common causes: `anthropic` not installed, missing transitive deps (`pydantic`, `anyio`), or `ANTHROPIC_API_KEY` not set in
-  the environment Claude Code runs in. Fix: `pip3 install anthropic pydantic anyio`.
+- **No polish appears:** Check `~/.agent-skills-setup/state/polish-input/debug.log`.
+  Common causes: `anthropic` not installed, or `ANTHROPIC_API_KEY` not set in
+  the environment the agent runs in.
 - **Polish is slow (>3s):** The hook times out at 3s by default. Bump
   `POLISH_TIMEOUT_MS` if your gateway is slower.
 - **Wrong model used:** Set `POLISH_MODEL` to an alias your gateway exposes.

@@ -25,8 +25,14 @@ service_def() {
     apidog)
       echo "apidog||APIDOG_HOST|APIDOG_USER|"
       ;;
+    anthropic)
+      echo "anthropic|||ANTHROPIC_USER|"
+      ;;
+    gemini)
+      echo "gemini|||GEMINI_USER|"
+      ;;
     *)
-      echo "ERROR: unknown service '$1'. Supported: confluence | jira | apidog" >&2
+      echo "ERROR: unknown service '$1'. Supported: confluence | jira | apidog | gemini" >&2
       return 1
       ;;
   esac

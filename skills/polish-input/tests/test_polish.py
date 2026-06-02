@@ -155,7 +155,7 @@ def test_engine_error_writes_one_time_hint_to_debug_log(tmp_path):
     assert log.exists()
     body = log.read_text()
     assert "engine-error" in body
-    assert "anthropic" in body
+    assert "SDK" in body or "credentials" in body
 
     size_after_first = log.stat().st_size
     run_polish("i want add login", env_overrides=overrides)

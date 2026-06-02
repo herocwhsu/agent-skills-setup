@@ -72,19 +72,13 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   done < "$REPO_DIR/registry.txt"
 done
 
-# Install Kiro prompts if kiro was selected
-for agent in "${SELECTED_AGENTS[@]}"; do
-  if [[ "$agent" == "kiro" ]]; then
-    install_kiro_prompts "$REPO_DIR"
-    break
-  fi
-done
-
 if [[ ${#HOOK_SKILLS[@]} -gt 0 ]]; then
   echo ""
   echo "==> Wiring hooks..."
   for skill in "${HOOK_SKILLS[@]}"; do
-    wire_hook "$skill" "$REPO_DIR"
+    for agent in "${SELECTED_AGENTS[@]}"; do
+      wire_hook "$skill" "$REPO_DIR" "$agent"
+    done
   done
 fi
 

@@ -48,10 +48,7 @@ download_file() {
 agent_skills_dir() {
   local agent="$1"
   case "$agent" in
-    kiro)    echo "$HOME/.kiro/skills" ;;
     claude)  echo "$HOME/.claude/skills" ;;
-    copilot) echo "$HOME/.copilot/skills" ;;
-    codex)   echo "$HOME/.codex/skills" ;;
     gemini)  echo "$HOME/.gemini/skills" ;;
     *)       echo "" ;;
   esac
@@ -188,24 +185,6 @@ record_installed() {
 }
 
 # ---------------------------------------------------------------------------
-# install_kiro_prompts <repo_dir>
-#   Copy prompts/*.md to ~/.kiro/prompts/. Kiro-specific (no other agent
-#   has a prompts/ concept), so this is appropriately a special case.
-# ---------------------------------------------------------------------------
-install_kiro_prompts() {
-  local repo_dir="$1"
-  local target="$HOME/.kiro/prompts"
-  mkdir -p "$target"
-  local count=0
-  for f in "$repo_dir/prompts/"*.md; do
-    [[ -f "$f" ]] || continue
-    cp -f "$f" "$target/$(basename "$f")"
-    count=$((count + 1))
-  done
-  echo "  ✓ kiro prompts ($count files) → $target"
-}
-
-# ---------------------------------------------------------------------------
 # Registry-based uninstall handlers
 # ---------------------------------------------------------------------------
 
@@ -276,9 +255,9 @@ uninstall_local_skill() {
   remove_skill "$name" "$target_dir"
 }
 
-AGENTS=("kiro" "claude" "copilot" "codex" "gemini")
+AGENTS=("claude" "gemini")
 
-# Accept agent via $1 (kiro|claude|copilot|codex|gemini|all). Prompt only if empty.
+# Accept agent via $1 (claude|gemini|all). Prompt only if empty.
 # Sets global SELECTED_AGENTS array.
 select_agents() {
   local choice="${1:-}"
@@ -286,44 +265,40 @@ select_agents() {
   if [[ -z "$choice" ]]; then
     echo ""
     echo "Which agent(s) to target?"
-    echo "  1) Kiro        (~/.kiro/skills/)"
-    echo "  2) Claude Code (~/.claude/skills/)"
-    echo "  3) Copilot     (~/.copilot/skills/)"
-    echo "  4) Codex       (~/.codex/skills/)"
-    echo "  5) Gemini CLI  (~/.gemini/skills/)"
-    echo "  6) All of the above"
+    echo "  1) Claude Code (~/.claude/skills/)"
+    echo "  2) Gemini CLI  (~/.gemini/skills/)"
+    echo "  3) All of the above"
     echo ""
-    read -rp "Choice [1-6]: " input
+    read -rp "Choice [1-3]: " input
     case "$input" in
-      1) choice="kiro" ;;
-      2) choice="claude" ;;
-      3) choice="copilot" ;;
-      4) choice="codex" ;;
-      5) choice="gemini" ;;
-      6) choice="all" ;;
-      *) echo "Invalid choice, defaulting to kiro."; choice="kiro" ;;
+      1) choice="claude" ;;
+      2) choice="gemini" ;;
+      3) choice="all" ;;
+      *) echo "Invalid choice, defaulting to claude."; choice="claude" ;;
     esac
   fi
 
   case "$choice" in
-    kiro)    SELECTED_AGENTS=("kiro") ;;
     claude)  SELECTED_AGENTS=("claude") ;;
-    copilot) SELECTED_AGENTS=("copilot") ;;
-    codex)   SELECTED_AGENTS=("codex") ;;
     gemini)  SELECTED_AGENTS=("gemini") ;;
-    all)     SELECTED_AGENTS=("kiro" "claude" "copilot" "codex" "gemini") ;;
+    all)     SELECTED_AGENTS=("claude" "gemini") ;;
     *)       echo "Invalid agent: $choice"; exit 1 ;;
   esac
 }
 
 # ---------------------------------------------------------------------------
-# wire_hook <skill_name> <repo_dir>
-#   Merge a skill's hook.json into ~/.claude/settings.json.
+# wire_hook <skill_name> <repo_dir> <agent_name>
+#   Merge a skill's hook.json into the agent's settings.json.
 # ---------------------------------------------------------------------------
 wire_hook() {
-  local skill="$1" repo_dir="$2"
+  local skill="$1" repo_dir="$2" agent="${3:-claude}"
   local hook_path="$repo_dir/skills/$skill/hook.json"
-  local settings="$HOME/.claude/settings.json"
+  local settings
+  
+  case "$agent" in
+    gemini) settings="$HOME/.gemini/settings.json" ;;
+    *)      settings="$HOME/.claude/settings.json" ;;
+  esac
 
   if [[ ! -f "$hook_path" ]]; then
     echo "  ERROR: $skill has no hook.json at $hook_path" >&2
@@ -331,36 +306,52 @@ wire_hook() {
   fi
 
   if [[ "$skill" == "polish-input" ]]; then
-    echo "  Installing anthropic SDK via pip..."
+    local pkg="anthropic"
+    if [[ "$agent" == "gemini" ]]; then
+      pkg="google-generativeai google-auth"
+    fi
+
+    echo "  Installing required SDK via pip..."
     local pip_cmd
     if command -v pip3 &>/dev/null; then
       pip_cmd="pip3"
     elif command -v pip &>/dev/null; then
       pip_cmd="pip"
     else
-      echo "  WARNING: pip not found — skipping anthropic install" >&2
+      echo "  WARNING: pip not found — skipping SDK install" >&2
       pip_cmd=""
     fi
     if [[ -n "$pip_cmd" ]]; then
-      "$pip_cmd" install --user --quiet anthropic pydantic anyio || {
-        echo "  WARNING: $pip_cmd install anthropic failed. Hook will fail open." >&2
+      "$pip_cmd" install --user --quiet $pkg --break-system-packages 2>/dev/null || {
+        echo "  WARNING: $pip_cmd install $pkg failed. Hook will fail open." >&2
       }
     fi
   fi
 
   echo "  Merging $skill hook into $settings..."
-  python3 "$repo_dir/scripts/_settings_merge.py" --merge "$hook_path" "$settings"
+  local skills_dir
+  skills_dir=$(agent_skills_dir "$agent")
+  local tmp_hook
+  tmp_hook=$(mktemp /tmp/hook-XXXXXX.json)
+  sed "s|\${AGENT_SKILLS_DIR}|${skills_dir}|g" "$hook_path" > "$tmp_hook"
+  python3 "$repo_dir/scripts/_settings_merge.py" --merge "$tmp_hook" "$settings"
+  rm -f "$tmp_hook"
   echo "  Hook wired."
 }
 
 # ---------------------------------------------------------------------------
-# unwire_hook <skill_name> <repo_dir>
-#   Remove a skill's hook entry from ~/.claude/settings.json. Idempotent.
+# unwire_hook <skill_name> <repo_dir> <agent_name>
+#   Remove a skill's hook entry from the agent's settings.json. Idempotent.
 # ---------------------------------------------------------------------------
 unwire_hook() {
-  local skill="$1" repo_dir="$2"
+  local skill="$1" repo_dir="$2" agent="${3:-claude}"
   local hook_path="$repo_dir/skills/$skill/hook.json"
-  local settings="$HOME/.claude/settings.json"
+  local settings
+
+  case "$agent" in
+    gemini) settings="$HOME/.gemini/settings.json" ;;
+    *)      settings="$HOME/.claude/settings.json" ;;
+  esac
 
   if [[ ! -f "$hook_path" ]]; then
     echo "  WARNING: $skill has no hook.json; nothing to remove." >&2
@@ -372,5 +363,11 @@ unwire_hook() {
   fi
 
   echo "  Removing $skill hook from $settings..."
-  python3 "$repo_dir/scripts/_settings_merge.py" --remove "$hook_path" "$settings"
+  local skills_dir
+  skills_dir=$(agent_skills_dir "$agent")
+  local tmp_hook
+  tmp_hook=$(mktemp /tmp/hook-XXXXXX.json)
+  sed "s|\${AGENT_SKILLS_DIR}|${skills_dir}|g" "$hook_path" > "$tmp_hook"
+  python3 "$repo_dir/scripts/_settings_merge.py" --remove "$tmp_hook" "$settings"
+  rm -f "$tmp_hook"
 }

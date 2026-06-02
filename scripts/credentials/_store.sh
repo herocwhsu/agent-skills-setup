@@ -21,10 +21,25 @@ _os() {
   case "$(uname -s)" in
     Darwin)        echo "darwin" ;;
     Linux)
-      command -v secret-tool &>/dev/null && echo "linux-gui" || echo "linux-headless" ;;
+      if command -v secret-tool &>/dev/null; then
+        echo "linux-gui"
+      else
+        echo "linux-file" # Fallback to file storage
+      fi
+      ;;
     MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
     *)             echo "unknown" ;;
   esac
+}
+
+readonly _FALLBACK_STORE="$HOME/.agent-skills-setup/credentials.json"
+
+_ensure_fallback_dir() {
+  mkdir -p "$(dirname "$_FALLBACK_STORE")"
+  if [[ ! -f "$_FALLBACK_STORE" ]]; then
+    echo "{}" > "$_FALLBACK_STORE"
+    chmod 0600 "$_FALLBACK_STORE"
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -41,6 +56,11 @@ store_credential() {
     linux-gui)
       echo -n "$pass" | secret-tool store --label="$svc" service "$svc" username "$user"
       ;;
+    linux-file)
+      _ensure_fallback_dir
+      # Use python to safely update the JSON file
+      python3 -c "import json, os; p = os.path.expanduser('$_FALLBACK_STORE'); d = json.load(open(p)); d['$svc:$user'] = '$pass'; json.dump(d, open(p, 'w'), indent=2)"
+      ;;
     linux-headless)
       echo "WARN: no keychain on headless Linux. Inject credential via CI secret." >&2
       return 1
@@ -53,7 +73,6 @@ store_credential() {
 
 # ---------------------------------------------------------------------------
 # read_credential <service-slug> <username>  → stdout: password (empty = not found)
-# Use only in scripts where the value is immediately consumed and never printed.
 # ---------------------------------------------------------------------------
 read_credential() {
   local svc; svc=$(_svc_key "$1")
@@ -64,6 +83,11 @@ read_credential() {
       ;;
     linux-gui)
       secret-tool lookup service "$svc" username "$user" 2>/dev/null || true
+      ;;
+    linux-file)
+      if [[ -f "$_FALLBACK_STORE" ]]; then
+        python3 -c "import json, os; p = os.path.expanduser('$_FALLBACK_STORE'); d = json.load(open(p)); print(d.get('$svc:$user', ''))"
+      fi
       ;;
     linux-headless)
       echo "" ;;

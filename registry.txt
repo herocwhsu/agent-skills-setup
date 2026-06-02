@@ -31,3 +31,4 @@ local  plan-story
 local  polish-input
 local  review-pr
 local  kiro-gateway
+local  host-optimization

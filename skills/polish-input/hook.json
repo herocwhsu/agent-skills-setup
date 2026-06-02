@@ -2,7 +2,13 @@
   "hooks": {
     "UserPromptSubmit": [
       {
-        "command": "python3 ~/.claude/skills/polish-input/lib/polish.py"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${AGENT_SKILLS_DIR}/polish-input/lib/polish.py"
+          }
+        ]
       }
     ]
   }

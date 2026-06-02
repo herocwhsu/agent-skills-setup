@@ -56,7 +56,9 @@ if [[ ${#HOOK_SKILLS[@]} -gt 0 ]]; then
   echo ""
   echo "==> Un-wiring hooks..."
   for skill in "${HOOK_SKILLS[@]}"; do
-    unwire_hook "$skill" "$REPO_DIR"
+    for agent in "${SELECTED_AGENTS[@]}"; do
+      unwire_hook "$skill" "$REPO_DIR" "$agent"
+    done
   done
 fi
 

@@ -64,15 +64,26 @@ When prompted, choose one or more:
 
 `setup-credentials.sh` (bash) and `setup-credentials.ps1` (PowerShell) manage credentials for multiple services. Passwords are stored in the platform keychain only — **never exported to env vars**.
 
-**Supported services:**
+**Required Credentials by Skill:**
 
-| Service | Used by |
-|---|---|
-| Confluence | `fetch-page-to-markdown` skill |
-| Jira | future Jira skills |
-| Apidog | future Apidog skills |
+| Skill | Service | Required Key/Auth |
+|---|---|---|
+| `polish-input` | **Gemini** / Anthropic | `GEMINI_API_KEY` (or Google ADC) / `ANTHROPIC_API_KEY` |
+| `fetch-page-to-markdown` | **Confluence** | REST API Token + User |
+| `fetch-jira-story` | **Jira** | REST API Token + User |
+| `plan-story` | **Jira** | (Uses same Jira credentials as above) |
 
 **Actions:** `add` · `update` · `delete` · `list` · `verify`
+
+**Example: Add Gemini key for polish-input:**
+```bash
+bash scripts/setup-credentials.sh gemini add
+```
+
+**Example: Add Anthropic key (alternative):**
+```bash
+bash scripts/setup-credentials.sh anthropic add
+```
 
 **Verify a credential is stored (safe — value never printed):**
 ```bash
