@@ -84,15 +84,91 @@ keychain via `require_secret`.
 
 ## Workflow: tree-fetch
 
-Concrete bash workflow lands in Task 8 of the migration plan.
+> **Note:** The bash recipes below assume Claude Code (`$HOME/.claude/skills/confluence`). On Gemini CLI, Kiro, Copilot, or Codex, change `SKILL_DIR` to the matching path (e.g., `$HOME/.gemini/skills/confluence`).
+
+Argument: the source page ID. Output lands at `./docs/confluence/<YYYY-MM-DD>-<page-id>/` relative to the user's CWD.
+
+```bash
+SKILL_DIR="$HOME/.claude/skills/confluence"
+
+source ~/.agent-skills-setup/lib.sh
+load_config || exit 1
+[[ -z "${CONFLUENCE_HOST:-}" ]] && { echo "ERROR: CONFLUENCE_HOST not in config.sh — run: bash scripts/credentials/service.sh confluence add" >&2; exit 1; }
+
+PAGE_ID="$1"   # the slash-command argument
+OUT_DIR="./docs/confluence/$(date +%Y-%m-%d)-${PAGE_ID}"
+
+SLUG=$(service_slug confluence "https://$CONFLUENCE_HOST")
+_PASS=$(require_secret "$SLUG" "$CONFLUENCE_USER") || exit 1
+
+CONFLUENCE_PASS="$_PASS" python3 "$SKILL_DIR/lib/tree_fetch.py" \
+  --host "$CONFLUENCE_HOST" \
+  --user "$CONFLUENCE_USER" \
+  --root-id "$PAGE_ID" \
+  --out-dir "$OUT_DIR"
+
+unset _PASS
+echo "Done. Tree saved at: $OUT_DIR"
+echo "Edit the markdown files, then run /confluence-tree-upload to push to a new parent."
+```
 
 ## Workflow: tree-upload
 
-Concrete bash workflow lands in Task 8 of the migration plan.
+Arguments: the local tree directory (produced by tree-fetch and optionally edited), the destination parent page ID, and the destination space key. The upload runs in two passes — stub creation, then content + attachments + diagrams — and aborts before pass 2 if any stub fails.
+
+```bash
+SKILL_DIR="$HOME/.claude/skills/confluence"
+
+source ~/.agent-skills-setup/lib.sh
+load_config || exit 1
+[[ -z "${CONFLUENCE_HOST:-}" ]] && { echo "ERROR: CONFLUENCE_HOST not in config.sh" >&2; exit 1; }
+
+LOCAL_DIR="$1"
+NEW_PARENT="$2"
+SPACE_KEY="$3"
+
+# Validate inputs
+[[ -d "$LOCAL_DIR" ]] || { echo "ERROR: $LOCAL_DIR is not a directory" >&2; exit 1; }
+[[ -f "$LOCAL_DIR/manifest.json" ]] || { echo "ERROR: $LOCAL_DIR/manifest.json missing — was this directory produced by /confluence-tree-fetch?" >&2; exit 1; }
+[[ -n "$NEW_PARENT" ]] || { echo "ERROR: --parent <id> required" >&2; exit 1; }
+[[ -n "$SPACE_KEY" ]] || { echo "ERROR: --space <KEY> required" >&2; exit 1; }
+
+SLUG=$(service_slug confluence "https://$CONFLUENCE_HOST")
+_PASS=$(require_secret "$SLUG" "$CONFLUENCE_USER") || exit 1
+
+CONFLUENCE_PASS="$_PASS" python3 "$SKILL_DIR/lib/tree_upload.py" \
+  --tree "$LOCAL_DIR" \
+  --new-parent "$NEW_PARENT" \
+  --space "$SPACE_KEY" \
+  --host "$CONFLUENCE_HOST" \
+  --user "$CONFLUENCE_USER"
+
+unset _PASS
+```
 
 ## Workflow: link-rewrite-preview
 
-Concrete bash workflow lands in Task 8 of the migration plan.
+Dry-run via `tree_upload.py --dry-run`. No network operations, no credentials needed — confirms which `wiki://page/<title>` links would resolve against the local manifest versus pass through unchanged.
+
+```bash
+SKILL_DIR="$HOME/.claude/skills/confluence"
+
+LOCAL_DIR="$1"
+NEW_PARENT="$2"
+
+[[ -d "$LOCAL_DIR" ]] || { echo "ERROR: $LOCAL_DIR is not a directory" >&2; exit 1; }
+[[ -n "$NEW_PARENT" ]] || { echo "ERROR: --parent <id> required" >&2; exit 1; }
+
+# Dry-run mode skips network — no credentials needed.
+# --space and --host are required by argparse but unused in dry-run; pass placeholders.
+python3 "$SKILL_DIR/lib/tree_upload.py" \
+  --tree "$LOCAL_DIR" \
+  --new-parent "$NEW_PARENT" \
+  --space PLACEHOLDER \
+  --host "${CONFLUENCE_HOST:-placeholder.local}" \
+  --user "${CONFLUENCE_USER:-preview}" \
+  --dry-run
+```
 
 ## Common Mistakes
 
