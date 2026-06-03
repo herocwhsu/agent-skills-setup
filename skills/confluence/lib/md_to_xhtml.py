@@ -48,6 +48,23 @@ def strip_frontmatter(text: str) -> tuple[dict, str]:
     return fm, body
 
 
+_DIAGRAM_LINE_RE = re.compile(r"^<!-- diagram:d\d+ -->\s*$")
+
+
+def _starts_block(line: str) -> bool:
+    if not line:
+        return False
+    if line.startswith(("#", "```", "|", "- ", "* ", ">")):
+        return True
+    if re.match(r"^\d+\.\s", line):
+        return True
+    if line.strip() == "---":
+        return True
+    if _DIAGRAM_LINE_RE.match(line):
+        return True
+    return False
+
+
 def parse_blocks(md: str) -> list[tuple[str, str]]:
     """Return list of (kind, body) blocks. kind in {p, h, ul, ol, table, code,
     diagram, hr, blockquote}."""
@@ -117,7 +134,7 @@ def parse_blocks(md: str) -> list[tuple[str, str]]:
         # paragraph
         buf = [line]
         i += 1
-        while i < len(lines) and lines[i].strip() and not lines[i].startswith(("#", "```", "|", "- ", "* ", ">")):
+        while i < len(lines) and lines[i].strip() and not _starts_block(lines[i]):
             buf.append(lines[i])
             i += 1
         blocks.append(("p", " ".join(buf)))
@@ -125,30 +142,29 @@ def parse_blocks(md: str) -> list[tuple[str, str]]:
 
 
 def render_inline(text: str) -> str:
-    out = sax.escape(text)
-    # &lt;...&gt; got escaped; keep simple: bold, italic, code, image, link
-    # We re-process using regexes against the unescaped text first to avoid double-escape, simpler:
-    raw = text
-    # images
+    # Escape XML-significant chars in the raw text first. Subsequent regex
+    # substitutions emit XHTML tags whose `<` and `>` must remain literal.
+    raw = sax.escape(text)
+    # images (must come before links — `![...](url)` would otherwise match the link regex)
     raw = re.sub(r"!\[([^\]]*)\]\(\./([^)]+)\)",
                  lambda m: _image_xml(m.group(1), m.group(2)), raw)
     # links
     raw = re.sub(r"\[([^\]]+)\]\(([^)]+)\)",
-                 lambda m: f'<a href="{sax.escape(m.group(2), {chr(34): "&quot;"})}">{sax.escape(m.group(1))}</a>',
+                 lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}">{m.group(1)}</a>',
                  raw)
-    # bold
+    # bold (must come before italic so `**x**` is not parsed as `*<em>x</em>*`)
     raw = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", raw)
     # italic
     raw = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", raw)
-    # code
-    raw = re.sub(r"`([^`]+)`", lambda m: f"<code>{sax.escape(m.group(1))}</code>", raw)
+    # inline code
+    raw = re.sub(r"`([^`]+)`", lambda m: f"<code>{m.group(1)}</code>", raw)
     return raw
 
 
 def _image_xml(alt: str, rel_path: str) -> str:
     filename = rel_path.rsplit("/", 1)[-1]
-    alt_attr = f' ac:alt="{sax.escape(alt, {chr(34): "&quot;"})}"' if alt else ""
-    return f'<ac:image{alt_attr}><ri:attachment ri:filename="{sax.escape(filename, {chr(34): "&quot;"})}"/></ac:image>'
+    alt_attr = f' ac:alt="{alt.replace(chr(34), "&quot;")}"' if alt else ""
+    return f'<ac:image{alt_attr}><ri:attachment ri:filename="{filename.replace(chr(34), "&quot;")}"/></ac:image>'
 
 
 def render_block(kind: str, body: str, diagrams: dict) -> str:
@@ -168,7 +184,6 @@ def render_block(kind: str, body: str, diagrams: dict) -> str:
     if kind == "code":
         meta = json.loads(body)
         lang = meta["lang"]
-        text = sax.escape(meta["body"])
         lang_param = f'<ac:parameter ac:name="language">{sax.escape(lang)}</ac:parameter>' if lang else ""
         return (
             f'<ac:structured-macro ac:name="code">'

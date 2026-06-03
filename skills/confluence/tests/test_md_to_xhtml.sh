@@ -79,5 +79,52 @@ python3 "$CONV" --md-file "$TMP/wiki.md" --out "$TMP/wiki.xml"
 grep -q 'wiki://page/Other Page' "$TMP/wiki.xml" || { cat "$TMP/wiki.xml"; echo "FAIL test 6"; exit 1; }
 echo "OK test 6"
 
+# --- Test 7: paragraph text with <, >, & is escaped ---
+cat > "$TMP/escape.md" <<'MD'
+Hello <world> & friends.
+MD
+python3 "$CONV" --md-file "$TMP/escape.md" --out "$TMP/escape.xml"
+grep -q 'Hello &lt;world&gt; &amp; friends' "$TMP/escape.xml" \
+  || { cat "$TMP/escape.xml"; echo "FAIL test 7: special chars not escaped"; exit 1; }
+# Make sure we did NOT double-escape (no &amp;lt;)
+if grep -q '&amp;lt;' "$TMP/escape.xml"; then
+  cat "$TMP/escape.xml"
+  echo "FAIL test 7: double-escaped"
+  exit 1
+fi
+echo "OK test 7"
+
+# --- Test 8: diagram comment without blank line is its own block, not absorbed into paragraph ---
+cat > "$TMP/fuse.md" <<'MD'
+Some paragraph.
+<!-- diagram:d1 -->
+More text after.
+MD
+cat > "$TMP/fuse.diagrams.json" <<'JSON'
+{"d1": {"type": "drawio", "xml": "<MARKER/>"}}
+JSON
+python3 "$CONV" --md-file "$TMP/fuse.md" --diagrams-file "$TMP/fuse.diagrams.json" --out "$TMP/fuse.xml"
+# MARKER must NOT be inside the <p>...</p>
+python3 -c "
+import re
+xml = open('$TMP/fuse.xml').read()
+# find first <p>...</p>
+m = re.search(r'<p>(.*?)</p>', xml)
+assert m is not None, 'no paragraph emitted: ' + xml
+assert 'MARKER' not in m.group(1), 'diagram MARKER got fused into paragraph: ' + m.group(0)
+" || { cat "$TMP/fuse.xml"; echo "FAIL test 8: diagram fused into paragraph"; exit 1; }
+grep -q '<MARKER/>' "$TMP/fuse.xml" || { cat "$TMP/fuse.xml"; echo "FAIL test 8: diagram lost entirely"; exit 1; }
+echo "OK test 8"
+
+# --- Test 9: --- hr line without blank lines becomes <hr/>, not absorbed ---
+cat > "$TMP/hr.md" <<'MD'
+Paragraph one.
+---
+Paragraph two.
+MD
+python3 "$CONV" --md-file "$TMP/hr.md" --out "$TMP/hr.xml"
+grep -q '<hr/>' "$TMP/hr.xml" || { cat "$TMP/hr.xml"; echo "FAIL test 9: hr not emitted"; exit 1; }
+echo "OK test 9"
+
 echo ""
 echo "All md_to_xhtml tests passed."
