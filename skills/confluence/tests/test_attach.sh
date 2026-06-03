@@ -130,5 +130,38 @@ grep -q "^PATH: /rest/api/content/999/child/attachment$" "$BODY_DUMP" \
   || { cat "$BODY_DUMP"; echo "FAIL test 4: page-id not in URL path"; exit 1; }
 echo "OK test 4: upload URL contains /content/999/child/attachment"
 
+# --- Test 5: 401 from server is fatal even with --continue-on-error ---
+cat > "$TMP/server401.py" <<'PYEOF'
+import http.server, os, sys, threading
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def do_POST(self):
+        self.send_response(401); self.end_headers(); self.wfile.write(b"unauthorized")
+port = int(os.environ["PORT"])
+srv = http.server.HTTPServer(("127.0.0.1", port), H)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+sys.stdout.write("ready\n"); sys.stdout.flush()
+import signal; signal.pause()
+PYEOF
+
+PORT_AUTH=$((47000 + RANDOM % 1000))
+PORT=$PORT_AUTH python3 "$TMP/server401.py" >"$TMP/server401.log" 2>&1 &
+SERVER401_PID=$!
+trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER401_PID:-}" ]] && kill "$SERVER401_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
+for _ in $(seq 1 30); do grep -q ready "$TMP/server401.log" 2>/dev/null && break; sleep 0.1; done
+grep -q ready "$TMP/server401.log" || { cat "$TMP/server401.log"; echo "FAIL test 5: server didn't start"; exit 1; }
+
+set +e
+CONFLUENCE_PASS=plain python3 "$ATTACH" \
+  --host "http://127.0.0.1:$PORT_AUTH" --user testuser \
+  --page-id 999 --continue-on-error \
+  --files "$TMP/page/diagram.png" "$TMP/page/chart.png" >"$TMP/out5.txt" 2>"$TMP/err5.txt"
+rc=$?
+set -e
+[[ $rc -eq 3 ]] || { cat "$TMP/err5.txt"; echo "FAIL test 5: expected exit 3 on 401, got $rc"; exit 1; }
+grep -q "auth failed" "$TMP/err5.txt" \
+  || { cat "$TMP/err5.txt"; echo "FAIL test 5: expected 'auth failed' message"; exit 1; }
+echo "OK test 5: 401 is fatal even with --continue-on-error"
+
 echo ""
 echo "All attach tests passed."

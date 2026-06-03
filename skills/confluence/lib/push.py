@@ -63,8 +63,12 @@ def http_json(method: str, url: str, *, headers: dict, body: bytes | None = None
 
 
 def create(args: argparse.Namespace, secret: str) -> int:
-    with open(args.xhtml, encoding="utf-8") as f:
-        xhtml = f.read()
+    try:
+        with open(args.xhtml, encoding="utf-8") as f:
+            xhtml = f.read()
+    except OSError as e:
+        print(f"ERROR: cannot read --xhtml file {args.xhtml!r}: {e}", file=sys.stderr)
+        return 2
     auth = auth_header(args.user, secret)
 
     payload_dict: dict = {
@@ -98,13 +102,20 @@ def create(args: argparse.Namespace, secret: str) -> int:
         print(f"ERROR: unexpected POST body: {data}", file=sys.stderr)
         return 6
 
+    page_id = data.get("id")
+    version_block = data.get("version") or {}
+    version_num = version_block.get("number") if isinstance(version_block, dict) else None
+    if not page_id or version_num is None:
+        print(f"ERROR: POST response missing id/version: {data}", file=sys.stderr)
+        return 6
+
     result = {
-        "id": data["id"],
-        "version": int(data["version"]["number"]),
+        "id": page_id,
+        "version": int(version_num),
         "_links": data.get("_links", {}),
     }
     print(json.dumps(result))
-    print(f"Created page #{data['id']} ({args.title})", file=sys.stderr)
+    print(f"Created page #{page_id} ({args.title})", file=sys.stderr)
     return 0
 
 

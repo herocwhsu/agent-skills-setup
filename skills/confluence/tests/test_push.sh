@@ -133,5 +133,56 @@ grep -q "^Bearer " "$AUTH_RECORD" \
   || { echo "FAIL test 3: expected Bearer auth, got: $(cat "$AUTH_RECORD")"; exit 1; }
 echo "OK test 3: PAT auto-detected, sent as Bearer"
 
+# --- Test 4: missing --xhtml file returns exit 2 ---
+set +e
+CONFLUENCE_PASS=plain python3 "$PUSH" \
+  --host "http://127.0.0.1:$PORT" --user testuser \
+  --xhtml "$TMP/does-not-exist.xml" \
+  --space PP2 --title "x" >"$TMP/out4.txt" 2>"$TMP/err4.txt"
+rc=$?
+set -e
+[[ $rc -eq 2 ]] || { cat "$TMP/err4.txt"; echo "FAIL test 4: expected exit 2, got $rc"; exit 1; }
+grep -q "cannot read" "$TMP/err4.txt" \
+  || { cat "$TMP/err4.txt"; echo "FAIL test 4: expected 'cannot read' message"; exit 1; }
+echo "OK test 4: missing --xhtml file -> exit 2"
+
+# --- Test 5: malformed POST response (server returns 200 with no id) returns exit 6 ---
+# Need a separate mock server that returns malformed bodies.
+cat > "$TMP/server2.py" <<'PYEOF'
+import http.server, os, sys, threading
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def do_POST(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(b'{"unexpected":"shape"}')
+port = int(os.environ["PORT"])
+srv = http.server.HTTPServer(("127.0.0.1", port), H)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+sys.stdout.write("ready\n"); sys.stdout.flush()
+import signal; signal.pause()
+PYEOF
+
+PORT2=$((46000 + RANDOM % 1000))
+PORT=$PORT2 python3 "$TMP/server2.py" >"$TMP/server2.log" 2>&1 &
+SERVER2_PID=$!
+trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER2_PID:-}" ]] && kill "$SERVER2_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
+for _ in $(seq 1 30); do grep -q ready "$TMP/server2.log" 2>/dev/null && break; sleep 0.1; done
+grep -q ready "$TMP/server2.log" || { cat "$TMP/server2.log"; echo "FAIL test 5: server didn't start"; exit 1; }
+
+echo "<p>x</p>" > "$TMP/page.xhtml"
+set +e
+CONFLUENCE_PASS=plain python3 "$PUSH" \
+  --host "http://127.0.0.1:$PORT2" --user testuser \
+  --xhtml "$TMP/page.xhtml" \
+  --space PP2 --title "x" >"$TMP/out5.txt" 2>"$TMP/err5.txt"
+rc=$?
+set -e
+[[ $rc -eq 6 ]] || { cat "$TMP/err5.txt"; echo "FAIL test 5: expected exit 6, got $rc"; exit 1; }
+grep -q "missing id/version" "$TMP/err5.txt" \
+  || { cat "$TMP/err5.txt"; echo "FAIL test 5: expected 'missing id/version' message"; exit 1; }
+echo "OK test 5: malformed POST response -> exit 6"
+
 echo ""
 echo "All push tests passed."
