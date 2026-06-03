@@ -74,5 +74,32 @@ python3 "$CONV" --input "$TMP/link.xml" --out-md "$TMP/link.md" --base-url "http
 grep -q '\[Other\](wiki://page/Other Page)' "$TMP/link.md" || { cat "$TMP/link.md"; echo "FAIL test 6"; exit 1; }
 echo "OK test 6"
 
+# --- Test 7: HTML entities are decoded, not crashed ---
+cat > "$TMP/entities.xml" <<'XML'
+<p>hello&nbsp;world &mdash; ok &copy;</p>
+XML
+python3 "$CONV" --input "$TMP/entities.xml" --out-md "$TMP/entities.md"
+grep -q 'hello' "$TMP/entities.md" || { cat "$TMP/entities.md"; echo "FAIL test 7: entity-bearing input crashed or stripped"; exit 1; }
+grep -q '©' "$TMP/entities.md" || { echo "FAIL test 7: copy entity not decoded"; exit 1; }
+echo "OK test 7"
+
+# --- Test 8: namespace declarations on the fragment don't break macros ---
+cat > "$TMP/nsbody.xml" <<'XML'
+<ac:structured-macro xmlns:ac="http://atlassian.com/content" ac:name="info">
+  <ac:rich-text-body><p>Heads up.</p></ac:rich-text-body>
+</ac:structured-macro>
+XML
+python3 "$CONV" --input "$TMP/nsbody.xml" --out-md "$TMP/nsbody.md"
+grep -q '> \*\*Info:\*\*' "$TMP/nsbody.md" || { cat "$TMP/nsbody.md"; echo "FAIL test 8: macro lost when fragment declares own xmlns"; exit 1; }
+echo "OK test 8"
+
+# --- Test 9: page titles with parens are URL-encoded in the link target ---
+cat > "$TMP/parens.xml" <<'XML'
+<p>See <ac:link><ri:page ri:content-title="Foo (bar)"/><ac:plain-text-link-body><![CDATA[See Foo]]></ac:plain-text-link-body></ac:link></p>
+XML
+python3 "$CONV" --input "$TMP/parens.xml" --out-md "$TMP/parens.md"
+grep -q 'wiki://page/Foo %28bar%29' "$TMP/parens.md" || { cat "$TMP/parens.md"; echo "FAIL test 9: paren in title not encoded"; exit 1; }
+echo "OK test 9"
+
 echo ""
 echo "All xhtml_to_md tests passed."

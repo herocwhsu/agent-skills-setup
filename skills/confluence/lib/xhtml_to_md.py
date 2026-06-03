@@ -21,10 +21,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import html.entities
 import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 try:
     from lxml import etree
@@ -37,17 +39,110 @@ NS = {
     "ri": "http://example.org/ri",
 }
 
+# Confluence storage XHTML may declare its own ac:/ri: URIs on the fragment.
+# Recognise the synthetic ones we wrap with plus the real Confluence ones.
+_REAL_NS = {
+    "ac": {"http://example.org/ac", "http://atlassian.com/content"},
+    "ri": {"http://example.org/ri", "http://atlassian.com/resource/identifier"},
+}
+
 DRAWIO_MACROS = {"drawio", "drawio-board", "drawio-mxgraph", "gliffy"}
 ADMONITION_MACROS = {"info": "Info", "warning": "Warning", "note": "Note", "tip": "Tip"}
+
+_ENTITY_RE = re.compile(r"&([A-Za-z][A-Za-z0-9]+);")
+# These must stay literal so lxml's XML parser doesn't choke.
+_XML_RESERVED_ENTITIES = {"amp", "lt", "gt", "quot", "apos"}
+
+
+def _substitute_entities(text: str) -> str:
+    """Decode XHTML named entities (e.g. &nbsp;, &copy;) before XML parsing.
+
+    Leaves the five XML-significant entities alone so lxml stays happy.
+    """
+
+    def repl(m: re.Match) -> str:
+        name = m.group(1)
+        if name in _XML_RESERVED_ENTITIES:
+            return m.group(0)
+        codepoint = html.entities.html5.get(name + ";") or html.entities.html5.get(name)
+        return codepoint if codepoint else m.group(0)
+
+    return _ENTITY_RE.sub(repl, text)
 
 
 def wrap_with_ns(xhtml: str) -> str:
     """Wrap a fragment with explicit namespace declarations so lxml can parse it."""
+    xhtml = _substitute_entities(xhtml)
     return (
         '<root xmlns:ac="http://example.org/ac" xmlns:ri="http://example.org/ri">'
         f"{xhtml}"
         "</root>"
     )
+
+
+def _ns_matches(node, prefix: str) -> bool:
+    """True if `node` belongs to a namespace effectively bound to `prefix` (ac/ri).
+
+    Matches both the synthetic URIs we wrap with and the real Confluence URIs.
+    Falls back to substring match so an unexpected variant URI still resolves.
+    """
+    ns = etree.QName(node).namespace or ""
+    if ns in _REAL_NS.get(prefix, set()):
+        return True
+    return prefix in ns.lower()
+
+
+def _attr(node, prefix: str, local: str):
+    """Return attribute value matching `<prefix>:<local>` regardless of bound URI."""
+    for full_name, value in node.attrib.items():
+        qname = etree.QName(full_name)
+        if qname.localname != local:
+            continue
+        ns = (qname.namespace or "").lower()
+        if not ns:
+            # Unprefixed attribute on a prefixed element: treat as matching.
+            return value
+        if ns in _REAL_NS.get(prefix, set()) or prefix in ns:
+            return value
+    return None
+
+
+def _find_child(node, prefix: str, local: str):
+    """First direct child with matching local name + prefix-bound namespace."""
+    for child in node:
+        qname = etree.QName(child)
+        if qname.localname == local:
+            ns = (qname.namespace or "").lower()
+            if ns in _REAL_NS.get(prefix, set()) or prefix in ns:
+                return child
+    return None
+
+
+def _find_descendant(node, prefix: str, local: str):
+    """First descendant with matching local name + prefix-bound namespace."""
+    for child in node.iter():
+        if child is node:
+            continue
+        qname = etree.QName(child)
+        if qname.localname == local:
+            ns = (qname.namespace or "").lower()
+            if ns in _REAL_NS.get(prefix, set()) or prefix in ns:
+                return child
+    return None
+
+
+def _find_macro_param(node, name_value: str):
+    """Find <ac:parameter ac:name="<name_value>"> child regardless of namespace URI."""
+    for child in node:
+        qname = etree.QName(child)
+        if qname.localname != "parameter":
+            continue
+        ns = (qname.namespace or "").lower()
+        if not (ns in _REAL_NS["ac"] or "ac" in ns):
+            continue
+        if _attr(child, "ac", "name") == name_value:
+            return child
+    return None
 
 
 def load_xhtml(path: str) -> str:
@@ -109,12 +204,13 @@ def _render(node, diagrams, next_id, attachments_rel, base_url) -> str:
     if tag == "hr":
         return "\n---\n\n"
 
-    if tag == "structured-macro" and etree.QName(node).namespace and "ac" in etree.QName(node).namespace:
+    if tag == "structured-macro" and _ns_matches(node, "ac"):
         return _render_macro(node, diagrams, next_id, attachments_rel, base_url)
 
-    # ac:* and ri:* fallbacks handled in _inline; if we get here it's an unknown block
+    # ac:* and ri:* fallbacks handled in _inline; if we get here it's an unknown block.
+    # Append paragraph separator so back-to-back unknown blocks don't fuse.
     body = _inline(node, diagrams, next_id, attachments_rel, base_url)
-    return body
+    return body + ("\n\n" if body.strip() else "")
 
 
 def _inline(node, diagrams, next_id, attachments_rel, base_url) -> str:
@@ -131,13 +227,12 @@ def _inline(node, diagrams, next_id, attachments_rel, base_url) -> str:
 def _render_inline(node, diagrams, next_id, attachments_rel, base_url) -> str:
     qname = etree.QName(node)
     tag = qname.localname
-    ns = qname.namespace or ""
 
-    if "ac" in ns and tag == "structured-macro":
+    if tag == "structured-macro" and _ns_matches(node, "ac"):
         return _render_macro(node, diagrams, next_id, attachments_rel, base_url)
-    if "ac" in ns and tag == "image":
+    if tag == "image" and _ns_matches(node, "ac"):
         return _render_image(node, attachments_rel)
-    if "ac" in ns and tag == "link":
+    if tag == "link" and _ns_matches(node, "ac"):
         return _render_link(node, base_url, diagrams, next_id, attachments_rel)
     if tag in {"strong", "b"}:
         return f"**{_inline(node, diagrams, next_id, attachments_rel, base_url)}**"
@@ -155,7 +250,7 @@ def _render_inline(node, diagrams, next_id, attachments_rel, base_url) -> str:
 
 
 def _render_macro(node, diagrams, next_id, attachments_rel, base_url) -> str:
-    name = node.get("{http://example.org/ac}name") or ""
+    name = _attr(node, "ac", "name") or ""
     if name in DRAWIO_MACROS:
         diag_id = next_id()
         diagrams[diag_id] = {
@@ -165,46 +260,54 @@ def _render_macro(node, diagrams, next_id, attachments_rel, base_url) -> str:
         return f"\n<!-- diagram:{diag_id} -->\n\n"
     if name in ADMONITION_MACROS:
         label = ADMONITION_MACROS[name]
-        body_node = node.find("{http://example.org/ac}rich-text-body")
+        body_node = _find_child(node, "ac", "rich-text-body")
         body = _inline(body_node, diagrams, next_id, attachments_rel, base_url) if body_node is not None else ""
         return f"\n> **{label}:** {body.strip()}\n\n"
     if name == "code":
-        lang_param = node.find('{http://example.org/ac}parameter[@{http://example.org/ac}name="language"]')
+        lang_param = _find_macro_param(node, "language")
         lang = (lang_param.text or "") if lang_param is not None else ""
-        body_node = node.find("{http://example.org/ac}plain-text-body")
+        body_node = _find_child(node, "ac", "plain-text-body")
         body = body_node.text or "" if body_node is not None else ""
         return f"\n```{lang}\n{body}\n```\n\n"
     if name == "expand":
-        title_param = node.find('{http://example.org/ac}parameter[@{http://example.org/ac}name="title"]')
+        title_param = _find_macro_param(node, "title")
         title = (title_param.text or "") if title_param is not None else "Details"
-        body_node = node.find("{http://example.org/ac}rich-text-body")
+        body_node = _find_child(node, "ac", "rich-text-body")
         body = _inline(body_node, diagrams, next_id, attachments_rel, base_url) if body_node is not None else ""
         return f"\n**{title}**\n\n{body.strip()}\n\n"
     return f"<!-- macro:{name} -->"
 
 
 def _render_image(node, attachments_rel) -> str:
-    attachment = node.find("{http://example.org/ri}attachment")
+    attachment = _find_child(node, "ri", "attachment")
     if attachment is not None and attachments_rel:
-        filename = attachment.get("{http://example.org/ri}filename", "")
-        alt = node.get("{http://example.org/ac}alt") or ""
-        return f"![{alt}]({attachments_rel}/{filename})"
+        filename = _attr(attachment, "ri", "filename") or ""
+        alt = _attr(node, "ac", "alt") or ""
+        # Filename goes into the URL part: percent-encode parens/brackets.
+        encoded_filename = quote(filename, safe=" /")
+        # Alt text is link-body; escape closing/opening brackets.
+        safe_alt = alt.replace("]", r"\]").replace("[", r"\[")
+        return f"![{safe_alt}]({attachments_rel}/{encoded_filename})"
     return "<!-- image:unsupported -->"
 
 
 def _render_link(node, base_url, diagrams, next_id, attachments_rel) -> str:
-    page = node.find("{http://example.org/ri}page")
-    body_node = node.find("{http://example.org/ac}plain-text-link-body")
+    page = _find_child(node, "ri", "page")
+    body_node = _find_child(node, "ac", "plain-text-link-body")
     if body_node is None:
-        body_node = node.find("{http://example.org/ac}link-body")
+        body_node = _find_child(node, "ac", "link-body")
     body = (body_node.text or "") if body_node is not None else ""
     if page is not None:
-        title = page.get("{http://example.org/ri}content-title", "")
+        title = _attr(page, "ri", "content-title") or ""
         body = body or title
-        return f"[{body}](wiki://page/{title})"
-    user = node.find("{http://example.org/ri}user")
+        # Body sits inside [...]: escape ] so renderers don't end the link early.
+        safe_body = body.replace("]", r"\]")
+        # Title sits inside (...): percent-encode (), [], and the like.
+        encoded_title = quote(title, safe=" ")
+        return f"[{safe_body}](wiki://page/{encoded_title})"
+    user = _find_child(node, "ri", "user")
     if user is not None:
-        return f"@{user.get('{http://example.org/ri}userkey', '')}"
+        return f"@{_attr(user, 'ri', 'userkey') or ''}"
     return body
 
 
