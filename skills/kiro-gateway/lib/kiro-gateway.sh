@@ -70,19 +70,19 @@ start_container() {
 # ---------------------------------------------------------------------------
 
 cmd_status() {
+  if [[ ! -f "$STATE_FILE" ]]; then
+    echo "State file: no state file (run 'init' first)"
+    return 0
+  fi
   require_docker
   local state
   state=$(container_status)
   echo "Container:  $state"
-  if [[ -f "$STATE_FILE" ]]; then
-    echo "Current:    $(read_state current)"
-    local prev
-    prev=$(read_state previous)
-    [[ -n "$prev" ]] && echo "Previous:   $prev" || echo "Previous:   (none)"
-    echo "Port:       $HOST_PORT → $CONTAINER_PORT"
-  else
-    echo "State file: no state file (run 'init' first)"
-  fi
+  echo "Current:    $(read_state current)"
+  local prev
+  prev=$(read_state previous)
+  [[ -n "$prev" ]] && echo "Previous:   $prev" || echo "Previous:   (none)"
+  echo "Port:       $HOST_PORT → $CONTAINER_PORT"
 }
 
 cmd_init() {
@@ -158,11 +158,10 @@ cmd_update() {
 }
 
 cmd_rollback() {
-  require_docker
   local previous
   previous=$(read_state previous)
   [[ -n "$previous" ]] || die "no previous version recorded. Rollback requires at least one prior update."
-
+  require_docker
   local current
   current=$(read_state current)
   echo "Rolling back: $current → $previous"

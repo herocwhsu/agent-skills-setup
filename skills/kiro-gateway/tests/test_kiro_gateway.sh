@@ -6,20 +6,6 @@ SCRIPT="$(cd "$(dirname "$0")/.." && pwd)/lib/kiro-gateway.sh"
 PASS=0
 FAIL=0
 
-run_test() {
-  local name="$1"
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  if ( KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" bash "$SCRIPT" "$@" 2>&1 ); then
-    echo "PASS: $name"
-    PASS=$((PASS+1))
-  else
-    echo "FAIL: $name"
-    FAIL=$((FAIL+1))
-  fi
-  rm -rf "$tmpdir"
-}
-
 expect_output() {
   local name="$1" expected="$2"
   shift 2
