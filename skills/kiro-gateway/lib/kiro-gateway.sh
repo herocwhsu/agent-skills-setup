@@ -157,6 +157,46 @@ cmd_update() {
   cmd_init
 }
 
+cmd_setup_alias() {
+  local rc_file
+  case "${SHELL:-}" in
+    */zsh)  rc_file="$HOME/.zshrc" ;;
+    */bash)
+      if [[ "$(uname -s)" == "Darwin" ]]; then
+        rc_file="$HOME/.bash_profile"
+      else
+        rc_file="$HOME/.bashrc"
+      fi
+      ;;
+    *) rc_file="$HOME/.zshrc" ;;
+  esac
+
+  if grep -Fq "claude-kiro" "$rc_file" 2>/dev/null; then
+    echo "claude-kiro alias already present in $rc_file"
+    return 0
+  fi
+
+  local proxy_key="${KIRO_PROXY_KEY:-}"
+  if [[ -z "$proxy_key" ]]; then
+    read -rp "KIRO_PROXY_KEY value (the API key the gateway expects, leave blank for 'kiro-local'): " proxy_key
+    proxy_key="${proxy_key:-kiro-local}"
+  fi
+
+  {
+    echo ""
+    echo "# kiro-gateway"
+    echo "export KIRO_PROXY_KEY=${proxy_key}"
+    echo "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=\$KIRO_PROXY_KEY claude'"
+  } >> "$rc_file"
+
+  echo "Added to $rc_file:"
+  echo "  export KIRO_PROXY_KEY=..."
+  echo "  alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ...'"
+  echo ""
+  echo "Activate now: source $rc_file"
+  echo "Then launch Claude Code via: claude-kiro"
+}
+
 cmd_rollback() {
   local previous
   previous=$(read_state previous)
@@ -182,9 +222,10 @@ cmd_rollback() {
 # ---------------------------------------------------------------------------
 
 case "${1:-}" in
-  init)     cmd_init ;;
-  update)   cmd_update ;;
-  rollback) cmd_rollback ;;
-  status)   cmd_status ;;
-  *)        die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status" ;;
+  init)          cmd_init ;;
+  update)        cmd_update ;;
+  rollback)      cmd_rollback ;;
+  status)        cmd_status ;;
+  setup-alias)   cmd_setup_alias ;;
+  *)             die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status | setup-alias" ;;
 esac

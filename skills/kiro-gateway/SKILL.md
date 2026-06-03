@@ -14,6 +14,7 @@ Ask Claude to:
 - "Update kiro-gateway" → runs `update`
 - "Rollback kiro-gateway" → runs `rollback`
 - "Show kiro-gateway status" → runs `status`
+- "Set up claude-kiro alias" → runs `setup-alias`
 
 Claude will call:
 ```bash
@@ -28,6 +29,7 @@ bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh <subcommand>
 | `update` | Pull latest, confirm new digest, recreate container. |
 | `rollback` | Revert to previous digest. Swaps current ↔ previous in state. |
 | `status` | Show container state, current digest, previous digest. |
+| `setup-alias` | Add `KIRO_PROXY_KEY` + `claude-kiro` alias to shell rc file. |
 
 ## State file
 

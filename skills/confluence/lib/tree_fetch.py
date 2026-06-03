@@ -60,7 +60,23 @@ def slugify(title: str) -> str:
 
 
 def _escape_yaml(s: str) -> str:
-    return (s or "").replace("\\", "\\\\").replace('"', '\\"')
+    """Escape a string for use as a double-quoted YAML scalar value.
+
+    Constraint: the output must round-trip through link_rewrite.parse_frontmatter,
+    which uses a naive ``.strip('"')`` (no escape decoding). So we cannot emit
+    backslash-escapes. Instead, substitute the YAML-breaking characters with
+    safe equivalents:
+      - double quote → single quote
+      - backslash → forward slash
+      - newlines / carriage returns → space
+    """
+    return (
+        (s or "")
+        .replace("\\", "/")
+        .replace('"', "'")
+        .replace("\r", " ")
+        .replace("\n", " ")
+    )
 
 
 def http_get_json(url: str, auth: str) -> tuple[int, object]:
