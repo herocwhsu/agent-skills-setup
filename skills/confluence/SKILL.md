@@ -26,7 +26,7 @@ equivalent on fetch.
 | Command | What it does |
 |---|---|
 | `/confluence-tree-fetch <page-id>` | Walk the source page and descendants; write each as `<slug>.md` with frontmatter, plus `_root.attachments/`, `_root.diagrams.json`, and `manifest.json` describing the tree shape |
-| `/confluence-tree-upload <local-dir> --parent <id> --space <KEY>` | Re-build the manifest from the on-disk tree, create stub pages under `<id>` in `<KEY>` (pass 1), then upload content + attachments + diagrams (pass 2) |
+| `/confluence-tree-upload <local-dir> --parent <id> --space <KEY>` | Reconcile titles from on-disk frontmatter, create stub pages under `<id>` in `<KEY>` (pass 1), then upload content + attachments + diagrams (pass 2) |
 | `/confluence-link-rewrite-preview <local-dir> --parent <id>` | Dry-run: show how cross-tree links will rewrite given the destination parent. No network calls, no writes. |
 
 ## Frontmatter contract
@@ -58,7 +58,7 @@ so the fetcher does not try. Each diagram is preserved as an entry in
 markdown as a single line:
 
 ```
-<!-- diagram id="d1" -->
+<!-- diagram:d1 -->
 ```
 
 The sidecar stores the diagram's macro XML, attachment filename, and
@@ -175,7 +175,7 @@ python3 "$SKILL_DIR/lib/tree_upload.py" \
 | Mistake | Fix |
 |---|---|
 | Editing `source_page_id` in frontmatter by hand | The upload pass uses it as the join key for cross-tree links. Re-fetch the page if you need a clean ID. |
-| Running `/confluence-tree-upload` before the manifest is rebuilt | The upload entrypoint re-builds `manifest.json` from the on-disk tree on every run. If you bypass that step (e.g. call internal scripts directly), stub creation will misalign with content. Always go through the subcommand. |
+| Running `/confluence-tree-upload` before titles are reconciled | The upload entrypoint reconciles each page's title from on-disk frontmatter against the manifest on every run. If you bypass that step (e.g. call internal scripts directly), stub creation will use stale manifest titles. Always go through the subcommand. |
 | `CONFLUENCE_HOST` missing from `~/.agent-skills-setup/config.sh` | Run `bash scripts/credentials/service.sh confluence add` to populate config + keychain in one go. |
 | Mixing PAT and Basic Auth credentials in the keychain | The auto-detect rule is value-shape based: long, no colon → Bearer. If your password happens to look PAT-shaped, the skill will guess wrong. Force Basic by adding any non-alphanumeric char to the password, or rotate to a real PAT. |
 | Uploading to a parent in the wrong space | The upload pass uses `--space <KEY>` for ALL stub pages; if `<id>` lives in a different space, Confluence rejects with 400. Verify the parent's space before running. |
