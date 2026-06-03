@@ -269,5 +269,112 @@ grep -q "would rewrite to source #200" "$TMP/out4.txt" \
   || { cat "$TMP/out4.txt"; echo "FAIL test 4: link resolution not shown"; exit 1; }
 echo "OK test 4: --dry-run skips network and reports link resolution"
 
+# ============================================================
+# Test 5: attachment 500 warns and continues
+#   POST /rest/api/content/<id>/child/attachment → 500
+#   POST /rest/api/content (stub create)         → 200
+#   PUT  /rest/api/content/<id>                  → 200
+# Confirms upload exits 0, warning is logged, PUT is reached.
+# ============================================================
+cat > "$TMP/server5.py" <<'PYEOF'
+import http.server, json, os, sys, threading
+
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+
+    def _read_body(self):
+        length = int(self.headers.get("Content-Length", 0))
+        return self.rfile.read(length) if length else b""
+
+    def do_POST(self):
+        self._read_body()
+        if "child/attachment" in self.path:
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"message":"intentional fail"}')
+            return
+        # Stub create
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({
+            "id": "5000",
+            "version": {"number": 1},
+            "title": "stub",
+            "_links": {"webui": "/display/X/5000"},
+        }).encode())
+
+    def do_PUT(self):
+        self._read_body()
+        with open(os.environ["PUT_FLAG"], "w") as f:
+            f.write("yes")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({
+            "id": "5000", "version": {"number": 2}, "title": "x",
+        }).encode())
+
+port = int(os.environ["PORT"])
+srv = http.server.HTTPServer(("127.0.0.1", port), H)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+sys.stdout.write("ready\n"); sys.stdout.flush()
+import signal; signal.pause()
+PYEOF
+
+T5="$TMP/tree5"
+mkdir -p "$T5/_root.attachments"
+cat > "$T5/_root.md" <<'MD'
+---
+source_page_id: "500"
+source_title: "Root5"
+source_url: "http://example/Root5"
+source_version: 1
+fetched_at: "2026-06-03"
+---
+
+# Root5
+MD
+echo "binary" > "$T5/_root.attachments/blob.dat"
+cat > "$T5/manifest.json" <<'JSON'
+{
+  "root_id": "500",
+  "root_title": "Root5",
+  "host": "example.com",
+  "fetched_at": "2026-06-03",
+  "pages": [
+    {"page_id": "500", "title": "Root5", "relative_path": "_root.md", "parent_id": null, "depth": 0}
+  ]
+}
+JSON
+
+PORT5=$((49000 + RANDOM % 1000))
+PUT_FLAG="$TMP/put5.flag"
+PORT=$PORT5 PUT_FLAG=$PUT_FLAG python3 "$TMP/server5.py" >"$TMP/server5.log" 2>&1 &
+SERVER5_PID=$!
+SERVER_PIDS+=("$SERVER5_PID")
+disown "$SERVER5_PID" 2>/dev/null || true
+for _ in $(seq 1 30); do
+  grep -q ready "$TMP/server5.log" 2>/dev/null && break
+  sleep 0.1
+done
+grep -q ready "$TMP/server5.log" \
+  || { cat "$TMP/server5.log"; echo "FAIL test 5: server didn't start"; exit 1; }
+
+CONFLUENCE_PASS=plainpass python3 "$UPLOAD" \
+  --tree "$T5" \
+  --new-parent 999 \
+  --space PP2 \
+  --host "http://127.0.0.1:$PORT5" \
+  --user testuser >"$TMP/out5.txt" 2>"$TMP/err5.txt" \
+  || { cat "$TMP/out5.txt" "$TMP/err5.txt"; echo "FAIL test 5: upload should have exited 0 despite attachment 500"; exit 1; }
+
+grep -q 'attachment upload failed' "$TMP/err5.txt" \
+  || { cat "$TMP/err5.txt"; echo "FAIL test 5: expected attachment failure warning"; exit 1; }
+[[ -f "$PUT_FLAG" ]] \
+  || { cat "$TMP/err5.txt"; echo "FAIL test 5: PUT was not reached"; exit 1; }
+echo "OK test 5: attachment 500 warns and continues, PUT still reached"
+
 echo ""
 echo "All tree_upload tests passed."

@@ -51,14 +51,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from push import auth_header, base_url, http_json  # noqa: E402
 from attach import upload as attach_upload  # noqa: E402
-from link_rewrite import WIKI_LINK_RE  # noqa: E402
+from link_rewrite import WIKI_LINK_RE, parse_frontmatter  # noqa: E402
 import md_to_xhtml  # noqa: E402
 
 
-def walk_tree_in_order(tree: Path) -> list[dict]:
+def load_pages(tree: Path) -> list[dict]:
     """Return the manifest's `pages` list (pre-order DFS as written by
-    tree_fetch.py). Each entry has page_id, title, relative_path,
-    parent_id, depth.
+    tree_fetch.py) with each entry's title overridden from the on-disk
+    frontmatter `source_title` (the on-disk tree is the source of truth,
+    not the manifest — the user may have edited frontmatter between
+    fetch and upload). Aborts if the on-disk `source_page_id` disagrees
+    with the manifest's `page_id`.
     """
     manifest_path = tree / "manifest.json"
     if not manifest_path.exists():
@@ -66,7 +69,27 @@ def walk_tree_in_order(tree: Path) -> list[dict]:
             (f"manifest.json not found in {tree}; was it written by tree_fetch?", 2)
         )
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    return manifest.get("pages", [])
+    pages = manifest.get("pages", [])
+
+    for p in pages:
+        md_path = tree / p["relative_path"]
+        if not md_path.is_file():
+            raise SystemExit(
+                (f"tree page {p['relative_path']} missing on disk", 2)
+            )
+        fm = parse_frontmatter(md_path.read_text(encoding="utf-8"))
+        on_disk_id = fm.get("source_page_id")
+        on_disk_title = fm.get("source_title")
+        if on_disk_id and on_disk_id != p["page_id"]:
+            raise SystemExit((
+                f"source_page_id mismatch in {p['relative_path']}: "
+                f"manifest says {p['page_id']}, frontmatter says {on_disk_id}",
+                2,
+            ))
+        if on_disk_title:
+            p["title"] = on_disk_title  # prefer on-disk; user may have edited
+
+    return pages
 
 
 def stub_create(host: str, user: str, secret: str, space: str,
@@ -189,7 +212,8 @@ def upload_attachments_for_page(host: str, user: str, secret: str,
     """Upload every file in the page's <basename>.attachments/ directory.
     Returns count of successful uploads. A single failed attachment WARNs
     and continues — manual fixup of one attachment is cheap, blocking the
-    whole tree upload because of one bad file is not.
+    whole tree upload because of one bad file is not. Auth failures (401)
+    re-raise so the whole upload aborts cleanly with exit 3.
     """
     if not attachments_dir.is_dir():
         return 0
@@ -207,6 +231,8 @@ def upload_attachments_for_page(host: str, user: str, secret: str,
                 msg, code = arg
             else:
                 msg, code = str(arg), 6
+            if code == 3:
+                raise  # auth failures abort the whole upload
             print(f"  WARN: attachment upload failed for {path.name}: {msg}",
                   file=sys.stderr)
     return count
@@ -233,7 +259,7 @@ def main(argv: list[str]) -> int:
         return 2
 
     try:
-        pages = walk_tree_in_order(tree)
+        pages = load_pages(tree)
     except SystemExit as e:
         arg = e.args[0]
         msg, code = arg if isinstance(arg, tuple) else (str(arg), 2)
@@ -331,9 +357,16 @@ def main(argv: list[str]) -> int:
 
         attachments_dir = md_path.parent / (md_path.stem + ".attachments")
         new_id = source_to_new_id[p["page_id"]]
-        attached_total += upload_attachments_for_page(
-            args.host, args.user, secret, new_id, attachments_dir,
-        )
+        try:
+            attached_total += upload_attachments_for_page(
+                args.host, args.user, secret, new_id, attachments_dir,
+            )
+        except SystemExit as e:
+            arg = e.args[0]
+            msg, code = arg if isinstance(arg, tuple) else (str(arg), 6)
+            print(f"ERROR: attachment auth failure on {p['title']}: {msg}",
+                  file=sys.stderr)
+            return code
 
         try:
             update_page(args.host, args.user, secret, new_id, p["title"], xhtml, 2)
