@@ -25,8 +25,8 @@ Installed automatically as a `local` skill once added to `registry.txt`.
   ```bash
   bash scripts/credentials/service.sh confluence add
   ```
-- Python 3 with `lxml` (storage-format parsing) and standard library
-  (HTTP, manifest building)
+- Python 3 with standard library (HTTP, manifest building). The
+  XHTML converter (Task 2) adds an `lxml` dependency when it lands.
 - `jq` for manifest and diagram-sidecar inspection during debugging
 
 ## Subcommands
