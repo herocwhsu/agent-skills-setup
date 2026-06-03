@@ -1,19 +1,14 @@
 # confluence
 
-Fetch, edit, create, and attach files to **self-hosted Confluence
-Server/DC** pages. Round-trips macros, images, and cross-page links via
-a sidecar `meta.json` (anchor-and-splice).
+Migrate a **self-hosted Confluence Server/DC** page tree to a new
+location. Source and destination are independent — fetch is one-way
+out, upload is one-way in.
 
 ## Status
 
-Scaffolding. The XHTML codec is a stub pending real-page fixtures from
-the target instance. HTTP layer (push, attach) is implemented.
-
-To complete:
-1. Export 5-10 real pages as storage-format fixtures (see
-   `tests/fixtures/README.md`).
-2. Implement `lib/storage_codec.py decode/encode`.
-3. Run `tests/test_codec_roundtrip.sh` against the fixtures.
+Migration tool. Fetches a Confluence page tree to local markdown, lets
+the user edit, uploads as a new page tree under a different parent.
+Self-hosted Server/DC only.
 
 ## Install
 
@@ -25,79 +20,86 @@ Installed automatically as a `local` skill once added to `registry.txt`.
 
 ## Prerequisites
 
-- `gh` not required — uses Confluence REST directly
-- `~/.agent-skills-setup/config.sh` with `CONFLUENCE_HOST`,
+- `~/.agent-skills-setup/config.sh` with `CONFLUENCE_HOST` and
   `CONFLUENCE_USER`. Set up via:
   ```bash
   bash scripts/credentials/service.sh confluence add
   ```
-- Python 3 with `lxml` (codec) and standard library (push, attach)
+- Python 3 with `lxml` (storage-format parsing) and standard library
+  (HTTP, manifest building)
+- `jq` for manifest and diagram-sidecar inspection during debugging
 
 ## Subcommands
 
 | Command | Argument | Behavior |
 |---|---|---|
-| `/confluence-fetch` | page-id, URL, or `space:title` | Save md + meta.json under `./docs/confluence/` |
-| `/confluence-update` | md file path | Re-emit XHTML, PUT, abort on version conflict |
-| `/confluence-create` | md file path | New page from markdown only |
-
-## The .meta.json contract
-
-```json
-{
-  "pageId": "12345678",
-  "version": 12,
-  "space": "PP2",
-  "ancestor": "23456789",
-  "title": "My Page Title",
-  "host": "confluence.example.com",
-  "anchors": {
-    "m1":   { "type": "macro",     "xml": "<ac:structured-macro ...>" },
-    "img1": { "type": "image",     "filename": "diagram.png", "xml": "<ac:image>..." },
-    "link1":{ "type": "page-link", "xml": "<ac:link><ri:page .../></ac:link>" }
-  }
-}
-```
-
-**Do not edit `.meta.json` by hand.** Anchors appear in the markdown as
-`<!-- ac:macro id="m1" -->`, `![alt][ri:img1]`, `[title][ri:link1]`.
-You can move, duplicate, or delete them. To edit what they point to,
-use Confluence's web editor.
-
-## Auth
-
-Reads `CONFLUENCE_HOST` and `CONFLUENCE_USER` from config.
-Reads password/token from the keychain.
-
-- **Basic Auth** (default): `username:password`
-- **PAT** (auto-detected): if the credential is in PAT format
-  (long, no colon), the skill sends `Authorization: Bearer <token>`
-  instead of Basic Auth. No credential-store change needed.
+| `/confluence-tree-fetch` | source page ID | Walk source page + descendants; write markdown tree, attachments, diagram sidecar, and manifest under `./docs/confluence/<slug>/` |
+| `/confluence-tree-upload` | local dir, `--parent <id>`, `--space <KEY>` | Re-build manifest, create stub pages under `<id>`, then upload content + attachments + diagrams |
+| `/confluence-link-rewrite-preview` | local dir, `--parent <id>` | Dry-run; print which cross-tree links will rewrite to destination IDs and which stay as source URLs |
 
 ## Output Location
 
 ```
-./docs/confluence/2026-06-02-my-page-title.md
-./docs/confluence/2026-06-02-my-page-title.meta.json
+./docs/confluence/<root-slug>/
+  manifest.json
+  _root.attachments/
+    diagram.png
+    flowchart.svg
+  _root.diagrams.json
+  index.md                 # the root page
+  setup-notes.md
+  child-page/
+    grandchild-page.md
+    grandchild-page.attachments/
+      ...
 ```
 
-`.meta.json` is gitignored by default — it contains pageId, version,
-and verbatim XHTML. Add `!docs/confluence/*.meta.json` to your repo's
-`.gitignore` overrides if you do want it tracked (e.g. for review).
+The directory mirrors the source page tree. Each markdown file owns the
+attachments directory at its sibling path; diagrams live in a single
+top-level `_root.diagrams.json` keyed by opaque ID.
 
-## Why a separate skill from `fetch-page-to-markdown`
+## Auth
 
-`fetch-page-to-markdown` handles general URLs (Apidog, internal wikis,
-any `curl`-able page) one-way. This skill is Confluence-specific and
-two-way. The other skill remains for non-Confluence URLs.
+Reads `CONFLUENCE_HOST` and `CONFLUENCE_USER` from config. Reads
+password/token from the keychain.
+
+- **Basic Auth** (default): `username:password`
+- **PAT** (auto-detected): if the credential is in PAT format (long,
+  no colon), the skill sends `Authorization: Bearer <token>` instead
+  of Basic Auth. No credential-store change needed.
+
+## Why this is separate from `fetch-page-to-markdown` and `fetch-jira-story`
+
+- **`fetch-page-to-markdown`** is a general one-shot URL-to-markdown
+  fetcher. It handles any `curl`-able page (Apidog, internal wikis,
+  one Confluence page at a time) and does not walk descendants, build
+  manifests, or rewrite cross-page links. Use it when you need a
+  reference snapshot of a single URL.
+- **`fetch-jira-story`** chains from a Jira story and follows embedded
+  Confluence and Apidog links into reference files. It is a one-shot
+  fetch keyed by Jira ID, not a tree walk.
+- **`confluence`** (this skill) is a recursive page-tree migration
+  tool. It walks a page subtree, preserves drawio/Gliffy diagrams,
+  rewrites cross-tree links to point at destination IDs, and uploads
+  the edited tree to a new parent. Use it when you are *moving* a
+  body of pages, not just reading one.
 
 ## Troubleshooting
 
 - **`CONFLUENCE_HOST not in config.sh`** — run
   `bash scripts/credentials/service.sh confluence add`.
-- **`page moved from vN to vM since fetch`** — someone else edited
-  the page. Re-fetch, re-apply your edits.
-- **`.meta.json checksum failed`** — you (or a tool) edited the
-  meta.json. Re-fetch.
-- **Macros silently dropped** — your codec hit an `ac:` element it
-  doesn't recognize. Add a fixture, file an issue.
+- **Stub creation aborted partway through upload** — the upload is
+  two-pass; if pass 1 (stubs) fails, no content is uploaded. Delete
+  the partial stubs in Confluence (they are empty) and re-run.
+- **Cross-tree link did not rewrite** — its target's
+  `source_page_id` is not present in `manifest.json`. Either fetch a
+  larger subtree that includes the target, or accept that the link
+  stays pointing at the source instance.
+- **Diagram failed to upload** — diagrams replay as their original
+  macro XML; if the destination space's macro permissions differ from
+  the source's, the macro may be rejected. Check the destination
+  space's allowlist.
+- **Macro flattened to placeholder comment** — the converter does not
+  recognize the macro type. The original XML is preserved in
+  `_root.diagrams.json` under a `flattened` entry; copy it manually
+  into the destination page if you need it back.
