@@ -14,7 +14,7 @@ The migration flow already produces markdown shaped as
 ``![alt](./<dir>/<filename>)`` and the encoder converts that into
 ``<ac:image>`` directly — attach.py only uploads the binaries.
 
-Reads CONFLUENCE_PASS from env. PAT auto-detected (same as push.py).
+Reads credential via cred_provider.resolve_credential() — env var first, keychain fallback. PAT auto-detected (same as push.py).
 
 Exit codes:
     0  success — every file uploaded
@@ -112,9 +112,15 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--continue-on-error", action="store_true")
     args = parser.parse_args(argv)
 
-    secret = os.environ.get("CONFLUENCE_PASS", "")
+    sys.path.insert(0, str(Path(__file__).parent))
+    from cred_provider import resolve_credential
+    secret = resolve_credential(args.host, args.user)
     if not secret:
-        print("ERROR: CONFLUENCE_PASS env var not set", file=sys.stderr)
+        print(
+            "ERROR: no Confluence credential found.\n"
+            "  Run: bash scripts/credentials/service.sh confluence add",
+            file=sys.stderr,
+        )
         return 2
 
     auth = auth_header(args.user, secret)
