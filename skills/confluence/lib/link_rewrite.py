@@ -30,6 +30,7 @@ WIKI_LINK_RE = re.compile(r"\[([^\]]+)\]\(wiki://page/([^)]+)\)")
 
 
 def parse_frontmatter(text: str) -> dict:
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     if not text.startswith("---\n"):
         return {}
     end = text.find("\n---\n", 4)
@@ -41,6 +42,28 @@ def parse_frontmatter(text: str) -> dict:
             k, _, v = line.partition(":")
             fm[k.strip()] = v.strip().strip('"')
     return fm
+
+
+def _build_title_index(map_data: dict) -> dict[str, str]:
+    """Map title → abs_path. On title collision, drop the title and warn."""
+    title_to_paths: dict[str, list[str]] = {}
+    for v in map_data.values():
+        title = v.get("title")
+        if not title:
+            continue
+        title_to_paths.setdefault(title, []).append(v["abs_path"])
+
+    result: dict[str, str] = {}
+    for title, paths in title_to_paths.items():
+        if len(paths) == 1:
+            result[title] = paths[0]
+        else:
+            print(
+                f"WARN: title '{title}' appears in {len(paths)} pages; "
+                f"links to it will not be rewritten ({', '.join(paths)})",
+                file=sys.stderr,
+            )
+    return result
 
 
 def cmd_build_map(args: argparse.Namespace) -> int:
@@ -64,7 +87,7 @@ def cmd_build_map(args: argparse.Namespace) -> int:
 def cmd_rewrite(args: argparse.Namespace) -> int:
     md_path = Path(args.md_file).resolve()
     map_data: dict = json.loads(Path(args.map).read_text())
-    title_to_path = {v["title"]: v["abs_path"] for v in map_data.values() if v.get("title")}
+    title_to_path = _build_title_index(map_data)
 
     text = md_path.read_text(encoding="utf-8")
 

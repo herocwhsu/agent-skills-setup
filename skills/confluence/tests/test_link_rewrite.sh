@@ -70,5 +70,49 @@ grep -q '\[the page\](\./foo\.md)' "$TMP/tree2/_root.md" \
   || { cat "$TMP/tree2/_root.md"; echo "FAIL test 3: URL-encoded title with parens not rewritten"; exit 1; }
 echo "OK test 3"
 
+# --- Test 4: duplicate titles emit warning and pass through unchanged ---
+mkdir -p "$TMP/dup/a" "$TMP/dup/b"
+cat > "$TMP/dup/_root.md" <<'MD'
+---
+source_page_id: "500"
+source_title: "Root"
+---
+
+See [Notes](wiki://page/Notes).
+MD
+cat > "$TMP/dup/a/_index.md" <<'MD'
+---
+source_page_id: "501"
+source_title: "Notes"
+---
+MD
+cat > "$TMP/dup/b/_index.md" <<'MD'
+---
+source_page_id: "502"
+source_title: "Notes"
+---
+MD
+
+python3 "$LR" build-map --tree "$TMP/dup" --out "$TMP/dup.map.json"
+warn_output=$(python3 "$LR" rewrite --md-file "$TMP/dup/_root.md" --map "$TMP/dup.map.json" 2>&1 1>/dev/null)
+echo "$warn_output" | grep -q "title 'Notes'" \
+  || { echo "$warn_output"; echo "FAIL test 4: expected duplicate-title warning"; exit 1; }
+grep -q '\[Notes\](wiki://page/Notes)' "$TMP/dup/_root.md" \
+  || { cat "$TMP/dup/_root.md"; echo "FAIL test 4: link should pass through on collision"; exit 1; }
+echo "OK test 4"
+
+# --- Test 5: CRLF line endings parse correctly ---
+mkdir -p "$TMP/crlf"
+# Build a CRLF .md by hand
+printf -- '---\r\nsource_page_id: "600"\r\nsource_title: "CRLF Page"\r\n---\r\n\r\n# Hello\r\n' > "$TMP/crlf/_root.md"
+python3 "$LR" build-map --tree "$TMP/crlf" --out "$TMP/crlf.map.json"
+python3 -c "
+import json
+m = json.load(open('$TMP/crlf.map.json'))
+assert '600' in m, 'CRLF file dropped from map: ' + str(m)
+assert m['600']['title'] == 'CRLF Page', m
+"
+echo "OK test 5"
+
 echo ""
 echo "All link_rewrite tests passed."
