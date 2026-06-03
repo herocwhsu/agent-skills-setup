@@ -253,10 +253,18 @@ def main(argv: list[str]) -> int:
         print(f"ERROR: --tree {args.tree!r} is not a directory", file=sys.stderr)
         return 2
 
-    secret = os.environ.get("CONFLUENCE_PASS", "")
-    if not secret and not args.dry_run:
-        print("ERROR: CONFLUENCE_PASS env var not set", file=sys.stderr)
-        return 2
+    if args.dry_run:
+        secret = ""
+    else:
+        from cred_provider import resolve_credential
+        secret = resolve_credential(args.host, args.user)
+        if not secret:
+            print(
+                "ERROR: no Confluence credential found.\n"
+                "  Run: bash scripts/credentials/service.sh confluence add",
+                file=sys.stderr,
+            )
+            return 2
 
     try:
         pages = load_pages(tree)
