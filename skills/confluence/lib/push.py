@@ -26,6 +26,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 
 PAT_PATTERN = re.compile(r"^[A-Za-z0-9_=\-]{30,}$")
@@ -129,9 +130,15 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--title", required=True)
     args = parser.parse_args(argv)
 
-    secret = os.environ.get("CONFLUENCE_PASS", "")
+    sys.path.insert(0, str(Path(__file__).parent))
+    from cred_provider import resolve_credential
+    secret = resolve_credential(args.host, args.user)
     if not secret:
-        print("ERROR: CONFLUENCE_PASS env var not set", file=sys.stderr)
+        print(
+            "ERROR: no Confluence credential found.\n"
+            "  Run: bash scripts/credentials/service.sh confluence add",
+            file=sys.stderr,
+        )
         return 2
 
     return create(args, secret)
