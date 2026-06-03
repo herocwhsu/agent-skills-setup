@@ -243,9 +243,14 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--out-dir", required=True)
     args = parser.parse_args(argv)
 
-    secret = os.environ.get("CONFLUENCE_PASS", "")
+    from cred_provider import resolve_credential
+    secret = resolve_credential(args.host, args.user)
     if not secret:
-        print("ERROR: CONFLUENCE_PASS env var not set", file=sys.stderr)
+        print(
+            "ERROR: no Confluence credential found.\n"
+            "  Run: bash scripts/credentials/service.sh confluence add",
+            file=sys.stderr,
+        )
         return 2
 
     auth = auth_header(args.user, secret)
