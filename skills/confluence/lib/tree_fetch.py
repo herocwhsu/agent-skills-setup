@@ -169,11 +169,24 @@ def list_attachments(host: str, page_id: str, auth: str) -> list[dict]:
 def download_attachment(host: str, page_id: str, attach: dict,
                         dest_dir: Path, auth: str) -> bool:
     """Download one attachment to dest_dir. Returns True if saved."""
-    filename = attach.get("title") or attach.get("id") or "unknown"
-    size = (attach.get("extensions") or {}).get("fileSize", 0) or 0
-    if isinstance(size, int) and size > MAX_DOWNLOAD_BYTES:
-        print(f"WARN: skipping {filename} ({size} bytes, exceeds 100MB)",
+    raw_name = attach.get("title") or attach.get("id") or "unknown"
+    # Confluence attachment titles are user-controlled. A title containing
+    # "/", "\", or ".." would let the saved file escape the attachments
+    # directory. Reject anything where stripping path components changes
+    # the name, plus the obvious "."/"..".
+    filename = Path(raw_name).name
+    if (not filename or filename in {".", ".."}
+            or filename != raw_name):
+        print(f"WARN: attachment with invalid name {raw_name!r}, skipping",
               file=sys.stderr)
+        return False
+    declared_size = (attach.get("extensions") or {}).get("fileSize")
+    if declared_size is None:
+        print(f"  → no declared fileSize for {filename}; relying on "
+              "post-download check", file=sys.stderr)
+    elif isinstance(declared_size, int) and declared_size > MAX_DOWNLOAD_BYTES:
+        print(f"WARN: skipping {filename}: declared {declared_size} bytes "
+              "> 100MB limit", file=sys.stderr)
         return False
     download_link = (attach.get("_links") or {}).get("download") or \
         f"/rest/api/content/{page_id}/child/attachment/{attach.get('id')}/download"

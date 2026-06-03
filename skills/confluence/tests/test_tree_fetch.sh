@@ -143,5 +143,122 @@ assert ids['200']['depth'] == 1
 "
 echo "OK test 4: manifest has both pages with correct parent/depth"
 
+# --- Test 5: title with double quote round-trips through parse_frontmatter ---
+cat > "$TMP/server2.py" <<'PYEOF'
+import http.server, json, os, sys, threading
+
+PAGES = {
+    "300": {
+        "id": "300", "title": 'Tricky " Title', "version": {"number": 1},
+        "space": {"key": "PP2"}, "ancestors": [],
+        "body": {"storage": {"value": "<p>x</p>", "representation": "storage"}},
+        "_links": {"webui": "/display/PP2/Tricky"},
+    },
+}
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def do_GET(self):
+        path = self.path.split("?", 1)[0]
+        if path == "/rest/api/content/300":
+            self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+            self.wfile.write(json.dumps(PAGES["300"]).encode()); return
+        if path == "/rest/api/content/300/child/page":
+            self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+            self.wfile.write(json.dumps({"results": [], "size": 0, "_links": {}}).encode()); return
+        if path == "/rest/api/content/300/child/attachment":
+            self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+            self.wfile.write(json.dumps({"results": [], "size": 0, "_links": {}}).encode()); return
+        self.send_response(404); self.end_headers()
+port = int(os.environ["PORT"])
+srv = http.server.HTTPServer(("127.0.0.1", port), H)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+sys.stdout.write("ready\n"); sys.stdout.flush()
+import signal; signal.pause()
+PYEOF
+
+PORT2=$((43000 + RANDOM % 1000))
+PORT=$PORT2 python3 "$TMP/server2.py" >"$TMP/server2.log" 2>&1 &
+SERVER2_PID=$!
+trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER2_PID:-}" ]] && kill "$SERVER2_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
+for _ in $(seq 1 30); do grep -q ready "$TMP/server2.log" 2>/dev/null && break; sleep 0.1; done
+grep -q ready "$TMP/server2.log" || { cat "$TMP/server2.log"; echo "FAIL test 5: server didn't start"; exit 1; }
+
+OUT2="$TMP/out2"
+CONFLUENCE_PASS=plain python3 "$FETCH" \
+  --host "http://127.0.0.1:$PORT2" --user testuser \
+  --root-id 300 --out-dir "$OUT2" >"$TMP/run2.log" 2>&1 \
+  || { cat "$TMP/run2.log"; echo "FAIL test 5: fetch failed"; exit 1; }
+
+# The frontmatter must round-trip through link_rewrite.parse_frontmatter
+LR="$SKILL_DIR/lib/link_rewrite.py"
+python3 "$LR" build-map --tree "$OUT2" --out "$TMP/test5.map.json"
+python3 -c "
+import json
+m = json.load(open('$TMP/test5.map.json'))
+assert '300' in m, 'page 300 missing: ' + str(m)
+title = m['300']['title']
+# After our fix: double-quote becomes single-quote
+assert title == \"Tricky ' Title\", f'expected single-quote substitution, got: {title!r}'
+"
+echo "OK test 5: title with double quote round-trips"
+
+# --- Test 6: attachment with path-traversal name is rejected ---
+cat > "$TMP/server3.py" <<'PYEOF'
+import http.server, json, os, sys, threading
+ATTACH = [{"id": "evil", "title": "../../../etc/passwd", "extensions": {"fileSize": 4}, "_links": {"download": "/download/evil"}}]
+PAGES = {
+    "400": {
+        "id": "400", "title": "Evil", "version": {"number": 1},
+        "space": {"key": "X"}, "ancestors": [],
+        "body": {"storage": {"value": "<p>e</p>", "representation": "storage"}},
+        "_links": {"webui": "/display/X/Evil"},
+    },
+}
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def do_GET(self):
+        path = self.path.split("?", 1)[0]
+        if path == "/rest/api/content/400":
+            self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+            self.wfile.write(json.dumps(PAGES["400"]).encode()); return
+        if path == "/rest/api/content/400/child/page":
+            self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+            self.wfile.write(json.dumps({"results": [], "size": 0, "_links": {}}).encode()); return
+        if path == "/rest/api/content/400/child/attachment":
+            self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+            self.wfile.write(json.dumps({"results": ATTACH, "size": 1, "_links": {}}).encode()); return
+        if path == "/download/evil":
+            self.send_response(200); self.send_header("Content-Type", "application/octet-stream"); self.end_headers()
+            self.wfile.write(b"evil"); return
+        self.send_response(404); self.end_headers()
+port = int(os.environ["PORT"])
+srv = http.server.HTTPServer(("127.0.0.1", port), H)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+sys.stdout.write("ready\n"); sys.stdout.flush()
+import signal; signal.pause()
+PYEOF
+
+PORT3=$((44000 + RANDOM % 1000))
+PORT=$PORT3 python3 "$TMP/server3.py" >"$TMP/server3.log" 2>&1 &
+SERVER3_PID=$!
+trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER2_PID:-}" ]] && kill "$SERVER2_PID" 2>/dev/null; [[ -n "${SERVER3_PID:-}" ]] && kill "$SERVER3_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
+for _ in $(seq 1 30); do grep -q ready "$TMP/server3.log" 2>/dev/null && break; sleep 0.1; done
+grep -q ready "$TMP/server3.log" || { cat "$TMP/server3.log"; echo "FAIL test 6: server didn't start"; exit 1; }
+
+OUT3="$TMP/out3"
+CONFLUENCE_PASS=plain python3 "$FETCH" \
+  --host "http://127.0.0.1:$PORT3" --user testuser \
+  --root-id 400 --out-dir "$OUT3" >"$TMP/run3.log" 2>&1 \
+  || { cat "$TMP/run3.log"; echo "FAIL test 6: fetch failed"; exit 1; }
+
+# Confirm no 'passwd' file was written anywhere under TMP — path traversal blocked.
+if find "$TMP" -name passwd 2>/dev/null | grep -q .; then
+  echo "FAIL test 6: a 'passwd' file was created somewhere in TMP — path traversal succeeded"; exit 1
+fi
+# And confirm the warning fired
+grep -qE 'invalid name|skipping' "$TMP/run3.log" \
+  || { cat "$TMP/run3.log"; echo "FAIL test 6: expected skip warning"; exit 1; }
+echo "OK test 6: path-traversal attachment rejected"
+
 echo ""
 echo "All tree_fetch tests passed."
