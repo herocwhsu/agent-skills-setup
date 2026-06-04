@@ -14,7 +14,7 @@ Guards the release and handles what comes after it.
 | `/release-readiness <STORY-ID>` | Check that all gates have passed before releasing: OpenSpec applied, Jira complete, Apidog updated, tests passed, monitoring ready. | `./docs/stories/<ID>-<slug>/release/readiness.md` |
 | `/release-triage <STORY-ID> <description>` | Classify a post-release issue (incident, bug, regression, spec-gap, enhancement, operational). Merged: post-release-triage + follow-up-proposal-generator. | `./docs/stories/<ID>-<slug>/release/triage.md` |
 | `/release-bugfix-spec <STORY-ID> <BUG-ID>` | Convert a production bug into a structured bugfix spec with regression test plan. | `./docs/stories/<ID>-<slug>/release/bugfix/<BUG-ID>-<slug>/bugfix-spec.md` |
-| `/release-archive-check <STORY-ID>` | Verify the final spec archive is complete — every OpenSpec change-id archived, all evidence links present. Phase 3. | `./docs/stories/<ID>-<slug>/archive.md` |
+| `/release-archive-check <STORY-ID>` | Verify the final spec archive is complete — every OpenSpec change-id archived, all evidence links present. | `archive-check/IMPL.md` |
 
 ## When to use which subcommand
 
