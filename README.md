@@ -51,14 +51,12 @@ Restart your shell after setup.
 
 When prompted, choose one or more:
 
-| # | Agent | Skills directory | Custom skills |
-|---|---|---|---|
-| 1 | Kiro | `~/.kiro/skills/` | ✓ |
-| 2 | Claude Code | `~/.claude/skills/` | ✓ |
-| 3 | GitHub Copilot | `~/.copilot/skills/` | planned |
-| 4 | Codex | `~/.codex/skills/` | planned |
-| 5 | Gemini CLI | `~/.gemini/skills/` | ✓ |
-| 6 | All | all of the above | — |
+| # | Agent | Skills directory | Custom skills | Notes |
+|---|---|---|---|---|
+| 1 | Kiro | `~/.kiro/skills/` | ✓ | Also installs prompts to `~/.kiro/prompts/` |
+| 2 | Claude Code | `~/.claude/skills/` | ✓ | |
+| 3 | Gemini CLI | `~/.gemini/skills/` | ✓ | |
+| 4 | All | all of the above | — | |
 
 ---
 
