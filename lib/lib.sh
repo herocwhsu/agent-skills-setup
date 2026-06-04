@@ -84,17 +84,21 @@ service_slug() {
 # ---------------------------------------------------------------------------
 # find_html2md
 #   Echo absolute path to html2md.py from whichever agent skills dir has it.
-#   Returns 1 with stderr message if not found.
+#   Prefers the new intake/web-page/ layout in ANY agent dir before falling
+#   back to the legacy fetch-page-to-markdown/ layout in ANY agent dir.
+#   Returns 1 with stderr message if not found anywhere.
 # ---------------------------------------------------------------------------
 find_html2md() {
   local d
+  # Pass 1: new spec-gated layout
   for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills" "$HOME/.gemini/skills"; do
-    # New layout (intake group)
     if [[ -f "$d/intake/web-page/html2md.py" ]]; then
       echo "$d/intake/web-page/html2md.py"
       return 0
     fi
-    # Legacy layout (pre-spec-gated refactor)
+  done
+  # Pass 2: legacy layout (pre-spec-gated refactor)
+  for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills" "$HOME/.gemini/skills"; do
     if [[ -f "$d/fetch-page-to-markdown/html2md.py" ]]; then
       echo "$d/fetch-page-to-markdown/html2md.py"
       return 0
