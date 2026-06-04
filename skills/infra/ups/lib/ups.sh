@@ -36,8 +36,8 @@ case "${1:-}" in
   remove)
     echo "Removing NUT configuration and services..."
     sudo systemctl disable --now nut-monitor nut-server nut-driver 2>/dev/null || true
-    sudo apt-get remove -y nut nut-client 2>/dev/null || true
-    sudo rm -rf /etc/nut /usr/local/sbin/ups-graceful-shutdown.sh
+    sudo apt-get purge -y nut nut-client 2>/dev/null || true
+    sudo rm -rf /etc/nut /var/run/nut /var/lib/nut /usr/local/sbin/ups-graceful-shutdown.sh
     echo "Done. NUT removed."
     ;;
   help|--help|-h|"")
