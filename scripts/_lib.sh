@@ -378,15 +378,22 @@ wire_hook() {
 # ---------------------------------------------------------------------------
 unwire_hook() {
   local skill="$1" repo_dir="$2" agent="${3:-claude}"
-  local hook_path="$repo_dir/skills/$skill/hook.json"
-  local settings
+  local hook_path settings
+
+  # Try flat path first (legacy), then search one level deep (group/subcommand layout).
+  if [[ -f "$repo_dir/skills/$skill/hook.json" ]]; then
+    hook_path="$repo_dir/skills/$skill/hook.json"
+  else
+    hook_path=$(find "$repo_dir/skills" -maxdepth 3 -name "hook.json" \
+      -path "*/$skill/hook.json" 2>/dev/null | head -1)
+  fi
 
   case "$agent" in
     gemini) settings="$HOME/.gemini/settings.json" ;;
     *)      settings="$HOME/.claude/settings.json" ;;
   esac
 
-  if [[ ! -f "$hook_path" ]]; then
+  if [[ -z "$hook_path" || ! -f "$hook_path" ]]; then
     echo "  WARNING: $skill has no hook.json; nothing to remove." >&2
     return 0
   fi
