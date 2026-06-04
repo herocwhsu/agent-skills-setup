@@ -155,12 +155,14 @@ For cross-cutting rules that should be loaded **on every session** (not invoked 
 |---|---|
 | Claude Code | `~/.claude/CLAUDE.md` |
 | Gemini CLI | `~/.gemini/GEMINI.md` |
+| Kiro | `~/.kiro/steering/engineering-rules.md` |
 
 ```bash
-bash scripts/install-agents-md.sh             # both Claude + Gemini
+bash scripts/install-agents-md.sh             # Claude + Gemini + Kiro
 bash scripts/install-agents-md.sh --claude    # Claude only
 bash scripts/install-agents-md.sh --gemini    # Gemini only
-bash scripts/install-agents-md.sh --uninstall # strip the block
+bash scripts/install-agents-md.sh --kiro      # Kiro only
+bash scripts/install-agents-md.sh --uninstall # strip from all
 ```
 
 Or chain it onto the main installer with `--with-agents-md`:
