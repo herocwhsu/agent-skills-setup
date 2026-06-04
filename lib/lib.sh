@@ -17,6 +17,60 @@ slugify_url() {
 }
 
 # ---------------------------------------------------------------------------
+# story_slug_from_summary <jira-summary>
+#   Convert a Jira issue summary into a story-folder slug.
+#   Lowercase, alphanumeric + dashes only, max 50 chars, no leading/trailing dash.
+#
+#   story_slug_from_summary "Add Camera Group Filter to Events API"
+#   → add-camera-group-filter-to-events-api
+# ---------------------------------------------------------------------------
+story_slug_from_summary() {
+  local summary="$1"
+  echo "$summary" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed 's|[^a-z0-9]|-|g; s|-\{2,\}|-|g; s|^-||; s|-$||' \
+    | cut -c1-50 \
+    | sed 's|-$||'
+}
+
+# ---------------------------------------------------------------------------
+# resolve_story_dir <JIRA-ID>
+#   Echo the absolute path of ./docs/stories/<JIRA-ID>-<slug>/ for the given
+#   Jira ID. The slug component is matched by glob; exactly one match is
+#   required. Aborts with stderr message and returns 1 otherwise.
+#
+#   Skills should call this whenever they take a Jira ID argument and need to
+#   resolve to the canonical story folder.
+# ---------------------------------------------------------------------------
+resolve_story_dir() {
+  local jira_id="$1"
+  if [[ -z "$jira_id" ]]; then
+    echo "ERROR: resolve_story_dir requires a Jira ID argument" >&2
+    return 1
+  fi
+  local matches=()
+  shopt -s nullglob
+  matches=( "./docs/stories/${jira_id}-"*/ )
+  shopt -u nullglob
+  case "${#matches[@]}" in
+    0)
+      echo "ERROR: no story folder for $jira_id under ./docs/stories/" >&2
+      echo "  Run: /intake-jira-story $jira_id" >&2
+      return 1
+      ;;
+    1)
+      # Strip trailing slash for downstream concatenation.
+      echo "${matches[0]%/}"
+      ;;
+    *)
+      echo "ERROR: ambiguous story folders for $jira_id:" >&2
+      printf "  %s\n" "${matches[@]}" >&2
+      return 1
+      ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
 # service_slug <prefix> <url>
 #   Compose a service-prefixed slug.
 #
