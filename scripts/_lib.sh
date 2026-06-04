@@ -55,7 +55,24 @@ agent_skills_dir() {
   esac
 }
 
-# Install a single skill dir into a target skills dir
+# install_kiro_prompts <repo_dir>
+#   Copy prompts/*.md to ~/.kiro/prompts/, substituting <user> with $USER.
+#   Idempotent: copies every file in prompts/, overwriting old versions.
+install_kiro_prompts() {
+  local repo_dir="$1"
+  local src="$repo_dir/prompts"
+  local target="$HOME/.kiro/prompts"
+  [[ -d "$src" ]] || return 0
+  mkdir -p "$target"
+  local count=0
+  for f in "$src"/*.md; do
+    [[ -f "$f" ]] || continue
+    local dest="$target/$(basename "$f")"
+    sed "s|/Users/<user>|$HOME|g" "$f" > "$dest"
+    count=$((count + 1))
+  done
+  echo "  ✓ kiro prompts ($count files) → $target"
+}
 # Uses symlink on Unix, copy on Windows
 # Usage: install_skill <skill_src_dir> <skills_target_dir>
 install_skill() {

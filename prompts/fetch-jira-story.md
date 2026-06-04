@@ -1,2 +1,2 @@
-Read /Users/<user>/.kiro/skills/fetch-jira-story/SKILL.md and follow it for this story:
+Read /Users/<user>/.kiro/skills/intake/SKILL.md — run the /intake-jira-story subcommand for this story:
 
