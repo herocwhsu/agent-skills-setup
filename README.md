@@ -41,6 +41,7 @@ Restart your shell after setup.
 | `scripts/install.ps1` | Windows PowerShell | Same, native Windows |
 | `scripts/uninstall.sh` | macOS / Linux / Git Bash | Remove installed skills |
 | `scripts/update.sh` | macOS / Linux / Git Bash | `git pull` + re-install |
+| `scripts/run-tests.sh` | macOS / Linux / Git Bash | Run all skill + script tests (`--fast` skips integration tests) |
 | `scripts/setup-credentials.sh` | macOS / Linux / Git Bash | Store service credentials in keychain |
 | `scripts/setup-credentials.ps1` | Windows PowerShell | Same, via Windows Credential Manager |
 
