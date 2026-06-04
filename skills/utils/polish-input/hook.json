@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${AGENT_SKILLS_DIR}/polish-input/lib/polish.py"
+            "command": "python3 ${AGENT_SKILLS_DIR}/utils/polish-input/lib/polish.py"
           }
         ]
       }

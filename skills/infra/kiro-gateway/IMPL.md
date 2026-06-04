@@ -18,7 +18,7 @@ Ask Claude to:
 
 Claude will call:
 ```bash
-bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh <subcommand>
+bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh <subcommand>
 ```
 
 ## Subcommands
