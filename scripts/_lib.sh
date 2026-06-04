@@ -94,6 +94,54 @@ uninstall_kiro_prompts() {
   done
   echo "  ✓ removed kiro prompts ($count files)"
 }
+
+# install_kiro_agent_config <skills_target_dir>
+#   Write ~/.kiro/agents/default.json with the correct name and resource list.
+#   Lists every SKILL.md found under the skills dir (symlink-following).
+#   Idempotent: overwrites on every install to pick up new/removed groups.
+install_kiro_agent_config() {
+  local skills_dir="$1"
+  local agents_dir="$HOME/.kiro/agents"
+  local out="$agents_dir/default.json"
+  local steering_entry='    "file://~/.kiro/steering/engineering-rules.md"'
+
+  mkdir -p "$agents_dir"
+
+  # Collect SKILL.md paths under skills_dir (follow symlinks), sort
+  local entries=()
+  entries+=("$steering_entry")
+  while IFS= read -r skill_md; do
+    [[ -n "$skill_md" ]] || continue
+    local rel="${skill_md/#$HOME/~}"
+    entries+=("    \"skill://$rel\"")
+  done < <(find -L "$skills_dir" -maxdepth 2 -name "SKILL.md" 2>/dev/null | sort)
+
+  local count="${#entries[@]}"
+
+  # Write JSON without negative array index (bash 3.2 compat)
+  {
+    echo '{'
+    echo '    "name": "kiro_default",'
+    echo '    "description": "Default Kiro agent with spec-gated workflow skills.",'
+    echo '    "resources": ['
+    local i=0
+    for entry in "${entries[@]}"; do
+      i=$((i + 1))
+      if [[ "$i" -eq "$count" ]]; then
+        echo "$entry"
+      else
+        echo "$entry,"
+      fi
+    done
+    echo '    ]'
+    echo '}'
+  } > "$out"
+
+  python3 -c "import json; json.load(open('$out'))" 2>/dev/null \
+    || { echo "  ERROR: generated $out is invalid JSON" >&2; return 1; }
+
+  echo "  ✓ kiro agent config → $out ($count resources)"
+}
 # Uses symlink on Unix, copy on Windows
 # Usage: install_skill <skill_src_dir> <skills_target_dir>
 install_skill() {

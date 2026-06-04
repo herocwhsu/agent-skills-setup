@@ -49,9 +49,10 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   echo ""
   echo "  Agent: $agent → $target_dir"
 
-  # Kiro also gets prompt files
+  # Kiro also gets prompt files and an auto-generated agent config
   if [[ "$agent" == "kiro" ]]; then
     install_kiro_prompts "$REPO_DIR"
+    install_kiro_agent_config "$target_dir"
   fi
 
   while IFS=' ' read -r type id subpath_or_empty; do
