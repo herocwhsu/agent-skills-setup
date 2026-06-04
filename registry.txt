@@ -1,41 +1,42 @@
-# agent-skills-setup registry
-# Single source of truth for all skills to install/uninstall/update.
-#
-# Format:  <type> <identifier> [skills-subpath]
-#
-#   pip    <package-name>
-#          Install via pip. Package must expose an install command or
-#          copy skills into the target dir itself.
-#          Example: pip agent-superpowers
-#
-#   npm    <package-name>
-#          Install via `npm install -g`. Skill registers its own slash
-#          commands (no symlink into agent skills dir).
-#          Example: npm @fission-ai/openspec
-#
-#   github <owner/repo> <skills-subpath>
-#          Download zip from GitHub default branch, copy skills from
-#          <skills-subpath> inside the zip into the agent skills dir.
-#          Example: github context7/context7 .
-#
-#   local  <skill-name>
-#          Skill lives in this repo under skills/<skill-name>/.
-#          Installed as a symlink (Unix) or copy (Windows).
-#          Example: local fetch-page-to-markdown
-#
-# Lines starting with # or blank lines are ignored.
 
-npm    @fission-ai/openspec
+#
+#
+#
+#
+#
+#
+# agent-skills-setup registry
 pip    agent-superpowers
-github obra/superpowers        skills
-local  intake
-local  audit
-local  repo
-local  external
-local  jira
 local  apidog
-local  testing
-local  review
-local  release
+local  audit
+#          commands (no symlink into agent skills dir).
+#          copy skills into the target dir itself.
+#          Download zip from GitHub default branch, copy skills from
+#          Example: github context7/context7 .
+#          Example: local fetch-page-to-markdown
+#          Example: npm @fission-ai/openspec
+#          Example: pip agent-superpowers
+local  external
+npm    @fission-ai/openspec
+# Format:  <type> <identifier> [skills-subpath]
+#   github <owner/repo> <skills-subpath>
 local  infra
+local  infra-ups
+#          Installed as a symlink (Unix) or copy (Windows).
+#          Install via `npm install -g`. Skill registers its own slash
+#          Install via pip. Package must expose an install command or
+local  intake
+local  jira
+# Lines starting with # or blank lines are ignored.
+#   local  <skill-name>
+#   npm    <package-name>
+github obra/superpowers        skills
+#   pip    <package-name>
+local  release
+local  repo
+local  review
+# Single source of truth for all skills to install/uninstall/update.
+#          Skill lives in this repo under skills/<skill-name>/.
+#          <skills-subpath> inside the zip into the agent skills dir.
+local  testing
 local  utils
