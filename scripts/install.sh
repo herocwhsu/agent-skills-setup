@@ -41,8 +41,19 @@ migrate_keychain
 INSTALLED_LIST="$HOME/.agent-skills-setup/installed.txt"
 > "$INSTALLED_LIST"  # truncate
 
+# Install global (non-agent-specific) packages once before the agent loop.
 echo ""
-echo "==> Installing skills from registry.txt..."
+echo "==> Installing global packages..."
+while IFS=' ' read -r type id subpath_or_empty; do
+  case "$type" in ""|\#*) continue ;; esac
+  case "$type" in
+    npm) install_npm_skill "$id" || true ;;
+    pip) install_pip_skill "$id" "" || true ;;
+  esac
+done < "$REPO_DIR/registry.txt"
+
+echo ""
+echo "==> Installing per-agent skills from registry.txt..."
 
 for agent in "${SELECTED_AGENTS[@]}"; do
   target_dir=$(agent_skills_dir "$agent")
@@ -62,11 +73,8 @@ for agent in "${SELECTED_AGENTS[@]}"; do
     esac
 
     case "$type" in
-      pip)
-        install_pip_skill "$id" "$target_dir" || true
-        ;;
-      npm)
-        install_npm_skill "$id" || true
+      pip|npm)
+        # Already handled in the global pass above
         ;;
       github)
         install_github_skill "$id" "${subpath_or_empty:-.}" "$target_dir" || true
