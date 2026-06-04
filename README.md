@@ -172,7 +172,7 @@ bash scripts/install.sh --with-hook polish-input --with-agents-md
 bash scripts/uninstall.sh --with-hook polish-input --with-agents-md
 ```
 
-The script is **idempotent**: re-running replaces the marked block in place, leaving any other content in the host file untouched. Edit `agents/engineering-rules.md`, re-run, and both tools pick up the change on next session.
+The `--with-agents-md` flag deploys to Claude, Gemini, and Kiro simultaneously. The script is **idempotent**: re-running replaces the block in place, leaving other content in the host file untouched. Edit `agents/engineering-rules.md`, re-run, and all three tools pick up the change on next session.
 
 ---
 
