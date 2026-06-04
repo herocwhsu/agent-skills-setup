@@ -40,8 +40,8 @@ EOF
 
 # ── 5. /etc/nut/upsd.users  (upsmon credentials) ────────────────────────────
 # Re-use existing password if already set to keep upsmon.conf in sync.
-if sudo grep -q "^password" "$NUT_CONF_DIR/upsd.users" 2>/dev/null; then
-  NUT_PASS=$(sudo grep "^password" "$NUT_CONF_DIR/upsd.users" | awk '{print $3}')
+if sudo grep -qE "^\s*password\s*=" "$NUT_CONF_DIR/upsd.users" 2>/dev/null; then
+  NUT_PASS=$(sudo grep -E "^\s*password\s*=" "$NUT_CONF_DIR/upsd.users" | awk -F'=' '{print $2}' | tr -d ' ')
   log "Re-using existing upsd.users password."
 fi
 
@@ -49,7 +49,7 @@ log "Writing upsd.users..."
 sudo tee "$NUT_CONF_DIR/upsd.users" > /dev/null << EOF
 [$NUT_USER]
   password = $NUT_PASS
-  upsmon master
+  upsmon primary
 EOF
 sudo chmod 640 "$NUT_CONF_DIR/upsd.users"
 sudo chown root:nut "$NUT_CONF_DIR/upsd.users"
@@ -57,7 +57,7 @@ sudo chown root:nut "$NUT_CONF_DIR/upsd.users"
 # ── 6. /etc/nut/upsmon.conf ──────────────────────────────────────────────────
 log "Writing upsmon.conf..."
 sudo tee "$NUT_CONF_DIR/upsmon.conf" > /dev/null << EOF
-MONITOR ${UPS_NAME}@localhost 1 ${NUT_USER} ${NUT_PASS} master
+MONITOR ${UPS_NAME}@localhost 1 ${NUT_USER} ${NUT_PASS} primary
 
 MINSUPPLIES 1
 SHUTDOWNCMD "/sbin/shutdown -h +0"
@@ -137,7 +137,11 @@ sudo systemctl enable --now nut-server.service
 sudo systemctl enable --now nut-monitor.service
 
 log "Waiting for upsd to start..."
-sleep 2
+for i in $(seq 1 10); do
+  upsc ${UPS_NAME}@localhost > /dev/null 2>&1 && break
+  log "Waiting for upsd... ($i/10)"
+  sleep 1
+done
 
 log "Verifying UPS is reachable..."
 if upsc ${UPS_NAME}@localhost > /dev/null 2>&1; then
