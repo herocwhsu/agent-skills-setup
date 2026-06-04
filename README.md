@@ -3,8 +3,9 @@
 One-command setup for [Agent Skills](https://agentskills.io) across multiple AI agents and platforms.
 
 Installs:
+- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** — spec governance via `/opsx:propose`, `/opsx:apply`, `/opsx:archive` (npm package, auto-installed)
 - **[superpowers](https://github.com/obra/superpowers)** — brainstorming, TDD, systematic debugging, code review, and more
-- **Custom skills** — fetch-page-to-markdown (Confluence + any web page → markdown)
+- **Custom group skills** — five groups (`intake`, `jira`, `review`, `infra`, `utils`) wrapping the previous flat skills, organized for the [Spec-Gated Workflow](docs/migration.md)
 
 Supports: Kiro, Claude Code, GitHub Copilot, Codex, Gemini CLI · macOS, Linux, Windows
 
@@ -66,12 +67,13 @@ When prompted, choose one or more:
 
 **Required Credentials by Skill:**
 
-| Skill | Service | Required Key/Auth |
+| Group / Subcommand | Service | Required Key/Auth |
 |---|---|---|
-| `polish-input` | **Gemini** / Anthropic | `GEMINI_API_KEY` (or Google ADC) / `ANTHROPIC_API_KEY` |
-| `fetch-page-to-markdown` | **Confluence** | REST API Token + User |
-| `fetch-jira-story` | **Jira** | REST API Token + User |
-| `plan-story` | **Jira** | (Uses same Jira credentials as above) |
+| `utils/polish-input` | **Gemini** / Anthropic | `GEMINI_API_KEY` (or Google ADC) / `ANTHROPIC_API_KEY` |
+| `intake/web-page` | **Confluence** | REST API Token + User |
+| `intake/jira-story` | **Jira** | REST API Token + User |
+| `jira/subtasks` | **Jira** | (Uses same Jira credentials as above) |
+| `utils/confluence-tree` | **Confluence** | (Uses same Confluence credentials as above) |
 
 **Actions:** `add` · `update` · `delete` · `list` · `verify`
 
@@ -107,11 +109,42 @@ All entries are namespaced `agent-skills:<service>` to avoid collisions with sys
 
 ## Adding a New Skill
 
-1. Create `skills/<skill-name>/SKILL.md` (and any supporting files)
-2. Add `local  <skill-name>` to `registry.txt`
-3. Run `bash scripts/install.sh` (or `.\scripts\install.ps1` on Windows) to deploy
+The repo follows a **group-skill** layout: each group is one entry in
+`registry.txt` and one folder under `skills/`. Subcommands live as peer
+folders inside the group, each with its own `IMPL.md` (the long-form recipe)
+plus any `lib/` and `tests/`.
 
-The install script only manages skills listed in `registry.txt` — all other skills in your agent's skills directory are left untouched.
+```
+skills/<group>/
+  SKILL.md             # router: subcommand table, slash-command list
+  <subcommand-a>/
+    IMPL.md            # full bash recipe for /<group>-<subcommand-a>
+    lib/...
+    tests/...
+  <subcommand-b>/
+    IMPL.md
+    lib/...
+    tests/...
+```
+
+### Add a subcommand to an existing group
+
+1. Create `skills/<group>/<new-subcommand>/IMPL.md` with the recipe.
+2. Add a row to the subcommand table in `skills/<group>/SKILL.md`.
+3. Run `bash scripts/install.sh` to redeploy. No registry change needed.
+
+### Add a brand-new group
+
+1. Create `skills/<group>/SKILL.md` (frontmatter `name: <group>` + subcommand
+   table) plus at least one `<subcommand>/IMPL.md`.
+2. Add `local <group>` to `registry.txt`.
+3. Run `bash scripts/install.sh`.
+
+The install script only manages skills listed in `registry.txt` — all other
+skills in your agent's skills directory are left untouched.
+
+For a full migration map between the previous flat layout and these groups,
+see [`docs/migration.md`](docs/migration.md).
 
 ---
 
@@ -144,18 +177,27 @@ The script is **idempotent**: re-running replaces the marked block in place, lea
 
 ## Custom Skills
 
-### fetch-page-to-markdown
+The five group skills (`intake`, `jira`, `review`, `infra`, `utils`) cover
+intake, planning, code review, infrastructure, and miscellaneous utilities.
+Each group's `skills/<group>/SKILL.md` is the entry point; per-subcommand
+recipes live in `skills/<group>/<subcommand>/IMPL.md`.
 
-Fetch Confluence pages or any web URL and save as a dated markdown reference file.
+For example:
 
-- Confluence REST API path for clean structured output
-- Plain `curl` fallback for any non-Confluence URL
-- Multi-platform credential storage via keychain
-- Bundled `html2md.py` converter handles tables, headings, lists, code blocks
+- `intake/web-page` — fetch any URL (Confluence-aware) as a dated markdown reference
+- `intake/jira-story` — fetch a Jira issue + every embedded link into `./docs/stories/<JIRA-ID>-<slug>/`
+- `review/pr` — review one PR using a mined `.code-review/playbook.md`
+- `utils/polish-input` — install a UserPromptSubmit hook for English prompt polishing
 
-See [`skills/fetch-page-to-markdown/SKILL.md`](skills/fetch-page-to-markdown/SKILL.md) for full usage.
+See [`docs/migration.md`](docs/migration.md) for the full mapping from the
+previous flat-skill layout.
 
-> **Claude Code users:** Sub-skill invocations use the `Skill` tool (e.g. `Skill("superpowers:brainstorming")`). The `html2md.py` converter is auto-detected from whichever agent skills directory is present (`~/.kiro/skills/`, `~/.claude/skills/`, etc.).
+> **Claude Code users:** Sub-skill invocations use the `Skill` tool (e.g.
+> `Skill("superpowers:brainstorming")`). The `html2md.py` converter is
+> auto-detected from whichever agent skills directory is present
+> (`~/.kiro/skills/intake/web-page/`, `~/.claude/skills/intake/web-page/`,
+> etc.), with a fallback to the legacy `fetch-page-to-markdown/` path for
+> previously installed agents.
 
 ---
 

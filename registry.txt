@@ -25,15 +25,11 @@
 #
 # Lines starting with # or blank lines are ignored.
 
+npm    @fission-ai/openspec
 pip    agent-superpowers
 github obra/superpowers        skills
-local  confluence
-local  create-story-tasks
-local  fetch-jira-story
-local  fetch-page-to-markdown
-local  mine-review-patterns
-local  plan-story
-local  polish-input
-local  review-pr
-local  kiro-gateway
-local  host-optimization
+local  intake
+local  jira
+local  review
+local  infra
+local  utils
