@@ -113,6 +113,17 @@ function Invoke-Download([string]$Url, [string]$Dest) {
 # ---------------------------------------------------------------------------
 # Install handlers
 # ---------------------------------------------------------------------------
+function Install-NpmSkill([string]$Package) {
+    $npm = Get-Command npm -ErrorAction SilentlyContinue
+    if (-not $npm) {
+        Write-Warning "npm not found — skipping npm install for $Package"
+        Write-Warning "  Install Node.js + npm to enable: https://nodejs.org/"
+        return
+    }
+    & $npm.Source install -g $Package
+    Write-Host "  v $Package (npm)"
+}
+
 function Install-PipSkill([string]$Package, [string]$TargetDir) {
     $pip = Get-Command pip3 -ErrorAction SilentlyContinue
     if (-not $pip) { $pip = Get-Command pip -ErrorAction SilentlyContinue }
@@ -178,6 +189,15 @@ $registryPath = Join-Path $RepoDir 'registry.txt'
 Write-Host "`n==> Installing runtime helpers..."
 Install-RuntimeDir
 
+if (Select-String -Path $registryPath -Pattern '^npm\s+@fission-ai/openspec' -Quiet) {
+    Write-Host ""
+    Write-Host "==> OpenSpec post-install steps (per target repo):"
+    Write-Host "    cd <your-repo>"
+    Write-Host "    openspec init"
+    Write-Host "    # For the full slash-command set:"
+    Write-Host "    openspec config profile expanded && openspec update"
+}
+
 Write-Host "`n==> Migrating keychain entries (if any)..."
 Invoke-KeychainMigration
 
@@ -200,6 +220,7 @@ foreach ($agentName in $SelectedAgents) {
 
         try {
             switch ($type) {
+                'npm'    { Install-NpmSkill    $id }
                 'pip'    { Install-PipSkill    $id $targetDir }
                 'github' { Install-GithubSkill $id $extra $targetDir }
                 'local'  { Install-LocalSkill  $id $targetDir }
