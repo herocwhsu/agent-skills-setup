@@ -317,16 +317,24 @@ select_agents() {
 # ---------------------------------------------------------------------------
 wire_hook() {
   local skill="$1" repo_dir="$2" agent="${3:-claude}"
-  local hook_path="$repo_dir/skills/$skill/hook.json"
-  local settings
-  
+  local hook_path settings
+
+  # Try flat path first (legacy), then search one level deep (group/subcommand layout).
+  if [[ -f "$repo_dir/skills/$skill/hook.json" ]]; then
+    hook_path="$repo_dir/skills/$skill/hook.json"
+  else
+    # Search for hook.json inside any group subdirectory.
+    hook_path=$(find "$repo_dir/skills" -maxdepth 3 -name "hook.json" \
+      -path "*/$skill/hook.json" 2>/dev/null | head -1)
+  fi
+
   case "$agent" in
     gemini) settings="$HOME/.gemini/settings.json" ;;
     *)      settings="$HOME/.claude/settings.json" ;;
   esac
 
-  if [[ ! -f "$hook_path" ]]; then
-    echo "  ERROR: $skill has no hook.json at $hook_path" >&2
+  if [[ -z "$hook_path" || ! -f "$hook_path" ]]; then
+    echo "  ERROR: $skill has no hook.json (searched flat and group layouts)" >&2
     return 1
   fi
 
