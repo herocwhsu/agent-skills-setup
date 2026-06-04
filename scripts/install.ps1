@@ -95,11 +95,43 @@ function Install-KiroPrompts {
     $promptsDir = Join-Path $RepoDir 'prompts'
     if (Test-Path $promptsDir) {
         foreach ($f in Get-ChildItem $promptsDir -Filter '*.md') {
-            Copy-Item $f.FullName (Join-Path $target $f.Name) -Force
+            $content = Get-Content $f.FullName -Raw
+            $content = $content -replace '/Users/<user>', $env:USERPROFILE
+            Set-Content -Path (Join-Path $target $f.Name) -Value $content
             $count++
         }
     }
     Write-Host "  v kiro prompts ($count files) -> $target"
+}
+
+function Install-KiroAgentConfig([string]$SkillsDir) {
+    $agentsDir = Join-Path $env:USERPROFILE '.kiro\agents'
+    New-Item -ItemType Directory -Path $agentsDir -Force | Out-Null
+    $out = Join-Path $agentsDir 'default.json'
+    $steeringRef = '    "file://~/.kiro/steering/engineering-rules.md"'
+
+    $entries = @($steeringRef)
+    if (Test-Path $SkillsDir) {
+        $skills = Get-ChildItem -Path $SkillsDir -Filter 'SKILL.md' -Recurse -Depth 2 | Sort-Object FullName
+        foreach ($s in $skills) {
+            $rel = $s.FullName -replace [regex]::Escape($env:USERPROFILE), '~'
+            $rel = $rel -replace '\\', '/'
+            $entries += "    ""skill://$rel"""
+        }
+    }
+
+    $lines = @('{', '    "name": "kiro_default",', '    "description": "Default Kiro agent with spec-gated workflow skills.",', '    "resources": [')
+    for ($i = 0; $i -lt $entries.Count; $i++) {
+        if ($i -lt $entries.Count - 1) {
+            $lines += $entries[$i] + ','
+        } else {
+            $lines += $entries[$i]
+        }
+    }
+    $lines += @('    ]', '}')
+    $lines | Set-Content -Path $out -Encoding UTF8
+    Write-Host "  v kiro agent config -> $out ($($entries.Count) resources)"
+}
 }
 
 # ---------------------------------------------------------------------------
@@ -232,9 +264,11 @@ foreach ($agentName in $SelectedAgents) {
     }
 }
 
-# Install Kiro prompts if kiro was selected
+# Install Kiro prompts and agent config if kiro was selected
 if ($SelectedAgents -contains 'kiro') {
     Install-KiroPrompts
+    $kiroSkillsDir = Get-AgentSkillsDir 'kiro'
+    Install-KiroAgentConfig $kiroSkillsDir
 }
 
 Write-Host "`nDone. Run scripts\setup-credentials.ps1 to configure service credentials."
