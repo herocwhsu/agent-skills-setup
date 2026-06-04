@@ -14,9 +14,9 @@ governance for mid-implementation deviations.
 |---|---|---|
 | `/review-mine-patterns [count]` | Scan recent closed PRs in the current repo, distill recurring review themes into `./.code-review/playbook.md`. Default scan: 50 PRs. | `mine-patterns/IMPL.md` |
 | `/review-pr <number>` | Review one PR using the mined playbook. Produces a local report plus a 3-5 issue comment draft (manual-post). | `pr/IMPL.md` |
-| `/review-guardrails <STORY-ID>` | Diff a PR against the approved `./openspec/changes/<change-id>/proposal.md`. Reports missing requirements, extra behavior, risky changes. Stdout only. | Phase 2 (not yet built) |
-| `/review-amend <STORY-ID> <slug>` | Capture a small spec amendment as `./docs/stories/<JIRA-ID>-<slug>/amendments/<date>-<slug>.md`. For wording, field, or edge-case clarifications. | Phase 2 (not yet built) |
-| `/review-change-request <STORY-ID> <slug>` | Capture a major change request as `./docs/stories/<JIRA-ID>-<slug>/change-requests/<date>-<slug>.md`. Includes impact analysis + decision log. May spawn a new OpenSpec change-id (`<jira-id>-cr-<slug>`). | Phase 2 (not yet built) |
+| `/review-guardrails <STORY-ID> <pr-number>` | Diff a PR against the approved `./openspec/changes/<change-id>/proposal.md`. Reports missing requirements, extra behavior, risky changes. Stdout only. | `guardrails/IMPL.md` |
+| `/review-amend <STORY-ID> <slug>` | Capture a small spec amendment as `./docs/stories/<JIRA-ID>-<slug>/amendments/<date>-<slug>.md`. For wording, field, or edge-case clarifications. | `amend/IMPL.md` |
+| `/review-change-request <STORY-ID> <slug>` | Capture a major change request as `./docs/stories/<JIRA-ID>-<slug>/change-requests/<date>-<slug>.md`. Includes impact analysis + decision log. May spawn a new OpenSpec change-id (`<jira-id>-cr-<slug>`). | `change-request/IMPL.md` |
 
 ## When to use which subcommand
 

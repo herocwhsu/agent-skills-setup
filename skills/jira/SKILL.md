@@ -12,7 +12,7 @@ Connects approved specs to Jira tickets and verifies the evidence trail.
 | Slash command | What it does | Implementation |
 |---|---|---|
 | `/jira-subtasks <STORY-ID>` | Read the OpenSpec `tasks.md` (or pre-OpenSpec `plan.md` during transition) for a story, create one Jira sub-task per task, write the sub-task IDs back into the source file. | `subtasks/IMPL.md` |
-| `/jira-evidence <STORY-ID>` | Walk every sub-task on a Jira story and check that each has the required evidence links (PR, Apidog, CI, OpenSpec change). Stdout report only; no file output. | Phase 2 (not yet built) |
+| `/jira-evidence <STORY-ID>` | Walk every sub-task on a Jira story and check that each has the required evidence links (PR, Apidog, CI, OpenSpec change). Stdout report only; no file output. | `evidence/IMPL.md` |
 
 ## When to use which subcommand
 

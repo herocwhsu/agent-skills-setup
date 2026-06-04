@@ -29,7 +29,13 @@ npm    @fission-ai/openspec
 pip    agent-superpowers
 github obra/superpowers        skills
 local  intake
+local  audit
+local  repo
+local  external
 local  jira
+local  apidog
+local  testing
 local  review
+local  release
 local  infra
 local  utils
