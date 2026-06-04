@@ -14,7 +14,7 @@ per-story folder. Produces the upstream evidence later gates depend on.
 |---|---|---|
 | `/intake-jira-story <STORY-ID>` | Fetch a Jira issue + every embedded link, write `./docs/stories/<STORY-ID>-<slug>/story.md` plus one `confluence-*.md` / `apidog-*.md` per link. | `jira-story/IMPL.md` |
 | `/intake-web-page <URL>` | Fetch one URL, save as dated markdown reference. Confluence URLs go through the REST API path; everything else uses plain curl. | `web-page/IMPL.md` |
-| `/intake-spec-summary <STORY-ID>` | Combine `story.md` + `confluence-*.md` + `apidog-*.md` into `intake-summary.md` with frontmatter listing `jira_story` and `openspec_changes`. | Phase 2 (not yet built) |
+| `/intake-spec-summary <STORY-ID>` | Combine `story.md` + `confluence-*.md` + `apidog-*.md` into `intake-summary.md` with frontmatter listing `jira_story` and `openspec_changes`. | `spec-summary/IMPL.md` |
 
 ## When to use which subcommand
 
