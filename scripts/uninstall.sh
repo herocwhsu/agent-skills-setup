@@ -39,6 +39,9 @@ for agent in "${SELECTED_AGENTS[@]}"; do
       pip)
         uninstall_pip_skill "$id" || true
         ;;
+      npm)
+        uninstall_npm_skill "$id" || true
+        ;;
       github)
         uninstall_github_skill "$id" "${subpath_or_empty:-.}" "$target_dir" || true
         ;;

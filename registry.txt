@@ -8,6 +8,11 @@
 #          copy skills into the target dir itself.
 #          Example: pip agent-superpowers
 #
+#   npm    <package-name>
+#          Install via `npm install -g`. Skill registers its own slash
+#          commands (no symlink into agent skills dir).
+#          Example: npm @fission-ai/openspec
+#
 #   github <owner/repo> <skills-subpath>
 #          Download zip from GitHub default branch, copy skills from
 #          <skills-subpath> inside the zip into the agent skills dir.

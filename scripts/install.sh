@@ -59,6 +59,9 @@ for agent in "${SELECTED_AGENTS[@]}"; do
       pip)
         install_pip_skill "$id" "$target_dir" || true
         ;;
+      npm)
+        install_npm_skill "$id" || true
+        ;;
       github)
         install_github_skill "$id" "${subpath_or_empty:-.}" "$target_dir" || true
         ;;
@@ -86,6 +89,15 @@ if [[ $WITH_AGENTS_MD -eq 1 ]]; then
   echo ""
   echo "==> Deploying always-on engineering rules..."
   bash "$REPO_DIR/scripts/install-agents-md.sh"
+fi
+
+# Print post-install hints when openspec is registered.
+if grep -qE '^npm[[:space:]]+@fission-ai/openspec' "$REPO_DIR/registry.txt" 2>/dev/null; then
+  echo ""
+  echo "==> OpenSpec post-install steps (per target repo):"
+  echo "    cd <your-repo> && openspec init"
+  echo "    # For the full slash-command set:"
+  echo "    openspec config profile expanded && openspec update"
 fi
 
 echo ""

@@ -105,6 +105,23 @@ install_pip_skill() {
   echo "  ✓ $pkg (pip package updated)"
 }
 
+# install_npm_skill <package>
+# Globally install an npm package (e.g. @fission-ai/openspec).
+# Idempotent: npm install -g upgrades to latest if already present.
+install_npm_skill() {
+  local pkg="$1"
+  if ! command -v npm &>/dev/null; then
+    echo "  npm not found — skipping npm install for $pkg" >&2
+    echo "    Install Node.js + npm to enable: https://nodejs.org/" >&2
+    return 0
+  fi
+  npm install -g "$pkg" 2>/dev/null || {
+    echo "  WARNING: npm install -g $pkg failed (try: sudo npm install -g $pkg)" >&2
+    return 0
+  }
+  echo "  ✓ $pkg (npm package installed/updated)"
+}
+
 # install_github_skill <owner/repo> <skills-subpath> <target_dir>
 install_github_skill() {
   local repo="$1" subpath="$2" target_dir="$3"
@@ -197,6 +214,14 @@ uninstall_pip_skill() {
   else return 0; fi
   "$pip_cmd" uninstall -y "$pkg" 2>/dev/null || true
   echo "  ✓ $pkg (pip uninstalled)"
+}
+
+# uninstall_npm_skill <package>
+uninstall_npm_skill() {
+  local pkg="$1"
+  if ! command -v npm &>/dev/null; then return 0; fi
+  npm uninstall -g "$pkg" 2>/dev/null || true
+  echo "  ✓ $pkg (npm uninstalled)"
 }
 
 # uninstall_github_skill <owner/repo> <skills-subpath> <target_dir>
