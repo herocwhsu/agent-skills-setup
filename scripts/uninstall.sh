@@ -23,7 +23,17 @@ done
 select_agents "$AGENT_ARG"
 
 echo ""
-echo "==> Removing skills from registry.txt..."
+echo "==> Removing global packages..."
+while IFS=' ' read -r type id subpath_or_empty; do
+  case "$type" in ""|\#*) continue ;; esac
+  case "$type" in
+    npm) uninstall_npm_skill "$id" || true ;;
+    pip) uninstall_pip_skill "$id" || true ;;
+  esac
+done < "$REPO_DIR/registry.txt"
+
+echo ""
+echo "==> Removing per-agent skills from registry.txt..."
 
 for agent in "${SELECTED_AGENTS[@]}"; do
   target_dir=$(agent_skills_dir "$agent")
@@ -41,11 +51,8 @@ for agent in "${SELECTED_AGENTS[@]}"; do
     esac
 
     case "$type" in
-      pip)
-        uninstall_pip_skill "$id" || true
-        ;;
-      npm)
-        uninstall_npm_skill "$id" || true
+      pip|npm)
+        # Already handled in the global pass above
         ;;
       github)
         uninstall_github_skill "$id" "${subpath_or_empty:-.}" "$target_dir" || true
