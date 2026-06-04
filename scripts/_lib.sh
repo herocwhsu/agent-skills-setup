@@ -48,6 +48,7 @@ download_file() {
 agent_skills_dir() {
   local agent="$1"
   case "$agent" in
+    kiro)    echo "$HOME/.kiro/skills" ;;
     claude)  echo "$HOME/.claude/skills" ;;
     gemini)  echo "$HOME/.gemini/skills" ;;
     *)       echo "" ;;
@@ -280,9 +281,9 @@ uninstall_local_skill() {
   remove_skill "$name" "$target_dir"
 }
 
-AGENTS=("claude" "gemini")
+AGENTS=("kiro" "claude" "gemini")
 
-# Accept agent via $1 (claude|gemini|all). Prompt only if empty.
+# Accept agent via $1 (kiro|claude|gemini|all). Prompt only if empty.
 # Sets global SELECTED_AGENTS array.
 select_agents() {
   local choice="${1:-}"
@@ -290,23 +291,26 @@ select_agents() {
   if [[ -z "$choice" ]]; then
     echo ""
     echo "Which agent(s) to target?"
-    echo "  1) Claude Code (~/.claude/skills/)"
-    echo "  2) Gemini CLI  (~/.gemini/skills/)"
-    echo "  3) All of the above"
+    echo "  1) Kiro IDE    (~/.kiro/skills/)"
+    echo "  2) Claude Code (~/.claude/skills/)"
+    echo "  3) Gemini CLI  (~/.gemini/skills/)"
+    echo "  4) All of the above"
     echo ""
-    read -rp "Choice [1-3]: " input
+    read -rp "Choice [1-4]: " input
     case "$input" in
-      1) choice="claude" ;;
-      2) choice="gemini" ;;
-      3) choice="all" ;;
+      1) choice="kiro" ;;
+      2) choice="claude" ;;
+      3) choice="gemini" ;;
+      4) choice="all" ;;
       *) echo "Invalid choice, defaulting to claude."; choice="claude" ;;
     esac
   fi
 
   case "$choice" in
+    kiro)    SELECTED_AGENTS=("kiro") ;;
     claude)  SELECTED_AGENTS=("claude") ;;
     gemini)  SELECTED_AGENTS=("gemini") ;;
-    all)     SELECTED_AGENTS=("claude" "gemini") ;;
+    all)     SELECTED_AGENTS=("kiro" "claude" "gemini") ;;
     *)       echo "Invalid agent: $choice"; exit 1 ;;
   esac
 }
