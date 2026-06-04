@@ -16,17 +16,16 @@ log "=== Graceful shutdown triggered. Reason: $REASON ==="
 
 # ── Prevent double-run ───────────────────────────────────────────────────────
 LOCKFILE=/var/run/ups-shutdown.lock
-if [[ -f "$LOCKFILE" ]]; then
+if ! ( set -o noclobber; echo $$ > "$LOCKFILE" ) 2>/dev/null; then
   log "Shutdown already in progress (lockfile exists). Exiting."
   exit 0
 fi
-touch "$LOCKFILE"
 trap 'rm -f "$LOCKFILE"' EXIT
 
 # ── 1. Stop k3s (Kubernetes) ─────────────────────────────────────────────────
 if systemctl is-active --quiet k3s.service 2>/dev/null; then
   log "Stopping k3s (timeout ${TIMEOUT_K3S}s)..."
-  systemctl stop k3s.service --timeout=${TIMEOUT_K3S} || warn "k3s stop timed out"
+  systemctl stop k3s.service -T ${TIMEOUT_K3S} || warn "k3s stop timed out"
 else
   log "k3s not running, skipping."
 fi
@@ -35,10 +34,13 @@ fi
 if systemctl is-active --quiet docker.service 2>/dev/null; then
   log "Stopping all Docker containers (timeout ${TIMEOUT_DOCKER}s each)..."
   if command -v docker &>/dev/null; then
-    docker stop --time=$TIMEOUT_DOCKER $(docker ps -q) 2>/dev/null || true
+    CONTAINERS=$(docker ps -q 2>/dev/null || true)
+    if [[ -n "$CONTAINERS" ]]; then
+      docker stop --time=$TIMEOUT_DOCKER $CONTAINERS 2>/dev/null || true
+    fi
   fi
   log "Stopping Docker daemon..."
-  systemctl stop docker.service docker.socket 2>/dev/null || warn "docker stop failed"
+  systemctl stop docker.service docker.socket -T ${TIMEOUT_DOCKER} 2>/dev/null || warn "docker stop failed"
 else
   log "Docker not running, skipping."
 fi
