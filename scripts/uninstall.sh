@@ -30,6 +30,11 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   echo ""
   echo "  Agent: $agent → $target_dir"
 
+  # Kiro also removes prompt files
+  if [[ "$agent" == "kiro" ]]; then
+    uninstall_kiro_prompts "$REPO_DIR"
+  fi
+
   while IFS=' ' read -r type id subpath_or_empty; do
     case "$type" in
       ""|\#*) continue ;;

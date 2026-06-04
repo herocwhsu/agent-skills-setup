@@ -73,6 +73,27 @@ install_kiro_prompts() {
   done
   echo "  ✓ kiro prompts ($count files) → $target"
 }
+
+# uninstall_kiro_prompts <repo_dir>
+#   Remove prompt files this repo installed from ~/.kiro/prompts/.
+#   Only removes files that still exist in the repo's prompts/ dir.
+uninstall_kiro_prompts() {
+  local repo_dir="$1"
+  local src="$repo_dir/prompts"
+  local target="$HOME/.kiro/prompts"
+  [[ -d "$src" ]] || return 0
+  [[ -d "$target" ]] || return 0
+  local count=0
+  for f in "$src"/*.md; do
+    [[ -f "$f" ]] || continue
+    local dest="$target/$(basename "$f")"
+    if [[ -f "$dest" ]]; then
+      rm "$dest"
+      count=$((count + 1))
+    fi
+  done
+  echo "  ✓ removed kiro prompts ($count files)"
+}
 # Uses symlink on Unix, copy on Windows
 # Usage: install_skill <skill_src_dir> <skills_target_dir>
 install_skill() {
