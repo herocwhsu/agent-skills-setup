@@ -2,14 +2,16 @@
 # install-agents-md.sh — deploy canonical engineering rules into agent host files.
 #
 # Writes the contents of agents/engineering-rules.md into a marked block inside
-# each host file (~/.claude/CLAUDE.md, ~/.gemini/GEMINI.md). Idempotent: a second
-# run replaces the marked block in place; the rest of the host file is untouched.
+# each host file (~/.claude/CLAUDE.md, ~/.gemini/GEMINI.md). For Kiro, the rules
+# are deployed as a steering file (~/.kiro/steering/engineering-rules.md).
+# Idempotent: a second run replaces the marked block in place.
 #
 # Usage:
-#   bash scripts/install-agents-md.sh             # install for both
+#   bash scripts/install-agents-md.sh             # install for Claude + Gemini + Kiro
 #   bash scripts/install-agents-md.sh --claude    # only Claude Code
 #   bash scripts/install-agents-md.sh --gemini    # only Gemini CLI
-#   bash scripts/install-agents-md.sh --uninstall # strip the block from both
+#   bash scripts/install-agents-md.sh --kiro      # only Kiro (steering)
+#   bash scripts/install-agents-md.sh --uninstall # strip the block from all
 
 set -euo pipefail
 
@@ -20,15 +22,17 @@ END_MARK="<!-- END agent-skills-setup:engineering-rules -->"
 
 WANT_CLAUDE=1
 WANT_GEMINI=1
+WANT_KIRO=1
 ACTION="install"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --claude)    WANT_GEMINI=0; shift ;;
-    --gemini)    WANT_CLAUDE=0; shift ;;
+    --claude)    WANT_GEMINI=0; WANT_KIRO=0; shift ;;
+    --gemini)    WANT_CLAUDE=0; WANT_KIRO=0; shift ;;
+    --kiro)      WANT_CLAUDE=0; WANT_GEMINI=0; shift ;;
     --uninstall) ACTION="uninstall"; shift ;;
     -h|--help)
-      sed -n '2,12p' "$0" | sed 's/^# \?//'
+      sed -n '2,14p' "$0" | sed 's/^# \?//'
       exit 0 ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
@@ -111,5 +115,24 @@ run() {
 
 [[ $WANT_CLAUDE -eq 1 ]] && run "Claude Code" "$HOME/.claude/CLAUDE.md"
 [[ $WANT_GEMINI -eq 1 ]] && run "Gemini CLI"  "$HOME/.gemini/GEMINI.md"
+
+# Kiro uses steering files instead of a KIRO.md host file.
+# Deploy as ~/.kiro/steering/engineering-rules.md (plain copy, no marked block).
+if [[ $WANT_KIRO -eq 1 ]]; then
+  KIRO_TARGET="$HOME/.kiro/steering/engineering-rules.md"
+  mkdir -p "$(dirname "$KIRO_TARGET")"
+  if [[ "$ACTION" == "install" ]]; then
+    cp "$SOURCE" "$KIRO_TARGET"
+    echo "Kiro → $KIRO_TARGET"
+    echo "  wrote engineering-rules.md to Kiro steering"
+  else
+    if [[ -f "$KIRO_TARGET" ]]; then
+      rm "$KIRO_TARGET"
+      echo "Kiro → removed $KIRO_TARGET"
+    else
+      echo "Kiro → $KIRO_TARGET not present, skipping"
+    fi
+  fi
+fi
 
 echo "Done."
