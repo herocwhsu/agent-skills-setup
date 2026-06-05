@@ -60,6 +60,9 @@ for agent in "${SELECTED_AGENTS[@]}"; do
       local)
         uninstall_local_skill "$id" "$target_dir" || true
         ;;
+      local-optional)
+        uninstall_local_optional_skill "$id" "$target_dir" || true
+        ;;
       *)
         echo "  WARNING: unknown type '$type' for '$id', skipping." >&2
         ;;

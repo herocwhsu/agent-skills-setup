@@ -6,7 +6,7 @@
 #
 #
 # agent-skills-setup registry
-pip    agent-superpowers
+# pip    agent-superpowers  — removed: superpowers skills are managed via the superpowers plugin
 local  apidog
 local  audit
 #          commands (no symlink into agent skills dir).
@@ -21,7 +21,7 @@ npm    @fission-ai/openspec
 # Format:  <type> <identifier> [skills-subpath]
 #   github <owner/repo> <skills-subpath>
 local  infra
-local  infra-ups
+local-optional  infra-ups
 #          Installed as a symlink (Unix) or copy (Windows).
 #          Install via `npm install -g`. Skill registers its own slash
 #          Install via pip. Package must expose an install command or
@@ -30,7 +30,7 @@ local  jira
 # Lines starting with # or blank lines are ignored.
 #   local  <skill-name>
 #   npm    <package-name>
-github obra/superpowers        skills
+# obra/superpowers is managed via the superpowers plugin — do not install via github here
 #   pip    <package-name>
 local  release
 local  repo

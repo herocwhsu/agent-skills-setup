@@ -260,6 +260,19 @@ install_local_skill() {
   install_skill "$src" "$target_dir"
 }
 
+# install_local_optional_skill <skill_name> <repo_dir> <target_dir>
+#   Like install_local_skill but silently skips when the skill dir is absent.
+#   Use for host-specific or optional skills that may not exist on all machines.
+install_local_optional_skill() {
+  local name="$1" repo_dir="$2" target_dir="$3"
+  local src="${repo_dir}/skills/${name}"
+  if [[ ! -d "$src" ]]; then
+    echo "  skipping optional skill '$name' (not present on this host)" >&2
+    return 0
+  fi
+  install_skill "$src" "$target_dir"
+}
+
 # ---------------------------------------------------------------------------
 # install_runtime_dir <repo_dir>
 #   Create ~/.agent-skills-setup/ and copy runtime files (lib.sh, _store.sh)
@@ -363,6 +376,12 @@ uninstall_github_skill() {
 
 # uninstall_local_skill <skill_name> <target_dir>
 uninstall_local_skill() {
+  local name="$1" target_dir="$2"
+  remove_skill "$name" "$target_dir"
+}
+
+# uninstall_local_optional_skill <skill_name> <target_dir>
+uninstall_local_optional_skill() {
   local name="$1" target_dir="$2"
   remove_skill "$name" "$target_dir"
 }
