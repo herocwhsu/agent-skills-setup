@@ -9,11 +9,14 @@ immediately.
 ## Quick start
 
 ```bash
-# Install and configure NUT
+# Install and configure NUT (also applies battery longevity settings)
 /infra-ups setup
 
-# Check UPS state
+# Check UPS state + battery health indicators
 /infra-ups status
+
+# Show longevity metrics and auto-fix any out-of-spec settings
+/infra-ups battery-health
 
 # Dry-run the shutdown sequence (no actual poweroff)
 /infra-ups test-shutdown

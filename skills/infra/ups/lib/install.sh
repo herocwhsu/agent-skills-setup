@@ -49,6 +49,8 @@ log "Writing upsd.users..."
 sudo tee "$NUT_CONF_DIR/upsd.users" > /dev/null << EOF
 [$NUT_USER]
   password = $NUT_PASS
+  actions = SET
+  instcmds = ALL
   upsmon primary
 EOF
 sudo chmod 640 "$NUT_CONF_DIR/upsd.users"
@@ -130,11 +132,13 @@ sudo install -m 755 "$SKILL_DIR/lib/shutdown.sh" "$SHUTDOWN_SCRIPT"
 sudo chown -R root:nut "$NUT_CONF_DIR"
 sudo chmod 750 "$NUT_CONF_DIR"
 
-# ── 11. Enable and start NUT services ────────────────────────────────────────
+# ── 11. Enable and start NUT services (NUT 2.8+ unit names) ─────────────────
 log "Enabling NUT services..."
-sudo systemctl enable --now nut-driver.service
+sudo udevadm trigger --subsystem-match=usb        # fix USB device group → nut
+sudo systemctl enable --now nut-driver.target
 sudo systemctl enable --now nut-server.service
 sudo systemctl enable --now nut-monitor.service
+sudo upsdrvctl start 2>/dev/null || true           # ensure driver is connected
 
 log "Waiting for upsd to start..."
 for i in $(seq 1 10); do
@@ -148,5 +152,23 @@ if upsc ${UPS_NAME}@localhost > /dev/null 2>&1; then
   log "SUCCESS: UPS is online."
   upsc ${UPS_NAME}@localhost | grep -E "battery.charge|battery.runtime|ups.status|input.voltage"
 else
-  log "WARNING: upsc could not reach UPS yet. Check: sudo systemctl status nut-driver nut-server"
+  log "WARNING: upsc could not reach UPS yet. Check: sudo systemctl status nut-server nut-monitor"
+  exit 1
 fi
+
+# ── 12. Apply battery longevity settings ─────────────────────────────────────
+log "Applying battery longevity settings..."
+upsrw -s battery.charge.low=30  -u "$NUT_USER" -p "$NUT_PASS" "${UPS_NAME}@localhost" \
+  && log "  battery.charge.low  → 30% (was 10%: prevents deep discharge)" \
+  || log "  WARN: could not set battery.charge.low"
+
+upsrw -s battery.runtime.low=300 -u "$NUT_USER" -p "$NUT_PASS" "${UPS_NAME}@localhost" \
+  && log "  battery.runtime.low → 300s (was 120s: 5-min shutdown margin)" \
+  || log "  WARN: could not set battery.runtime.low"
+
+INSTALL_DATE=$(date +%Y/%m/%d)
+upsrw -s battery.mfr.date="$INSTALL_DATE" -u "$NUT_USER" -p "$NUT_PASS" "${UPS_NAME}@localhost" \
+  && log "  battery.mfr.date    → $INSTALL_DATE (stamps new battery install)" \
+  || log "  WARN: could not set battery.mfr.date"
+
+log "Battery longevity settings applied. Verify with: upsc ${UPS_NAME}@localhost | grep battery"

@@ -5,10 +5,11 @@ SKILL_LIB="$(cd "$(dirname "$0")" && pwd)"
 
 usage() {
   echo "Usage: ups.sh <subcommand>"
-  echo "  setup          Install NUT and configure for APC Back-UPS RS 1500G"
-  echo "  status         Show UPS battery, load, runtime, on-battery state"
-  echo "  test-shutdown  Dry-run the shutdown script (no actual poweroff)"
-  echo "  remove         Stop NUT services, remove /etc/nut config, uninstall"
+  echo "  setup           Install NUT and configure for APC Back-UPS RS 1500G"
+  echo "  status          Show UPS battery, load, runtime, on-battery state"
+  echo "  battery-health  Show battery longevity metrics and apply optimal settings"
+  echo "  test-shutdown   Dry-run the shutdown script (no actual poweroff)"
+  echo "  remove          Stop NUT services, remove /etc/nut config, uninstall"
 }
 
 case "${1:-}" in
@@ -17,6 +18,9 @@ case "${1:-}" in
     ;;
   status)
     exec bash "$SKILL_LIB/status.sh"
+    ;;
+  battery-health)
+    exec bash "$SKILL_LIB/battery-health.sh"
     ;;
   test-shutdown)
     echo "[test-shutdown] Dry-run: would execute ups-graceful-shutdown.sh with reason=test"

@@ -8,7 +8,7 @@ ok()   { echo "PASS: $1"; ((PASS++)) || true; }
 fail() { echo "FAIL: $1"; ((FAIL++)) || true; }
 
 # ── Syntax checks ─────────────────────────────────────────────────────────────
-for f in lib/ups.sh lib/install.sh lib/shutdown.sh lib/status.sh; do
+for f in lib/ups.sh lib/install.sh lib/shutdown.sh lib/status.sh lib/battery-health.sh; do
   if bash -n "$SKILL_DIR/$f" 2>/dev/null; then
     ok "syntax: $f"
   else
@@ -17,7 +17,7 @@ for f in lib/ups.sh lib/install.sh lib/shutdown.sh lib/status.sh; do
 done
 
 # ── Executable bits ───────────────────────────────────────────────────────────
-for f in lib/ups.sh lib/install.sh lib/shutdown.sh lib/status.sh; do
+for f in lib/ups.sh lib/install.sh lib/shutdown.sh lib/status.sh lib/battery-health.sh; do
   if [[ -x "$SKILL_DIR/$f" ]]; then
     ok "executable: $f"
   else
@@ -75,11 +75,43 @@ else
   fail "install.sh: should use 'upsmon primary' not 'upsmon master'"
 fi
 
+# ── install.sh: uses nut-driver.target not deprecated nut-driver.service ─────
+if grep -q "nut-driver.target" "$SKILL_DIR/lib/install.sh"; then
+  ok "install.sh: uses nut-driver.target (NUT 2.8+ unit name)"
+else
+  fail "install.sh: should use nut-driver.target not nut-driver.service"
+fi
+
 # ── install.sh: idempotency grep uses correct pattern ────────────────────────
 if grep -qE 'grep.*\\s\*password' "$SKILL_DIR/lib/install.sh"; then
   ok "install.sh: password idempotency grep uses whitespace-aware pattern"
 else
   fail "install.sh: password idempotency grep may not match NUT's indented format"
+fi
+
+# ── install.sh: applies battery longevity settings ───────────────────────────
+for pattern in "battery.charge.low=30" "battery.runtime.low=300" "battery.mfr.date" "actions = SET"; do
+  if grep -q "$pattern" "$SKILL_DIR/lib/install.sh"; then
+    ok "install.sh contains longevity setting: $pattern"
+  else
+    fail "install.sh missing longevity setting: $pattern"
+  fi
+done
+
+# ── battery-health.sh: key checks present ────────────────────────────────────
+for pattern in "battery.charge.low" "battery.runtime.low" "input.sensitivity" "deep discharge" "calibration"; do
+  if grep -q "$pattern" "$SKILL_DIR/lib/battery-health.sh"; then
+    ok "battery-health.sh contains: $pattern"
+  else
+    fail "battery-health.sh missing: $pattern"
+  fi
+done
+
+# ── ups.sh: battery-health subcommand dispatches correctly ───────────────────
+if grep -q "battery-health" "$SKILL_DIR/lib/ups.sh"; then
+  ok "ups.sh: battery-health subcommand present"
+else
+  fail "ups.sh: missing battery-health subcommand"
 fi
 
 # ── shutdown.sh: all stop stages present ─────────────────────────────────────
