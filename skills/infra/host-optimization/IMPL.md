@@ -20,7 +20,7 @@ python3 lib/main.py --revert  # restore previous sysctl config
 
 | Area | What it checks |
 |---|---|
-| CPU governor | Is `schedutil` set? (better than `performance` for power saving) |
+| CPU governor | Is `powersave` set and persisted via systemd unit? |
 | PCI power management | Are devices in `auto`? Is udev rule present? |
 | CPU temperature | Flags elevated idle temps (warn >60°C, fail >75°C) |
 | GPU / nouveau | CTXSW timeout errors, modprobe fix present, firmware status |
@@ -33,7 +33,7 @@ python3 lib/main.py --revert  # restore previous sysctl config
 | Step | Action |
 |---|---|
 | sysctl | TCP BBR, buffer sizes, swappiness=10, dirty_ratio tuning |
-| CPU governor | Set `schedutil` on all cores |
+| CPU governor | Set `powersave` on all cores; install `/etc/systemd/system/cpu-powersave.service` for reboot persistence |
 | PCI power management | Write `/etc/udev/rules.d/70-pci-pm.rules`, apply immediately |
 | Nouveau GPU fix | Detect Fermi-era card, write `/etc/modprobe.d/nouveau.conf`, rebuild initramfs |
 | Service cleanup | Disable `kerneloops`, `colord`, `switcheroo-control` |

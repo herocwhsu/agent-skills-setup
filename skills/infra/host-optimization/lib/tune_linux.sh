@@ -25,13 +25,39 @@ SYSCTL
 sudo sysctl --system > /dev/null
 log "  sysctl applied."
 
-# ── 2. CPU Governor: schedutil (adaptive, power-efficient) ───────────────────
+# ── 2. CPU Governor: powersave + systemd persistence ─────────────────────────
 log "Setting CPU governor..."
 if [ -d /sys/devices/system/cpu/cpu0/cpufreq ]; then
-  for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
-    echo "schedutil" | sudo tee "$gov" > /dev/null
-  done
-  log "  CPU governor → schedutil (all $(nproc) cores)"
+  if command -v cpupower &>/dev/null; then
+    sudo cpupower frequency-set -g powersave > /dev/null
+  else
+    for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+      echo "powersave" | sudo tee "$gov" > /dev/null
+    done
+  fi
+  log "  CPU governor → powersave (all $(nproc) cores)"
+
+  UNIT=/etc/systemd/system/cpu-powersave.service
+  if [ ! -f "$UNIT" ]; then
+    sudo tee "$UNIT" > /dev/null <<'EOF'
+[Unit]
+Description=Set CPU governor to powersave
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cpupower frequency-set -g powersave
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo systemctl daemon-reload
+    sudo systemctl enable cpu-powersave.service > /dev/null 2>&1
+    log "  systemd unit installed: $UNIT (persists across reboots)"
+  else
+    log "  systemd unit already present: $UNIT"
+  fi
 else
   log "  cpufreq not available — skipping (may be managed by intel_pstate)"
 fi

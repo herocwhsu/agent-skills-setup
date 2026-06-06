@@ -27,10 +27,13 @@ echo "  OS:     $DISTRO | Kernel: $KERNEL"
 section "CPU & Power"
 if [ -d /sys/devices/system/cpu/cpu0/cpufreq ]; then
   GOVS=$(cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor 2>/dev/null | sort | uniq -c | xargs)
-  if echo "$GOVS" | grep -qE "schedutil|powersave"; then
-    pass "CPU governor: $GOVS"
+  UNIT_OK=false
+  systemctl is-enabled cpu-powersave.service &>/dev/null && UNIT_OK=true
+  if echo "$GOVS" | grep -qE "powersave"; then
+    $UNIT_OK && pass "CPU governor: $GOVS (persistent)" \
+              || warn "CPU governor: $GOVS — not persistent (run --apply to install systemd unit)"
   else
-    warn "CPU governor: $GOVS — recommend schedutil (saves power vs performance)"
+    warn "CPU governor: $GOVS — recommend powersave (run --apply)"
   fi
 else
   warn "cpufreq not available — governor check skipped"
