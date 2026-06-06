@@ -45,13 +45,20 @@ if ! ask "Proceed with updating battery.date?"; then
   warn "Skipping battery.date update."
 else
   info "Stopping NUT services..."
-  sudo systemctl stop nut-monitor nut-server nut-driver.target 2>/dev/null || true
+  sudo systemctl stop nut-monitor nut-server "nut-driver@${UPS_NAME}" 2>/dev/null || true
   sleep 2
 
   info "Installing apcupsd (will NOT enable its service)..."
   sudo apt-get install -y apcupsd > /dev/null 2>&1
   sudo systemctl disable apcupsd 2>/dev/null || true
   sudo systemctl stop apcupsd 2>/dev/null || true
+
+  # Fix apcupsd config for USB — default config sets DEVICE /dev/ttyS0 (serial),
+  # which makes apctest fail. USB HID requires DEVICE to be blank.
+  if [ -f /etc/apcupsd/apcupsd.conf ]; then
+    sudo sed -i 's|^DEVICE .*|DEVICE|' /etc/apcupsd/apcupsd.conf
+    info "  Set DEVICE to blank in apcupsd.conf (required for USB HID)"
+  fi
 
   echo ""
   echo "  ┌─────────────────────────────────────────────────────────────┐"
@@ -66,14 +73,15 @@ else
   read -rp "  Press ENTER to launch apctest..."
   sudo apctest || warn "apctest exited with error — battery.date may not have been updated"
 
-  info "Removing apcupsd..."
+  info "Removing apcupsd and restoring NUT..."
+  # apcupsd install removes nut/nut-server/nut-client due to USB device conflict.
+  # Reinstall NUT immediately after removing apcupsd to restore services.
   sudo apt-get remove -y apcupsd > /dev/null 2>&1
+  sudo apt-get install -y nut nut-client > /dev/null 2>&1
 
   info "Restarting NUT services..."
-  sudo systemctl start nut-driver.target
-  sleep 3
-  sudo systemctl start nut-server nut-monitor
-  sleep 2
+  sudo systemctl start nut.target
+  sleep 4
 
   NEW_DATE=$(upsc "${UPS_NAME}@localhost" 2>/dev/null | grep "^battery.date:" | awk '{print $2}')
   if [[ "$NEW_DATE" == "$TODAY" ]]; then
