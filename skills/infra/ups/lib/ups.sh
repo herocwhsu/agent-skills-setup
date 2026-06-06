@@ -7,8 +7,9 @@ usage() {
   echo "Usage: ups.sh <subcommand>"
   echo "  setup           Install NUT and configure for APC Back-UPS RS 1500G"
   echo "  status          Show UPS battery, load, runtime, on-battery state"
-  echo "  battery-health  Show battery longevity metrics and apply optimal settings"
-  echo "  test-shutdown   Dry-run the shutdown script (no actual poweroff)"
+  echo "  battery-health   Show battery longevity metrics and apply optimal settings"
+  echo "  battery-replace  Full battery replacement procedure: update EEPROM date, calibrate, verify"
+  echo "  test-shutdown    Dry-run the shutdown script (no actual poweroff)"
   echo "  remove          Stop NUT services, remove /etc/nut config, uninstall"
 }
 
@@ -21,6 +22,9 @@ case "${1:-}" in
     ;;
   battery-health)
     exec bash "$SKILL_LIB/battery-health.sh"
+    ;;
+  battery-replace)
+    exec bash "$SKILL_LIB/battery-replace.sh"
     ;;
   test-shutdown)
     echo "[test-shutdown] Dry-run: would execute ups-graceful-shutdown.sh with reason=test"

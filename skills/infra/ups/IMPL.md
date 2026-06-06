@@ -14,6 +14,7 @@ Manage UPS power protection via NUT (Network UPS Tools).
 | `setup` | Install NUT, write /etc/nut config, enable services, apply battery longevity settings |
 | `status` | Print UPS state (battery %, load, runtime, sensitivity, install date) |
 | `battery-health` | Show longevity metrics and auto-fix any out-of-spec settings |
+| `battery-replace` | Full replacement procedure: update `battery.date` EEPROM via apctest, run deep calibration, verify runtime |
 | `test-shutdown` | Dry-run the shutdown script (no actual poweroff) |
 | `remove` | Stop NUT services, remove /etc/nut config, uninstall package |
 

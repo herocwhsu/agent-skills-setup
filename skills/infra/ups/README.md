@@ -18,6 +18,9 @@ immediately.
 # Show longevity metrics and auto-fix any out-of-spec settings
 /infra-ups battery-health
 
+# After replacing the battery: update EEPROM date, run calibration, verify runtime
+/infra-ups battery-replace
+
 # Dry-run the shutdown sequence (no actual poweroff)
 /infra-ups test-shutdown
 
