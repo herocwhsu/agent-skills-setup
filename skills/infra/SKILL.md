@@ -16,6 +16,7 @@ target product repo.
 | `/infra-kiro-gateway <subcommand>` | Manage the kiro-gateway Docker container. Sub-subcommands: `init`, `update`, `rollback`, `status`, `setup-alias`. Pins digest on first run. | `kiro-gateway/IMPL.md` |
 | `/infra-host-optimization` | Run host CPU / GPU / RAM / network tuning. Has a `--revert` flag to undo. macOS + Linux. | `host-optimization/IMPL.md` |
 | `/infra-ups <subcommand>` | Manage UPS power protection via NUT. Sub-subcommands: `setup`, `status`, `battery-health`, `battery-replace`, `test-shutdown`, `remove`. Triggers graceful shutdown after 60 s on battery. | `ups/IMPL.md` |
+| `/infra-vpn <subcommand>` | WireGuard VPN server. Split-tunnel, 3 whitelisted peers, Cloudflare DDNS. Sub-subcommands: `setup`, `add-peer <name>`, `status`, `remove`. | `vpn/IMPL.md` |
 
 ## When to use which subcommand
 
