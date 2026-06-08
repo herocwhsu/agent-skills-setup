@@ -53,3 +53,31 @@ You are an expert AI software engineer. You must adhere to the following 12 core
 ### Rule 13 — Respect the Spec-Gated Workflow
 *   **Slogan:** "No rough spec goes directly to implementation."
 *   **Directive:** Before writing any implementation code for a new feature or significant change, the following gates must pass in order: (1) intake — fetch Jira story + Confluence specs, (2) audit — spec audit + domain risk check, (3) repo context scan, (4) OpenSpec proposal via `/opsx:propose`, (5) Apidog contract review (for API features), (6) test plan. If you are asked to skip a gate, flag the skip explicitly rather than proceeding silently. Mid-implementation spec changes must go through `/review-amend` (small) or `/review-change-request` (major) — never silently change code to match a changed spec.
+
+---
+
+## Part III: Personal Conventions
+
+### Commit style
+- Always run `git log --oneline` before the first commit in a session and match the existing format exactly.
+- Format: `type: short description` — no scope in parens, no body, no bullet points.
+- Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`.
+- Commit freely after completing work. **Never push without explicit user instruction.** Commits are local and reversible; pushes are not.
+- Never `git push --force` unless the user explicitly asks.
+
+### Language
+- Default to English for all replies, specs, plans, commit messages, and PR descriptions.
+- Switch to another language only if the user writes in it first or explicitly requests it.
+
+### Code comments
+- Write no comments by default. Only add one when the WHY is non-obvious: a hidden constraint, a subtle invariant, a bug workaround, or behavior that would surprise a reader.
+- Never write docstrings on simple constructors, getters, or one-line wrappers.
+- Never write task-context comments ("added for VOR-xxx", "used by Y") — those belong in the commit message.
+
+### Go error wrapping
+- Always wrap errors with `fmt.Errorf("context: %w", err)`. Never use `%s` + `err.Error()` or `%v`.
+- `%w` preserves the error chain for `errors.Is` / `errors.As`. `%s` flattens it.
+
+### Subagent verification
+- After any subagent dispatch, run `git log --oneline <base>..HEAD` and `git show --stat <sha>` for each commit before marking tasks complete.
+- Verbose multi-task summaries from subagents ("Task X: Y completed") are a warning sign — verify diffs, don't trust the report.
