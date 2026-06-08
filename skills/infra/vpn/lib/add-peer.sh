@@ -12,8 +12,10 @@ fail() { echo "  [FAIL]  $*"; exit 1; }
 [ -f /etc/wireguard/wg0.conf ] || fail "wg0.conf not found. Run /infra-vpn setup first."
 [ -f /etc/wireguard/ddns.env ] || fail "ddns.env not found. Run /infra-vpn setup first."
 
-# Load DDNS env for endpoint hostname
+# Load DDNS env for endpoint hostname and server env for LAN subnet
 source /etc/wireguard/ddns.env 2>/dev/null || true
+source /etc/wireguard/server.env 2>/dev/null || true
+LAN_SUBNET="${LAN_SUBNET:-10.8.0.0/24}"
 
 echo "=== Adding VPN peer: ${PEER_NAME} ==="
 echo ""
@@ -55,7 +57,8 @@ sudo wg syncconf wg0 <(sudo wg-quick strip wg0) 2>/dev/null \
 pass "Peer added to wg0 (live reload)"
 
 # ── Build client config ───────────────────────────────────────────────────────
-ENDPOINT="${CF_RECORD:-vpn.example.com}:51820"
+[ -z "${CF_RECORD:-}" ] && fail "CF_RECORD not set in /etc/wireguard/ddns.env — re-run setup"
+ENDPOINT="${CF_RECORD}:51820"
 
 CLIENT_CONF="[Interface]
 Address = ${PEER_IP}/24
@@ -68,7 +71,7 @@ PublicKey = ${SERVER_PUBKEY}
 PresharedKey = ${PEER_PSK}
 Endpoint = ${ENDPOINT}
 # Split tunnel: home LAN + VPN subnet only
-AllowedIPs = 10.8.0.0/24, 192.168.x.0/24
+AllowedIPs = 10.8.0.0/24, ${LAN_SUBNET}
 PersistentKeepalive = 25"
 
 # ── Output ────────────────────────────────────────────────────────────────────

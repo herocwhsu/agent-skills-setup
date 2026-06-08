@@ -21,16 +21,23 @@ if ! lsmod | grep -q wireguard; then
 fi
 pass "WireGuard kernel module loaded"
 
+# ── Detect LAN interface + subnet ─────────────────────────────────────────────
+LAN_IFACE=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev") print $(i+1)}' | head -1)
+LAN_IP_CIDR=$(ip -o -f inet addr show "$LAN_IFACE" | awk '{print $4}' | head -1)
+LAN_IP=$(echo "$LAN_IP_CIDR" | cut -d/ -f1)
+LAN_SUBNET=$(python3 -c "import ipaddress; print(str(ipaddress.ip_network('${LAN_IP_CIDR}', strict=False)))")
+info "LAN interface: ${LAN_IFACE}  subnet: ${LAN_SUBNET}"
+
 # ── Cloudflare DDNS credentials ───────────────────────────────────────────────
 echo ""
 echo "--- Cloudflare DDNS credentials ---"
 echo "  Create a token at: https://dash.cloudflare.com/profile/api-tokens"
-echo "  Permissions: Zone → DNS → Edit | Zone: example.com only"
+echo "  Permissions: Zone → DNS → Edit (scope to your zone only)"
 echo ""
 CF_TOKEN=$(ask "Cloudflare API token:")
-CF_ZONE_ID=$(ask "Zone ID (from example.com Overview page):")
-CF_RECORD=$(ask "Subdomain for VPN endpoint [vpn.example.com]:")
-CF_RECORD="${CF_RECORD:-vpn.example.com}"
+CF_ZONE_ID=$(ask "Zone ID (from Cloudflare dashboard → your domain → Overview):")
+CF_RECORD=$(ask "Full subdomain for VPN endpoint (e.g. vpn.example.com):")
+[ -z "$CF_RECORD" ] && { echo "  [FAIL]  Subdomain is required"; exit 1; }
 
 sudo mkdir -p /etc/wireguard
 sudo tee /etc/wireguard/ddns.env > /dev/null <<EOF
@@ -39,6 +46,12 @@ CF_ZONE_ID=${CF_ZONE_ID}
 CF_RECORD=${CF_RECORD}
 EOF
 sudo chmod 600 /etc/wireguard/ddns.env
+
+sudo tee /etc/wireguard/server.env > /dev/null <<EOF
+LAN_IFACE=${LAN_IFACE}
+LAN_SUBNET=${LAN_SUBNET}
+EOF
+sudo chmod 600 /etc/wireguard/server.env
 pass "DDNS credentials saved to /etc/wireguard/ddns.env"
 
 # ── Server keypair ────────────────────────────────────────────────────────────
@@ -68,8 +81,8 @@ Address = 10.8.0.1/24
 ListenPort = 51820
 PrivateKey = ${SERVER_PRIVKEY}
 # PostUp/Down manage UFW masquerade for LAN forwarding
-PostUp   = iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o enp6s0 -j MASQUERADE
-PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o enp6s0 -j MASQUERADE
+PostUp   = iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o ${LAN_IFACE} -j MASQUERADE
+PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o ${LAN_IFACE} -j MASQUERADE
 
 # Peers added by: /infra-vpn add-peer <name>
 EOF
@@ -125,7 +138,7 @@ echo "  VPN endpoint:       ${CF_RECORD}:51820"
 echo "  VPN subnet:         10.8.0.0/24"
 echo ""
 echo "  Next steps:"
-echo "  1. Port-forward UDP 51820 → <lan-ip> on your router"
+echo "  1. Port-forward UDP 51820 → ${LAN_IP} on your router"
 echo "  2. Add peers:  /infra-vpn add-peer laptop1"
 echo "                 /infra-vpn add-peer laptop2"
 echo "                 /infra-vpn add-peer remotehost"

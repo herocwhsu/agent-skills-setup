@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cloudflare DDNS updater for vpn.example.com
+# Cloudflare DDNS updater — keeps the VPN endpoint A record current
 # Runs every 5 min via /etc/cron.d/wg-ddns
 set -euo pipefail
 

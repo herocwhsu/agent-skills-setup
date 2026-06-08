@@ -26,8 +26,8 @@ bash ~/.claude/skills/infra/vpn/lib/vpn.sh <subcommand> [args]
 
 - VPN subnet: `10.8.0.0/24`
 - Server VPN IP: `10.8.0.1`
-- Endpoint: `vpn.example.com:51820`
-- Mode: split-tunnel — only `10.8.0.0/24` and `192.168.x.0/24` routed through VPN
+- Endpoint: configured during `setup` (stored in `/etc/wireguard/ddns.env`)
+- Mode: split-tunnel — only `10.8.0.0/24` and the host LAN subnet routed through VPN
 - Avoids: `10.42/16` (k3s pods), `10.43/16` (k3s svc), `172.17-19/16` (Docker)
 
 ## Security
@@ -41,9 +41,9 @@ bash ~/.claude/skills/infra/vpn/lib/vpn.sh <subcommand> [args]
 ## Prerequisites
 
 Before running `setup`:
-1. Cloudflare API token (Zone:DNS:Edit for example.com)
-2. Cloudflare Zone ID (from Cloudflare dashboard → example.com → Overview)
-3. Router: port-forward UDP 51820 → <lan-ip> (manual step)
+1. Cloudflare API token (Zone:DNS:Edit, scoped to your zone only)
+2. Cloudflare Zone ID (from Cloudflare dashboard → your domain → Overview)
+3. Router: port-forward UDP 51820 → this host's LAN IP (manual step)
 4. `sudo apt install qrencode` (for QR code output in add-peer)
 
 ## Implementation files

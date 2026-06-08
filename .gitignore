@@ -7,3 +7,6 @@ __pycache__/
 # lib/_store.sh is copied at install time, not source-tracked
 lib/_store.sh
 apctest.output
+
+# Local Claude settings (may contain personal permission overrides)
+.claude/settings.local.json

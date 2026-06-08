@@ -12,19 +12,19 @@
 ```
 Internet
     │
-    │  vpn.example.com:51820 (UDP)
+    │  vpn.<your-domain>:51820 (UDP)
     │  A record auto-updated by DDNS cron
     │
-[Router 192.168.x.254]  ← port-forward UDP 51820 → <lan-ip>
+[Router <lan-ip>]  ← port-forward UDP 51820 → <lan-ip>
     │
 [WireGuard server — wg0 — 10.8.0.1]
-    │   192.168.x.0/24 (home LAN reachable through server)
+    │   <lan-ip>/24 (home LAN reachable through server)
     ├── Laptop 1    10.8.0.2
     ├── Laptop 2    10.8.0.3
     └── Remote host 10.8.0.4
 ```
 
-**Split tunnel:** clients only route `10.8.0.0/24` and `192.168.x.0/24` through VPN.
+**Split tunnel:** clients only route `10.8.0.0/24` and `<lan-ip>/24` through VPN.
 All other internet traffic exits normally at each client's local connection.
 
 ---
@@ -37,7 +37,7 @@ All other internet traffic exits normally at each client's local connection.
 | Extra symmetric layer | Pre-shared key (PSK) per peer — quantum-resistant |
 | Peer whitelist | Server config only lists 3 known peers; all others are cryptographically dropped |
 | Firewall | UFW: allow UDP 51820 inbound; no other new inbound rules |
-| DDNS token | Cloudflare API token scoped to `Zone:DNS:Edit` for `example.com` only |
+| DDNS token | Cloudflare API token scoped to `Zone:DNS:Edit` for `<your-domain>` only |
 | Key storage | Private keys in `/etc/wireguard/` (root-only, mode 600) |
 
 ---
@@ -50,7 +50,7 @@ All other internet traffic exits normally at each client's local connection.
 | Server VPN IP | `10.8.0.1` |
 | Server LAN IP | `<lan-ip>` |
 | WireGuard port | `51820/UDP` |
-| Endpoint hostname | `vpn.example.com` |
+| Endpoint hostname | `vpn.<your-domain>` |
 | DNS provider | Cloudflare |
 | Existing subnets (avoid) | `10.42.0.0/16` (k3s pods), `10.43.0.0/16` (k3s svc), `172.17-19.0.0/16` (Docker) |
 
@@ -119,8 +119,8 @@ All other internet traffic exits normally at each client's local connection.
 
 1. **Cloudflare API token** — create at dash.cloudflare.com:
    - Permissions: `Zone → DNS → Edit`
-   - Zone resources: `example.com` only
-2. **Cloudflare Zone ID** — found on the Overview page for example.com in Cloudflare dashboard
+   - Zone resources: `<your-domain>` only
+2. **Cloudflare Zone ID** — found on the Overview page for <your-domain> in Cloudflare dashboard
 3. **Router port-forward** — UDP 51820 → <lan-ip> (manual, router web UI)
 4. **`qrencode`** — `sudo apt install qrencode` (for QR code client config output)
 
