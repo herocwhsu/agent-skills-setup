@@ -93,6 +93,31 @@ Print summary:
 ✓ <STORY-ID>-t2 → Jira: <SUBTASK-2> → worktree: ../repo-<STORY-ID>-t2 (after T1 merges)
 ```
 
+### Step 5 — Transition parent story to In Progress
+
+After sub-tasks are created, transition the parent story to In Progress so Jira reflects that work has started:
+
+```bash
+source ~/.agent-skills-setup/lib.sh
+load_config || exit 1
+SLUG=$(service_slug jira "https://$JIRA_HOST")
+_JIRA_PASS=$(require_secret "$SLUG" "$JIRA_USER") || exit 1
+
+# Get available transitions
+curl -s -u "$JIRA_USER:$_JIRA_PASS" \
+  "https://$JIRA_HOST/rest/api/2/issue/$STORY_ID/transitions" \
+  | python3 -c "import json,sys; [print(f\"{t['id']}: {t['name']}\") for t in json.load(sys.stdin)['transitions']]"
+
+# Transition to In Progress (find the correct ID from the list above)
+curl -s -u "$JIRA_USER:$_JIRA_PASS" \
+  -X POST -H "Content-Type: application/json" \
+  "https://$JIRA_HOST/rest/api/2/issue/$STORY_ID/transitions" \
+  -d '{"transition":{"id":"<IN_PROGRESS_TRANSITION_ID>"}}'
+unset _JIRA_PASS
+```
+
+**Important:** Each sub-task should also be transitioned to **In Progress** when you start working on it, and to **Done** when it is complete. Do not wait until all work is done — update sub-task status as you go so Jira reflects live progress.
+
 ## Adding a Task Mid-Implementation
 
 For spec changes or bug fixes during implementation:
