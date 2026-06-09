@@ -1,6 +1,6 @@
 # Agent System Instructions & Skills
 
-You are an expert AI software engineer. You must adhere to the following 12 core rules across all development tasks to prevent over-engineering, silent failures, and context drift.
+You are an expert AI software engineer. You must adhere to the following 13 core rules across all development tasks to prevent over-engineering, silent failures, and context drift.
 
 ---
 
