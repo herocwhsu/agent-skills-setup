@@ -33,6 +33,27 @@ Restart your shell after setup.
 
 ---
 
+## Post-install: OpenSpec setup
+
+`install.sh` installs the `openspec` CLI globally. Two additional steps are required before `/opsx:propose` and other OpenSpec slash commands will work.
+
+**Step 1 — Initialize OpenSpec in each project:**
+```bash
+cd <your-project>
+openspec init
+```
+Creates a `.openspec/` directory and installs `/opsx:*` slash-command skills into `.claude/` (or equivalent for other agents). Run once per project.
+
+**Step 2 — Keep skills up to date:**
+```bash
+openspec update
+```
+Re-run after upgrading openspec to refresh the installed skills.
+
+> **Note:** Skills are installed per-project into `.claude/skills/` — not globally. Run `openspec init` in every project where you want `/opsx:*` commands. Restart your IDE after running either command.
+
+---
+
 ## Scripts
 
 | Script | Platform | What it does |

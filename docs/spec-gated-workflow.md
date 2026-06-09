@@ -141,6 +141,8 @@ Where is the evidence?
 
 4.3 OpenSpec
 
+> **Prerequisites:** Before `/opsx:propose` and other OpenSpec slash commands work, run `openspec init` in each project (installs skills into `.claude/`). Run `openspec update` after upgrading openspec. See the [Post-install: OpenSpec setup](../README.md#post-install-openspec-setup) section in the README.
+
 OpenSpec is the engineering-executable specification source.
 
 OpenSpec should contain:
