@@ -21,6 +21,7 @@ npm    @fission-ai/openspec
 # Format:  <type> <identifier> [skills-subpath]
 #   github <owner/repo> <skills-subpath>
 local  infra
+local-optional  experiment-iteration
 local-optional  infra-ups
 #          Installed as a symlink (Unix) or copy (Windows).
 #          Install via `npm install -g`. Skill registers its own slash

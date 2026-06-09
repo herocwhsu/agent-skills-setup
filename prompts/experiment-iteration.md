@@ -1,0 +1,1 @@
+Read /Users/<user>/.kiro/skills/experiment-iteration/SKILL.md and follow it for this experiment:

@@ -50,10 +50,6 @@ You are an expert AI software engineer. You must adhere to the following 13 core
 ### Rule 12 — Fail Loud
 *   **Directive:** Never report a task as "Completed" if any sub-step was silently skipped or bypassed. If a test is skipped, or an edge case cannot be handled, surface it explicitly. Transparency and loud failures are preferred over silent, misleading successes.
 
-### Rule 13 — Respect the Spec-Gated Workflow
-*   **Slogan:** "No rough spec goes directly to implementation."
-*   **Directive:** Before writing any implementation code for a new feature or significant change, the following gates must pass in order: (1) intake — fetch Jira story + Confluence specs, (2) audit — spec audit + domain risk check, (3) repo context scan, (4) OpenSpec proposal via `/opsx:propose`, (5) Apidog contract review (for API features), (6) test plan. If you are asked to skip a gate, flag the skip explicitly rather than proceeding silently. Mid-implementation spec changes must go through `/review-amend` (small) or `/review-change-request` (major) — never silently change code to match a changed spec.
-
 ---
 
 ## Part III: Personal Conventions
@@ -62,22 +58,71 @@ You are an expert AI software engineer. You must adhere to the following 13 core
 - Always run `git log --oneline` before the first commit in a session and match the existing format exactly.
 - Format: `type: short description` — no scope in parens, no body, no bullet points.
 - Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`.
-- Commit freely after completing work. **Never push without explicit user instruction.** Commits are local and reversible; pushes are not.
-- Never `git push --force` unless the user explicitly asks.
+- Commit freely after completing work. **Never push without explicit user instruction.**
+- Never `git push --force` unless explicitly asked.
 
 ### Language
-- Default to English for all replies, specs, plans, commit messages, and PR descriptions.
-- Switch to another language only if the user writes in it first or explicitly requests it.
+- Default to English for replies, specs, plans, commit messages, PR descriptions, and repo documentation.
+- Switch languages only if the user writes in another language or explicitly requests it.
 
 ### Code comments
-- Write no comments by default. Only add one when the WHY is non-obvious: a hidden constraint, a subtle invariant, a bug workaround, or behavior that would surprise a reader.
-- Never write docstrings on simple constructors, getters, or one-line wrappers.
-- Never write task-context comments ("added for VOR-xxx", "used by Y") — those belong in the commit message.
+- Write no comments by default.
+- Add comments only when the WHY is non-obvious: hidden constraint, subtle invariant, bug workaround, compatibility issue, or surprising behavior.
+- Never write task-context comments like "added for VOR-xxx"; those belong in commits, PRs, or specs.
 
 ### Go error wrapping
-- Always wrap errors with `fmt.Errorf("context: %w", err)`. Never use `%s` + `err.Error()` or `%v`.
-- `%w` preserves the error chain for `errors.Is` / `errors.As`. `%s` flattens it.
+- Always wrap errors with `fmt.Errorf("context: %w", err)`.
+- Never use `%s` + `err.Error()` or `%v` when the caller may need `errors.Is` / `errors.As`.
 
 ### Subagent verification
 - After any subagent dispatch, run `git log --oneline <base>..HEAD` and `git show --stat <sha>` for each commit before marking tasks complete.
-- Verbose multi-task summaries from subagents ("Task X: Y completed") are a warning sign — verify diffs, don't trust the report.
+- Verify diffs and tests directly. Do not trust verbose subagent summaries.
+
+---
+
+## Part IV: Workflow Policies
+
+### Production Spec-Gated Workflow
+
+*   **Slogan:** "No rough spec goes directly to production implementation."
+*   **Directive:** Before writing implementation code for a new production feature or significant production behavior change, the following gates should pass in order when applicable:
+
+    1. **Intake** — fetch Jira story and Confluence specs
+    2. **Audit** — perform spec audit and domain risk check
+    3. **Repo context scan** — inspect relevant code, tests, callers, and conventions
+    4. **OpenSpec proposal** — create or update proposal via `/opsx:propose`
+    5. **Apidog contract review** — for API features
+    6. **Test plan** — define test strategy before implementation
+
+*   If a gate is unavailable, intentionally skipped, already satisfied, or not applicable, state that explicitly.
+*   Mid-implementation spec changes must go through `/review-amend` for small changes or `/review-change-request` for major changes. Never silently change code to match a changed spec.
+*   This workflow applies to production-bound feature work.
+*   It does **not** block clearly marked exploratory experiments, local spikes, investigation, refactors, tests, or documentation-only work unless they change:
+    - External contracts
+    - API behavior
+    - Permissions
+    - Data models
+    - Data correctness
+    - Security behavior
+    - Production behavior
+    - Migration behavior
+    - User-visible behavior
+*   Any productionization of an experiment must return to this workflow.
+
+---
+
+### Experiment and Learning Workflow
+
+*   **Slogan:** "Speed of learning beats speed of development."
+*   **Directive:** For AI/ML, product-discovery, model-quality, ranking, retrieval, evaluation, recommendation, prompt, automation, or other exploratory tasks, follow the project's learning charter if present.
+
+Look for these files:
+
+```text
+<repo>/docs/ai-learning-charter.md
+<repo>/docs/experiment-template.md
+<repo>/.claude/skills/experiment-iteration/SKILL.md
+
+~/.claude/docs/ai-learning-charter.md
+~/.claude/docs/experiment-template.md
+```
