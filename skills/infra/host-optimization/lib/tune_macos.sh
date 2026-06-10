@@ -2,19 +2,76 @@
 # Host Optimization - macOS Provider
 set -euo pipefail
 
-echo "Optimizing UI Animations..."
+BACKUP_FILE="$HOME/.agent-skills-setup/backups/host-optimization/macos-defaults.sh"
+
+# ── Backup current values before changing ────────────────────────────────────
+backup_macos() {
+    mkdir -p "$(dirname "$BACKUP_FILE")"
+    {
+        echo "#!/bin/bash"
+        echo "# macOS restore script — generated $(date)"
+        echo "sudo sysctl -w kern.maxfiles=$(sysctl -n kern.maxfiles)"
+        echo "sudo sysctl -w kern.maxfilesperproc=$(sysctl -n kern.maxfilesperproc)"
+        echo "sudo pmset -a sleep $(pmset -g | awk '/^[[:space:]]*sleep/{print $2}' | head -1)"
+        echo "sudo pmset -a hibernatemode $(pmset -g | awk '/hibernatemode/{print $2}')"
+        echo "defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool true"
+        echo "defaults write com.apple.dock expose-animation-duration -float 0.5"
+        echo "defaults write com.apple.dock launchanim -bool true"
+        echo "defaults write com.apple.finder QLInlinePreview -bool true"
+    } > "$BACKUP_FILE"
+    chmod +x "$BACKUP_FILE"
+    echo "[host-opt] Backup written to $BACKUP_FILE"
+}
+
+if [[ "${1:-}" == "--revert" ]]; then
+    if [[ -f "$BACKUP_FILE" ]]; then
+        echo "[host-opt] Reverting macOS settings..."
+        bash "$BACKUP_FILE"
+        killall Dock || true
+        killall Finder || true
+        echo "[host-opt] Revert complete."
+    else
+        echo "[host-opt] No backup found at $BACKUP_FILE — nothing to revert."
+        exit 1
+    fi
+    exit 0
+fi
+
+backup_macos
+
+# ── File descriptor limits ────────────────────────────────────────────────────
+echo "[host-opt] Setting file descriptor limits..."
+sudo sysctl -w kern.maxfiles=524288
+sudo sysctl -w kern.maxfilesperproc=524288
+
+# ── Power management ──────────────────────────────────────────────────────────
+echo "[host-opt] Configuring power management..."
+sudo pmset -a sleep 0
+sudo pmset -a hibernatemode 0
+
+# ── Firewall ──────────────────────────────────────────────────────────────────
+echo "[host-opt] Enabling application firewall..."
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on 2>/dev/null || \
+    echo "[host-opt] Notice: firewall command requires SIP-allowed context — skipping"
+
+# ── UI Animations ─────────────────────────────────────────────────────────────
+echo "[host-opt] Reducing UI animations..."
 defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false
 defaults write com.apple.dock expose-animation-duration -float 0.1
 defaults write com.apple.dock launchanim -bool false
 
-echo "Optimizing Finder and Dock..."
+# ── Finder ────────────────────────────────────────────────────────────────────
+echo "[host-opt] Optimizing Finder..."
 defaults write com.apple.finder QLInlinePreview -bool false
 
-echo "Restarting UI Services..."
+# ── Restart UI services ───────────────────────────────────────────────────────
+echo "[host-opt] Restarting UI services..."
 killall Dock || true
 killall Finder || true
 
-echo "Purging inactive memory..."
-sudo purge || echo "Notice: sudo purge might require root privileges"
+# ── Memory ────────────────────────────────────────────────────────────────────
+echo "[host-opt] Purging inactive memory..."
+sudo purge || echo "[host-opt] Notice: purge requires sudo"
 
-echo "macOS tuning complete."
+echo "[host-opt] macOS tuning complete."
+

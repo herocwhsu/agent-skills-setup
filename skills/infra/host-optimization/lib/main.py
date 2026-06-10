@@ -19,7 +19,11 @@ def main():
 
     if args.revert:
         print("[host-opt] Starting rollback...")
-        backup.revert()
+        if profile["is_macos"]:
+            lib_dir = Path(__file__).parent.resolve()
+            subprocess.run(["bash", str(lib_dir / "tune_macos.sh"), "--revert"], check=True)
+        else:
+            backup.revert()
         print("[host-opt] Done.")
         return
 

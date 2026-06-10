@@ -1,6 +1,6 @@
 ---
 name: infra
-description: Use to manage local infrastructure that supports Claude Code and Kiro IDE workflows. Subcommands manage the kiro-gateway Docker proxy (kiro-gateway), run host-level performance/security tuning (host-optimization), and set up the Apidog MCP server (apidog-mcp). Not part of the spec-gated workflow — these run independently.
+description: Use to manage local infrastructure that supports Claude Code and Kiro IDE workflows. Subcommands manage the kiro-gateway Docker proxy (kiro-gateway), run host-level performance/security tuning (host-optimization), set up the Apidog MCP server (apidog-mcp), and deploy dotfiles safely (system-setup). Not part of the spec-gated workflow — these run independently.
 ---
 
 # infra
@@ -18,6 +18,7 @@ target product repo.
 | `/infra-ups <subcommand>` | Manage UPS power protection via NUT. Sub-subcommands: `setup`, `status`, `battery-health`, `battery-replace`, `test-shutdown`, `remove`. Triggers graceful shutdown after 60 s on battery. | `ups/IMPL.md` |
 | `/infra-vpn <subcommand>` | WireGuard VPN server. Split-tunnel, 3 whitelisted peers, Cloudflare DDNS. Sub-subcommands: `setup`, `add-peer <name>`, `status`, `remove`. | `vpn/IMPL.md` |
 | `/infra-apidog-mcp <subcommand>` | Install and configure `@lstpsche/apidog-mcp` MCP server. Sub-subcommands: `setup`, `status`, `remove`. Wires Apidog token from keychain into agent settings. | `apidog-mcp/IMPL.md` |
+| `/infra-system-setup <subcommand>` | Safe dotfiles deployment from `~/Project/system-tools`. Copies (not symlinks) dotfiles with timestamped backup. Sub-subcommands: `dotfiles`, `status`, `revert`. | `system-setup/IMPL.md` |
 
 ## When to use which subcommand
 
