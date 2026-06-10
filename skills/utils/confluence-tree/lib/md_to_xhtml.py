@@ -170,6 +170,8 @@ def _image_xml(alt: str, rel_path: str) -> str:
 def render_block(kind: str, body: str, diagrams: dict) -> str:
     if kind == "h":
         m = re.match(r"^(#+)\s+(.*)$", body)
+        if not m:
+            return f"<p>{render_inline(body)}</p>"
         level = len(m.group(1))
         return f"<h{level}>{render_inline(m.group(2))}</h{level}>"
     if kind == "p":
