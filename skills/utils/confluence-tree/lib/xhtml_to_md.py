@@ -7,7 +7,7 @@ Lossy by design. Macros flatten:
     expand                 → bold title + body
     drawio / drawio-board  → placeholder <!-- diagram:dN --> + sidecar JSON
     gliffy                 → same as drawio
-    other ac:* macros      → <!-- macro:<name> --> placeholder (best-effort, no sidecar)
+    other ac:* macros      → silently dropped (no placeholder, no sidecar)
 ac:image with ri:attachment becomes a markdown image with --attachments-rel/<filename>.
 ac:link with ri:page becomes [text](wiki://page/<title>) — link_rewrite.py resolves later.
 ac:link with ri:user becomes plain text @<userkey>.
@@ -275,7 +275,7 @@ def _render_macro(node, diagrams, next_id, attachments_rel, base_url) -> str:
         body_node = _find_child(node, "ac", "rich-text-body")
         body = _inline(body_node, diagrams, next_id, attachments_rel, base_url) if body_node is not None else ""
         return f"\n**{title}**\n\n{body.strip()}\n\n"
-    return f"<!-- macro:{name} -->"
+    return ""
 
 
 def _render_image(node, attachments_rel) -> str:
