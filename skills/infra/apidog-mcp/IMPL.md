@@ -31,11 +31,15 @@ through the Model Context Protocol using your access token.
 
 ### Step 1 — Verify credentials
 
+The keychain entry stores email and token concatenated. Extract just the token:
+
 ```bash
-source ~/.agent-skills-setup/lib.sh
-load_config || exit 1
-APIDOG_ACCESS_TOKEN=$(get_credential apidog token) || {
+RAW=$(security find-generic-password -s "agent-skills-setup:apidog" -w 2>/dev/null) || {
   echo "ERROR: Apidog token not found. Run: bash scripts/setup-credentials.sh apidog add"
+  exit 1
+}
+APIDOG_ACCESS_TOKEN=$(echo "$RAW" | grep -o 'adgp_[^[:space:]]*') || {
+  echo "ERROR: Could not extract token from keychain entry. Expected format: <email>adgp_<token>"
   exit 1
 }
 [[ -n "${APIDOG_PROJECT_ID:-}" ]] || {
@@ -88,9 +92,14 @@ auth error, re-check the token value.
 ## Status check
 
 ```bash
-source ~/.agent-skills-setup/lib.sh
-APIDOG_ACCESS_TOKEN=$(get_credential apidog token)
-npx @lstpsche/apidog-mcp --dry-run 2>&1 | head -5
+RAW=$(security find-generic-password -s "agent-skills-setup:apidog" -w 2>/dev/null)
+APIDOG_ACCESS_TOKEN=$(echo "$RAW" | grep -o 'adgp_[^[:space:]]*')
+curl -s -X POST \
+  -H "Authorization: Bearer $APIDOG_ACCESS_TOKEN" \
+  -H "X-Apidog-Api-Version: 2024-03-28" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":{"type":"ALL"},"options":{"includeApidogExtensionProperties":false,"addFoldersToTags":false},"oasVersion":"3.0","exportFormat":"JSON","moduleId":0}' \
+  "https://api.apidog.com/v1/projects/${APIDOG_PROJECT_ID}/export-openapi?locale=en-US" | python3 -c "import sys,json; d=json.load(sys.stdin); print('OK — paths:', len(d.get('paths',{})))"
 ```
 
 ## Remove
@@ -102,6 +111,15 @@ each agent's settings file. The globally installed npm package can stay.
 
 | Variable | Source | Description |
 |---|---|---|
-| `APIDOG_ACCESS_TOKEN` | Keychain via `lib.sh` | Personal access token from Apidog Settings |
+| `APIDOG_ACCESS_TOKEN` | Keychain — extract with `grep -o 'adgp_[^[:space:]]*'` | Personal access token (`adgp_...`) from Apidog Settings |
 | `APIDOG_PROJECT_ID` | `~/.agent-skills-setup/config.sh` | Default project ID |
 | `APIDOG_MODULES` | Optional, `config.sh` | JSON map of module names to IDs |
+
+## API notes
+
+All Apidog API calls require:
+- `Authorization: Bearer <APIDOG_ACCESS_TOKEN>`
+- `X-Apidog-Api-Version: 2024-03-28`
+- `Content-Type: application/json`
+
+Base URL: `https://api.apidog.com/v1/projects/{projectId}/`
