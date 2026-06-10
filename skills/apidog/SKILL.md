@@ -1,22 +1,26 @@
 ---
 name: apidog
-description: Use after the OpenSpec proposal is approved to plan and document the API contract, mock responses, and test cases in Apidog. Apidog is an implementation gate for API features — contract must be approved before backend coding starts. Three subcommands: contract, mocks, testcases.
+description: Use after the OpenSpec proposal is approved to plan and document the API contract, mock responses, and test cases in Apidog. Subcommands generate local markdown then push directly to Apidog via MCP. Four subcommands: contract, mocks, testcases, diff.
 ---
 
 # apidog
 
 Plans the API contract, mock data, and test cases that gate implementation.
+Each subcommand writes a local markdown file first (for human review), then
+pushes to Apidog via the `@lstpsche/apidog-mcp` MCP server.
 
 The recommended sequence (workflow spec §4.5):
 ```
 OpenSpec approved
 ↓
-/apidog-contract <STORY-ID>    ← plan the API contract
+/apidog-contract <STORY-ID>    ← generate contract + push to Apidog
 ↓
 Frontend / backend / QA review
 ↓
-/apidog-mocks <STORY-ID>       ← generate mock responses
-/apidog-testcases <STORY-ID>   ← generate API test cases
+/apidog-diff <STORY-ID>        ← verify Apidog matches the contract
+↓
+/apidog-mocks <STORY-ID>       ← generate mocks + push cases to Apidog
+/apidog-testcases <STORY-ID>   ← generate test cases + push to Apidog
 ↓
 Implementation starts
 ```
@@ -27,28 +31,26 @@ Never update Apidog after implementation as documentation only. It is a gate.
 
 | Slash command | What it does | Output |
 |---|---|---|
-| `/apidog-contract <STORY-ID>` | Generate API contract plan from the OpenSpec proposal and repo context. | `./docs/stories/<ID>-<slug>/apidog/contract.md` |
-| `/apidog-mocks <STORY-ID>` | Generate mock response examples (success, empty, error, auth). | `./docs/stories/<ID>-<slug>/apidog/mocks.md` |
-| `/apidog-testcases <STORY-ID>` | Generate API test cases (positive, negative, boundary, permission, pagination). | `./docs/stories/<ID>-<slug>/apidog/testcases.md` |
+| `/apidog-contract <STORY-ID>` | Generate API contract from the OpenSpec proposal, write locally, push to Apidog via MCP. | `./docs/stories/<ID>-<slug>/apidog/contract.md` + Apidog |
+| `/apidog-mocks <STORY-ID>` | Generate mock response examples, write locally, push cases to Apidog via MCP. | `./docs/stories/<ID>-<slug>/apidog/mocks.md` + Apidog |
+| `/apidog-testcases <STORY-ID>` | Generate API test cases, write locally, push to Apidog via MCP. | `./docs/stories/<ID>-<slug>/apidog/testcases.md` + Apidog |
+| `/apidog-diff <STORY-ID>` | Compare local contract against live Apidog state. Report missing, extra, and drifted endpoints. | stdout only |
 
 ## Prerequisites
 
 - OpenSpec proposal exists at `./openspec/changes/<change-id>/proposal.md`
-  (created by `/opsx:propose`)
 - `./docs/stories/<STORY-ID>-<slug>/` exists
-- Apidog credentials (optional — used only if writing directly to Apidog via API):
+- Apidog MCP server configured. Set up once per machine:
   ```bash
-  bash scripts/credentials/service.sh apidog add
+  bash scripts/setup-credentials.sh apidog add   # store token in keychain
+  /infra-apidog-mcp setup                        # install + wire MCP server
   ```
 
 ## Credentials
 
-`agent-skills-setup:apidog` keychain entry plus `APIDOG_PROJECT_ID` and
-`APIDOG_TOKEN` in `~/.agent-skills-setup/config.sh`. Set up with:
+`APIDOG_ACCESS_TOKEN` stored in macOS Keychain via `setup-credentials.sh`.
+`APIDOG_PROJECT_ID` and optional `APIDOG_MODULES` set in
+`~/.agent-skills-setup/config.sh`.
 
-```bash
-bash scripts/credentials/service.sh apidog add
-```
-
-These are optional for Phase 2. The skills write the contract/mocks/testcases
-as markdown files in the story folder. Actual Apidog import is manual for now.
+The MCP server reads credentials from the environment — never from committed
+files. See `infra/apidog-mcp/IMPL.md` for setup details.

@@ -56,7 +56,7 @@ Also read `$STORY_DIR/repo-context.md` for existing API patterns.
 
 ## Output format
 
-Write to `$STORY_DIR/apidog/contract.md`:
+Write to `$STORY_DIR/apidog/contract.md` and then push to Apidog (Step 3):
 
 ```markdown
 ---
@@ -128,3 +128,38 @@ Response:
 - [ ] QA has confirmed testability
 - [ ] Permission model reviewed by security/tech lead
 ```
+
+## Step 3 — Push to Apidog via MCP
+
+After the local file is written and reviewed, push the contract to Apidog.
+
+Convert `contract.md` to an OpenAPI 3.0 spec (YAML or JSON) and call:
+
+```
+apidog_import_openapi(
+  spec: <openapi-yaml-from-contract>,
+  module: <module-name>,        // from APIDOG_MODULES config
+  updateStrategy: "merge"       // preserve existing endpoints not in this spec
+)
+```
+
+If `APIDOG_MODULES` is not set, use the default module.
+
+On success, print:
+```
+Contract pushed to Apidog.
+Run /apidog-diff <STORY-ID> to verify the live state matches the contract.
+```
+
+On failure, print the MCP error verbatim and stop. Do not silently swallow
+push errors. The local markdown file remains as the source of truth.
+
+## MCP prerequisite check
+
+Before Step 3, verify the MCP server is available:
+
+```
+apidog_modules()  // should return project + module list without error
+```
+
+If this fails, tell the user to run `/infra-apidog-mcp setup` first.

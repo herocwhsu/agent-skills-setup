@@ -81,3 +81,44 @@ Headers: `Retry-After: 30`
 { "error": "rate_limited", "retryAfterSeconds": 30 }
 ```
 ```
+
+## Step 2 — Push to Apidog via MCP
+
+After the local file is written, push mock cases to Apidog using:
+
+```
+apidog_create_cases(
+  cases: [
+    {
+      endpoint: "<METHOD> <path>",
+      name: "Success",
+      response: { status: 200, body: { ... } }
+    },
+    {
+      endpoint: "<METHOD> <path>",
+      name: "Not found",
+      response: { status: 404, body: { "error": "not_found" } }
+    },
+    // ... one entry per scenario
+  ],
+  module: <module-name>
+)
+```
+
+On success, print:
+```
+Mock cases pushed to Apidog.
+```
+
+On failure, print the MCP error verbatim. The local markdown file remains
+as the source of truth.
+
+## MCP prerequisite check
+
+Before Step 2, verify MCP is available:
+
+```
+apidog_modules()
+```
+
+If this fails, tell the user to run `/infra-apidog-mcp setup` first.

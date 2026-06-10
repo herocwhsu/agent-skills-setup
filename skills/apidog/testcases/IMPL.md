@@ -57,7 +57,7 @@ For each endpoint, generate test cases in each applicable category:
 
 ## Output format
 
-Write to `$STORY_DIR/apidog/testcases.md`:
+Write to `$STORY_DIR/apidog/testcases.md` and then push to Apidog (Step 2):
 
 ```markdown
 ---
@@ -101,3 +101,40 @@ testcase_count: <n>
 | Compatibility | |
 | **Total** | |
 ```
+
+## Step 2 — Push to Apidog via MCP
+
+After the local file is written, push test cases to Apidog:
+
+```
+apidog_create_cases(
+  cases: [
+    {
+      endpoint: "<METHOD> <path>",
+      name: "TC-001: Happy path",
+      request: { ... },
+      expectedResponse: { status: 200 }
+    },
+    // ... one entry per test case
+  ],
+  module: <module-name>
+)
+```
+
+On success, print:
+```
+Test cases pushed to Apidog.
+```
+
+On failure, print the MCP error verbatim. The local markdown file remains
+as the source of truth.
+
+## MCP prerequisite check
+
+Before Step 2, verify MCP is available:
+
+```
+apidog_modules()
+```
+
+If this fails, tell the user to run `/infra-apidog-mcp setup` first.
