@@ -3,30 +3,14 @@
 # Source this file: source "$(dirname "$0")/_lib.sh"
 
 # Detect OS type
-# Returns: darwin | linux-gui | linux-headless | windows
+# Returns: darwin | linux | windows
 detect_os() {
   case "$(uname -s)" in
-    Darwin) echo "darwin" ;;
-    Linux)
-      if command -v secret-tool &>/dev/null; then
-        echo "linux-gui"
-      else
-        echo "linux-headless"
-      fi
-      ;;
+    Darwin)             echo "darwin" ;;
+    Linux)              echo "linux" ;;
     MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
-    *) echo "unknown" ;;
+    *)                  echo "unknown" ;;
   esac
-}
-
-# Check if a command exists; print warning if not
-# Usage: check_cmd curl "install curl via: brew install curl"
-check_cmd() {
-  local cmd="$1" hint="${2:-}"
-  if ! command -v "$cmd" &>/dev/null; then
-    echo "WARNING: '$cmd' not found.${hint:+ $hint}" >&2
-    return 1
-  fi
 }
 
 # Download a URL to a file; tries curl then wget
