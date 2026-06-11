@@ -28,6 +28,19 @@ done
 
 select_agents "$AGENT_ARG"
 
+# Save agent selection for update.sh to reuse
+SELECTION_FILE="$HOME/.agent-skills-setup/agent-selection.txt"
+mkdir -p "$(dirname "$SELECTION_FILE")"
+if [[ ${#SELECTED_AGENTS[@]} -eq 3 ]]; then
+  echo "all" > "$SELECTION_FILE"
+else
+  echo "${SELECTED_AGENTS[0]}" > "$SELECTION_FILE"
+fi
+
+echo ""
+echo "==> Validating registry..."
+bash "$REPO_DIR/scripts/validate-registry.sh"
+
 echo ""
 echo "==> Installing runtime helpers..."
 install_runtime_dir "$REPO_DIR"

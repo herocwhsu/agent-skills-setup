@@ -121,7 +121,7 @@ bash scripts/setup-credentials.sh confluence verify
 | Linux (headless/CI) | Inject via pipeline secret at use-time | — |
 | Windows 11 | Credential Manager (`CredentialManager` PS module) | `setup-credentials.ps1` |
 
-All entries are namespaced `agent-skills:<service>` to avoid collisions with system or browser keychain entries.
+All entries are namespaced `agent-skills-setup:<service>` to avoid collisions with system or browser keychain entries.
 
 **Windows note:** `setup-credentials.ps1` auto-installs the [`CredentialManager`](https://www.powershellgallery.com/packages/CredentialManager) module from PSGallery on first run.
 
@@ -225,6 +225,10 @@ previous flat-skill layout.
 
 ## Requirements
 
-The install script needs only `bash` + one of `curl`/`wget`. Python 3 is required only for `html2md.py` at fetch time (not at install time).
+Python 3 is required at install time (used by `install-agents-md.sh` for block rewriting and by `install_kiro_agent_config` for JSON validation). It is also required at runtime for fetch/confluence/polish skills.
+
+The install script needs `bash` + one of `curl`/`wget` for downloading GitHub-sourced skills.
 
 `pip` is used to install superpowers if available; otherwise the script falls back to downloading directly from GitHub — no pip required.
+
+**Windows limitations:** `update.sh`, `run-tests.sh`, and `install-agents-md.sh` are bash-only. Windows users should use Git Bash for these scripts or run them manually after `git pull`.
