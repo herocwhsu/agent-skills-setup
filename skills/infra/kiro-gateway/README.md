@@ -13,7 +13,7 @@ Manages the kiro-gateway Docker container with digest pinning and rollback.
 bash scripts/install.sh
 ```
 
-Adds `~/.claude/skills/kiro-gateway/` (and `~/.kiro/skills/kiro-gateway/` if kiro is selected) as a symlink into this repo.
+Adds `~/.claude/skills/infra/kiro-gateway/` (and `~/.kiro/skills/infra/kiro-gateway/` if kiro is selected) as a symlink into this repo.
 
 After installing, set up the `claude-kiro` shell alias:
 

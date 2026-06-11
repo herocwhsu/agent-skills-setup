@@ -10,7 +10,7 @@ Just tell your agent the URL:
 
 The agent will:
 1. Detect it's a Confluence URL → use the REST API for clean output
-2. Read `$CONFLUENCE_PASS` from your environment (set up via `setup-credentials.sh`)
+2. Read Confluence credentials from system keychain (set up via `setup-credentials.sh`)
 3. Convert HTML → Markdown (tables, headings, lists preserved)
 4. Save to `./docs/pre-specs/YYYY-MM-DD-<page-title>-reference.md`
 
