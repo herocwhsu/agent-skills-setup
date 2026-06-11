@@ -113,7 +113,7 @@ find_html2md() {
 # Source _store.sh from the same directory (installed alongside lib.sh).
 # Provides: store_credential, read_credential, verify_credential, list_credentials.
 # ---------------------------------------------------------------------------
-_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [[ -f "$_LIB_DIR/_store.sh" ]]; then
   # shellcheck source=/dev/null
   source "$_LIB_DIR/_store.sh"
