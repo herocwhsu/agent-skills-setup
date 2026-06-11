@@ -1,6 +1,6 @@
 ---
 name: infra
-description: Use to manage local infrastructure that supports Claude Code and Kiro IDE workflows. Subcommands manage the kiro-gateway Docker proxy (kiro-gateway), run host-level performance/security tuning (host-optimization), set up the Apidog MCP server (apidog-mcp), and deploy dotfiles safely (system-setup). Not part of the spec-gated workflow — these run independently.
+description: Use to manage local infrastructure that supports Claude Code and Kiro IDE workflows. Subcommands manage the kiro-gateway Docker proxy (kiro-gateway), run host-level performance/security tuning (host-optimization), and set up the Apidog MCP server (apidog-mcp). Not part of the spec-gated workflow — these run independently.
 ---
 
 # infra
@@ -18,7 +18,6 @@ target product repo.
 | `/infra-ups <subcommand>` | Manage UPS power protection via NUT. Sub-subcommands: `setup`, `status`, `battery-health`, `battery-replace`, `test-shutdown`, `remove`. Triggers graceful shutdown after 60 s on battery. | `ups/IMPL.md` |
 | `/infra-vpn <subcommand>` | WireGuard VPN server. Split-tunnel, 3 whitelisted peers, Cloudflare DDNS. Sub-subcommands: `setup`, `add-peer <name>`, `status`, `remove`. | `vpn/IMPL.md` |
 | `/infra-apidog-mcp <subcommand>` | Install and configure `@lstpsche/apidog-mcp` MCP server. Sub-subcommands: `setup`, `status`, `remove`. Wires Apidog token from keychain into agent settings. | `apidog-mcp/IMPL.md` |
-| `/infra-system-setup <subcommand>` | Safe dotfiles deployment from `~/Project/system-tools`. Copies (not symlinks) dotfiles with timestamped backup. Sub-subcommands: `dotfiles`, `status`, `revert`. | `system-setup/IMPL.md` |
 
 ## When to use which subcommand
 
@@ -28,7 +27,8 @@ Container running an old image → /infra-kiro-gateway update
 Update broke something → /infra-kiro-gateway rollback
 Want to check current image digest / state → /infra-kiro-gateway status
 Machine feels slow, want tuning sweep → /infra-host-optimization
-Tuning made things worse → python3 .../host-optimization/lib/main.py --revert
+Tuning made things worse → /infra-host-optimization --revert
+Need to set up Apidog MCP for agent workflow → /infra-apidog-mcp setup
 ```
 
 ## State files
@@ -36,7 +36,7 @@ Tuning made things worse → python3 .../host-optimization/lib/main.py --revert
 | Subcommand | State location |
 |---|---|
 | `kiro-gateway` | `~/.agent-skills-setup/kiro-gateway.state` (current/previous digest) |
-| `host-optimization` | per-tuning rollback files under the script's data dir |
+| `host-optimization` | `~/.agent-skills-setup/backups/host-optimization/` |
 
 ## Migration note
 
