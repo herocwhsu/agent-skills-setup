@@ -37,7 +37,7 @@ All artifacts land under one folder per story:
   story.md
   confluence-<slug>.md
   apidog-<slug>.md
-  intake-summary.md          # spec-summary writes this (Phase 2)
+  intake-summary.md          # spec-summary writes this
 ```
 
 `<slug>` is derived from the Jira issue summary by `intake-jira-story`. If the

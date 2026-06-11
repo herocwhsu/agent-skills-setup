@@ -21,12 +21,28 @@ load_config || exit 1
 STORY_DIR=$(resolve_story_dir "$1") || exit 1
 ```
 
-Read OpenSpec change-id from `$STORY_DIR/intake-summary.md` frontmatter
-(Phase 2 full integration). For now, derive the change-id as:
+Read OpenSpec change-id from `$STORY_DIR/intake-summary.md` frontmatter:
+
+```bash
+# Read openspec_changes from intake-summary.md frontmatter
+CHANGE_ID=""
+if [[ -f "$STORY_DIR/intake-summary.md" ]]; then
+    CHANGE_ID=$(grep -A1 "^openspec_changes:" "$STORY_DIR/intake-summary.md" \
+        | grep "^-" | head -1 | sed 's/^-[[:space:]]*//')
+fi
+
+# Fallback: derive from JIRA-ID and slug if frontmatter is empty
+if [[ -z "$CHANGE_ID" ]]; then
+    STORY_BASENAME=$(basename "$STORY_DIR")
+    CHANGE_ID=$(echo "$STORY_BASENAME" | tr '[:upper:]' '[:lower:]')
+fi
+
+[[ -f "./openspec/changes/$CHANGE_ID/proposal.md" ]] || {
+    echo "ERROR: proposal not found at ./openspec/changes/$CHANGE_ID/proposal.md"
+    echo "Run /intake-spec-summary $1 first, or verify the change-id."
+    exit 1
+}
 ```
-<jira-id-lowercase>-<slug>
-```
-and check `./openspec/changes/<change-id>/proposal.md` exists.
 
 ## Step 1 — Read OpenSpec proposal
 
