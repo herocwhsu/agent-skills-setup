@@ -12,6 +12,14 @@ Fetch one or more web pages and save as `YYYY-MM-DD-<slug>-reference.md` in `./d
 ## URL Decision
 
 ```
+Is the URL share.apidog.com/<uuid>?
+├── Yes → Use Apidog Share REST API (not WebFetch — JS SPA, returns blank)
+│         ├── Try public (no password): GET https://api.apidog.com/v1/shared-docs/<uuid>/export-openapi
+│         ├── If 401/403 → prompt user for share password, retry with
+│         │   X-Apidog-Share-Password: <password> header
+│         └── Parse returned OpenAPI JSON directly — no html2md needed
+Is the URL app.apidog.com/project/<id>?
+└── Yes → Use MCP apidog_export(module: ...) — requires token via MCP setup
 Is the URL a Confluence instance?
 ├── Yes → Use Confluence REST API (structured, clean body)
 │         Prefer MCP if confluence MCP server is configured
@@ -33,6 +41,56 @@ The setup writes both the keychain entry and `CONFLUENCE_HOST` /
 `CONFLUENCE_USER` keys in `~/.agent-skills-setup/config.sh`.
 
 ## Implementation
+
+### Apidog Share URL (`share.apidog.com/<uuid>`)
+
+Extract the UUID from the URL and call the share export endpoint:
+
+```bash
+UUID=$(echo "$URL" | grep -oE '[0-9a-f-]{36}')
+SHARE_API="https://api.apidog.com/v1/shared-docs/${UUID}/export-openapi"
+
+HTTP_CODE=$(curl -s -o /tmp/_apidog_share.json -w "%{http_code}" "$SHARE_API")
+
+if [[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" ]]; then
+  # Password-protected share — prompt user
+  echo "This Apidog share link is password-protected."
+  printf "Enter share password: "
+  read -r SHARE_PASS
+  HTTP_CODE=$(curl -s -o /tmp/_apidog_share.json -w "%{http_code}" \
+    -H "X-Apidog-Share-Password: $SHARE_PASS" "$SHARE_API")
+  unset SHARE_PASS
+fi
+
+[[ "$HTTP_CODE" != "200" ]] && {
+  echo "ERROR: Apidog share export returned HTTP $HTTP_CODE" >&2
+  cat /tmp/_apidog_share.json >&2
+  rm -f /tmp/_apidog_share.json
+  exit 1
+}
+```
+
+The response is an OpenAPI 3.0 JSON spec. Save it directly — no html2md needed:
+
+```bash
+DATE=$(date +%Y-%m-%d)
+SLUG=$(echo "$URL" | grep -oE '[0-9a-f-]{36}' | cut -c1-12)
+OUT="./docs/pre-specs/${DATE}-apidog-${SLUG}-reference.json"
+mkdir -p ./docs/pre-specs
+mv /tmp/_apidog_share.json "$OUT"
+echo "Saved: $OUT"
+```
+
+### Apidog App URL (`app.apidog.com/project/<id>`)
+
+Use MCP — requires token configured via `/infra-apidog-mcp setup`:
+
+```
+apidog_export(module: <module-name>)
+```
+
+Save the returned OpenAPI spec to `./docs/pre-specs/${DATE}-apidog-<slug>-reference.json`.
+If MCP is not configured, tell the user to run `/infra-apidog-mcp setup` first.
 
 ### Step 0 — Load config and helpers
 

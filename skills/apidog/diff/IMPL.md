@@ -19,15 +19,42 @@ STORY_DIR=$(resolve_story_dir "$1") || exit 1
 [[ -f "$STORY_DIR/apidog/contract.md" ]] || { echo "ERROR: run /apidog-contract first" >&2; exit 1; }
 ```
 
-## Step 1 — MCP prerequisite check
+## Step 1 — Determine live state source
+
+Check if the user passed a share link alongside the STORY-ID (e.g., as a second argument or in the story's `intake-summary.md`):
 
 ```
-apidog_modules()
+If URL matches share.apidog.com/<uuid>:
+  → Use Share REST API (see below) — skip MCP prerequisite check
+Else:
+  → Use MCP apidog_export (existing path)
+     Run apidog_modules() first; if it fails, tell user to run /infra-apidog-mcp setup
 ```
 
-If this fails, tell the user to run `/infra-apidog-mcp setup` first.
+### Share REST API path
 
-## Step 2 — Export live state from Apidog
+```bash
+UUID=$(echo "$SHARE_URL" | grep -oE '[0-9a-f-]{36}')
+SHARE_API="https://api.apidog.com/v1/shared-docs/${UUID}/export-openapi"
+
+HTTP_CODE=$(curl -s -o /tmp/_apidog_live.json -w "%{http_code}" "$SHARE_API")
+
+if [[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" ]]; then
+  echo "Share link is password-protected."
+  printf "Enter share password: "
+  read -r SHARE_PASS
+  HTTP_CODE=$(curl -s -o /tmp/_apidog_live.json -w "%{http_code}" \
+    -H "X-Apidog-Share-Password: $SHARE_PASS" "$SHARE_API")
+  unset SHARE_PASS
+fi
+
+[[ "$HTTP_CODE" != "200" ]] && {
+  echo "ERROR: Apidog share export returned HTTP $HTTP_CODE" >&2; exit 1
+}
+# /tmp/_apidog_live.json now contains the live OpenAPI spec
+```
+
+### MCP path (default)
 
 ```
 apidog_export(module: <module-name>)
