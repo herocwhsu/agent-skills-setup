@@ -178,20 +178,36 @@ cmd_setup_alias() {
 
   local proxy_key="${KIRO_PROXY_KEY:-}"
   if [[ -z "$proxy_key" ]]; then
-    read -rp "KIRO_PROXY_KEY value (the API key the gateway expects, leave blank for 'kiro-local'): " proxy_key
+    read -rp "KIRO_PROXY_KEY value (leave blank for 'kiro-local'): " proxy_key
     proxy_key="${proxy_key:-kiro-local}"
+  fi
+
+  # Store in keychain — never write plaintext token to shell rc files
+  if command -v security &>/dev/null; then
+    security delete-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" >/dev/null 2>&1 || true
+    security add-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w "$proxy_key"
+    local read_cmd='$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null)'
+  elif command -v secret-tool &>/dev/null; then
+    echo -n "$proxy_key" | secret-tool store --label="kiro-gateway proxy-key" \
+      service "agent-skills-setup:kiro-gateway" username "proxy-key"
+    local read_cmd='$(secret-tool lookup service "agent-skills-setup:kiro-gateway" username "proxy-key" 2>/dev/null)'
+  else
+    # Headless Linux fallback: write to ~/.zshrc.local, not main rc
+    local read_cmd="\${KIRO_PROXY_KEY}"
+    echo "export KIRO_PROXY_KEY=${proxy_key}" >> "$HOME/.zshrc.local"
+    echo "  Note: no keychain available — token written to ~/.zshrc.local (headless fallback)"
   fi
 
   {
     echo ""
     echo "# kiro-gateway"
-    echo "export KIRO_PROXY_KEY=${proxy_key}"
-    echo "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=\$KIRO_PROXY_KEY claude'"
+    echo "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} claude'"
+    echo "alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} hermes --provider anthropic --model claude-sonnet-4-6'"
   } >> "$rc_file"
 
-  echo "Added to $rc_file:"
-  echo "  export KIRO_PROXY_KEY=..."
+  echo "Token stored in keychain. Added to $rc_file:"
   echo "  alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ...'"
+  echo "  alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ...'"
   echo ""
   echo "Activate now: source $rc_file"
   echo "Then launch Claude Code via: claude-kiro"

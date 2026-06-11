@@ -15,7 +15,7 @@ case "${1:-}" in
     cat <<EOF
 Usage: $(basename "$0") [service] [action]
 
-Services: confluence | jira | apidog | anthropic | gemini
+Services: confluence | jira | apidog | anthropic | gemini | kiro-gateway
 Actions:  add | update | delete | list | verify
 
 Examples:
@@ -40,13 +40,15 @@ if [[ -z "$SERVICE" ]]; then
   echo "  3) Apidog"
   echo "  4) Anthropic (for polish-input)"
   echo "  5) Gemini (for polish-input)"
-  read -rp "Choice [1-5]: " choice
+  echo "  6) Kiro-gateway (proxy key)"
+  read -rp "Choice [1-6]: " choice
   case "$choice" in
     1) SERVICE="confluence" ;;
     2) SERVICE="jira" ;;
     3) SERVICE="apidog" ;;
     4) SERVICE="anthropic" ;;
     5) SERVICE="gemini" ;;
+    6) SERVICE="kiro-gateway" ;;
     *) echo "Invalid choice."; exit 1 ;;
   esac
 fi
