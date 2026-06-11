@@ -18,11 +18,11 @@ Adds `~/.claude/skills/kiro-gateway/` (and `~/.kiro/skills/kiro-gateway/` if kir
 After installing, set up the `claude-kiro` shell alias:
 
 ```bash
-bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh setup-alias
+bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh setup-alias
 source ~/.zshrc  # or ~/.bash_profile / ~/.bashrc
 ```
 
-This adds `KIRO_PROXY_KEY` and the `claude-kiro` alias to your shell rc file. Once sourced, launch Claude Code through the gateway with:
+This stores the proxy key in your system keychain and adds the `claude-kiro` alias to your shell rc file. The alias reads the key from keychain at runtime — no plaintext token is written to any file. Once sourced, launch Claude Code through the gateway with:
 
 ```bash
 claude-kiro
@@ -44,13 +44,13 @@ bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh setup-alias
 
 ## The claude-kiro alias
 
-`claude-kiro` is a shell alias that launches Claude Code with the gateway as its backend:
+`claude-kiro` is a shell alias that launches Claude Code with the gateway as its backend. The proxy key is read from keychain at runtime:
 
 ```bash
-alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=$KIRO_PROXY_KEY claude'
+alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null) claude'
 ```
 
-Use it instead of `claude` whenever you want requests routed through the kiro-gateway (i.e., authenticated via your Kiro/AWS credentials rather than a direct Anthropic API key).
+On Linux, `secret-tool` is used instead of `security`. On headless Linux, the key falls back to `$KIRO_PROXY_KEY` set in `~/.zshrc.local`.
 
 **Workflow:**
 1. `bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh init` — start the container
