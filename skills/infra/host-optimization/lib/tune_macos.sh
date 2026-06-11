@@ -7,20 +7,26 @@ BACKUP_FILE="$HOME/.agent-skills-setup/backups/host-optimization/macos-defaults.
 # ── Backup current values before changing ────────────────────────────────────
 backup_macos() {
     mkdir -p "$(dirname "$BACKUP_FILE")"
+    local sleep_val hibernatemode_val
+    sleep_val=$(pmset -g | awk '/^[[:space:]]+sleep[[:space:]]/{print $2}' | head -1)
+    sleep_val=${sleep_val:-1}
+    # hibernatemode may not be shown on all hardware — default to 3 (standard safe mode)
+    hibernatemode_val=$(pmset -g everything 2>/dev/null | awk '/hibernatemode/{print $2}' | head -1)
+    hibernatemode_val=${hibernatemode_val:-3}
     {
         echo "#!/bin/bash"
         echo "# macOS restore script — generated $(date)"
         echo "sudo sysctl -w kern.maxfiles=$(sysctl -n kern.maxfiles)"
         echo "sudo sysctl -w kern.maxfilesperproc=$(sysctl -n kern.maxfilesperproc)"
-        echo "sudo pmset -a sleep $(pmset -g | awk '/^[[:space:]]*sleep/{print $2}' | head -1)"
-        echo "sudo pmset -a hibernatemode $(pmset -g | awk '/hibernatemode/{print $2}')"
+        echo "sudo pmset -a sleep ${sleep_val}"
+        echo "sudo pmset -a hibernatemode ${hibernatemode_val}"
         echo "defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool true"
         echo "defaults write com.apple.dock expose-animation-duration -float 0.5"
         echo "defaults write com.apple.dock launchanim -bool true"
         echo "defaults write com.apple.finder QLInlinePreview -bool true"
     } > "$BACKUP_FILE"
     chmod +x "$BACKUP_FILE"
-    echo "[host-opt] Backup written to $BACKUP_FILE"
+    echo "[host-opt] Backup written to $BACKUP_FILE (sleep=${sleep_val}, hibernatemode=${hibernatemode_val})"
 }
 
 if [[ "${1:-}" == "--revert" ]]; then
