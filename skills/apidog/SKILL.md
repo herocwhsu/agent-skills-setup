@@ -54,3 +54,13 @@ Never update Apidog after implementation as documentation only. It is a gate.
 
 The MCP server reads credentials from the environment — never from committed
 files. See `infra/apidog-mcp/IMPL.md` for setup details.
+
+## Apidog URL Access Patterns
+
+| URL | Access type | Strategy |
+|---|---|---|
+| `share.apidog.com/<uuid>` (public) | No auth needed | `GET https://api.apidog.com/v1/shared-docs/<uuid>/export-openapi` |
+| `share.apidog.com/<uuid>` (password) | Share password | Same endpoint + `X-Apidog-Share-Password` header — prompt user |
+| `app.apidog.com/project/<id>` | Personal access token | MCP `apidog_export(module: ...)` |
+
+Never use `WebFetch` on `share.apidog.com` — it is a JS SPA and returns a blank shell.
