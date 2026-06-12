@@ -36,21 +36,30 @@ bash scripts/credentials/service.sh jira verify
 
 ### Step 0 — Load config and helpers
 
-Every skill invocation starts with this:
+**Important:** Always run credential and curl commands inside `bash -c '...'`.
+`BASH_SOURCE[0]` does not resolve correctly when sourced from zsh, so `_store.sh`
+(which provides `read_credential`) never loads unless you explicitly invoke bash.
 
 ```bash
+bash -c '
 source ~/.agent-skills-setup/lib.sh
 load_config || exit 1
 
 # Validate required keys are set
 [[ -z "${JIRA_HOST:-}" ]] && { echo "ERROR: JIRA_HOST not in config.sh — run: bash scripts/credentials/service.sh jira add" >&2; exit 1; }
 [[ -z "${JIRA_USER:-}" ]] && { echo "ERROR: JIRA_USER not in config.sh — run: bash scripts/credentials/service.sh jira add" >&2; exit 1; }
+'
 ```
 
 ### Step 1 — Fetch story
 
+Always run inside `bash -c '...'` so `_store.sh` / `read_credential` loads correctly:
+
 ```bash
-STORY_ID="$1"   # e.g. PROJ-123
+bash -c '
+source ~/.agent-skills-setup/lib.sh
+load_config || exit 1
+STORY_ID="'"$STORY_ID"'"   # pass in from outer shell
 
 SLUG=$(service_slug jira "https://$JIRA_HOST")
 _JIRA_PASS=$(require_secret "$SLUG" "$JIRA_USER" "bash scripts/credentials/service.sh jira add") || exit 1
@@ -59,9 +68,14 @@ curl -s -u "$JIRA_USER:$_JIRA_PASS" \
   "https://$JIRA_HOST/rest/api/2/issue/$STORY_ID" \
   > /tmp/_jira_issue.json
 unset _JIRA_PASS
+'
 ```
 
 ### Step 2 — Extract and save story.md
+
+**Important:** Jira wiki markup uses `[text|url|smart-link]` and `[text|url]` formats.
+The plain-URL regex must stop at `|` to avoid capturing `|smart-link` as part of the URL.
+Use `dict.fromkeys` to deduplicate while preserving order.
 
 ```python
 import json, re, os
@@ -75,24 +89,41 @@ title = fields['summary']
 description = fields.get('description') or ''
 status = fields['status']['name']
 story_type = fields['issuetype']['name']
+assignee = (fields.get('assignee') or {}).get('displayName', 'Unassigned')
+reporter = (fields.get('reporter') or {}).get('displayName', 'Unknown')
+priority = (fields.get('priority') or {}).get('name', 'Unknown')
 
-out_dir = f'./docs/stories/{story_id}'
+# slug from title (lowercase, alphanumeric + dashes, max 50 chars)
+slug = re.sub(r'[^a-z0-9]+', '-', title.lower())[:50].strip('-')
+out_dir = f'./docs/stories/{story_id}-{slug}'
 os.makedirs(out_dir, exist_ok=True)
 
-urls = re.findall(r'https?://[^\s\|\]\"]+', description)
+# Extract URLs — two patterns:
+# 1. Plain URLs: stop at whitespace, |, ], "
+# 2. Jira wiki [text|url] and [text|url|smart-link]: capture the URL segment between first and second |
+plain_urls = re.findall(r'https?://[^\s\|\]\"\}]+', description)
+wiki_urls  = re.findall(r'\[[^\|]*\|(https?://[^\|\]]+)', description)
+all_urls   = list(dict.fromkeys(plain_urls + wiki_urls))  # dedup, preserve order
 
 with open(f'{out_dir}/story.md', 'w') as f:
     f.write(f'# {story_id}: {title}\n\n')
-    f.write(f'**Type:** {story_type}  \n**Status:** {status}  \n**Branch:** {story_id}\n\n')
+    f.write(f'**Type:** {story_type}  \n')
+    f.write(f'**Status:** {status}  \n')
+    f.write(f'**Priority:** {priority}  \n')
+    f.write(f'**Assignee:** {assignee}  \n')
+    f.write(f'**Reporter:** {reporter}  \n')
+    f.write(f'**Branch:** {story_id}\n\n')
     f.write('## Description\n\n')
     f.write(description + '\n\n')
-    if urls:
+    if all_urls:
         f.write('## Extracted Links\n\n')
-        for url in urls:
+        for url in all_urls:
             f.write(f'- {url}\n')
 
 print(f'Saved: {out_dir}/story.md')
-print(f'Links found: {urls}')
+print(f'Links found ({len(all_urls)}):')
+for u in all_urls:
+    print(f'  {u}')
 ```
 
 ### Step 3 — Follow links

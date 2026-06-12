@@ -128,10 +128,31 @@ To update mid-flow:
 When `--update` is passed, re-read all sources and update all sections
 except the `openspec_changes` frontmatter list (preserve existing entries).
 
+### Resolving unclear requirements mid-flow
+
+When an unclear requirement is resolved during the session (e.g. via code
+inspection, stakeholder clarification, or reading linked tickets), do NOT
+delete the entry. Instead, mark it resolved with strikethrough and a note
+so the audit trail is preserved:
+
+```markdown
+## Unclear Requirements
+
+- ~~**item title**~~ — **RESOLVED by code inspection**: `path/to/file.go:NN`
+  shows that X already does Y. No action needed — the new flow continues
+  this behavior per spec.
+```
+
+The `~~strikethrough~~` signals the item was considered and closed.
+The **RESOLVED** note explains HOW it was resolved and where to verify.
+This is better than deletion because `/audit-spec` and future readers can
+see the question was asked and answered, not silently ignored.
+
 ## Common mistakes
 
 | Mistake | Fix |
 |---|---|
 | Creating intake-summary.md manually | Run /intake-spec-summary — manual frontmatter errors break resolve_story_dir and downstream skills |
 | Treating unclear requirements as confirmed | Mark them unclear; /audit-spec will classify them as must-resolve or can-assume |
+| Deleting a resolved unclear requirement | Use strikethrough + **RESOLVED** note instead — preserves the audit trail |
 | Leaving openspec_changes empty after /audit-handoff | audit/handoff prints the change-id; update intake-summary.md frontmatter before running /jira-subtasks |
