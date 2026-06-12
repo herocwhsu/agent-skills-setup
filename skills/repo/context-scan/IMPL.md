@@ -66,8 +66,32 @@ Identify:
 | Related DTOs / structs | Request/response types already defined | Model files |
 | DB schema | Existing tables and columns that will be affected | Migration files |
 | Test patterns | How existing tests are structured | Test files |
-| Coding conventions | Naming patterns, error handling style | Adjacent source |
+| Coding conventions | Naming patterns, error handling style | Adjacent source + reference feature (see below) |
 | Known limitations | TODOs, FIXMEs, comments warning about edge cases | `grep -r FIXME\|TODO` |
+
+### Coding conventions — use a reference feature
+
+Do not infer conventions from a quick grep. Find a **recently implemented feature** in the same codebase that is structurally similar to the story being worked on, and read it end-to-end:
+
+- Controller (`internal/controller/<feature>/`)
+- Service (`internal/service/<feature>service/`)
+- Service test (`internal/service/<feature>service/*_test.go`)
+- UAT test (`apitest/e2e/<feature>/<feature>_test.go` in the UAT repo)
+
+For `reseller-backend`, the **partner feature** is the canonical reference:
+- `internal/controller/partner/` — controller pattern
+- `internal/service/partnerservice/create_partner.go` — service pattern
+- `internal/service/partnerservice/create_partner_test.go` — unit test pattern (gomock + `newSUT` helper)
+- `apitest/e2e/partner/partner_test.go` in `reseller-uat` — UAT e2e test pattern (testify suite, `SetLoginHeader`, helper methods, `t.Cleanup`)
+
+Record the following patterns explicitly in `repo-context.md`:
+- Error wrapping style (`fmt.Errorf("context: %w", err)` vs `errors.Join(sentinel, err)`)
+- Error response call (`errorresponse.WriteFromDebugInfo` vs direct `ctx.JSON`)
+- Request binding (`cx.BindAll` vs `ctx.ShouldBindJSON`)
+- Controller struct pattern and how deps are injected
+- Mock generation directive (`//go:generate mockgen ...`)
+- Test helper pattern (`newSUT`, `assertErrContains`, etc.)
+- UAT auth pattern (`SetLoginHeader` → `LoginUser` → headers on requests)
 
 ## Output format
 
