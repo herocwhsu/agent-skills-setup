@@ -91,6 +91,69 @@ CHANGE_ID="${JIRA_ID,,}-${SLUG}"      # e.g. example-100-add-camera-group-filter
 
 Print the derived change-id for the user to confirm or override.
 
+## Step 4b — Check if OpenSpec already exists (external or local)
+
+Before printing the `/opsx:propose` instruction, check whether the change-id
+already exists locally:
+
+```bash
+LOCAL_CHANGE_DIR="./openspec/changes/$CHANGE_ID"
+if [[ -d "$LOCAL_CHANGE_DIR" ]]; then
+  echo "OpenSpec change already exists locally: $LOCAL_CHANGE_DIR"
+  echo "Skipping /opsx:propose — proceed to gap amendment check."
+fi
+```
+
+**If the story references an external OpenSpec** (e.g. a GitHub repo link in
+`story.md` or `intake-summary.md` frontmatter `openspec_changes` list), and
+it does NOT yet exist in `./openspec/changes/`, mirror it locally first:
+
+```bash
+mkdir -p "./openspec/changes/$CHANGE_ID/specs"
+
+# Copy the openspec-*.md files from the story folder into the standard structure:
+# openspec-proposal.md  → openspec/changes/<id>/proposal.md
+# openspec-design.md    → openspec/changes/<id>/design.md
+# openspec-tasks.md     → openspec/changes/<id>/tasks.md
+# openspec-spec-*.md    → openspec/changes/<id>/specs/<slug>/spec.md
+
+cat > "./openspec/changes/$CHANGE_ID/.openspec.yaml" << EOF
+schema: spec-driven
+created: $(date +%Y-%m-%d)
+jira: $JIRA_ID
+source: external (paste the GitHub/Confluence URL here)
+EOF
+```
+
+**Why this matters:** The downstream skills (`testing/plan`, `jira/subtasks`,
+`writing-plans`) read from `openspec/changes/<change-id>/tasks.md`. If the
+spec only lives in the story folder, those skills can't find it and the
+workflow breaks. Mirroring makes the external spec first-class in the local
+workflow without modifying it.
+
+## Step 4c — Gap amendment: when brainstorming finds spec gaps
+
+If brainstorming (Step 3) surfaces gaps that are NOT covered by the existing
+OpenSpec:
+
+1. Document them in `$STORY_DIR/openspec-internal-proposal.md` — describe
+   each gap, the design decision made, and the file-level changes required.
+   This serves as the audit trail for deviations from the external spec.
+
+2. The internal proposal does NOT replace `/opsx:propose` — it is an
+   amendment. The local `openspec/changes/<change-id>/` still holds the
+   canonical spec that skills read from.
+
+3. Record the amendment in `intake-summary.md` frontmatter:
+   ```yaml
+   openspec_changes:
+     - <change-id>
+     - <change-id>-gap-amendment (internal, <JIRA-ID>)
+   ```
+
+4. The gap amendment feeds directly into `writing-plans` — include the
+   internal proposal as an additional input when generating the plan.
+
 ## Step 5 — Print the /opsx:propose invocation
 
 Print a ready-to-run block that the user (or orchestrating agent) can execute:
@@ -151,9 +214,9 @@ After /opsx:propose creates the spec files, run:
 ## What NOT to do
 
 - Do not call `/opsx:propose` yourself. Print the instruction; the user runs it.
-- Do not write anything to `./openspec/`. OpenSpec owns that tree.
-- Do not skip brainstorming even if artifacts look complete — it surfaces
-  design options the spec may not have considered.
+- Do not write NEW OpenSpec content to `./openspec/changes/` — only mirror existing approved specs from external sources (Step 4b). OpenSpec authoring is `/opsx:propose`'s job.
+- Do not skip brainstorming even if artifacts look complete — it surfaces design options the spec may not have considered.
+- Do not skip the mirror step (Step 4b) when an external OpenSpec exists — downstream skills (`testing/plan`, `writing-plans`, `jira/subtasks`) read from `openspec/changes/`, not from `docs/stories/`.
 
 ## Common mistakes
 

@@ -141,28 +141,68 @@ unset _JIRA_PASS
 
 ### Step 6 — Transition individual sub-tasks as work proceeds
 
-Before starting each sub-task, transition it to In Progress. After completing, transition to Done. Do NOT batch all transitions at the end.
+Before starting each sub-task → **In Progress** (21). After code is complete and committed → **Done** (31). Done = code-complete, not merged. Do NOT wait for human review before marking Done.
+
+After each sub-task is Done, add a completion comment with the commit SHA and what was done. Description must not contain unescaped double quotes:
 
 ```bash
+bash -c '
 source ~/.agent-skills-setup/lib.sh
 load_config || exit 1
 SLUG=$(service_slug jira "https://$JIRA_HOST")
 _JIRA_PASS=$(require_secret "$SLUG" "$JIRA_USER") || exit 1
 
-SUBTASK_ID="VOR-XXXXX"   # the sub-task being started
-
-# Get transitions for this sub-task
-curl -s -u "$JIRA_USER:$_JIRA_PASS" \
-  "https://$JIRA_HOST/rest/api/2/issue/$SUBTASK_ID/transitions" \
-  | python3 -c "import json,sys; [print(t[\"id\"], t[\"name\"]) for t in json.load(sys.stdin)[\"transitions\"]]"
-
-# Transition to In Progress (or Done when complete)
-curl -s -u "$JIRA_USER:$_JIRA_PASS" \
+# Transition sub-task (21=In Progress, 31=Done)
+curl -s -o /dev/null -w "%{http_code}" \
+  -u "$JIRA_USER:$_JIRA_PASS" \
   -X POST -H "Content-Type: application/json" \
-  "https://$JIRA_HOST/rest/api/2/issue/$SUBTASK_ID/transitions" \
-  -d "{\"transition\":{\"id\":\"<TRANSITION_ID>\"}}"
+  "https://$JIRA_HOST/rest/api/2/issue/VOR-XXXXX/transitions" \
+  -d "{\"transition\":{\"id\":\"31\"}}"
+
+# Add completion comment
+curl -s -o /dev/null -w " %{http_code}" \
+  -u "$JIRA_USER:$_JIRA_PASS" \
+  -X POST -H "Content-Type: application/json" \
+  "https://$JIRA_HOST/rest/api/2/issue/VOR-XXXXX/comment" \
+  -d "{\"body\": \"Fixed in commit <sha>. <description — no double quotes.>\"}"
 unset _JIRA_PASS
+'
 ```
+
+### Step 7 — Create summary sub-task, request human review
+
+Once ALL sub-tasks are Done, create ONE summary sub-task that links the PR and all commits. This is the human review gate — not per-sub-task review.
+
+```bash
+# Summary sub-task fields:
+# summary:     "[PR#NNN] <feature description>"
+# description: PR URL + branch + all commit SHAs + which sub-tasks are covered
+# estimate:    "0d" (tracking artifact, no estimate)
+```
+
+Then run automated code review (superpowers:requesting-code-review), fix any Critical/Important findings, and transition the summary sub-task AND parent story to **CODE REVIEW / TRACKING** (41):
+
+```bash
+bash -c '
+source ~/.agent-skills-setup/lib.sh
+load_config || exit 1
+SLUG=$(service_slug jira "https://$JIRA_HOST")
+_JIRA_PASS=$(require_secret "$SLUG" "$JIRA_USER") || exit 1
+
+for ISSUE in "VOR-SUMMARY-ID" "VOR-PARENT-ID"; do
+  curl -s -o /dev/null -w "$ISSUE: %{http_code} " \
+    -u "$JIRA_USER:$_JIRA_PASS" \
+    -X POST -H "Content-Type: application/json" \
+    "https://$JIRA_HOST/rest/api/2/issue/$ISSUE/transitions" \
+    -d "{\"transition\":{\"id\":\"41\"}}"
+done
+unset _JIRA_PASS
+'
+```
+
+After human approves and PR merges → move summary sub-task + parent story to **Done** (31).
+
+**Why this pattern:** Sub-tasks track implementation progress. Human review happens once at the PR level. Moving individual sub-tasks to CODE REVIEW blocks each one sequentially and wastes the reviewer's time. One summary sub-task = one review = one merge.
 
 ## Adding a Task Mid-Implementation
 
