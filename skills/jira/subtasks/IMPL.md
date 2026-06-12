@@ -25,16 +25,14 @@ Implementation starts
 
 ## Workflow
 
-### Step 0 — Load config (always use bash -c for zsh compatibility)
+### Step 0 — Load config
 
 ```bash
-bash -c '
 source ~/.agent-skills-setup/lib.sh
 load_config || exit 1
 [[ -z "${JIRA_HOST:-}" ]]        && { echo "ERROR: JIRA_HOST not set" >&2; exit 1; }
 [[ -z "${JIRA_USER:-}" ]]        && { echo "ERROR: JIRA_USER not set" >&2; exit 1; }
 [[ -z "${JIRA_PROJECT_KEY:-}" ]] && { echo "ERROR: JIRA_PROJECT_KEY not set" >&2; exit 1; }
-'
 ```
 
 ### Step 1 — Derive tasks from OpenSpec or plan
@@ -52,7 +50,6 @@ Present the proposed sub-task list and ask the user to confirm or adjust estimat
 ### Step 3 — Create sub-tasks with assignee + estimate
 
 ```bash
-bash -c '
 source ~/.agent-skills-setup/lib.sh
 load_config || exit 1
 
@@ -61,7 +58,7 @@ STORY_ID="VOR-XXXXX"   # replace with actual story ID
 SLUG=$(service_slug jira "https://$JIRA_HOST")
 _JIRA_PASS=$(require_secret "$SLUG" "$JIRA_USER") || exit 1
 
-# Get current user accountId for assignee — reuse existing password, no re-fetch
+# Get current user accountId for assignee
 ACCOUNT_ID=$(curl -s -u "$JIRA_USER:$_JIRA_PASS" \
   "https://$JIRA_HOST/rest/api/2/myself" \
   | python3 -c "import json,sys; print(json.load(sys.stdin)[\"accountId\"])")
@@ -100,7 +97,6 @@ echo "T1: $T1"
 # ... repeat for T2, T3, etc.
 
 unset _JIRA_PASS
-'
 ```
 
 **Important notes on description strings:**
@@ -123,7 +119,6 @@ Write to `./docs/stories/<STORY-ID>-<slug>/jira-subtasks.md` (NOT plan.md):
 ### Step 5 — Transition parent story to In Progress
 
 ```bash
-bash -c '
 source ~/.agent-skills-setup/lib.sh
 load_config || exit 1
 SLUG=$(service_slug jira "https://$JIRA_HOST")
@@ -142,7 +137,6 @@ curl -s -u "$JIRA_USER:$_JIRA_PASS" \
   "https://$JIRA_HOST/rest/api/2/issue/$STORY_ID/transitions" \
   -d "{\"transition\":{\"id\":\"<IN_PROGRESS_ID>\"}}"
 unset _JIRA_PASS
-'
 ```
 
 ### Step 6 — Transition individual sub-tasks as work proceeds
@@ -150,7 +144,6 @@ unset _JIRA_PASS
 Before starting each sub-task, transition it to In Progress. After completing, transition to Done. Do NOT batch all transitions at the end.
 
 ```bash
-bash -c '
 source ~/.agent-skills-setup/lib.sh
 load_config || exit 1
 SLUG=$(service_slug jira "https://$JIRA_HOST")
@@ -169,7 +162,6 @@ curl -s -u "$JIRA_USER:$_JIRA_PASS" \
   "https://$JIRA_HOST/rest/api/2/issue/$SUBTASK_ID/transitions" \
   -d "{\"transition\":{\"id\":\"<TRANSITION_ID>\"}}"
 unset _JIRA_PASS
-'
 ```
 
 ## Adding a Task Mid-Implementation
@@ -186,6 +178,6 @@ unset _JIRA_PASS
 | `timeoriginalestimate` (seconds) returns 400 | Use `timetracking.originalEstimate` string (`"2d"`) instead |
 | Description with double quotes breaks JSON | Remove quotes or use single quotes in description text |
 | `assignee` not set — using username instead of accountId | Fetch accountId via `GET /rest/api/2/myself` and use that |
-| `_store.sh` / `read_credential` not found in zsh | Always wrap in `bash -c '...'` — `BASH_SOURCE[0]` fails in zsh |
+| `_store.sh` / `read_credential` not found in zsh | Fixed in lib.sh — `source ~/.agent-skills-setup/lib.sh` works in both bash and zsh |
 | Writing sub-task IDs to `plan.md` | Write to `jira-subtasks.md` in the story folder instead |
 | Transitioning all sub-tasks to Done at end of sprint | Transition each sub-task individually as work starts/completes |
