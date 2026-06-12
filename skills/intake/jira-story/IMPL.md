@@ -36,30 +36,22 @@ bash scripts/credentials/service.sh jira verify
 
 ### Step 0 — Load config and helpers
 
-**Important:** Always run credential and curl commands inside `bash -c '...'`.
-`BASH_SOURCE[0]` does not resolve correctly when sourced from zsh, so `_store.sh`
-(which provides `read_credential`) never loads unless you explicitly invoke bash.
-
 ```bash
-bash -c '
 source ~/.agent-skills-setup/lib.sh
 load_config || exit 1
 
 # Validate required keys are set
 [[ -z "${JIRA_HOST:-}" ]] && { echo "ERROR: JIRA_HOST not in config.sh — run: bash scripts/credentials/service.sh jira add" >&2; exit 1; }
 [[ -z "${JIRA_USER:-}" ]] && { echo "ERROR: JIRA_USER not in config.sh — run: bash scripts/credentials/service.sh jira add" >&2; exit 1; }
-'
 ```
 
 ### Step 1 — Fetch story
 
-Always run inside `bash -c '...'` so `_store.sh` / `read_credential` loads correctly:
-
 ```bash
-bash -c '
 source ~/.agent-skills-setup/lib.sh
 load_config || exit 1
-STORY_ID="'"$STORY_ID"'"   # pass in from outer shell
+
+STORY_ID="$1"   # e.g. PROJ-123
 
 SLUG=$(service_slug jira "https://$JIRA_HOST")
 _JIRA_PASS=$(require_secret "$SLUG" "$JIRA_USER" "bash scripts/credentials/service.sh jira add") || exit 1
@@ -68,7 +60,6 @@ curl -s -u "$JIRA_USER:$_JIRA_PASS" \
   "https://$JIRA_HOST/rest/api/2/issue/$STORY_ID" \
   > /tmp/_jira_issue.json
 unset _JIRA_PASS
-'
 ```
 
 ### Step 2 — Extract and save story.md
