@@ -99,7 +99,7 @@ flowchart TD
     subgraph G7["Gate 7 — Implementation"]
         Q["TDD · /superpowers:test-driven-development"]
         R{Spec change?}
-        S["/review-amend (small)\n/review-change-request (major)"]
+        S["/review-amend (small)<br>/review-change-request (major)"]
         Q --> R
         R -- yes --> S --> Q
         R -- no --> DONE_IMPL([Code complete])
@@ -121,7 +121,7 @@ flowchart TD
 
 
 
-`install.sh` installs the `openspec` CLI globally. Two additional steps are required before `/opsx:propose` and other OpenSpec slash commands will work.
+## Post-install: OpenSpec setup Two additional steps are required before `/opsx:propose` and other OpenSpec slash commands will work.
 
 **Step 1 — Initialize OpenSpec in each project:**
 ```bash
