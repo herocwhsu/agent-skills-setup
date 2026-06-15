@@ -1,5 +1,6 @@
 ---
 name: review-pr
+slash: /review-pr <pr-number>
 description: Use when the user wants a focused review of a specific PR. Reads `.code-review/playbook.md` plus the PR diff, produces a full local report and a short PR comment draft (not auto-posted). Argument is the PR number.
 ---
 

@@ -33,7 +33,93 @@ Restart your shell after setup.
 
 ---
 
-## Post-install: OpenSpec setup
+## Spec-Gated Workflow
+
+Every feature follows this gate sequence. No gate can be skipped silently — see Rule 13 in your CLAUDE.md.
+
+```mermaid
+flowchart TD
+    A([New Jira Story]) --> G1
+
+    subgraph G1["Gate 1 — Intake"]
+        B["/intake-jira-story &lt;STORY-ID&gt;"]
+        C["/intake-spec-summary &lt;STORY-ID&gt;"]
+        B --> C
+    end
+
+    G1 --> G2
+
+    subgraph G2["Gate 2 — Audit"]
+        D["/audit-spec &lt;STORY-ID&gt;"]
+        E["/audit-domain-risk &lt;STORY-ID&gt;"]
+        F["/audit-handoff &lt;STORY-ID&gt;"]
+        D --> E --> F
+    end
+
+    G2 --> G3
+
+    subgraph G3["Gate 3 — Repo Context"]
+        H["/repo-context-scan &lt;STORY-ID&gt;"]
+    end
+
+    G3 --> G4
+
+    subgraph G4["Gate 4 — OpenSpec Proposal"]
+        I["/opsx:propose"]
+    end
+
+    G4 --> API_CHECK{API feature?}
+    API_CHECK -- yes --> G5
+    API_CHECK -- no --> G6
+
+    subgraph G5["Gate 5 — Apidog Contract"]
+        J["/apidog-contract &lt;STORY-ID&gt;"]
+        K["/apidog-mocks &lt;STORY-ID&gt;"]
+        L["/apidog-testcases &lt;STORY-ID&gt;"]
+        J --> K --> L
+    end
+
+    G5 --> G6
+
+    subgraph G6["Gate 6 — Test Plan"]
+        M["/testing-plan &lt;STORY-ID&gt;"]
+    end
+
+    G6 --> G65
+
+    subgraph G65["Gate 6.5 — Design + Plan + Jira"]
+        N["/brainstorming &lt;topic&gt;"]
+        O["/writing-plans &lt;STORY-ID&gt;"]
+        P["/jira-subtasks &lt;STORY-ID&gt;"]
+        N --> O --> P
+    end
+
+    G65 --> G7
+
+    subgraph G7["Gate 7 — Implementation"]
+        Q["TDD · /superpowers:test-driven-development"]
+        R{Spec change?}
+        S["/review-amend (small)\n/review-change-request (major)"]
+        Q --> R
+        R -- yes --> S --> Q
+        R -- no --> DONE_IMPL([Code complete])
+    end
+
+    G7 --> G8
+
+    subgraph G8["Gate 8 — Release"]
+        T["/release-readiness &lt;STORY-ID&gt;"]
+        U["/review-pr &lt;pr-number&gt;"]
+        V["/review-guardrails &lt;STORY-ID&gt; &lt;pr-number&gt;"]
+        W["/jira-evidence &lt;STORY-ID&gt;"]
+        X["/release-archive-check &lt;STORY-ID&gt;"]
+        T --> U --> V --> W --> X
+    end
+
+    G8 --> Z([Shipped ✓])
+```
+
+
 
 `install.sh` installs the `openspec` CLI globally. Two additional steps are required before `/opsx:propose` and other OpenSpec slash commands will work.
 
