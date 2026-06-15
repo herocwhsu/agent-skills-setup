@@ -1,6 +1,6 @@
 ---
 name: create-story-tasks
-description: Use after test-plan is approved to create Jira sub-tasks before implementation starts. Also use when adding a new sub-task mid-implementation for spec changes or bug fixes.
+description: Use after writing-plans is approved to create Jira sub-tasks before implementation starts. Also use when adding a new sub-task mid-implementation for spec changes or bug fixes.
 ---
 
 # Create Story Tasks
@@ -12,14 +12,18 @@ Read `openspec-tasks.md` (or `plan.md` fallback) → present estimates to user �
 ## Gate position
 
 ```
-/testing-plan <STORY-ID>   ← must run first
-/jira-subtasks <STORY-ID>  ← this skill
+/testing-plan <STORY-ID>      ← test plan approved
+/brainstorming <topic>        ← design decisions confirmed
+/writing-plans <STORY-ID>     ← implementation plan approved
+/jira-subtasks <STORY-ID>     ← this skill (sub-tasks derived from plan)
 Implementation starts
 ```
 
+Sub-tasks are created from the approved implementation plan, not before it. Creating them earlier means they won't match what gets built.
+
 ## Prerequisites
 
-- `./docs/stories/<STORY-ID>-<slug>/test-plan.md` approved
+- `./docs/superpowers/plans/<plan>.md` approved by user
 - Jira credentials in keychain
 - `JIRA_PROJECT_KEY` set in `~/.agent-skills-setup/config.sh`
 
