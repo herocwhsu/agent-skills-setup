@@ -22,7 +22,7 @@ The full instructions live in this file; Claude follows them step by step.
 Read this entire workflow before starting. Default PR count is 50; if the
 user supplied an argument, use that. The argument is the only argument.
 
-### Step 1: Verify environment
+### Step 1 — Verify environment
 
 Run these checks. Abort with a clear message on any failure.
 
@@ -35,7 +35,7 @@ If `gh auth status` fails: tell the user `Run "gh auth login" first` and stop.
 
 If `git remote get-url origin` fails: tell the user `cd into the target repo first` and stop. Otherwise parse `<owner>/<repo>` from the origin URL and use it for all subsequent `gh` calls — the skill is repo-agnostic.
 
-### Step 2: Prepare output directory
+### Step 2 — Prepare output directory
 
 ```bash
 mkdir -p .code-review/reviews
@@ -53,7 +53,7 @@ Ensure `.gitignore` contains the following patterns (use the Edit tool to add an
 
 `.code-review/playbook.md` is intentionally **not** gitignored — it's a team artifact meant to be committed.
 
-### Step 3: Fetch closed PRs
+### Step 3 — Fetch closed PRs
 
 ```bash
 gh pr list --state closed --limit <count> --json number,title,body,mergedAt,files,baseRefName,headRefName > .code-review/.mining-prs.json
@@ -61,7 +61,7 @@ gh pr list --state closed --limit <count> --json number,title,body,mergedAt,file
 
 Read the JSON. If the list is empty, tell the user `No closed PRs found` and stop.
 
-### Step 4: Fetch comments for each PR (batched)
+### Step 4 — Fetch comments for each PR (batched)
 
 For each PR in the list (process in batches of 10 to keep context size manageable):
 
@@ -72,7 +72,7 @@ gh pr view <n> --json comments > .code-review/.mining-toplevel-<n>.json
 
 Where `{owner}/{repo}` is parsed from the origin URL.
 
-### Step 5: Detect hotfixes / reverts
+### Step 5 — Detect hotfixes / reverts
 
 For each merged PR, search `git log` on the default branch for commits that mention the PR number or the merge commit:
 
@@ -82,7 +82,7 @@ git log --since="<merged-at-of-PR>" --grep="#<n>" --grep="revert" --grep="hotfix
 
 Record any matching commits as potential follow-ups. Read the matched commit messages to confirm they're actually hotfixes for this PR (not coincidental mentions).
 
-### Step 6: Cluster and summarize
+### Step 6 — Cluster and summarize
 
 For each batch of 10 PRs:
 
@@ -92,7 +92,7 @@ For each batch of 10 PRs:
 
 After all batches: send the consolidated findings to the model once more, with the same prompt, asking it to deduplicate and rank. Output is the final playbook markdown.
 
-### Step 7: Write the playbook
+### Step 7 — Write the playbook
 
 Write the final markdown to `.code-review/playbook.md`. Add a header line:
 
@@ -107,7 +107,7 @@ Wrote .code-review/playbook.md (<count> PRs scanned, <N> patterns).
 Review and edit, then commit when ready.
 ```
 
-### Step 8: Cleanup
+### Step 8 — Cleanup
 
 ```bash
 rm .code-review/.mining-*.json

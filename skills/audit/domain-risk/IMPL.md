@@ -43,6 +43,7 @@ STORY_DIR=$(resolve_story_dir "$1") || exit 1
 | Failover / offline | What happens when a dependent service is unavailable? Is there a graceful degradation path? |
 | Input validation | Are all external inputs validated at the system boundary? Is there a max length / size constraint? |
 | Idempotency | For write operations: is the operation idempotent? Is there a risk of duplicate submission? |
+| Browser auth (cookie/session) | If auth uses cookies: is `AllowCredentials: true` set in CORS for every cross-origin frontend in the allow-list? Are cookies `HttpOnly` + `Secure` + correct `SameSite` (Lax for top-level nav, None for cross-site iframes)? Is the cookie value the raw token (Bearer prefix added by middleware) so JS can never read a usable bearer? Is refresh-token rotation handled — old token blacklisted, new one set atomically? Does logout clear cookies AND blacklist the JTI server-side (not just delete client-side)? |
 
 ## How to run the check
 
@@ -88,6 +89,7 @@ blocked_count: <n>
 | Failover / offline | | |
 | Input validation | | |
 | Idempotency | | |
+| Browser auth (cookie/session) | | |
 
 ## Flagged Risks (include in OpenSpec "Risks" section)
 
