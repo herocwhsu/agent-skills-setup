@@ -63,6 +63,8 @@ Ensure `.gitignore` contains the following patterns (use the Edit tool to add an
 .code-review/.mining-state.json
 .code-review/.pr-*.json
 .code-review/.pr-*.diff
+.code-review/.pr-*-comments.json
+.code-review/.pr-*-prechecks.json
 ```
 
 `.code-review/playbook.md` and any `.code-review/REVIEWING.md` are intentionally **not** gitignored — they're team artifacts meant to be committed.
@@ -70,11 +72,58 @@ Ensure `.gitignore` contains the following patterns (use the Edit tool to add an
 ### Step 4: Fetch PR data
 
 ```bash
-gh pr view <n> --json title,body,files,headRefName,baseRefName,additions,deletions,state > .code-review/.pr-<n>-meta.json
+gh pr view <n> --json title,body,files,headRefName,baseRefName,additions,deletions,state,headRefOid > .code-review/.pr-<n>-meta.json
 gh pr diff <n> > .code-review/.pr-<n>.diff
+gh api "repos/{owner}/{repo}/pulls/<n>/comments" > .code-review/.pr-<n>-comments.json
 ```
 
 If `gh` exits non-zero, print the error verbatim and stop.
+
+### Step 4.5: Deterministic pre-checks
+
+Run two cheap checks before involving the model. Findings get appended to the report's "Pre-checks" section.
+
+**Check A — Title prefix `[STORY-ID N/M]`**
+
+PRs that belong to a multi-PR story must declare their position. Read `pr-plan.md` from `./docs/stories/<STORY-ID>-<slug>/` if present. If the PR's branch matches a `STORY-ID` referenced there:
+
+```bash
+title=$(jq -r .title .code-review/.pr-<n>-meta.json)
+branch=$(jq -r .headRefName .code-review/.pr-<n>-meta.json)
+# Story ID convention: branch name starts with the Jira ID
+story_id=$(echo "$branch" | grep -oE '^[A-Z]+-[0-9]+')
+
+if [[ -n "$story_id" ]] && ls docs/stories/${story_id}-*/pr-plan.md 2>/dev/null; then
+  if ! [[ "$title" =~ ^\[$story_id\ [0-9]+/[0-9]+\] ]]; then
+    echo "MISSING_TITLE_PREFIX: title \"$title\" does not start with [$story_id N/M]"
+  fi
+fi
+```
+
+If the story has only one PR (no `pr-plan.md` or the plan lists exactly one row), the prefix is optional. Flag only when the plan declares N>1.
+
+**Check B — Stale review comments after force-push**
+
+After a rebase the PR head SHA changes. GitHub keeps inline review comments anchored to the **old** commit, so reviewers see comments on code that no longer exists in that form. Identify these so the report can recommend "addressed in <new SHA>" replies or auto-resolution.
+
+```bash
+head_sha=$(jq -r .headRefOid .code-review/.pr-<n>-meta.json)
+stale=$(jq --arg head "$head_sha" '
+  [ .[] | select(.commit_id != $head) | {
+      id, path, line,
+      old_sha: (.commit_id[:8]),
+      author: .user.login,
+      excerpt: (.body[:80])
+    } ]
+' .code-review/.pr-<n>-comments.json)
+
+stale_count=$(echo "$stale" | jq 'length')
+if [[ "$stale_count" -gt 0 ]]; then
+  echo "STALE_COMMENTS: $stale_count comments anchored to commits not at PR head ($head_sha)"
+fi
+```
+
+Write the structured findings to `.code-review/.pr-<n>-prechecks.json` so the model can consume them in Step 7.
 
 ### Step 5: Size guard
 
@@ -95,14 +144,16 @@ If the metadata `files` list is empty, tell the user `PR <n> has no file changes
 1. Read the bundled charter: `charter.md` (in this skill's directory)
 2. Read the mined playbook: `.code-review/playbook.md`
 3. If `.code-review/REVIEWING.md` exists, read it too — this is the per-repo override and takes precedence over the bundled charter when they conflict.
-4. Read the prompt: `review-prompt.md` (in this skill's directory)
-5. Send to the model with the prompt as the system prompt:
+4. Read pre-check findings: `.code-review/.pr-<n>-prechecks.json` from Step 4.5
+5. Read the prompt: `review-prompt.md` (in this skill's directory)
+6. Send to the model with the prompt as the system prompt:
    - Charter (or per-repo override if present)
    - Mined playbook
+   - Pre-check findings (so the report cites them as `blocking:` for missing prefix and `important:` for stale-comment cleanup)
    - PR title + body + branch info
    - Unified diff
-6. Use model `claude-sonnet-4-6` (override with `REVIEW_PR_MODEL` env var if set).
-7. Receive two artifacts in the model's output: the full report and the comment draft.
+7. Use model `claude-sonnet-4-6` (override with `REVIEW_PR_MODEL` env var if set).
+8. Receive two artifacts in the model's output: the full report and the comment draft.
 
 ### Step 8: Write outputs
 
@@ -131,5 +182,5 @@ without opening the file.
 ### Step 9: Cleanup
 
 ```bash
-rm .code-review/.pr-<n>-meta.json .code-review/.pr-<n>.diff
+rm .code-review/.pr-<n>-meta.json .code-review/.pr-<n>.diff .code-review/.pr-<n>-comments.json .code-review/.pr-<n>-prechecks.json
 ```
