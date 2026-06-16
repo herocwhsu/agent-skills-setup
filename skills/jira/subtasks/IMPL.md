@@ -86,7 +86,7 @@ Confirm or describe re-grouping (e.g. "merge 3/4 and 4/4", "split 2/4 by endpoin
 I won't create Jira tickets until you confirm.
 ```
 
-Once confirmed, write the table to `./docs/stories/<STORY-ID>-<slug>/pr-plan.md` before proceeding to Step 2.
+Once confirmed, write the table to `./docs/stories/<STORY-ID>-<slug>/pr-plan.md` before proceeding to Step 2. Use `templates/pr-plan-template.md` (in this skill's directory) as the starting structure.
 
 ### Step 2 — Ask user for estimates before creating
 

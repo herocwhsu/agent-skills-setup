@@ -29,7 +29,7 @@ The skill assembles three review references, in increasing specificity:
 
 The argument is the PR number. Required.
 
-### Step 1: Verify environment
+### Step 1 — Verify environment
 
 ```bash
 gh auth status
@@ -38,7 +38,7 @@ git remote get-url origin
 
 Same checks as `mine-review-patterns`. Abort with clear messages if either fails.
 
-### Step 2: Verify the playbook exists
+### Step 2 — Verify the playbook exists
 
 If `.code-review/playbook.md` does not exist, tell the user:
 
@@ -49,7 +49,7 @@ write the playbook by hand. Aborting.
 
 and stop.
 
-### Step 3: Prepare workspace
+### Step 3 — Prepare workspace
 
 ```bash
 mkdir -p .code-review/reviews
@@ -69,7 +69,7 @@ Ensure `.gitignore` contains the following patterns (use the Edit tool to add an
 
 `.code-review/playbook.md` and any `.code-review/REVIEWING.md` are intentionally **not** gitignored — they're team artifacts meant to be committed.
 
-### Step 4: Fetch PR data
+### Step 4 — Fetch PR data
 
 ```bash
 gh pr view <n> --json title,body,files,headRefName,baseRefName,additions,deletions,state,headRefOid > .code-review/.pr-<n>-meta.json
@@ -79,7 +79,7 @@ gh api "repos/{owner}/{repo}/pulls/<n>/comments" > .code-review/.pr-<n>-comments
 
 If `gh` exits non-zero, print the error verbatim and stop.
 
-### Step 4.5: Deterministic pre-checks
+### Step 4.5 — Deterministic pre-checks
 
 Run two cheap checks before involving the model. Findings get appended to the report's "Pre-checks" section.
 
@@ -125,7 +125,7 @@ fi
 
 Write the structured findings to `.code-review/.pr-<n>-prechecks.json` so the model can consume them in Step 7.
 
-### Step 5: Size guard
+### Step 5 — Size guard
 
 Read the metadata file and compute `additions + deletions`. If the total exceeds `2000` (or the value of `REVIEW_PR_MAX_DIFF_LINES` if set):
 
@@ -135,11 +135,11 @@ This PR changes <N> lines. Reviews of large PRs tend to be noisy. Continue? (y/n
 
 Wait for the user. If `n`, abort and clean up.
 
-### Step 6: Skip empty PRs
+### Step 6 — Skip empty PRs
 
 If the metadata `files` list is empty, tell the user `PR <n> has no file changes; nothing to review.` and stop. Do not write a report file.
 
-### Step 7: Run the review
+### Step 7 — Run the review
 
 1. Read the bundled charter: `charter.md` (in this skill's directory)
 2. Read the mined playbook: `.code-review/playbook.md`
@@ -155,7 +155,7 @@ If the metadata `files` list is empty, tell the user `PR <n> has no file changes
 7. Use model `claude-sonnet-4-6` (override with `REVIEW_PR_MODEL` env var if set).
 8. Receive two artifacts in the model's output: the full report and the comment draft.
 
-### Step 8: Write outputs
+### Step 8 — Write outputs
 
 ```bash
 # full report
@@ -179,7 +179,7 @@ To post the comment:
 Print the comment draft inline below that message so the user can read it
 without opening the file.
 
-### Step 9: Cleanup
+### Step 9 — Cleanup
 
 ```bash
 rm .code-review/.pr-<n>-meta.json .code-review/.pr-<n>.diff .code-review/.pr-<n>-comments.json .code-review/.pr-<n>-prechecks.json
