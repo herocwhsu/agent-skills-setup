@@ -7,7 +7,15 @@ description: Use after writing-plans is approved to create Jira sub-tasks before
 
 ## Overview
 
-Read `openspec-tasks.md` (or `plan.md` fallback) → present estimates to user → create Jira sub-tasks (with assignee + estimate) → write sub-task IDs to `jira-subtasks.md` → transition sub-tasks to In Progress when work starts.
+Read `openspec-tasks.md` (or `plan.md` fallback) → group into PR-shaped flows → write `pr-plan.md` → present estimates → create Jira sub-tasks (impl `T<n>` + uat companion `U<n>`) → write IDs to `jira-subtasks.md` and `pr-plan.md` → transition sub-tasks to In Progress when work starts.
+
+## Sub-task ID convention
+
+- **T\<n>** — implementation sub-task in the primary repo
+- **U\<n>** — uat / API-test companion sub-task in the test repo. Number matches the **PR group**, not the T number (so PR group 2 owns U2 even if it implements T4)
+- **R\<n>** — refactor PR row in `pr-plan.md`. R-rows are not Jira sub-tasks; they are landed as no-op PRs before the flow PR they enable
+
+Sub-task summaries do NOT include the `[STORY-ID N/M]` prefix — Jira already nests sub-tasks under their parent. The prefix lives on **GitHub PR titles only**, where it carries ordering across an unstructured PR list.
 
 ## Gate position
 
@@ -15,7 +23,8 @@ Read `openspec-tasks.md` (or `plan.md` fallback) → present estimates to user �
 /testing-plan <STORY-ID>      ← test plan approved
 /brainstorming <topic>        ← design decisions confirmed
 /writing-plans <STORY-ID>     ← implementation plan approved
-/jira-subtasks <STORY-ID>     ← this skill (sub-tasks derived from plan)
+/jira-subtasks <STORY-ID>     ← this skill (sub-tasks + pr-plan.md)
+/testing-write <STORY-ID>     ← (separate skill) creates U<n> test PRs
 Implementation starts
 ```
 
@@ -46,6 +55,38 @@ Read tasks from (in order, use first that exists):
 2. `./docs/stories/<STORY-ID>-<slug>/plan.md` — legacy fallback
 
 Group tasks into logical sub-tasks (one sub-task per major section, not one per checklist item).
+
+### Step 1.5 — Group sub-tasks into PRs by user flow
+
+After deriving sub-tasks but BEFORE asking for estimates, propose PR groupings.
+
+**Rules for grouping:**
+
+1. **Identify user-facing flows.** A flow = an end-to-end user walkthrough. Multi-step API contracts (e.g. SRP login = 2 calls + challenge) are one flow, not multiple PRs.
+2. **One flow = one PR.** Splitting a flow leaves reviewers reading partial contracts.
+3. **Plumbing groups separately.** Foundation/refactor work has no flow — it gets its own PR (typically the first one).
+4. **Refactor PRs land first**, before the flow PR that needs them. Output them as a separate row prefixed `R<n>` with no Jira sub-tasks attached.
+5. **Companion test sub-task per flow PR.** Created in the test repo's Jira project as `U<n>` (matches the PR group number). Plumbing-only PRs may have no U-task — note `n/a` and justify.
+6. **Each PR ≤ 5 days estimate.** If a flow PR exceeds budget, split by endpoint group within the flow.
+7. **Dependencies are explicit but not strictly linear.** Flow PR 4/4 may depend only on PR 1/4, not 3/4 — declare what each row actually waits on so independent flows can ship in parallel.
+
+**Present the proposed grouping table to the user** before creating any Jira tickets:
+
+```
+Proposed PR groupings for <STORY-ID>:
+
+| PR | Title prefix | Impl sub-tasks | uat sub-task | Refactor first | Depends on |
+|---|---|---|---|---|---|
+| 1/4 | [STORY-ID 1/4] foundation + pentest fix | T1, T3 | n/a (plumbing) | R1 | — |
+| 2/4 | [STORY-ID 2/4] login flow | T4 | U2 | none | 1/4 |
+| 3/4 | [STORY-ID 3/4] session ops + ops | T5a, T7 | U3 | none | 2/4 |
+| 4/4 | [STORY-ID 4/4] forgot password | T5b | U4 | none | 1/4 |
+
+Confirm or describe re-grouping (e.g. "merge 3/4 and 4/4", "split 2/4 by endpoint").
+I won't create Jira tickets until you confirm.
+```
+
+Once confirmed, write the table to `./docs/stories/<STORY-ID>-<slug>/pr-plan.md` before proceeding to Step 2.
 
 ### Step 2 — Ask user for estimates before creating
 
@@ -107,18 +148,24 @@ unset _JIRA_PASS
 - Never use unescaped double quotes inside description — omit them or use single quotes in the text
 - Keep descriptions concise; long descriptions with special chars cause JSON parse errors
 
-### Step 4 — Write sub-task IDs to jira-subtasks.md
+### Step 4 — Write sub-task IDs to jira-subtasks.md and pr-plan.md
 
-Write to `./docs/stories/<STORY-ID>-<slug>/jira-subtasks.md` (NOT plan.md):
+`pr-plan.md` already exists from Step 1.5 with placeholder sub-task names. Update it now to fill in the created Jira IDs.
+
+Write `./docs/stories/<STORY-ID>-<slug>/jira-subtasks.md` (NOT plan.md) with a `PR group` column so the PR-to-Jira mapping is explicit:
 
 ```markdown
 ## Jira Sub-task IDs
 
-| Sub-task | Jira | Summary |
-|---|---|---|
-| T1 | [VOR-XXXXX](https://vivotek.atlassian.net/browse/VOR-XXXXX) | Summary of task 1 |
-| T2 | [VOR-XXXXX](https://vivotek.atlassian.net/browse/VOR-XXXXX) | Summary of task 2 |
+| Sub-task | Jira | PR group | Summary |
+|---|---|---|---|
+| T1 | [VOR-XXXXX](https://vivotek.atlassian.net/browse/VOR-XXXXX) | 1/4 | Backend plumbing — tenant config, cookie helper, errors |
+| T3 | [VOR-XXXXX](https://vivotek.atlassian.net/browse/VOR-XXXXX) | 1/4 | token_use claim validation in DecodeJWT (pentest fix) |
+| T4 | [VOR-XXXXX](https://vivotek.atlassian.net/browse/VOR-XXXXX) | 2/4 | /auth/login + /auth/login-respond + /auth/password-force-change |
+| U2 | [VOR-XXXXX](https://vivotek.atlassian.net/browse/VOR-XXXXX) | 2/4 | reseller-uat — SRP login + force-change cookie flow tests |
 ```
+
+`U<n>` rows reference Jira tickets in the **test repo's project** (e.g. for reseller-uat work, the project key may differ from `JIRA_PROJECT_KEY`). The `/testing-write` skill creates those — `/jira-subtasks` only **names** them in `pr-plan.md` so reviewers see the contract.
 
 ### Step 5 — Transition parent story to In Progress
 
@@ -173,16 +220,20 @@ unset _JIRA_PASS
 '
 ```
 
-### Step 7 — Create summary sub-task, request human review
+### Step 7 — Create summary sub-task per PR group, request human review
 
-Once ALL sub-tasks are Done, create ONE summary sub-task that links the PR and all commits. This is the human review gate — not per-sub-task review.
+Once all sub-tasks **for one PR group** are Done, create ONE summary sub-task that links **that PR**. This is the human review gate for that group — not for the whole story.
+
+For a story with N PR groups you create N summary sub-tasks, each at the time the corresponding PR opens. Do NOT wait for all groups to complete before review — that defeats the point of splitting.
 
 ```bash
-# Summary sub-task fields:
-# summary:     "[PR#NNN] <feature description>"
-# description: PR URL + branch + all commit SHAs + which sub-tasks are covered
+# Summary sub-task fields (one per PR group):
+# summary:     "[PR#NNN] <PR title without [STORY-ID N/M] prefix>"
+# description: PR URL + branch + commit SHAs in this group + which T<n>/U<n> sub-tasks are covered
 # estimate:    "0d" (tracking artifact, no estimate)
 ```
+
+The GitHub PR title carries `[STORY-ID N/M]`; the Jira summary repeats the PR number `[PR#NNN]` so reviewers can navigate either direction. Do not duplicate `[STORY-ID N/M]` into the Jira summary — Jira already nests under the parent story.
 
 Then run automated code review (superpowers:requesting-code-review), fix any Critical/Important findings, and transition the summary sub-task AND parent story to **CODE REVIEW / TRACKING** (41):
 
@@ -206,7 +257,7 @@ unset _JIRA_PASS
 
 After human approves and PR merges → move summary sub-task + parent story to **Done** (31).
 
-**Why this pattern:** Sub-tasks track implementation progress. Human review happens once at the PR level. Moving individual sub-tasks to CODE REVIEW blocks each one sequentially and wastes the reviewer's time. One summary sub-task = one review = one merge.
+**Why this pattern:** Sub-tasks track implementation progress. Human review happens once **per PR group**, not once per sub-task and not once per story. Per-sub-task review blocks each one sequentially and wastes the reviewer's time. Per-story review forces reviewers to read 6k+ lines in one sitting. Per-PR-group review balances both — each PR is reviewable in one sitting and the story ships in independently mergeable slices.
 
 ## Adding a Task Mid-Implementation
 
@@ -225,3 +276,8 @@ After human approves and PR merges → move summary sub-task + parent story to *
 | `_store.sh` / `read_credential` not found in zsh | Fixed in lib.sh — `source ~/.agent-skills-setup/lib.sh` works in both bash and zsh |
 | Writing sub-task IDs to `plan.md` | Write to `jira-subtasks.md` in the story folder instead |
 | Transitioning all sub-tasks to Done at end of sprint | Transition each sub-task individually as work starts/completes |
+| Creating sub-tasks before grouping into PRs | Run Step 1.5 first; the grouping changes how many sub-tasks you actually need |
+| One giant PR for the whole story | Default to multi-PR plan in `pr-plan.md`; only collapse to one PR if the story is genuinely a single user-facing flow |
+| Cramming `[STORY-ID N/M]` into Jira sub-task summary | Prefix lives on GitHub PR titles only; Jira nests sub-tasks under the parent already |
+| Skipping U\<n\> companion test sub-task | Required for every flow PR. Justify `n/a` only for plumbing-only PRs |
+| Mid-impl refactor commits inside a flow PR | Land refactor as a separate `R<n>` PR first, then rebase the flow PR on it |
