@@ -103,7 +103,7 @@ Replace with:
 ```bash
 # Detect html2md.py location across agent skills dirs
 _HTML2MD=""
-for _d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills"; do
+for _d in "$HOME/.kiro/skills" "$HOME/.claude/skills"; do
   [[ -f "$_d/fetch-page-to-markdown/html2md.py" ]] && { _HTML2MD="$_d/fetch-page-to-markdown/html2md.py"; break; }
 done
 [[ -z "$_HTML2MD" ]] && { echo "ERROR: html2md.py not found" >&2; exit 1; }
@@ -187,7 +187,7 @@ SLUG=$(echo "$URL" | sed 's|.*://||;s/[^a-z0-9]/-/g' | cut -c1-40)
 
 # Detect html2md.py location across agent skills dirs
 _HTML2MD=""
-for _d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills"; do
+for _d in "$HOME/.kiro/skills" "$HOME/.claude/skills"; do
   [[ -f "$_d/fetch-page-to-markdown/html2md.py" ]] && { _HTML2MD="$_d/fetch-page-to-markdown/html2md.py"; break; }
 done
 [[ -z "$_HTML2MD" ]] && { echo "ERROR: html2md.py not found" >&2; exit 1; }
@@ -377,9 +377,8 @@ Find the existing table:
 |---|---|---|
 | 1 | Kiro | `~/.kiro/skills/` |
 | 2 | Claude Code | `~/.claude/skills/` |
-| 3 | GitHub Copilot | `~/.copilot/skills/` |
-| 4 | Codex | `~/.codex/skills/` |
-| 5 | All | all of the above |
+| 3 | Gemini CLI | `~/.gemini/skills/` |
+| 4 | All | all of the above |
 ```
 
 Add a "Custom skills supported" column:
@@ -389,9 +388,8 @@ Add a "Custom skills supported" column:
 |---|---|---|---|
 | 1 | Kiro | `~/.kiro/skills/` | ✓ |
 | 2 | Claude Code | `~/.claude/skills/` | ✓ |
-| 3 | GitHub Copilot | `~/.copilot/skills/` | planned |
-| 4 | Codex | `~/.codex/skills/` | planned |
-| 5 | All | all of the above | — |
+| 3 | Gemini CLI | `~/.gemini/skills/` | ✓ |
+| 4 | All | all of the above | — |
 ```
 
 - [ ] **Step 2: Add a Claude Code note under Custom Skills section**
@@ -429,7 +427,7 @@ After the existing overview paragraph, add:
 ```markdown
 ## Agent Compatibility
 
-Works with Kiro, Claude Code, GitHub Copilot, and Codex. The `html2md.py` converter is located at install time by scanning `~/.kiro/skills/`, `~/.claude/skills/`, `~/.copilot/skills/`, and `~/.codex/skills/` in order — whichever is found first is used.
+Works with Kiro, Claude Code, and Gemini CLI. The `html2md.py` converter is located at install time by scanning `~/.kiro/skills/`, `~/.claude/skills/`, and `~/.gemini/skills/` in order — whichever is found first is used.
 ```
 
 - [ ] **Step 3: Commit**

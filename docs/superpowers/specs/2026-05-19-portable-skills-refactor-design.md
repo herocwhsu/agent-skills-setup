@@ -12,7 +12,7 @@ Today the repo is hard-coded for one user:
 
 - `example-org.atlassian.net`, `confluence.example.com`, `<user>`, `<user>@example.com`, project key `VOR` appear inside three shipped `SKILL.md` files. Cloning the repo as anyone else produces broken behavior — agents will literally call those hosts.
 - The slug-generation rule (`s|https\?://||;s|[^a-zA-Z0-9]|-|g;s/-\+/-/g;s/-$//`) is duplicated in 8+ places across credentials scripts and skill files. A single change requires editing all of them in lockstep, and they drift silently.
-- The `html2md.py` discovery loop (4-directory probe across `~/.kiro/skills`, `~/.claude/skills`, `~/.copilot/skills`, `~/.codex/skills`) is duplicated 3 times across bash and Python, in two different SKILL.md files.
+- The `html2md.py` discovery loop (3-directory probe across `~/.kiro/skills`, `~/.claude/skills`, `~/.gemini/skills`) is duplicated 3 times across bash and Python, in two different SKILL.md files.
 - `confluence.sh` and `jira.sh` are 95% identical with only the prompt label and slug prefix differing.
 - `install.sh` and `install.ps1` have drifted — PS1 supports `-Agent kiro` (non-interactive), bash does not. Bash special-cases kiro prompts; PS1 doesn't.
 - `uninstall_github_skill` re-downloads the GitHub zip just to learn skill names — uninstall requires network access.
@@ -45,7 +45,7 @@ A single top-level dotdir holds two files that don't belong to any individual ag
 | `~/.agent-skills-setup/config.sh` | Non-secret user values (hosts, usernames, project key) |
 | `~/.agent-skills-setup/lib.sh` | Shared bash helpers callable from skills |
 
-Naming follows the existing pattern (`~/.kiro/`, `~/.claude/`, `~/.copilot/`, `~/.codex/` are all top-level dotdirs). Matches the GitHub repo name exactly to minimize collision risk.
+Naming follows the existing pattern (`~/.kiro/`, `~/.claude/`, `~/.gemini/` are all top-level dotdirs). Matches the GitHub repo name exactly to minimize collision risk.
 
 **Windows equivalent:** `%APPDATA%\agent-skills-setup\` for the same two files.
 
@@ -111,7 +111,7 @@ service_slug <prefix> <url>
 # ---------- html2md detection ----------
 find_html2md
   # Echoes absolute path to html2md.py, or exits non-zero with stderr message.
-  # Searches ~/.kiro/skills, ~/.claude/skills, ~/.copilot/skills, ~/.codex/skills.
+  # Searches ~/.kiro/skills, ~/.claude/skills, ~/.gemini/skills.
 
 # ---------- config + secrets ----------
 load_config

@@ -138,7 +138,7 @@ Append to `lib/lib.sh`:
 # ---------------------------------------------------------------------------
 find_html2md() {
   local d
-  for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills"; do
+  for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.gemini/skills"; do
     if [[ -f "$d/fetch-page-to-markdown/html2md.py" ]]; then
       echo "$d/fetch-page-to-markdown/html2md.py"
       return 0
@@ -734,7 +734,7 @@ Match the existing `install.ps1 -Agent` behavior so the script can be used non-i
 In `scripts/_lib.sh`, replace the `select_agents()` function (around line 216) with:
 
 ```bash
-# Accept agent via $1 (kiro|claude|copilot|codex|all). Prompt only if empty.
+# Accept agent via $1 (kiro|claude|gemini|all). Prompt only if empty.
 # Sets global SELECTED_AGENTS array.
 select_agents() {
   local choice="${1:-}"
@@ -744,17 +744,15 @@ select_agents() {
     echo "Which agent(s) to target?"
     echo "  1) Kiro        (~/.kiro/skills/)"
     echo "  2) Claude Code (~/.claude/skills/)"
-    echo "  3) Copilot     (~/.copilot/skills/)"
-    echo "  4) Codex       (~/.codex/skills/)"
-    echo "  5) All of the above"
+    echo "  3) Gemini CLI  (~/.gemini/skills/)"
+    echo "  4) All of the above"
     echo ""
-    read -rp "Choice [1-5]: " input
+    read -rp "Choice [1-4]: " input
     case "$input" in
       1) choice="kiro" ;;
       2) choice="claude" ;;
-      3) choice="copilot" ;;
-      4) choice="codex" ;;
-      5) choice="all" ;;
+      3) choice="gemini" ;;
+      4) choice="all" ;;
       *) echo "Invalid choice, defaulting to kiro."; choice="kiro" ;;
     esac
   fi
@@ -762,9 +760,8 @@ select_agents() {
   case "$choice" in
     kiro)    SELECTED_AGENTS=("kiro") ;;
     claude)  SELECTED_AGENTS=("claude") ;;
-    copilot) SELECTED_AGENTS=("copilot") ;;
-    codex)   SELECTED_AGENTS=("codex") ;;
-    all)     SELECTED_AGENTS=("kiro" "claude" "copilot" "codex") ;;
+    gemini)  SELECTED_AGENTS=("gemini") ;;
+    all)     SELECTED_AGENTS=("kiro" "claude" "gemini") ;;
     *)       echo "Invalid agent: $choice"; exit 1 ;;
   esac
 }

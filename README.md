@@ -7,7 +7,7 @@ Installs:
 - **[superpowers](https://github.com/obra/superpowers)** — brainstorming, TDD, systematic debugging, code review, and more
 - **Custom group skills** — five groups (`intake`, `jira`, `review`, `infra`, `utils`) wrapping the previous flat skills, organized for the [Spec-Gated Workflow](docs/migration.md)
 
-Supports: Kiro, Claude Code, GitHub Copilot, Codex, Gemini CLI · macOS, Linux, Windows
+Supports: Kiro, Claude Code, Gemini CLI · macOS, Linux, Windows
 
 ---
 
