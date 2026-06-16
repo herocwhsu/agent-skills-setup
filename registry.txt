@@ -31,3 +31,4 @@ local  utils
 
 local-optional  experiment-iteration
 local-optional  infra-ups
+local-optional  ai-stack
