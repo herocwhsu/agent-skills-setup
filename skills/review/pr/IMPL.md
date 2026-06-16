@@ -93,8 +93,11 @@ branch=$(jq -r .headRefName .code-review/.pr-<n>-meta.json)
 # Story ID convention: branch name starts with the Jira ID
 story_id=$(echo "$branch" | grep -oE '^[A-Z]+-[0-9]+')
 
+# Run the prefix check inside `bash -c` to avoid zsh regex incompatibilities
+# when this snippet is invoked from a non-bash shell.
 if [[ -n "$story_id" ]] && ls docs/stories/${story_id}-*/pr-plan.md 2>/dev/null; then
-  if ! [[ "$title" =~ ^\[$story_id\ [0-9]+/[0-9]+\] ]]; then
+  pattern="^\[${story_id} [0-9]+/[0-9]+\] "  # trailing space required after ]
+  if ! bash -c "[[ \"\$1\" =~ \$2 ]]" _ "$title" "$pattern"; then
     echo "MISSING_TITLE_PREFIX: title \"$title\" does not start with [$story_id N/M]"
   fi
 fi
