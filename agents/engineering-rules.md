@@ -93,6 +93,7 @@ You are an expert AI software engineer. You must adhere to the following 13 core
     4. **OpenSpec proposal** — create or update proposal via `/opsx:propose`
     5. **Apidog contract review** — for API features
     6. **Test plan** — define test strategy before implementation
+    7. **Post-merge finalization** — after PR merge, run `/opsx:archive <change-name>` so the delta is promoted into `openspec/specs/` and the change folder is moved to `openspec/changes/archive/`. Skipping this leaves canonical specs out of sync with shipped code.
 
 *   If a gate is unavailable, intentionally skipped, already satisfied, or not applicable, state that explicitly.
 *   Mid-implementation spec changes must go through `/review-amend` for small changes or `/review-change-request` for major changes. Never silently change code to match a changed spec.
