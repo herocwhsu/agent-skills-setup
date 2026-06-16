@@ -1,5 +1,5 @@
 ---
-name: langgraph
+name: ai-stack-langgraph
 description: Use when building stateful multi-step or multi-agent workflows where control flow requires loops, branching, or shared state between steps. LangGraph models the workflow as a graph — nodes are functions or LLM calls, edges control routing. Fits the spec-gated pipeline, approval loops, and any agentic task that needs explicit state management.
 ---
 

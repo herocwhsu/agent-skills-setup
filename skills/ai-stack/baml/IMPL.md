@@ -1,5 +1,5 @@
 ---
-name: baml
+name: ai-stack-baml
 description: Use when adding structured LLM output to any Python or TypeScript service. BAML defines LLM functions in .baml files with typed input/output schemas, generates type-safe client code, and parses LLM responses into declared types — even when the model returns messy output. Replaces manual JSON parsing and prompt string management.
 ---
 
