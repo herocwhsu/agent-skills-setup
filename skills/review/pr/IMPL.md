@@ -142,21 +142,87 @@ Wait for the user. If `n`, abort and clean up.
 
 If the metadata `files` list is empty, tell the user `PR <n> has no file changes; nothing to review.` and stop. Do not write a report file.
 
-### Step 7 — Run the review
+### Step 7 — Run the review (parallel subagent fan-out)
 
-1. Read the bundled charter: `charter.md` (in this skill's directory)
-2. Read the mined playbook: `.code-review/playbook.md`
-3. If `.code-review/REVIEWING.md` exists, read it too — this is the per-repo override and takes precedence over the bundled charter when they conflict.
-4. Read pre-check findings: `.code-review/.pr-<n>-prechecks.json` from Step 4.5
-5. Read the prompt: `review-prompt.md` (in this skill's directory)
-6. Send to the model with the prompt as the system prompt:
-   - Charter (or per-repo override if present)
-   - Mined playbook
-   - Pre-check findings (so the report cites them as `blocking:` for missing prefix and `important:` for stale-comment cleanup)
-   - PR title + body + branch info
-   - Unified diff
-7. Use model `claude-sonnet-4-6` (override with `REVIEW_PR_MODEL` env var if set).
-8. Receive two artifacts in the model's output: the full report and the comment draft.
+Instead of a single monolithic model call, dispatch three subagents in parallel via the Agent tool. Each scopes its input to its own concern, returning JSON findings the main session merges. This avoids flooding the main agent's context on large diffs and lets unrelated review dimensions run concurrently.
+
+#### Step 7.1 — Prepare shared inputs
+
+Read once, pass to each subagent:
+
+1. Bundled charter: `charter.md` (in this skill's directory)
+2. Mined playbook: `.code-review/playbook.md`
+3. Per-repo override (if present): `.code-review/REVIEWING.md` — supersedes the bundled charter where they conflict
+4. Pre-check findings: `.code-review/.pr-<n>-prechecks.json`
+5. PR data: `.code-review/.pr-<n>-meta.json` + `.code-review/.pr-<n>.diff`
+
+#### Step 7.2 — Detect spec-guardrails applicability
+
+```bash
+# Find an OpenSpec change folder linked to this story
+branch=$(jq -r .headRefName .code-review/.pr-<n>-meta.json)
+story_id=$(echo "$branch" | grep -oE '^[A-Z]+-[0-9]+')
+proposal_path=""
+if [[ -n "$story_id" ]]; then
+  # Match by story id in the change folder name
+  proposal_path=$(ls -d ./openspec/changes/*-${story_id,,}-* 2>/dev/null | head -1)
+  proposal_path="${proposal_path:+$proposal_path/proposal.md}"
+fi
+```
+
+If `proposal_path` is set and the file exists, the spec-guardrails subagent runs. Otherwise skip it (the slot stays empty in the merge).
+
+#### Step 7.3 — Dispatch subagents in parallel
+
+Send all three Agent tool calls in a single message so they run concurrently. Use model `claude-sonnet-4-6` (override with `REVIEW_PR_MODEL` env var if set). Each subagent receives a focused prompt below; each MUST return findings as a JSON array, one object per finding:
+
+```json
+[
+  {
+    "severity": "critical | important | minor",
+    "location": "path/to/file.ext:LINE",
+    "summary": "one-sentence description",
+    "category": "correctness | permission | transaction | error-handling | architecture | naming | testing | deterministic-output | style | spec-drift",
+    "playbook_match": "<pattern name>" or null,
+    "detail": "2-3 sentences expanding on what and why",
+    "filtered": false or "<reason filtered out>"
+  }
+]
+```
+
+`filtered` non-false means the subagent considered it but excluded it (kept for the report's "Candidates considered but filtered out" section).
+
+##### Subagent A — code-review
+
+Inputs: charter, playbook, override (if present), pre-checks, PR meta + diff. Concerns: correctness, error-handling, transactions, deterministic-output, naming, testing, architecture. Explicitly NOT permission/security (subagent C handles that) and NOT spec-drift (subagent B). Use the `general-purpose` subagent type with the `review-prompt.md` system prompt; the prompt's "Constraints" section already enforces the JSON shape.
+
+##### Subagent B — spec-guardrails (conditional)
+
+Skip entirely if no `proposal.md` was found in 7.2. Inputs: the proposal markdown plus the PR diff. Single concern: does the PR implement what the proposal says (no missing requirements, no extra behavior, no risky deviations)? Findings use `category: "spec-drift"` with `severity: critical` for missing requirements, `important` for extra behavior, `minor` for naming/wording drift. Reuse the existing `review/guardrails/IMPL.md` prompt structure.
+
+##### Subagent C — security-scan
+
+Inputs: charter (security section only), playbook, PR meta + diff. Concerns: permission boundaries (operator vs target company, user-supplied IDs treated as trusted, missing checks in alternate branches, identity fields from request body), credentials/secrets in diff, webhook idempotency, HTML escaping. Findings use `category: "permission"`. Pre-checks containing `MISSING_TITLE_PREFIX` or `STALE_COMMENTS` are NOT this subagent's job — they're handled in the merge step.
+
+#### Step 7.4 — Merge findings
+
+When all three subagents return:
+
+1. Concatenate the three JSON arrays.
+2. Append pre-check findings as synthetic entries: `MISSING_TITLE_PREFIX` → `severity: blocking, category: spec-drift`; `STALE_COMMENTS` → `severity: important, category: process`.
+3. Deduplicate by `(location, summary[:60])` — if two subagents flagged the same line, keep the one with higher severity (`critical > important > minor`); if equal, prefer the one with a `playbook_match`.
+4. Sort by `(severity_rank, category_rank, location)` so the report and comment draft are deterministic.
+5. Cap the comment-draft to 5 entries. The full report keeps everything (including `filtered` candidates).
+
+#### Step 7.5 — Synthesize the two artifacts
+
+The main session writes the two-artifact output directly from the merged JSON — no additional model call. Format follows the existing `review-prompt.md` "Comment draft format" and "Full report format" sections verbatim. The summary paragraph (2-3 sentences) is generated locally from the finding counts: e.g. *"<N> findings in this PR: <C> critical, <I> important, <M> minor. Top concern: <highest-severity finding's category>."*
+
+#### Notes on subagent dispatch
+
+- All three Agent calls go in a single tool-use block so they run in parallel — sequential dispatch defeats the purpose.
+- Pass each subagent only what it needs; e.g. subagent C does not need the playbook's "deterministic output" or "naming" sections.
+- If a subagent returns malformed JSON, log it and proceed with the other two — never abort the whole review for one bad subagent.
 
 ### Step 8 — Write outputs
 
