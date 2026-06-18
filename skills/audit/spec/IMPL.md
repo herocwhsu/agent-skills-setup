@@ -36,46 +36,89 @@ STORY_DIR=$(resolve_story_dir "$1") || exit 1
 
 ## Audit checklist
 
-For each item below, mark: ✓ Present | ⚠ Partial | ✗ Missing | N/A Not applicable
+The 5 sections below are dispatched as 5 parallel subagents in Step 2 (one section each). Each subagent marks every item: ✓ Present | ⚠ Partial | ✗ Missing | N/A Not applicable, and returns the marked checklist plus any gaps it identified. The main session merges the 5 results and classifies gaps in Step 3.
 
-### Actors and scope
+### Section 1 — Actors and scope
 - [ ] Actor(s) clearly defined (who initiates each action)
 - [ ] System boundaries clear (what is in scope vs out of scope)
 - [ ] Non-goals explicitly stated
 
-### Behavioral completeness
+### Section 2 — Behavioral completeness
 - [ ] Happy path described
 - [ ] All error states described (4xx, 5xx, timeout, empty result)
 - [ ] Permission/authorization behavior described for each action
 - [ ] Edge cases covered (empty input, boundary values, concurrent access)
 - [ ] Data validation rules stated
 
-### API / data model
+### Section 3 — API / data model
 - [ ] Request/response schema defined or sketched
 - [ ] Pagination behavior defined (if list endpoints)
 - [ ] Sort/filter behavior defined (if applicable)
 - [ ] Backward-compatibility constraints stated
 
-### Acceptance criteria
+### Section 4 — Acceptance criteria
 - [ ] Each acceptance criterion is testable (Given/When/Then or equivalent)
 - [ ] Acceptance criteria cover permission-denied cases
 - [ ] Acceptance criteria cover error cases
 - [ ] No criterion relies on unverifiable human judgment
 
-### Conflicts and contradictions
+### Section 5 — Conflicts and contradictions
 - [ ] No conflicting requirements between Jira and Confluence
 - [ ] No conflicting acceptance criteria within the same artifact
 - [ ] Terminology used consistently throughout
 
-## Gap classification
+## Step 1 — Read shared input artifacts
 
-Classify each gap found as one of:
+Read once, pass to every subagent:
+
+1. `$STORY_DIR/story.md` — Jira description, acceptance criteria, linked tickets
+2. `$STORY_DIR/confluence-*.md` — all Confluence reference pages (may be zero)
+3. `$STORY_DIR/apidog-*.md` — all Apidog / public API reference pages (may be zero)
+4. `$STORY_DIR/intake-summary.md` — if present, read last (Phase 2)
+
+## Step 2 — Dispatch 5 subagents in parallel
+
+Send all 5 Agent tool calls in a single message so they run concurrently. Each subagent runs as `general-purpose` with the same input bundle but a different `section` parameter (1–5). The system prompt instructs each subagent to mark its assigned section's items and return JSON in this exact shape:
+
+```json
+{
+  "section_id": 1,
+  "section_name": "Actors and scope",
+  "checklist": [
+    { "item": "Actor(s) clearly defined", "status": "Present" or "Partial" or "Missing" or "N/A", "evidence": "<short quote or location>" }
+  ],
+  "gaps": [
+    { "id": "gap-1", "description": "what's missing", "found_in": "story.md | confluence-X.md | apidog-Y.md", "question_for": "PM | tech lead | QA" }
+  ]
+}
+```
+
+A subagent that finds no gaps returns `"gaps": []`. The main session must NOT abort if one subagent returns malformed JSON — log it, fall back to a stub `{"section_id": N, "checklist": [], "gaps": []}` for that section, and continue.
+
+Why parallel:
+- Each section reads the same artifacts but applies a different lens. Serial calls re-read identical input N times.
+- Multi-section checklists in a single call dilute the model's attention on each section. One subagent per section keeps focus high.
+
+## Step 3 — Classify gaps
+
+After all 5 subagents return, the main session walks the merged `gaps[]` list and classifies each into one of:
 
 | Class | Meaning | Action |
 |---|---|---|
 | `must-resolve` | Implementation cannot proceed without clarity | Block and ask PM / tech lead |
 | `can-assume` | Safe to proceed with a named assumption | Document assumption in OpenSpec |
 | `future-scope` | Valid enhancement but not for this story | Note in Non-goals |
+
+Classification heuristics (apply in order):
+1. Gap names a permission, security, or auth boundary → `must-resolve`.
+2. Gap names a request/response field or DB schema field that's referenced by a checklist Missing → `must-resolve`.
+3. Gap appears in story.md's "Out of scope" or Non-goals → `future-scope`.
+4. Gap is a clarification of behavior with a sensible default → `can-assume`.
+5. Otherwise → `must-resolve` (conservative default — `audit-handoff` won't pass with open must-resolves, which forces explicit triage).
+
+## Step 4 — Write the audit report
+
+Output schema unchanged from the original IMPL — written by the main session, not a subagent.
 
 ## Output format
 
