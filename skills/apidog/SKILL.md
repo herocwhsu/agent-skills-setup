@@ -55,12 +55,17 @@ Never update Apidog after implementation as documentation only. It is a gate.
 The MCP server reads credentials from the environment — never from committed
 files. See `infra/apidog-mcp/IMPL.md` for setup details.
 
-## Apidog URL Access Patterns
+## Apidog Access Mode Decision Tree
 
-| URL | Access type | Strategy |
+Apidog has four read/write surfaces and they don't compose. Pick by what you're doing, not by what's configured:
+
+| Goal | Path | Why |
 |---|---|---|
-| `share.apidog.com/<uuid>` (public) | No auth needed | `GET https://api.apidog.com/v1/shared-docs/<uuid>/export-openapi` |
-| `share.apidog.com/<uuid>` (password) | Share password | Same endpoint + `X-Apidog-Share-Password` header — prompt user |
-| `app.apidog.com/project/<id>` | Personal access token | MCP `apidog_export(module: ...)` |
+| Read default branch (one endpoint) | MCP `apidog_get` | Branch-aware, fast |
+| Read default branch (full spec) | MCP `apidog_export` | Single call, includes schemas |
+| Read non-default branch (e.g. Sprint 90) | `scripts/apidog-share-fetch.py --share-uuid <uuid>` | MCP has no branch flag; Apidog REST `/v1/shared-docs/<uuid>/export-openapi` redirects to docs (verified 2026-06-18) |
+| Write (create/update/wipe) | MCP `apidog_import_openapi` / `apidog_update` | Default branch only — branch writes go through the UI |
 
-Never use `WebFetch` on `share.apidog.com` — it is a JS SPA and returns a blank shell.
+The share-fetch script reads the public share link's Remix `.data` loader and decodes the turbo-stream payload (positional `_N` slot refs). Output is normalized JSON with `id`, `method`, `path`, `name`, `status`, `description`, `request`, `responses[].type_enums`. See `scripts/apidog-share-fetch.py --help`.
+
+Don't try to read non-default branches via the MCP or REST. The MCP package source has zero `branch` strings (`grep -i branch dist/index.js`); the REST path silently redirects. Both verified 2026-06-18 during VOR-31255.
