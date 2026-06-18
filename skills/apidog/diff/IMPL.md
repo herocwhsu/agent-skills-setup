@@ -21,46 +21,40 @@ STORY_DIR=$(resolve_story_dir "$1") || exit 1
 
 ## Step 1 — Determine live state source
 
-Check if the user passed a share link alongside the STORY-ID (e.g., as a second argument or in the story's `intake-summary.md`):
+Pick the read path based on what the user is comparing against:
 
-```
-If URL matches share.apidog.com/<uuid>:
-  → Use Share REST API (see below) — skip MCP prerequisite check
-Else:
-  → Use MCP apidog_export (existing path)
-     Run apidog_modules() first; if it fails, tell user to run /infra-apidog-mcp setup
-```
+| Target | Read path | Why |
+|---|---|---|
+| Default branch (project main) | MCP `apidog_export(module: ...)` | Native, single round-trip, branch-aware writes still possible |
+| Non-default branch (e.g. Sprint 90) | `scripts/apidog-share-fetch.py` against the branch's public share link | MCP has no branch support and Apidog REST `/v1/shared-docs/<uuid>/export-openapi` redirects to docs (verified 2026-06-18) — the share link's Remix loader is the only working read path |
+| Single endpoint on any branch | `scripts/apidog-share-fetch.py --endpoint-id N` | Same as above, faster than full export |
 
-### Share REST API path
+The user passes the share UUID either as a second CLI argument or in `intake-summary.md`'s `apidog_share_uuid:` frontmatter. Without one, fall back to MCP and warn that only the default branch is being compared.
+
+### Share-link path (non-default branch)
 
 ```bash
-UUID=$(echo "$SHARE_URL" | grep -oE '[0-9a-f-]{36}')
-SHARE_API="https://api.apidog.com/v1/shared-docs/${UUID}/export-openapi"
+SHARE_UUID=$(echo "$SHARE_URL" | grep -oE '[0-9a-f-]{36}')
+SCRIPT="$REPO_DIR/scripts/apidog-share-fetch.py"
 
-HTTP_CODE=$(curl -s -o /tmp/_apidog_live.json -w "%{http_code}" "$SHARE_API")
+# Pull every endpoint matching the contract's path prefix
+python3 "$SCRIPT" --share-uuid "$SHARE_UUID" --path-prefix "$CONTRACT_PATH_PREFIX" \
+  > /tmp/_apidog_live.json
 
-if [[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" ]]; then
-  echo "Share link is password-protected."
-  printf "Enter share password: "
-  read -r SHARE_PASS
-  HTTP_CODE=$(curl -s -o /tmp/_apidog_live.json -w "%{http_code}" \
-    -H "X-Apidog-Share-Password: $SHARE_PASS" "$SHARE_API")
-  unset SHARE_PASS
-fi
-
-[[ "$HTTP_CODE" != "200" ]] && {
-  echo "ERROR: Apidog share export returned HTTP $HTTP_CODE" >&2; exit 1
+[[ -s /tmp/_apidog_live.json ]] || {
+  echo "ERROR: share-fetch returned empty result for $SHARE_UUID" >&2; exit 1
 }
-# /tmp/_apidog_live.json now contains the live OpenAPI spec
 ```
 
-### MCP path (default)
+The script's output is a JSON array of normalized endpoints — each has `id`, `method`, `path`, `name`, `status`, `description`, `request`, `responses` (with `type_enums` extracted from `x-apidog-overrides`). This shape is what Step 4's diff logic compares against.
+
+### MCP path (default branch only)
 
 ```
 apidog_export(module: <module-name>)
 ```
 
-This returns the current OpenAPI spec from Apidog for the target module.
+Returns the current OpenAPI spec from Apidog for the target module on the default branch only.
 
 ## Step 3 — Convert local contract to OpenAPI
 
