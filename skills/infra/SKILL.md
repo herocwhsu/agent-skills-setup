@@ -1,6 +1,6 @@
 ---
 name: infra
-description: Use to manage local infrastructure that supports Claude Code and Kiro IDE workflows. Subcommands manage the kiro-gateway Docker proxy (kiro-gateway), run host-level performance/security tuning (host-optimization), and set up the Apidog MCP server (apidog-mcp). Not part of the spec-gated workflow — these run independently.
+description: Use to manage local infrastructure that supports Claude Code and Kiro IDE workflows. Subcommands manage the kiro-gateway Docker proxy (kiro-gateway), run host-level performance/security tuning (host-optimization), set up the Apidog MCP server (apidog-mcp), and configure tmux clipboard integration (tmux-yank). Not part of the spec-gated workflow — these run independently.
 ---
 
 # infra
@@ -18,6 +18,7 @@ target product repo.
 | `/infra-ups <subcommand>` | Manage UPS power protection via NUT. Sub-subcommands: `setup`, `status`, `battery-health`, `battery-replace`, `test-shutdown`, `remove`. Triggers graceful shutdown after 60 s on battery. | `ups/IMPL.md` |
 | `/infra-vpn <subcommand>` | WireGuard VPN server. Split-tunnel, 3 whitelisted peers, Cloudflare DDNS. Sub-subcommands: `setup`, `add-peer <name>`, `status`, `remove`. | `vpn/IMPL.md` |
 | `/infra-apidog-mcp <subcommand>` | Install and configure `@lstpsche/apidog-mcp` MCP server. Sub-subcommands: `setup`, `status`, `remove`. Wires Apidog token from keychain into agent settings. | `apidog-mcp/IMPL.md` |
+| `/infra-tmux-yank` | Install tmux + TPM + tmux-yank for system clipboard integration. macOS (pbcopy), Linux X11 (xclip), Wayland (wl-copy), SSH (OSC 52). | `tmux-yank/IMPL.md` |
 
 ## When to use which subcommand
 
@@ -29,6 +30,7 @@ Want to check current image digest / state → /infra-kiro-gateway status
 Machine feels slow, want tuning sweep → /infra-host-optimization
 Tuning made things worse → /infra-host-optimization --revert
 Need to set up Apidog MCP for agent workflow → /infra-apidog-mcp setup
+Need tmux clipboard to work in macOS/Linux/SSH → /infra-tmux-yank
 ```
 
 ## State files
