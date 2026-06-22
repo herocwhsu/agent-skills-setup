@@ -13,7 +13,7 @@
 #   npm    @fission-ai/openspec
 #   github context7/context7 .
 
-# pip    agent-superpowers  — removed: superpowers skills are managed via the superpowers plugin
+github obra/superpowers skills
 
 npm    @fission-ai/openspec
 

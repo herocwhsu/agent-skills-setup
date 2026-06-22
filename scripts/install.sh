@@ -125,9 +125,7 @@ fi
 if grep -qE '^npm[[:space:]]+@fission-ai/openspec' "$REPO_DIR/registry.txt" 2>/dev/null; then
   echo ""
   echo "==> OpenSpec post-install steps (per target repo):"
-  echo "    cd <your-repo> && openspec init"
-  echo "    # For the full slash-command set:"
-  echo "    openspec config profile expanded && openspec update"
+  echo "    cd <your-repo> && openspec init --tools claude,kiro"
 fi
 
 echo ""
