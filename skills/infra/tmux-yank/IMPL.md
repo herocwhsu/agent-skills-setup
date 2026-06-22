@@ -1,97 +1,50 @@
 ---
 name: infra-tmux-yank
-description: Set up tmux + TPM + tmux-yank for system clipboard integration on macOS and Linux
+description: Install tmux + TPM + tmux-yank for system clipboard integration on macOS and Linux. Fully automated.
 ---
 
 # /infra-tmux-yank
 
-Install tmux, TPM, and tmux-yank so copy-mode selections sync to the system
-clipboard on macOS (pbcopy), Linux X11 (xclip/xsel), and Wayland (wl-copy).
-Also enables OSC 52 passthrough for clipboard over SSH.
+Set up tmux clipboard integration end-to-end. Handles everything automatically:
+installs tmux, TPM, clipboard backend (platform-specific), and the tmux-yank plugin.
 
-## Steps
+## Usage
 
-### 1 — Detect OS and install tmux
+Ask Claude to:
+- "Set up tmux clipboard" → runs the install script
+- "Install tmux-yank" → same
 
+Claude will call:
 ```bash
-OS="$(uname -s)"
-if [[ "$OS" == "Darwin" ]]; then
-  if ! command -v tmux &>/dev/null; then
-    brew install tmux
-  fi
-elif [[ "$OS" == "Linux" ]]; then
-  if ! command -v tmux &>/dev/null; then
-    sudo apt-get update && sudo apt-get install -y tmux
-  fi
-  # Install clipboard backend
-  if [[ -n "$WAYLAND_DISPLAY" ]]; then
-    sudo apt-get install -y wl-clipboard
-  else
-    sudo apt-get install -y xclip
-  fi
-fi
-echo "tmux $(tmux -V)"
+bash ~/.claude/skills/infra/tmux-yank/lib/tmux-yank.sh
 ```
 
-### 2 — Install TPM
+## What it does (in order)
 
-```bash
-if [[ ! -d ~/.tmux/plugins/tpm ]]; then
-  git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-  echo "TPM installed"
-else
-  echo "TPM already present"
-fi
-```
+| Step | Action |
+|---|---|
+| 1 | Install tmux if missing (brew on macOS, apt on Linux) |
+| 2 | Install clipboard backend on Linux (xclip for X11, wl-clipboard for Wayland) |
+| 3 | Install TPM to `~/.tmux/plugins/tpm` |
+| 4 | Create `~/.tmux.conf` if missing, or patch existing one to add tmux-yank |
+| 5 | Install all plugins non-interactively via TPM |
+| 6 | Verify and report |
 
-### 3 — Verify ~/.tmux.conf has tmux-yank
+## Platform clipboard backends
 
-Confirm these lines are present in `~/.tmux.conf` (the repo's tmux.conf
-already includes them):
+| Platform | Backend | Installed by |
+|---|---|---|
+| macOS | `pbcopy` / `pbpaste` | built-in |
+| Linux X11 | `xclip` | script |
+| Linux Wayland | `wl-copy` | script |
+| SSH (OSC 52) | terminal passthrough | `set-clipboard on` in tmux.conf |
 
-```
-set -g @plugin 'tmux-plugins/tmux-yank'
-run '~/.tmux/plugins/tpm/tpm'
-```
-
-### 4 — Install plugins
-
-If tmux is already running:
-```bash
-tmux source ~/.tmux.conf
-~/.tmux/plugins/tpm/bin/install_plugins
-```
-
-If starting fresh, start a server and install:
-```bash
-tmux new-session -d -s _setup
-tmux source-file ~/.tmux.conf
-~/.tmux/plugins/tpm/bin/install_plugins
-tmux kill-session -t _setup
-```
-
-### 5 — Verify
-
-```bash
-ls ~/.tmux/plugins/tmux-yank/ && echo "tmux-yank installed"
-```
-
-## Usage after setup
+## After setup
 
 | Action | Binding |
 |---|---|
 | Enter copy mode | `prefix + Enter` |
 | Start selection | `v` |
 | Copy to system clipboard | `y` |
-| Copy current command line | `Y` |
-| Mouse drag + copy | drag then `y` |
-| Paste (outside tmux) | `Cmd+V` / `Ctrl+Shift+V` |
-
-## Platform notes
-
-| Platform | Clipboard backend | Extra package |
-|---|---|---|
-| macOS | `pbcopy` / `pbpaste` | none (built-in) |
-| Linux X11 | `xclip` | `apt install xclip` |
-| Linux Wayland | `wl-copy` | `apt install wl-clipboard` |
-| SSH (OSC 52) | terminal passthrough | iTerm2, WezTerm, Alacritty, Ghostty |
+| Copy current command | `Y` |
+| Mouse drag copy | drag then `y` |
