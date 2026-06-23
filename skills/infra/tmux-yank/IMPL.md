@@ -37,7 +37,8 @@ bash ~/.claude/skills/infra/tmux-yank/lib/tmux-yank.sh
 | macOS | `pbcopy` / `pbpaste` | built-in |
 | Linux X11 | `xclip` | script |
 | Linux Wayland | `wl-copy` | script |
-| SSH (OSC 52) | terminal passthrough | `set-clipboard on` in tmux.conf |
+
+> **Note:** `set-clipboard on` (OSC 52) is intentionally disabled on macOS. Enabling it causes the terminal's OSC 52 handler to race with `pbcopy` and overwrite the clipboard with a different value. `pbcopy` is the sole clipboard path on macOS.
 
 ## After setup
 
@@ -47,4 +48,6 @@ bash ~/.claude/skills/infra/tmux-yank/lib/tmux-yank.sh
 | Start selection | `v` |
 | Copy to system clipboard | `y` |
 | Copy current command | `Y` |
-| Mouse drag copy | drag then `y` |
+| Mouse drag to select | auto-copies to system clipboard |
+| Double-click word | auto-copies word to system clipboard |
+| Triple-click line | auto-copies line to system clipboard |

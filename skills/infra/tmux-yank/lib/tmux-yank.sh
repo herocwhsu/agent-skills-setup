@@ -56,12 +56,28 @@ if [[ ! -f "$TMUX_CONF" ]]; then
   else
     # Minimal fallback
     cat > "$TMUX_CONF" <<'EOF'
+set -g mouse on
+set -g mode-keys vi
+
+# OSC 52 disabled: pbcopy is the authoritative clipboard path on macOS.
+# Enabling set-clipboard causes OSC 52 to race with pbcopy and overwrite it.
+set -g set-clipboard off
+
 set -g @plugin 'tmux-plugins/tpm'
 set -g @plugin 'tmux-plugins/tmux-sensible'
 set -g @plugin 'tmux-plugins/tmux-yank'
-set -g set-clipboard on
 set -g @yank_action 'copy-pipe-and-cancel'
-set -g @yank_selection_mouse 'clipboard'
+
+# Double/triple click → copy word/line to system clipboard (pbcopy)
+bind-key -T root DoubleClick1Pane \
+  select-pane -t = \; \
+  if-shell -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" { send-keys -M } \
+  { copy-mode -H ; send-keys -X select-word ; run-shell -d 0.3 ; send-keys -X copy-pipe-and-cancel "pbcopy" }
+bind-key -T root TripleClick1Pane \
+  select-pane -t = \; \
+  if-shell -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" { send-keys -M } \
+  { copy-mode -H ; send-keys -X select-line ; run-shell -d 0.3 ; send-keys -X copy-pipe-and-cancel "pbcopy" }
+
 run '~/.tmux/plugins/tpm/tpm'
 EOF
   fi
