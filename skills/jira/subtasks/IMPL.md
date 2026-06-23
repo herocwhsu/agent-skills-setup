@@ -192,7 +192,7 @@ unset _JIRA_PASS
 
 ### Step 6 — Transition individual sub-tasks as work proceeds
 
-Before starting each sub-task → **In Progress** (21). After code is complete and committed → **Done** (31). Done = code-complete, not merged. Do NOT wait for human review before marking Done.
+Before starting each sub-task → **In Progress** (21). After code is complete and committed, announce it is code-complete and **wait for explicit human approval** before transitioning to **Done** (31). Do NOT mark Done autonomously — Done requires the user to confirm the sub-task is acceptable.
 
 After each sub-task is Done, add a completion comment with the commit SHA and what was done. Description must not contain unescaped double quotes:
 
