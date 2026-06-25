@@ -21,9 +21,9 @@ _FALLBACK_STORE = "~/.agent-skills-setup/credentials.json"
 
 def _slugify_url(url: str) -> str:
     """Convert a URL to a keychain-safe slug. Mirrors lib/lib.sh:slugify_url."""
-    s = re.sub(r"[^a-zA-Z0-9]", "-", url)
-    s = re.sub(r"-+", "-", s)
-    return s.strip("-")
+    # NOTE: do NOT collapse multiple dashes — bash slugify does not collapse,
+    # so https:// becomes https--- (three dashes). Collapsing causes a key mismatch.
+    return re.sub(r"[^a-zA-Z0-9]", "-", url)
 
 
 def _service_slug(prefix: str, url: str) -> str:
