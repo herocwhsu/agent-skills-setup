@@ -9,7 +9,6 @@
     "mode": "tap",
     "autoSubmit": true
   },
-  "language": "chinese",
   "theme": "dark",
   "hooks": {
     "Notification": [
