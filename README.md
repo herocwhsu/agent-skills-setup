@@ -19,6 +19,10 @@ git clone https://github.com/herocwhsu/agent-skills-setup
 cd agent-skills-setup
 bash scripts/install.sh
 bash scripts/setup-credentials.sh
+
+# Optional: configure Claude Code host environment
+# (statusline, push notifications, Playwright MCP, remote control, tmux)
+bash scripts/setup-host.sh
 ```
 
 **Windows 11 (native PowerShell):**
@@ -30,6 +34,27 @@ cd agent-skills-setup
 ```
 
 Restart your shell after setup.
+
+### Host setup (Claude Code environment)
+
+`scripts/setup-host.sh` configures the Claude Code environment on any Linux/macOS host:
+
+| What | Result |
+|---|---|
+| Statusline | PS1-style `user@host:cwd` with right-aligned `[ctx: Xk/Yk]` |
+| Push notifications | ntfy push on every Claude Code notification (needs ntfy server + token) |
+| Playwright MCP | Live browser debugging — read console errors, inspect DOM, capture screenshots |
+| Remote control | `remoteControlAtStartup: true` — control sessions from Claude mobile app |
+| tmux | Mouse mode, vi-copy yank to clipboard |
+
+Run non-interactively on a new host:
+```bash
+NTFY_URL=https://ntfy.yourserver.com/claude-code \
+NTFY_TOKEN=tk_xxx \
+  bash scripts/setup-host.sh
+```
+
+Or run interactively and it will prompt for ntfy credentials (leave blank to skip notifications).
 
 ---
 
