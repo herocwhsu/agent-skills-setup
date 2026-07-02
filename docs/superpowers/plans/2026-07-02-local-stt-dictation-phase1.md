@@ -25,21 +25,22 @@ Verifies the OpenAI-compatible endpoint + key + model work before we point a GUI
 #!/usr/bin/env bash
 # Smoke-test the LLM polish endpoint Handy will use.
 # Usage: scripts/test-polish-endpoint.sh [base_url]
-# Requires ANTHROPIC_API_KEY in the environment.
+# Requires POLISH_API_KEY (or ANTHROPIC_API_KEY) in the environment.
 set -euo pipefail
 
 BASE_URL="${1:-https://api.anthropic.com/v1}"
 MODEL="${POLISH_MODEL:-claude-haiku-4-5}"
+API_KEY="${POLISH_API_KEY:-${ANTHROPIC_API_KEY:-}}"
 
-if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
-  echo "FAIL: ANTHROPIC_API_KEY is not set" >&2
+if [[ -z "$API_KEY" ]]; then
+  echo "FAIL: POLISH_API_KEY / ANTHROPIC_API_KEY is not set" >&2
   exit 1
 fi
 
 req() {
   local system_prompt="$1" user_text="$2"
   curl -sS --max-time 15 "${BASE_URL}/chat/completions" \
-    -H "Authorization: Bearer ${ANTHROPIC_API_KEY}" \
+    -H "Authorization: Bearer ${API_KEY}" \
     -H "Content-Type: application/json" \
     -d "$(jq -n --arg m "$MODEL" --arg s "$system_prompt" --arg u "$user_text" \
       '{model:$m, max_tokens:300, messages:[{role:"system",content:$s},{role:"user",content:$u}]}')" \
@@ -96,7 +97,17 @@ You clean up dictation transcripts. Rewrite the transcript into natural, correct
 Run: `scripts/test-polish-endpoint.sh`
 Expected: PASS — prints a polished English sentence, a Traditional Chinese sentence (verify characters are Traditional: 說/會/讓, not 说/会/让), then `PASS: endpoint, model, and both prompts respond`
 
-If the Anthropic endpoint rejects the request (e.g. no OpenAI-compat access on this key), rerun against the kiro-gateway: `scripts/test-polish-endpoint.sh http://localhost:7788/v1` (port per `skills/infra/kiro-gateway/README.md`) and record which base URL won in `docs/dictation-handy.md` during Task 3.
+**Endpoint on the Linux host (amended 2026-07-02):** no `ANTHROPIC_API_KEY` and no initialized kiro-gateway exist on this box; Vault holds an `OPENROUTER_API_KEY` instead. Run the test via OpenRouter:
+
+```bash
+export VAULT_ADDR=http://127.0.0.1:8200
+export VAULT_TOKEN=$(grep -i "root token" ~/.vault-history.txt | awk '{print $NF}' | tail -1)
+POLISH_API_KEY=$(vault kv get -field=OPENROUTER_API_KEY secret/firstdigital/config) \
+POLISH_MODEL="anthropic/claude-haiku-4.5" \
+scripts/test-polish-endpoint.sh https://openrouter.ai/api/v1
+```
+
+On the Mac (which has direct Anthropic access), the default invocation applies. Record which base URL each machine uses in `docs/dictation-handy.md` during Task 3.
 
 - [ ] **Step 4: Commit**
 
