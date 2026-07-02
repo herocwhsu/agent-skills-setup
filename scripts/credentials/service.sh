@@ -31,8 +31,11 @@ service_def() {
     gemini)
       echo "gemini|||GEMINI_USER|"
       ;;
+    linear)
+      echo "linear|||LINEAR_USER|"
+      ;;
     *)
-      echo "ERROR: unknown service '$1'. Supported: confluence | jira | apidog | gemini" >&2
+      echo "ERROR: unknown service '$1'. Supported: confluence | jira | apidog | anthropic | gemini | linear" >&2
       return 1
       ;;
   esac

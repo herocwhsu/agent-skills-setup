@@ -15,7 +15,7 @@ case "${1:-}" in
     cat <<EOF
 Usage: $(basename "$0") [service] [action]
 
-Services: confluence | jira | apidog | anthropic | gemini | kiro-gateway
+Services: confluence | jira | apidog | anthropic | gemini | linear | kiro-gateway
 Actions:  add | update | delete | list | verify
 
 Examples:
@@ -41,7 +41,8 @@ if [[ -z "$SERVICE" ]]; then
   echo "  4) Anthropic (for polish-input)"
   echo "  5) Gemini (for polish-input)"
   echo "  6) Kiro-gateway (proxy key)"
-  read -rp "Choice [1-6]: " choice
+  echo "  7) Linear (API key for linear skill)"
+  read -rp "Choice [1-7]: " choice
   case "$choice" in
     1) SERVICE="confluence" ;;
     2) SERVICE="jira" ;;
@@ -49,6 +50,7 @@ if [[ -z "$SERVICE" ]]; then
     4) SERVICE="anthropic" ;;
     5) SERVICE="gemini" ;;
     6) SERVICE="kiro-gateway" ;;
+    7) SERVICE="linear" ;;
     *) echo "Invalid choice."; exit 1 ;;
   esac
 fi
@@ -73,12 +75,11 @@ if [[ -z "$ACTION" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Dispatch
+# Dispatch — per-service handler if one exists, else the generic service.sh
 # ---------------------------------------------------------------------------
 SCRIPT="$CREDS_DIR/${SERVICE}.sh"
-if [[ ! -f "$SCRIPT" ]]; then
-  echo "ERROR: No credential handler found for '$SERVICE' ($SCRIPT)." >&2
-  exit 1
+if [[ -f "$SCRIPT" ]]; then
+  bash "$SCRIPT" "$ACTION"
+else
+  bash "$CREDS_DIR/service.sh" "$SERVICE" "$ACTION"
 fi
-
-bash "$SCRIPT" "$ACTION"
