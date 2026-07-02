@@ -169,7 +169,7 @@ function Install-GithubSkill([string]$Repo, [string]$Subpath, [string]$TargetDir
     $zip  = Join-Path $env:TEMP "agent-skills-$repoName.zip"
     $extr = Join-Path $env:TEMP "agent-skills-$repoName-extract"
 
-    Invoke-Download "https://github.com/$Repo/archive/refs/heads/main.zip" $zip
+    Invoke-Download "https://github.com/$Repo/archive/HEAD.zip" $zip
     if (Test-Path $extr) { Remove-Item $extr -Recurse -Force }
     Expand-Archive -Path $zip -DestinationPath $extr
     Remove-Item $zip
@@ -201,7 +201,7 @@ function Install-GithubSingleSkill([string]$Repo, [string]$SkillPath, [string]$T
     $zip  = Join-Path $env:TEMP "agent-skills-$repoName.zip"
     $extr = Join-Path $env:TEMP "agent-skills-$repoName-extract"
 
-    Invoke-Download "https://github.com/$Repo/archive/refs/heads/main.zip" $zip
+    Invoke-Download "https://github.com/$Repo/archive/HEAD.zip" $zip
     if (Test-Path $extr) { Remove-Item $extr -Recurse -Force }
     Expand-Archive -Path $zip -DestinationPath $extr
     Remove-Item $zip

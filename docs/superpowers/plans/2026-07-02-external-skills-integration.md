@@ -60,7 +60,9 @@ plugin  anthropics/knowledge-work-plugins     productivity
 
 `install_claude_plugin` shells out to `claude plugin marketplace add <repo>` (idempotent) then `claude plugin install <name>@<marketplace>`; skipped with a warning when `claude` CLI is absent or agent ≠ claude.
 
-### Phase 2 — Registry entries
+### Phase 2 — Registry entries — ✅ DONE 2026-07-02
+
+> As-built deltas: trailofbits marketplace name is `trailofbits` (not the repo name) so those entries carry an explicit marketplace field; there is no `semgrep` plugin — substituted `static-analysis` (the closest match; `semgrep-rule-creator`/`-variant-creator` also exist). kanban-skill's default branch is `master`, so installers now download `archive/HEAD.zip` (resolves any default branch) instead of hardcoding `main`.
 
 ```
 github-skill  anthropics/skills               skills/webapp-testing
