@@ -46,6 +46,10 @@ if [[ -d "$REPO_DIR/tests" ]]; then
     run_python "$f"
   done
 fi
+for f in "$REPO_DIR/scripts/tests"/test_*.sh; do
+  [[ -f "$f" ]] || continue
+  run_bash "$f"
+done
 
 echo ""
 echo "==> Skill tests"

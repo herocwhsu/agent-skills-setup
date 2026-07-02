@@ -127,7 +127,6 @@ function Install-KiroAgentConfig([string]$SkillsDir) {
     $lines | Set-Content -Path $out -Encoding UTF8
     Write-Host "  v kiro agent config -> $out ($($entries.Count) resources)"
 }
-}
 
 # ---------------------------------------------------------------------------
 # Download helper
@@ -194,6 +193,58 @@ function Install-GithubSkill([string]$Repo, [string]$Subpath, [string]$TargetDir
     Write-Host "  v $Repo ($count skills)"
 }
 
+function Install-GithubSingleSkill([string]$Repo, [string]$SkillPath, [string]$TargetDir, [string]$Name) {
+    $repoName = $Repo.Split('/')[-1]
+    if (-not $Name) {
+        $Name = if ($SkillPath -eq '.') { $repoName } else { Split-Path $SkillPath -Leaf }
+    }
+    $zip  = Join-Path $env:TEMP "agent-skills-$repoName.zip"
+    $extr = Join-Path $env:TEMP "agent-skills-$repoName-extract"
+
+    Invoke-Download "https://github.com/$Repo/archive/refs/heads/main.zip" $zip
+    if (Test-Path $extr) { Remove-Item $extr -Recurse -Force }
+    Expand-Archive -Path $zip -DestinationPath $extr
+    Remove-Item $zip
+
+    $branchDir = Get-ChildItem $extr -Directory | Where-Object { $_.Name -like "$repoName-*" } | Select-Object -First 1
+    if (-not $branchDir) { throw "Could not find extracted dir for $Repo" }
+
+    $srcDir = Join-Path $branchDir.FullName $SkillPath
+    if (-not (Test-Path $srcDir)) { throw "Skill path '$SkillPath' not found in $Repo" }
+    if (-not (Test-Path (Join-Path $srcDir 'SKILL.md'))) {
+        Write-Warning "No SKILL.md at '$SkillPath' in $Repo — installing anyway"
+    }
+
+    New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+    $dest = Join-Path $TargetDir $Name
+    if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
+    Copy-Item $srcDir $dest -Recurse
+    Add-InstalledSkill $Name
+    Remove-Item $extr -Recurse -Force
+    Write-Host "  v $Repo -> $Name"
+}
+
+function Install-ClaudePlugin([string]$Repo, [string]$PluginName, [string]$Marketplace, [string]$AgentName) {
+    if ($AgentName -ne 'claude') {
+        Write-Host "  plugin '$PluginName' is Claude Code-only — skipped for $AgentName"
+        return
+    }
+    $claude = Get-Command claude -ErrorAction SilentlyContinue
+    if (-not $claude) {
+        Write-Warning "claude CLI not found — skipping plugin $PluginName"
+        return
+    }
+    if (-not $Marketplace) { $Marketplace = $Repo.Split('/')[-1] }
+    # marketplace add errors when already added — safe to ignore
+    & $claude.Source plugin marketplace add $Repo 2>$null | Out-Null
+    & $claude.Source plugin install "$PluginName@$Marketplace" 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  v $PluginName@$Marketplace (claude plugin)"
+    } else {
+        Write-Warning "claude plugin install $PluginName@$Marketplace failed — install manually via /plugin menu"
+    }
+}
+
 function Install-LocalSkill([string]$SkillName, [string]$TargetDir) {
     $src = Join-Path $RepoDir "skills\$SkillName"
     if (-not (Test-Path $src)) {
@@ -240,18 +291,24 @@ foreach ($agentName in $SelectedAgents) {
         $line = $line.Trim()
         if ($line -eq '' -or $line.StartsWith('#')) { continue }
 
-        $parts = $line -split '\s+', 3
+        $parts = $line -split '\s+', 4
         $type  = $parts[0]
         $id    = $parts[1]
-        $extra = if ($parts.Count -ge 3) { $parts[2] } else { '.' }
+        $arg3  = if ($parts.Count -ge 3) { $parts[2] } else { '.' }
+        $arg4  = if ($parts.Count -ge 4) { $parts[3] } else { '' }
 
         try {
             switch ($type) {
-                'npm'    { Install-NpmSkill    $id }
-                'pip'    { Install-PipSkill    $id $targetDir }
-                'github' { Install-GithubSkill $id $extra $targetDir }
-                'local'  { Install-LocalSkill  $id $targetDir }
-                default  { Write-Warning "Unknown type '$type' for '$id', skipping." }
+                'npm'            { Install-NpmSkill    $id }
+                'pip'            { Install-PipSkill    $id $targetDir }
+                'github'         { Install-GithubSkill $id $arg3 $targetDir }
+                'github-skill'   { Install-GithubSingleSkill $id $arg3 $targetDir $arg4 }
+                'plugin'         { Install-ClaudePlugin $id $arg3 $arg4 $agentName }
+                'local'          { Install-LocalSkill  $id $targetDir }
+                'local-optional' {
+                    if (Test-Path (Join-Path $RepoDir "skills\$id")) { Install-LocalSkill $id $targetDir }
+                }
+                default          { Write-Warning "Unknown type '$type' for '$id', skipping." }
             }
         } catch {
             Write-Warning "Failed to install $id`: $_"
