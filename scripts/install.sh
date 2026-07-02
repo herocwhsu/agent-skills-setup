@@ -79,7 +79,7 @@ for agent in "${SELECTED_AGENTS[@]}"; do
     install_kiro_agent_config "$target_dir"
   fi
 
-  while IFS=' ' read -r type id subpath_or_empty; do
+  while IFS=' ' read -r type id arg3 arg4; do
     # Skip comments and blank lines
     case "$type" in
       ""|\#*) continue ;;
@@ -90,7 +90,17 @@ for agent in "${SELECTED_AGENTS[@]}"; do
         # Already handled in the global pass above
         ;;
       github)
-        install_github_skill "$id" "${subpath_or_empty:-.}" "$target_dir" || true
+        install_github_skill "$id" "${arg3:-.}" "$target_dir" || true
+        ;;
+      github-skill)
+        install_github_single_skill "$id" "${arg3:-.}" "$target_dir" "${arg4:-}" || true
+        ;;
+      plugin)
+        if [[ "$agent" == "claude" ]]; then
+          install_claude_plugin "$id" "$arg3" "${arg4:-}" || true
+        else
+          echo "  plugin '$arg3' is Claude Code-only — skipped for $agent"
+        fi
         ;;
       local)
         install_local_skill "$id" "$REPO_DIR" "$target_dir" || true

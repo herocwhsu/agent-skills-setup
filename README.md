@@ -271,6 +271,33 @@ skills/<group>/
 2. Add `local <group>` to `registry.txt`.
 3. Run `bash scripts/install.sh`.
 
+### Add an external skill or Claude Code plugin
+
+External sources go in `registry.txt` too:
+
+```
+# every dir under the subpath becomes a skill
+github        obra/superpowers  skills
+
+# exactly one skill out of a multi-skill repo
+github-skill  anthropics/skills  skills/webapp-testing
+
+# repo root IS the skill — optional last field renames it
+github-skill  wrsmith108/linear-claude-skill  .  linear
+
+# Claude Code plugin — installed via the claude CLI, skipped for Kiro/Gemini
+plugin        anthropics/knowledge-work-plugins  productivity
+
+# when the repo's marketplace.json declares a name different from the repo name
+plugin        anthropics/skills  webapp-testing  anthropic-agent-skills
+```
+
+`github` installs **every** directory under the subpath as a skill;
+`github-skill` installs exactly one (use it when the repo bundles skills you
+don't want). `plugin` entries run `claude plugin marketplace add` +
+`claude plugin install` and require the `claude` CLI — they are skipped with
+a notice for other agents or when the CLI is absent.
+
 The install script only manages skills listed in `registry.txt` — all other
 skills in your agent's skills directory are left untouched.
 

@@ -2,16 +2,25 @@
 # agent-skills-setup registry
 # Single source of truth for all skills to install/uninstall/update.
 #
-# Format:  <type> <identifier> [skills-subpath]
+# Format:  <type> <identifier> [args...]
 #   local           <skill-name>      — skill in this repo under skills/<skill-name>/
 #   local-optional  <skill-name>      — like local, but silently skipped if dir is absent
 #   npm             <package-name>    — install via npm install -g
-#   github          <owner/repo> <skills-subpath>  — download zip from GitHub default branch
+#   github          <owner/repo> <skills-subpath>  — install EVERY dir under subpath as a skill
+#   github-skill    <owner/repo> <skill-path> [name]
+#                                     — install exactly ONE skill dir; "." = repo root is the
+#                                       skill; [name] overrides the installed dir name
+#   plugin          <owner/repo> <plugin-name> [marketplace-name]
+#                                     — Claude Code plugin via `claude plugin` CLI (skipped for
+#                                       other agents); marketplace-name defaults to repo name
 #
 # Examples:
-#   local  fetch-page-to-markdown
-#   npm    @fission-ai/openspec
-#   github context7/context7 .
+#   local         fetch-page-to-markdown
+#   npm           @fission-ai/openspec
+#   github        context7/context7 .
+#   github-skill  anthropics/skills skills/webapp-testing
+#   github-skill  wrsmith108/linear-claude-skill . linear
+#   plugin        anthropics/knowledge-work-plugins productivity
 
 github obra/superpowers skills
 

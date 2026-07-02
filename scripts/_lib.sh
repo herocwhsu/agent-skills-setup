@@ -233,6 +233,78 @@ install_github_skill() {
   echo "  ✓ $repo ($count skills)"
 }
 
+# install_github_single_skill <owner/repo> <skill-path> <target_dir> [name]
+#   Install exactly one skill directory from a GitHub repo (vs.
+#   install_github_skill, which installs every dir under the subpath).
+#   <skill-path> is the skill dir inside the repo; "." means the repo root
+#   itself is the skill. [name] overrides the installed dir name; defaults
+#   to basename of <skill-path>, or the repo name when skill-path is ".".
+install_github_single_skill() {
+  local repo="$1" skill_path="$2" target_dir="$3" name="${4:-}"
+  local reponame="${repo##*/}"
+
+  if [[ -z "$name" ]]; then
+    if [[ "$skill_path" == "." ]]; then
+      name="$reponame"
+    else
+      name=$(basename "$skill_path")
+    fi
+  fi
+
+  local zip extract branch_dir
+  zip=$(mktemp /tmp/agent-skills-XXXXXX.zip)
+  extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
+
+  download_file "https://github.com/${repo}/archive/refs/heads/main.zip" "$zip" || {
+    rm -f "$zip"; rm -rf "$extract"; return 1
+  }
+  unzip -q "$zip" -d "$extract"
+  rm -f "$zip"
+
+  branch_dir=$(find "$extract" -maxdepth 1 -type d -name "${reponame}-*" | head -1)
+  if [[ -z "$branch_dir" ]]; then
+    echo "  ERROR: extracted dir not found for $repo" >&2
+    rm -rf "$extract"; return 1
+  fi
+
+  local src_dir="${branch_dir}/${skill_path}"
+  if [[ ! -d "$src_dir" ]]; then
+    echo "  ERROR: skill path '$skill_path' not found in $repo" >&2
+    rm -rf "$extract"; return 1
+  fi
+  if [[ ! -f "$src_dir/SKILL.md" ]]; then
+    echo "  WARNING: no SKILL.md at '$skill_path' in $repo — installing anyway" >&2
+  fi
+
+  mkdir -p "$target_dir"
+  rm -rf "${target_dir:?}/${name}"
+  cp -r "$src_dir" "$target_dir/$name"
+  record_installed "$name"
+  rm -rf "$extract"
+  echo "  ✓ $repo → $name"
+}
+
+# install_claude_plugin <owner/repo> <plugin-name> [marketplace-name]
+#   Install a Claude Code plugin via the claude CLI. Claude-Code-only —
+#   callers must gate on agent == claude. [marketplace-name] defaults to the
+#   repo name; pass it when the repo's marketplace.json declares a different
+#   name (e.g. anthropics/skills → anthropic-agent-skills).
+install_claude_plugin() {
+  local repo="$1" plugin="$2" marketplace="${3:-${1##*/}}"
+  if ! command -v claude &>/dev/null; then
+    echo "  claude CLI not found — skipping plugin ${plugin}" >&2
+    return 0
+  fi
+  # marketplace add errors when already added — safe to ignore
+  claude plugin marketplace add "$repo" >/dev/null 2>&1 || true
+  if claude plugin install "${plugin}@${marketplace}" >/dev/null 2>&1; then
+    echo "  ✓ ${plugin}@${marketplace} (claude plugin)"
+  else
+    echo "  WARNING: claude plugin install ${plugin}@${marketplace} failed — install manually via /plugin menu" >&2
+  fi
+  return 0
+}
+
 # install_local_skill <skill_name> <repo_dir> <target_dir>
 install_local_skill() {
   local name="$1" repo_dir="$2" target_dir="$3"
@@ -356,6 +428,29 @@ uninstall_github_skill() {
   fi
   rm -rf "$extract"
   echo "  ✓ $repo ($count skills removed via fallback)"
+}
+
+# uninstall_github_single_skill <owner/repo> <skill-path> <target_dir> [name]
+#   Removes the single skill by its resolved name — no network needed.
+uninstall_github_single_skill() {
+  local repo="$1" skill_path="$2" target_dir="$3" name="${4:-}"
+  local reponame="${repo##*/}"
+  if [[ -z "$name" ]]; then
+    if [[ "$skill_path" == "." ]]; then
+      name="$reponame"
+    else
+      name=$(basename "$skill_path")
+    fi
+  fi
+  remove_skill "$name" "$target_dir"
+}
+
+# uninstall_claude_plugin <owner/repo> <plugin-name> [marketplace-name]
+uninstall_claude_plugin() {
+  local repo="$1" plugin="$2" marketplace="${3:-${1##*/}}"
+  command -v claude &>/dev/null || return 0
+  claude plugin uninstall "${plugin}@${marketplace}" >/dev/null 2>&1 || true
+  echo "  ✓ ${plugin}@${marketplace} (claude plugin removed)"
 }
 
 # uninstall_local_skill <skill_name> <target_dir>

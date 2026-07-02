@@ -45,7 +45,7 @@ for agent in "${SELECTED_AGENTS[@]}"; do
     uninstall_kiro_prompts "$REPO_DIR"
   fi
 
-  while IFS=' ' read -r type id subpath_or_empty; do
+  while IFS=' ' read -r type id arg3 arg4; do
     case "$type" in
       ""|\#*) continue ;;
     esac
@@ -55,7 +55,15 @@ for agent in "${SELECTED_AGENTS[@]}"; do
         # Already handled in the global pass above
         ;;
       github)
-        uninstall_github_skill "$id" "${subpath_or_empty:-.}" "$target_dir" || true
+        uninstall_github_skill "$id" "${arg3:-.}" "$target_dir" || true
+        ;;
+      github-skill)
+        uninstall_github_single_skill "$id" "${arg3:-.}" "$target_dir" "${arg4:-}" || true
+        ;;
+      plugin)
+        if [[ "$agent" == "claude" ]]; then
+          uninstall_claude_plugin "$id" "$arg3" "${arg4:-}" || true
+        fi
         ;;
       local)
         uninstall_local_skill "$id" "$target_dir" || true
