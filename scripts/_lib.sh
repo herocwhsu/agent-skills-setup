@@ -201,7 +201,7 @@ install_github_skill() {
   zip=$(mktemp /tmp/agent-skills-XXXXXX.zip)
   extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
 
-  download_file "https://github.com/${repo}/archive/refs/heads/main.zip" "$zip" || {
+  download_file "https://github.com/${repo}/archive/HEAD.zip" "$zip" || {
     rm -f "$zip"; rm -rf "$extract"; return 1
   }
   unzip -q "$zip" -d "$extract"
@@ -255,7 +255,7 @@ install_github_single_skill() {
   zip=$(mktemp /tmp/agent-skills-XXXXXX.zip)
   extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
 
-  download_file "https://github.com/${repo}/archive/refs/heads/main.zip" "$zip" || {
+  download_file "https://github.com/${repo}/archive/HEAD.zip" "$zip" || {
     rm -f "$zip"; rm -rf "$extract"; return 1
   }
   unzip -q "$zip" -d "$extract"
@@ -407,7 +407,7 @@ uninstall_github_skill() {
   zip=$(mktemp /tmp/agent-skills-XXXXXX.zip)
   extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
 
-  download_file "https://github.com/${repo}/archive/refs/heads/main.zip" "$zip" || {
+  download_file "https://github.com/${repo}/archive/HEAD.zip" "$zip" || {
     echo "  WARNING: could not fetch $repo; skipping uninstall." >&2
     rm -f "$zip"; rm -rf "$extract"; return 0
   }

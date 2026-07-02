@@ -26,6 +26,19 @@ github obra/superpowers skills
 
 npm    @fission-ai/openspec
 
+# External skills
+github-skill  anthropics/skills  skills/webapp-testing
+github        mattjoyce/kanban-skill  skills
+github-skill  wrsmith108/linear-claude-skill  .  linear
+
+# Claude Code plugins (claude agent only; needs claude CLI)
+plugin  jarrodwatts/claude-hud  claude-hud
+plugin  anthropics/knowledge-work-plugins  productivity
+plugin  anthropics/knowledge-work-plugins  product-management
+plugin  trailofbits/skills  differential-review  trailofbits
+plugin  trailofbits/skills  property-based-testing  trailofbits
+plugin  trailofbits/skills  static-analysis  trailofbits
+
 local  apidog
 local  audit
 local  external
