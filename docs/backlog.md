@@ -91,6 +91,12 @@ Phase 2/3（廣告、B2B 授權、Discord 社群、國際化）全部降優先�
 
 ---
 
+## claude-mem — persistent memory service (deferred 2026-07-02)
+
+[thedotmack/claude-mem](https://github.com/thedotmack/claude-mem): 5 lifecycle hooks + worker service on :37777 + SQLite + Chroma vector search. Installs via `npx claude-mem install`. Deferred because Claude Code's built-in auto-memory (MEMORY.md) is already active and running both means two memory systems writing in parallel. Revisit if built-in memory proves insufficient on long projects. Full analysis in `docs/superpowers/plans/2026-07-02-external-skills-integration.md`.
+
+---
+
 ## After robots replacement ships
 
 **Source:** [Anthropic — Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents)
