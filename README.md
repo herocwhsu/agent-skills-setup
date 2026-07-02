@@ -41,7 +41,7 @@ Restart your shell after setup.
 
 | What | Result |
 |---|---|
-| Statusline | PS1-style `user@host:cwd` with right-aligned `[ctx: Xk/Yk]` |
+| Statusline | [claude-hud](https://github.com/jarrodwatts/claude-hud) (context bar, active tools/agents, todos) when the plugin + Node/Bun are present; `--legacy-statusline` forces the PS1-style `user@host:cwd [ctx: Xk/Yk]` script |
 | Push notifications | ntfy push on every Claude Code notification (needs ntfy server + token) |
 | Playwright MCP | Live browser debugging — read console errors, inspect DOM, capture screenshots |
 | Remote control | `remoteControlAtStartup: true` — control sessions from Claude mobile app |
@@ -201,6 +201,7 @@ When prompted, choose one or more:
 | Group / Subcommand | Service | Required Key/Auth |
 |---|---|---|
 | `utils/polish-input` | **Gemini** / Anthropic | `GEMINI_API_KEY` (or Google ADC) / `ANTHROPIC_API_KEY` |
+| `linear` skill | **Linear** | Personal API key (Linear Settings → Security & access) |
 | `intake/web-page` | **Confluence** | REST API Token + User |
 | `intake/jira-story` | **Jira** | REST API Token + User |
 | `jira/subtasks` | **Jira** | (Uses same Jira credentials as above) |

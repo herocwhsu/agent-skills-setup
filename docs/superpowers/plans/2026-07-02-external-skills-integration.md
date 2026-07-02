@@ -77,7 +77,9 @@ plugin        trailofbits/skills                 semgrep
 # trailofbits marketplace add makes the other ~37 plugins browsable via /plugin menu
 ```
 
-### Phase 3 — Host/setup integration
+### Phase 3 — Host/setup integration — ✅ DONE 2026-07-02
+
+> As-built: setup-host.sh generates the claude-hud statusLine command itself (same template as /claude-hud:setup — runtime detection bun>node, version-sorted plugin path, COLUMNS export), so no interactive setup step is needed. Also fixed setup-credentials.sh dispatch, which pointed at per-service scripts (`credentials/<service>.sh`) that no longer exist — now falls through to the generic `service.sh`.
 
 - `setup-host.sh`: claude-hud becomes the statusline — the plugin install (Phase 2) owns it; remove/skip the script's own statusline block, keeping a `--legacy-statusline` escape hatch for hosts without Node 18+.
 - claude-mem: **deferred** — tracked in `docs/backlog.md`; revisit after evaluating whether built-in auto-memory falls short on long projects.
