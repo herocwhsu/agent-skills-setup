@@ -12,8 +12,9 @@ gh release download v0.9.0 -R cjpais/Handy -p 'Handy_0.9.0_amd64.deb' -D /tmp/cl
 sudo apt install /tmp/claude-handy/Handy_0.9.0_amd64.deb
 ```
 
-**macOS desktop:** download `Handy_0.9.0_aarch64.dmg` from
-https://github.com/cjpais/Handy/releases/tag/v0.9.0, open, drag to Applications.
+**macOS desktop:** download the dmg matching your Mac from
+https://github.com/cjpais/Handy/releases/tag/v0.9.0 — `Handy_0.9.0_aarch64.dmg`
+(Apple Silicon) or `Handy_0.9.0_x64.dmg` (Intel) — open, drag to Applications.
 Grant Microphone + Accessibility permissions when prompted
 (System Settings → Privacy & Security).
 
