@@ -26,8 +26,11 @@ Grant Microphone + Accessibility permissions when prompted
    - macOS: **Whisper Small** (upgrade to Medium if latency is fine).
    - Linux: **Whisper Base** first (i7-920, no AVX, no GPU); try Small only
      if Base feels fast enough. Record results in Benchmarks below.
-3. Settings → Language: English or Chinese to match the active prompt
-   (v1 has no single-hotkey mode switch; that's Phase 2).
+3. Settings → Language: **English** or **Chinese (Traditional)** to match the
+   active prompt (v1 has no single-hotkey mode switch; that's Phase 2).
+   Picking Chinese (Traditional) (`zh-Hant`) activates Handy's built-in OpenCC
+   conversion, so ZH output is Traditional even offline / without the LLM —
+   the ZH-TW prompt is then optional cleanup (punctuation, filler words).
 4. Settings → Post-Processing — endpoint per machine (both verified by
    `scripts/test-polish-endpoint.sh`):
    - **Linux:** base URL `https://openrouter.ai/api/v1`, model
@@ -61,7 +64,7 @@ Grant Microphone + Accessibility permissions when prompted
 ## Known limitations (v1)
 
 - Language + prompt must be switched together by hand (Phase 2 adds one hotkey).
-- ZH Traditional output depends on the LLM prompt; offline it may paste
-  Simplified (Phase 2 adds deterministic OpenCC s2twp).
-- LLM polish is character-level correct but may keep non-Taiwan phrasing
-  (e.g. 登錄 vs 登入); Phase 2's OpenCC s2twp profile fixes phrase-level usage.
+- Handy's built-in OpenCC uses the character-level `S2tw` profile: Traditional
+  characters are always correct, but non-Taiwan phrasing can remain
+  (e.g. 登錄 instead of 登入). Phase 2 switches to the `S2twp` profile,
+  which also converts Taiwan phrase usage.

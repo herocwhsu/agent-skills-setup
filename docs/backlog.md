@@ -138,6 +138,6 @@ Routing idea: when robots replacement API receives a query, classify it first (s
 ## Handy fork — Phase 2 (dictation)
 
 Spec: docs/superpowers/specs/2026-07-02-local-stt-dictation-design.md
-- OpenCC s2twp step after ZH transcription (deterministic Traditional Chinese, works offline)
+- Switch Handy's built-in OpenCC from S2tw to S2twp (Taiwan phrase usage, e.g. 登入 not 登錄) — see src-tauri/src/actions.rs maybe_convert_chinese_variant
 - Single hotkey cycling EN ⇄ ZH-TW (switches Whisper language + active post-process prompt; mode in tray)
 - Fork: github.com/herocwhsu/Handy → ~/projects/handy; features as upstream PR candidates
