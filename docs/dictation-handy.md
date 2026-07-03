@@ -24,7 +24,8 @@ Grant Microphone + Accessibility permissions when prompted
    Hotkey: `⌥+Space` — adjust to taste.
 2. Settings → Model: **Whisper Small** (upgrade to Medium if latency is fine).
 3. Settings → Language: **English** or **Chinese (Traditional)** to match the
-   active prompt (v1 has no single-hotkey mode switch; that's Phase 2).
+   active prompt, or use the fork build's `Ctrl+Shift+L` / `⌥⇧L` mode hotkey
+   to flip both at once (see "Fork build (Phase 2)" below).
    Picking Chinese (Traditional) (`zh-Hant`) activates Handy's built-in OpenCC
    conversion, so ZH output is Traditional even offline / without the LLM —
    the ZH-TW prompt is then optional cleanup (punctuation, filler words).
@@ -52,10 +53,32 @@ Grant Microphone + Accessibility permissions when prompted
       dictate — raw transcript is pasted, nothing is lost
 - [ ] End-to-end latency acceptable (target ≤ ~5s for a short sentence)
 
+**Fork build additions (once installed on macOS):**
+- [ ] Mode hotkey (`⌥⇧L`) flips language + active prompt + tray label
+- [ ] ZH dictation of 「我要登录系统」 pastes 「我要登入系統」 (S2twp phrase conversion)
+
+## Fork build (Phase 2)
+
+`~/projects/handy` (fork: `herocwhsu/Handy`, upstream: `cjpais/Handy`) adds
+two features on top of stock Handy, merged into the `talkout` integration
+branch:
+
+- **S2twp Chinese conversion** — `zh-Hant` output now uses OpenCC's
+  phrase-aware `S2twp` profile instead of the stock character-only `S2tw`,
+  so dictation gets Taiwan phrasing (登入) not mainland phrasing (登錄).
+- **`cycle_language_mode` hotkey** — `Ctrl+Shift+L` (Linux/Windows) /
+  `⌥⇧L` (macOS) cycles the transcription language EN ⇄ Chinese
+  (Traditional), auto-selects the matching post-process prompt by name
+  (`EN polish` / `ZH-TW`), and shows the active mode in the tray menu.
+
+Verified via `cargo check` + `cargo test --no-run` on the dev box (Linux);
+this Linux host cannot execute the built binary at all — a pre-existing,
+unrelated native-library crash (protobuf global constructor, SIGILL) blocks
+running *any* test or build output here, on code predating this fork too.
+Runtime behavior (including the two items above) needs verification on
+macOS once installed there.
+
 ## Known limitations (v1)
 
-- Language + prompt must be switched together by hand (Phase 2 adds one hotkey).
-- Handy's built-in OpenCC uses the character-level `S2tw` profile: Traditional
-  characters are always correct, but non-Taiwan phrasing can remain
-  (e.g. 登錄 instead of 登入). Phase 2 switches to the `S2twp` profile,
-  which also converts Taiwan phrase usage.
+- Stock (non-fork) Handy still requires switching language + prompt by hand;
+  use the fork build above for the single-hotkey mode switch.
