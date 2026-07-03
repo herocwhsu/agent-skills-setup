@@ -305,6 +305,19 @@ install_claude_plugin() {
   return 0
 }
 
+# is_plugin_opt_in <plugin-name>
+#   True if <plugin-name> is present in the caller's PLUGIN_OPT_IN array
+#   (populated by install.sh from repeated --with-plugin flags). Used to
+#   gate "plugin-optional" registry entries, which are skipped by default.
+is_plugin_opt_in() {
+  local name="$1" p
+  [[ ${#PLUGIN_OPT_IN[@]} -eq 0 ]] && return 1
+  for p in "${PLUGIN_OPT_IN[@]}"; do
+    [[ "$p" == "$name" ]] && return 0
+  done
+  return 1
+}
+
 # install_local_skill <skill_name> <repo_dir> <target_dir>
 install_local_skill() {
   local name="$1" repo_dir="$2" target_dir="$3"

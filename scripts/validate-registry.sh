@@ -3,6 +3,7 @@
 #   local            must have skills/<name>/SKILL.md
 #   github-skill     must be <owner/repo> <skill-path> [name]
 #   plugin           must be <owner/repo> <plugin-name> [marketplace-name]
+#   plugin-optional  same shape as plugin
 # Usage: bash scripts/validate-registry.sh
 set -euo pipefail
 
@@ -34,13 +35,13 @@ while IFS=' ' read -r type id arg3 arg4; do
         errors=$((errors + 1))
       fi
       ;;
-    plugin)
+    plugin|plugin-optional)
       if [[ "$id" != */* ]]; then
-        echo "  ERROR: plugin entry '$id' must be <owner>/<repo> (marketplace repo)" >&2
+        echo "  ERROR: $type entry '$id' must be <owner>/<repo> (marketplace repo)" >&2
         errors=$((errors + 1))
       fi
       if [[ -z "$arg3" ]]; then
-        echo "  ERROR: plugin entry '$id' is missing the plugin name" >&2
+        echo "  ERROR: $type entry '$id' is missing the plugin name" >&2
         errors=$((errors + 1))
       fi
       ;;

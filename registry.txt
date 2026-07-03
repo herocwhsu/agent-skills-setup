@@ -13,6 +13,12 @@
 #   plugin          <owner/repo> <plugin-name> [marketplace-name]
 #                                     — Claude Code plugin via `claude plugin` CLI (skipped for
 #                                       other agents); marketplace-name defaults to repo name
+#   plugin-optional <owner/repo> <plugin-name> [marketplace-name]
+#                                     — like plugin, but only installed when passed via
+#                                       `--with-plugin <plugin-name>`; otherwise skipped with a
+#                                       notice. Use for plugins that add MCP servers requiring
+#                                       their own OAuth login (Jira, Slack, Figma, etc.) so they
+#                                       aren't forced on everyone by default.
 #
 # Examples:
 #   local         fetch-page-to-markdown
@@ -21,6 +27,7 @@
 #   github-skill  anthropics/skills skills/webapp-testing
 #   github-skill  wrsmith108/linear-claude-skill . linear
 #   plugin        anthropics/knowledge-work-plugins productivity
+#   plugin-optional anthropics/knowledge-work-plugins productivity
 
 github obra/superpowers skills
 
@@ -33,11 +40,16 @@ github-skill  wrsmith108/linear-claude-skill  .  linear
 
 # Claude Code plugins (claude agent only; needs claude CLI)
 plugin  jarrodwatts/claude-hud  claude-hud
-plugin  anthropics/knowledge-work-plugins  productivity
-plugin  anthropics/knowledge-work-plugins  product-management
 plugin  trailofbits/skills  differential-review  trailofbits
 plugin  trailofbits/skills  property-based-testing  trailofbits
 plugin  trailofbits/skills  static-analysis  trailofbits
+
+# Optional plugins — each brings a set of MCP servers with their own OAuth
+# login (Jira/Confluence/Slack/etc. or Amplitude/Figma/Intercom/etc.); not
+# installed by default. Install with:
+#   bash scripts/install.sh --with-plugin productivity --with-plugin product-management
+plugin-optional  anthropics/knowledge-work-plugins  productivity
+plugin-optional  anthropics/knowledge-work-plugins  product-management
 
 local  apidog
 local  audit

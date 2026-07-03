@@ -9,6 +9,7 @@ source "$REPO_DIR/scripts/_lib.sh"
 AGENT_ARG=""
 HOOK_SKILLS=()
 WITH_AGENTS_MD=0
+PLUGIN_OPT_IN=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --agent)
@@ -19,6 +20,10 @@ while [[ $# -gt 0 ]]; do
       HOOK_SKILLS+=("$2"); shift 2 ;;
     --with-hook=*)
       HOOK_SKILLS+=("${1#*=}"); shift ;;
+    --with-plugin)
+      PLUGIN_OPT_IN+=("$2"); shift 2 ;;
+    --with-plugin=*)
+      PLUGIN_OPT_IN+=("${1#*=}"); shift ;;
     --with-agents-md)
       WITH_AGENTS_MD=1; shift ;;
     *)
@@ -100,6 +105,15 @@ for agent in "${SELECTED_AGENTS[@]}"; do
           install_claude_plugin "$id" "$arg3" "${arg4:-}" || true
         else
           echo "  plugin '$arg3' is Claude Code-only — skipped for $agent"
+        fi
+        ;;
+      plugin-optional)
+        if [[ "$agent" != "claude" ]]; then
+          echo "  plugin '$arg3' is Claude Code-only — skipped for $agent"
+        elif is_plugin_opt_in "$arg3"; then
+          install_claude_plugin "$id" "$arg3" "${arg4:-}" || true
+        else
+          echo "  optional plugin '$arg3' not requested — install with --with-plugin $arg3"
         fi
         ;;
       local)
