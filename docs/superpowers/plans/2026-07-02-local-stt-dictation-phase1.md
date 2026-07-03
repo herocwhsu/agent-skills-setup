@@ -275,7 +275,7 @@ Append to `docs/backlog.md`:
 Spec: docs/superpowers/specs/2026-07-02-local-stt-dictation-design.md
 - OpenCC s2twp step after ZH transcription (deterministic Traditional Chinese, works offline)
 - Single hotkey cycling EN ⇄ ZH-TW (switches Whisper language + active post-process prompt; mode in tray)
-- Fork: github.com/herohsu/Handy → ~/projects/handy; features as upstream PR candidates
+- Fork: github.com/herocwhsu/Handy → ~/projects/handy; features as upstream PR candidates
 ```
 
 - [ ] **Step 2: Check README for SuperWhisper/voice references and update**
