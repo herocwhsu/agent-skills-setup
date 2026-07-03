@@ -60,7 +60,7 @@ for agent in "${SELECTED_AGENTS[@]}"; do
       github-skill)
         uninstall_github_single_skill "$id" "${arg3:-.}" "$target_dir" "${arg4:-}" || true
         ;;
-      plugin)
+      plugin|plugin-optional)
         if [[ "$agent" == "claude" ]]; then
           uninstall_claude_plugin "$id" "$arg3" "${arg4:-}" || true
         fi

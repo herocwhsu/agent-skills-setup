@@ -181,6 +181,49 @@ else
   bad "repo registry.txt validates" "validate-registry.sh failed on the real registry"
 fi
 
+# --- Test 14: validator accepts well-formed plugin-optional entries ---
+GOOD_OPT="$TMP/registry-good-optional.txt"
+cat > "$GOOD_OPT" <<'EOF'
+plugin-optional  anthropics/knowledge-work-plugins  productivity
+plugin-optional  anthropics/knowledge-work-plugins  product-management
+EOF
+if REGISTRY_FILE="$GOOD_OPT" bash "$SCRIPTS_DIR/validate-registry.sh" >/dev/null 2>&1; then
+  ok "validator accepts well-formed plugin-optional entries"
+else
+  bad "validator accepts well-formed plugin-optional entries" "expected exit 0"
+fi
+
+# --- Test 15: validator rejects malformed plugin-optional entries ---
+BAD_OPT="$TMP/registry-bad-optional.txt"
+cat > "$BAD_OPT" <<'EOF'
+plugin-optional  no-slash-repo
+EOF
+if REGISTRY_FILE="$BAD_OPT" bash "$SCRIPTS_DIR/validate-registry.sh" >/dev/null 2>&1; then
+  bad "validator rejects malformed plugin-optional entries" "expected nonzero exit"
+else
+  ok "validator rejects malformed plugin-optional entries"
+fi
+
+# --- Test 16: is_plugin_opt_in gates on --with-plugin membership ---
+PLUGIN_OPT_IN=()
+if is_plugin_opt_in "productivity"; then
+  bad "is_plugin_opt_in empty array" "expected false with no opt-ins"
+else
+  ok "is_plugin_opt_in empty array returns false"
+fi
+
+PLUGIN_OPT_IN=("productivity")
+if is_plugin_opt_in "productivity"; then
+  ok "is_plugin_opt_in true for requested plugin"
+else
+  bad "is_plugin_opt_in true for requested plugin" "expected true for 'productivity'"
+fi
+if is_plugin_opt_in "product-management"; then
+  bad "is_plugin_opt_in false for non-requested plugin" "expected false for 'product-management'"
+else
+  ok "is_plugin_opt_in false for non-requested plugin"
+fi
+
 echo ""
 echo "Results: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

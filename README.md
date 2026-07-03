@@ -6,6 +6,9 @@ Installs:
 - **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** — spec governance via `/opsx:propose`, `/opsx:apply`, `/opsx:archive` (npm package, auto-installed)
 - **[superpowers](https://github.com/obra/superpowers)** — brainstorming, TDD, systematic debugging, code review, and more
 - **Custom group skills** — five groups (`intake`, `jira`, `review`, `infra`, `utils`) wrapping the previous flat skills, organized for the [Spec-Gated Workflow](docs/migration.md)
+- **External skills** — [webapp-testing](https://github.com/anthropics/skills) (Playwright-driven frontend verification), [kanban-ai](https://github.com/mattjoyce/kanban-skill) (file-based markdown kanban), [linear](https://github.com/wrsmith108/linear-claude-skill) (Linear issues/projects via MCP/SDK/GraphQL)
+- **Claude Code plugins** (claude agent only) — [claude-hud](https://github.com/jarrodwatts/claude-hud) (statusline HUD), [trailofbits](https://github.com/trailofbits/skills) `differential-review` / `property-based-testing` / `static-analysis` (browse the other ~37 via `/plugin menu`)
+- **Optional Claude Code plugins** (not installed by default — see below) — [productivity + product-management](https://github.com/anthropics/knowledge-work-plugins), which each add several MCP servers (Jira/Confluence/Slack/Asana/Linear/Notion/ClickUp/Monday, or Amplitude/Figma/Fireflies/Intercom/Pendo/Similarweb) that require their own OAuth login
 
 Supports: Kiro, Claude Code, Gemini CLI · macOS, Linux, Windows
 
@@ -291,6 +294,9 @@ plugin        anthropics/knowledge-work-plugins  productivity
 
 # when the repo's marketplace.json declares a name different from the repo name
 plugin        anthropics/skills  webapp-testing  anthropic-agent-skills
+
+# optional plugin — only installed when passed via --with-plugin <name>
+plugin-optional  anthropics/knowledge-work-plugins  product-management
 ```
 
 `github` installs **every** directory under the subpath as a skill;
@@ -298,6 +304,18 @@ plugin        anthropics/skills  webapp-testing  anthropic-agent-skills
 don't want). `plugin` entries run `claude plugin marketplace add` +
 `claude plugin install` and require the `claude` CLI — they are skipped with
 a notice for other agents or when the CLI is absent.
+
+**`plugin-optional`** is the same as `plugin`, but skipped by default —
+useful for plugins that add MCP servers with their own OAuth login (Jira,
+Slack, Figma, Amplitude, etc.) that not everyone wants enabled. Opt in per
+plugin at install time:
+
+```bash
+bash scripts/install.sh --with-plugin productivity --with-plugin product-management
+```
+
+`uninstall.sh` always attempts to remove `plugin-optional` entries (a no-op
+if never installed), so cleanup doesn't need the flag repeated.
 
 The install script only manages skills listed in `registry.txt` — all other
 skills in your agent's skills directory are left untouched.
