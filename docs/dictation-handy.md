@@ -1,16 +1,16 @@
 # Handy Dictation Setup (SuperWhisper replacement)
 
-Local speech-to-text on Linux host + macOS desktop. Spec:
+Local speech-to-text on macOS desktop. Spec:
 `docs/superpowers/specs/2026-07-02-local-stt-dictation-design.md`
 
+> **Linux host:** decided (2026-07-03) not to run Handy here — the `handy`
+> 0.9.0 deb was installed but never launched/configured, and has been
+> removed (`sudo apt remove handy`). Dictation is macOS-only for now. The
+> `~/projects/handy` fork still lives on this host as the dev environment
+> for the Phase 2 OpenCC/hotkey work (see backlog); that work targets the
+> macOS build.
+
 ## Install
-
-**Linux host (this repo's machine):**
-
-```bash
-gh release download v0.9.0 -R cjpais/Handy -p 'Handy_0.9.0_amd64.deb' -D /tmp/claude-handy
-sudo apt install /tmp/claude-handy/Handy_0.9.0_amd64.deb
-```
 
 **macOS desktop:** download the dmg matching your Mac from
 https://github.com/cjpais/Handy/releases/tag/v0.9.0 — `Handy_0.9.0_aarch64.dmg`
@@ -18,26 +18,19 @@ https://github.com/cjpais/Handy/releases/tag/v0.9.0 — `Handy_0.9.0_aarch64.dmg
 Grant Microphone + Accessibility permissions when prompted
 (System Settings → Privacy & Security).
 
-## Configure (both machines — GUI labels approximate)
+## Configure (GUI labels approximate)
 
 1. Settings → recording mode: **toggle** (tap to start, tap to stop).
-   Hotkey: `Ctrl+Alt+Space` (Linux) / `⌥+Space` (macOS) — adjust to taste.
-2. Settings → Model:
-   - macOS: **Whisper Small** (upgrade to Medium if latency is fine).
-   - Linux: **Whisper Base** first (i7-920, no AVX, no GPU); try Small only
-     if Base feels fast enough. Record results in Benchmarks below.
+   Hotkey: `⌥+Space` — adjust to taste.
+2. Settings → Model: **Whisper Small** (upgrade to Medium if latency is fine).
 3. Settings → Language: **English** or **Chinese (Traditional)** to match the
    active prompt (v1 has no single-hotkey mode switch; that's Phase 2).
    Picking Chinese (Traditional) (`zh-Hant`) activates Handy's built-in OpenCC
    conversion, so ZH output is Traditional even offline / without the LLM —
    the ZH-TW prompt is then optional cleanup (punctuation, filler words).
-4. Settings → Post-Processing — endpoint per machine (both verified by
-   `scripts/test-polish-endpoint.sh`):
-   - **Linux:** base URL `https://openrouter.ai/api/v1`, model
-     `anthropic/claude-haiku-4.5`, API key = `OPENROUTER_API_KEY` from Vault
-     (`vault kv get -field=OPENROUTER_API_KEY secret/firstdigital/config`).
-   - **macOS:** base URL `https://api.anthropic.com/v1`, model
-     `claude-haiku-4-5`, API key = `ANTHROPIC_API_KEY`.
+4. Settings → Post-Processing — base URL `https://api.anthropic.com/v1`,
+   model `claude-haiku-4-5`, API key = `ANTHROPIC_API_KEY` (verified by
+   `scripts/test-polish-endpoint.sh`).
 
    Two named prompts, each with its own hotkey:
    - **EN polish** — paste `config/handy/prompt-en-polish.txt`
@@ -47,12 +40,10 @@ Grant Microphone + Accessibility permissions when prompted
 
 | Machine | Model | ~10s sentence → text | Verdict |
 |---|---|---|---|
-| Linux i7-920 | Whisper Base | _measure_ | _keep/drop_ |
-| Linux i7-920 | Whisper Small | _measure_ | _keep/drop_ |
 | macOS | Whisper Small | _measure_ | _keep/drop_ |
 | macOS | Whisper Medium | _measure_ | _keep/drop_ |
 
-## Acceptance checklist (run on BOTH machines)
+## Acceptance checklist
 
 - [ ] EN dictation lands polished English in: terminal, browser, editor
 - [ ] ZH dictation lands **Traditional** Chinese (說/會/讓, not 说/会/让)

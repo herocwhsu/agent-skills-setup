@@ -141,3 +141,4 @@ Spec: docs/superpowers/specs/2026-07-02-local-stt-dictation-design.md
 - Switch Handy's built-in OpenCC from S2tw to S2twp (Taiwan phrase usage, e.g. 登入 not 登錄) — see src-tauri/src/actions.rs maybe_convert_chinese_variant
 - Single hotkey cycling EN ⇄ ZH-TW (switches Whisper language + active post-process prompt; mode in tray)
 - Fork: github.com/herocwhsu/Handy → ~/projects/handy; features as upstream PR candidates
+- macOS-only target: decided (2026-07-03) not to run Handy on the Linux host, so the fork build's Linux-install step (plan Task 4 Step 3) is dropped — build/test via `cargo test`/`cargo check` on Linux (dev box), ship the built feature to macOS via upstream PR / manual dmg build there
