@@ -138,14 +138,13 @@ From the same article — patterns already in use vs. gaps:
 
 Routing idea: when robots replacement API receives a query, classify it first (single LLM call), then route to: fundamentals agent / CAPE context / news sentiment DB.
 
-## Handy fork — Phase 2 (dictation)
+## Handy fork — Phase 2 (dictation) ✅ CLOSED 2026-07-08
 
 Spec: docs/superpowers/specs/2026-07-02-local-stt-dictation-design.md
-- [x] Switch Handy's built-in OpenCC from S2tw to S2twp — **already implemented** in the fork
-  (verified 2026-07-08: `actions.rs` uses `BuiltinConfig::S2twp` with unit tests)
-- [x] Single hotkey cycling EN ⇄ ZH-TW — **already implemented** in the fork
-  (verified 2026-07-08: `cycle_language_mode` / `next_language_mode` in `actions.rs`)
-- [ ] **Remaining:** ship to macOS — dmg build on the Mac (Intel build scripts are in the
-  repo, recent commits 9969ced→22a83d1) and/or upstream PRs. Operator action on the Mac.
+- [x] OpenCC S2twp (Taiwan phrase usage) — implemented in the fork with unit tests
+- [x] Single hotkey cycling EN ⇄ ZH-TW — implemented (`cycle_language_mode` in `actions.rs`)
+- **Closed on this host**: both Phase 2 code items are done; the dmg build/install will be
+  done directly on the macOS host (decision 2026-07-08). The upstream "Main Branch Build"
+  workflow was disabled in the fork (it requires upstream signing secrets); the unsigned
+  "Fork macOS Build" workflow remains active and green.
 - Fork: github.com/herocwhsu/Handy → ~/projects/handy
-- macOS-only target: decided (2026-07-03) not to run Handy on the Linux host, so the fork build's Linux-install step (plan Task 4 Step 3) is dropped — build/test via `cargo test`/`cargo check` on Linux (dev box), ship the built feature to macOS via upstream PR / manual dmg build there
