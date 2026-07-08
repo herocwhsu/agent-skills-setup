@@ -84,10 +84,13 @@ Phase 2/3（廣告、B2B 授權、Discord 社群、國際化）全部降優先�
 
 ---
 
-### 方法論透明頁（隨時可做，SEO 加分）
+### 方法論透明頁 ✅ 已完成（2026-07-08，待部署）
 
-- [ ] 獨立頁面：數據來源（Yale Shiller、FRED）、計算公式、溫度指數權重說明、歷史回測說明
+- [x] 獨立頁面：數據來源（Yale Shiller、FRED、TWSE）、計算公式、溫度指數權重說明、歷史回測說明
 - **原因**：理工背景用戶（核心受眾）對「黑盒子結論」天然排斥，透明度是信任的前提
+- 實作：`atelier` commit `5b314ce` — `/methodology` route、footer link、SEO metadata。
+  含 FRED 不可用時 synthetic fallback 的誠實揭露、price-only returns 限制說明。
+  已本機驗證（typecheck/lint/test/build + Playwright 渲染確認），尚未 push/部署。
 
 ---
 
@@ -138,7 +141,11 @@ Routing idea: when robots replacement API receives a query, classify it first (s
 ## Handy fork — Phase 2 (dictation)
 
 Spec: docs/superpowers/specs/2026-07-02-local-stt-dictation-design.md
-- Switch Handy's built-in OpenCC from S2tw to S2twp (Taiwan phrase usage, e.g. 登入 not 登錄) — see src-tauri/src/actions.rs maybe_convert_chinese_variant
-- Single hotkey cycling EN ⇄ ZH-TW (switches Whisper language + active post-process prompt; mode in tray)
-- Fork: github.com/herocwhsu/Handy → ~/projects/handy; features as upstream PR candidates
+- [x] Switch Handy's built-in OpenCC from S2tw to S2twp — **already implemented** in the fork
+  (verified 2026-07-08: `actions.rs` uses `BuiltinConfig::S2twp` with unit tests)
+- [x] Single hotkey cycling EN ⇄ ZH-TW — **already implemented** in the fork
+  (verified 2026-07-08: `cycle_language_mode` / `next_language_mode` in `actions.rs`)
+- [ ] **Remaining:** ship to macOS — dmg build on the Mac (Intel build scripts are in the
+  repo, recent commits 9969ced→22a83d1) and/or upstream PRs. Operator action on the Mac.
+- Fork: github.com/herocwhsu/Handy → ~/projects/handy
 - macOS-only target: decided (2026-07-03) not to run Handy on the Linux host, so the fork build's Linux-install step (plan Task 4 Step 3) is dropped — build/test via `cargo test`/`cargo check` on Linux (dev box), ship the built feature to macOS via upstream PR / manual dmg build there
