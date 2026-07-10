@@ -12,6 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # No requirements.txt exists (a dev host has these globally, masking the
+      # gap) — pytest runs the *.py tests, lxml is needed by confluence-tree's
+      # tree_fetch.py/xhtml_to_md.py. Found by actually running this workflow
+      # on a clean runner and reading the real "No module named X" failures,
+      # not guessed in advance.
+      - name: Install Python test dependencies
+        run: pip install pytest lxml
+
       # Most local-skill tests source ~/.agent-skills-setup/lib.sh and silently
       # skip (exit 0) if it's absent — a real install is required first, or the
       # test run gives false confidence. plugin registry entries are skipped
