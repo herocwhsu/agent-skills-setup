@@ -85,7 +85,7 @@ plugin        trailofbits/skills                 semgrep
 - claude-mem: **deferred** — tracked in `docs/backlog.md`; revisit after evaluating whether built-in auto-memory falls short on long projects.
 - Credentials: Linear API key → extend `setup-credentials.sh` (`linear` service, keychain-namespaced like the others).
 
-### Phase 4 — Docs & verification
+### Phase 4 — Docs & verification — ✅ DONE 2026-07-02
 
 - README: new sources table, conflict notes (statusline, memory).
 - Run `bash scripts/install.sh --agent claude` + `scripts/run-tests.sh`; verify each skill/plugin appears (`ls ~/.claude/skills/`, `claude plugin list`).
