@@ -1,0 +1,23 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  install-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Most local-skill tests source ~/.agent-skills-setup/lib.sh and silently
+      # skip (exit 0) if it's absent — a real install is required first, or the
+      # test run gives false confidence. plugin registry entries are skipped
+      # automatically (claude CLI isn't present on this runner).
+      - name: Install (claude agent)
+        run: bash scripts/install.sh --agent claude
+
+      - name: Run tests
+        run: bash scripts/run-tests.sh --fast
