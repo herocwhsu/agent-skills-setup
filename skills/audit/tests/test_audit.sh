@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Tests glue logic from audit group IMPL.md files.
 set -euo pipefail
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
@@ -19,14 +20,14 @@ STORY_DIR=$(resolve_story_dir AUDIT-1) || { echo "FAIL: test 1 resolve failed un
 
 BUILTIN_AREAS=("Tenant isolation" "Permission" "Error behavior" "Audit log" "Latency" "Failover" "Input validation" "Idempotency")
 for area in "${BUILTIN_AREAS[@]}"; do
-  grep -q "$area" ~/Project/agent-skills-setup/skills/audit/domain-risk/IMPL.md \
+  grep -q "$area" $REPO_DIR/skills/audit/domain-risk/IMPL.md \
     || { echo "FAIL: test 2 missing area: $area"; exit 1; }
 done
 echo "OK: all built-in risk areas present in IMPL.md"
 
 # --- Test 3: .spec-gated/domain-risk-checks.md override path is documented ---
 
-grep -q "spec-gated/domain-risk-checks.md" ~/Project/agent-skills-setup/skills/audit/domain-risk/IMPL.md \
+grep -q "spec-gated/domain-risk-checks.md" $REPO_DIR/skills/audit/domain-risk/IMPL.md \
   || { echo "FAIL: test 3 override path not documented"; exit 1; }
 echo "OK: repo-local override path documented"
 
@@ -57,7 +58,7 @@ echo "OK: audit-report status parsed correctly"
 # --- Test 6: audit SKILL.md documents all three subcommands ---
 
 for sub in "audit-spec" "audit-domain-risk" "audit-handoff"; do
-  grep -q "$sub" ~/Project/agent-skills-setup/skills/audit/SKILL.md \
+  grep -q "$sub" $REPO_DIR/skills/audit/SKILL.md \
     || { echo "FAIL: test 6 $sub not in SKILL.md"; exit 1; }
 done
 echo "OK: all audit subcommands documented"

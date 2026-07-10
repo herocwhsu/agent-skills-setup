@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Tests glue logic from repo/context-scan IMPL.md.
 set -euo pipefail
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
@@ -28,7 +29,7 @@ echo "OK: gh auth failure detected"
 # --- Test 2: repo-context.md frontmatter fields are documented ---
 
 for field in "story:" "scanned_at:" "repo:"; do
-  grep -q "$field" ~/Project/agent-skills-setup/skills/repo/context-scan/IMPL.md \
+  grep -q "$field" $REPO_DIR/skills/repo/context-scan/IMPL.md \
     || { echo "FAIL: test 2 missing frontmatter field: $field"; exit 1; }
 done
 echo "OK: repo-context.md frontmatter fields documented"
@@ -36,20 +37,20 @@ echo "OK: repo-context.md frontmatter fields documented"
 # --- Test 3: context-scan output path is under story dir ---
 
 grep -q 'STORY_DIR.*repo-context.md\|repo-context.md' \
-  ~/Project/agent-skills-setup/skills/repo/context-scan/IMPL.md \
+  $REPO_DIR/skills/repo/context-scan/IMPL.md \
   || { echo "FAIL: test 3 output path not documented"; exit 1; }
 echo "OK: output path documented"
 
 # --- Test 4: SKILL.md mentions gh CLI prerequisite ---
 
-grep -q "gh" ~/Project/agent-skills-setup/skills/repo/SKILL.md \
+grep -q "gh" $REPO_DIR/skills/repo/SKILL.md \
   || { echo "FAIL: test 4 gh CLI prereq not mentioned"; exit 1; }
 echo "OK: gh CLI prerequisite mentioned"
 
 # --- Test 5: context-scan covers permission middleware check ---
 
 grep -q "permission\|middleware\|authorize" \
-  ~/Project/agent-skills-setup/skills/repo/context-scan/IMPL.md \
+  $REPO_DIR/skills/repo/context-scan/IMPL.md \
   || { echo "FAIL: test 5 permission scan not covered"; exit 1; }
 echo "OK: permission middleware scan documented"
 
