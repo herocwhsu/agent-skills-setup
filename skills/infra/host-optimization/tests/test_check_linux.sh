@@ -49,7 +49,7 @@ fi
 
 # ── tune_linux.sh key additions ───────────────────────────────────────────────
 for pattern in \
-  "schedutil" \
+  "powersave" \
   "70-pci-pm.rules" \
   "nouveau" \
   "NvClkMode" \
@@ -65,7 +65,7 @@ done
 
 # ── tune_linux.sh: does NOT use performance governor ─────────────────────────
 if grep -q '"performance"' "$SKILL_DIR/lib/tune_linux.sh"; then
-  fail "tune_linux.sh: still sets 'performance' governor — should be 'schedutil'"
+  fail "tune_linux.sh: still sets 'performance' governor — should be 'powersave'"
 else
   ok "tune_linux.sh: does not set deprecated 'performance' governor"
 fi
