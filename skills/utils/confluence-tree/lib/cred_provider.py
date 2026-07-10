@@ -20,10 +20,17 @@ _FALLBACK_STORE = "~/.agent-skills-setup/credentials.json"
 
 
 def _slugify_url(url: str) -> str:
-    """Convert a URL to a keychain-safe slug. Mirrors lib/lib.sh:slugify_url."""
-    # NOTE: do NOT collapse multiple dashes — bash slugify does not collapse,
-    # so https:// becomes https--- (three dashes). Collapsing causes a key mismatch.
-    return re.sub(r"[^a-zA-Z0-9]", "-", url)
+    """Convert a URL to a keychain-safe slug. Mirrors lib/lib.sh:slugify_url.
+
+    Must collapse consecutive dashes and strip a trailing dash to match bash's
+    `sed 's|[^a-zA-Z0-9]|-|g;s/-\\+/-/g;s/-$//'` exactly — a prior version of
+    this function skipped the collapse step, so bash-stored credential keys
+    (single dash) silently failed to resolve here (triple dash), which is the
+    opposite of what the removed comment claimed.
+    """
+    slug = re.sub(r"[^a-zA-Z0-9]", "-", url)
+    slug = re.sub(r"-+", "-", slug)
+    return slug.rstrip("-")
 
 
 def _service_slug(prefix: str, url: str) -> str:
