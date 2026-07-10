@@ -27,6 +27,20 @@ cat > "$MOCK_BIN/sudo" <<'EOF'
 echo "sudo $@" >> "$MOCK_LOG"
 EOF
 
+# pmset is macOS-only and absent on Linux CI runners — backup_macos() reads
+# it via direct assignment substitution (sleep_val=$(pmset ...)), which trips
+# `set -e` on "command not found" and crashes the whole script before it ever
+# reaches the defaults/killall calls this test actually wants to verify.
+cat > "$MOCK_BIN/pmset" <<'EOF'
+#!/usr/bin/env bash
+echo "pmset $@" >> "$MOCK_LOG"
+if [[ "$*" == *everything* ]]; then
+  echo " hibernatemode        3"
+else
+  echo "  sleep                1"
+fi
+EOF
+
 chmod +x "$MOCK_BIN"/*
 export PATH="$MOCK_BIN:$PATH"
 export MOCK_LOG="$TMP/mock.log"
