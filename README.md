@@ -180,6 +180,11 @@ Re-run after upgrading openspec to refresh the installed skills.
 | `scripts/setup-credentials.sh` | macOS / Linux / Git Bash | Store service credentials in keychain |
 | `scripts/setup-credentials.ps1` | Windows PowerShell | Same, via Windows Credential Manager |
 
+**CI:** `.github/workflows/test.yml` runs on every push/PR to `main` — installs
+(`scripts/install.sh --agent claude`, non-interactive) then runs
+`scripts/run-tests.sh --fast` on a clean `ubuntu-latest` runner. No Renovate on this
+repo (no `renovate.json`); dependency-free bash/PowerShell scripts, nothing to bump.
+
 ---
 
 ## Supported Agents
