@@ -1,6 +1,6 @@
 ---
 name: kiro-gateway
-description: Use when the user wants to initialize, update, rollback, or check the status of the kiro-gateway Docker container. Manages a digest-pinned image with one-step rollback. Subcommands: init, update, rollback, status.
+description: Use when the user wants to initialize, update, rollback, or check the status of the kiro-gateway Docker container. Manages a digest-pinned image with one-step rollback. Subcommands: init, update, rollback, status, setup-alias, setup-codex, remove-codex.
 ---
 
 # kiro-gateway
@@ -15,6 +15,8 @@ Ask Claude to:
 - "Rollback kiro-gateway" → runs `rollback`
 - "Show kiro-gateway status" → runs `status`
 - "Set up claude-kiro alias" → runs `setup-alias`
+- "Set up codex-kiro" → runs `setup-codex`
+- "Remove codex-kiro" → runs `remove-codex`
 
 Claude will call:
 ```bash
@@ -30,6 +32,8 @@ bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh <subcommand>
 | `rollback` | Revert to previous digest. Swaps current ↔ previous in state. |
 | `status` | Show container state, current digest, previous digest. |
 | `setup-alias` | Add `KIRO_PROXY_KEY` + `claude-kiro` alias to shell rc file. |
+| `setup-codex` | Write `~/.codex-kiro/config.toml` (isolated `CODEX_HOME`) + `codex-kiro` alias. Checks for `codex` binary. Idempotent. |
+| `remove-codex` | Remove the `codex-kiro` alias and the `~/.codex-kiro` dir. |
 
 ## State file
 
