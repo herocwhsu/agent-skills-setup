@@ -10,3 +10,6 @@ apctest.output
 
 # Local Claude settings (may contain personal permission overrides)
 .claude/settings.local.json
+
+# SDD workflow scratch (briefs, reports, review diffs, ledger)
+.superpowers/
