@@ -101,6 +101,100 @@ setup_alias_idempotent_test() {
 }
 setup_alias_idempotent_test "setup-alias is idempotent"
 
+# setup-codex: writes config.toml with provider + profile
+setup_codex_config_test() {
+  local name="$1"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
+  touch "$tmpdir/.zshrc"
+  local cfg="$tmpdir/.codex-kiro/config.toml"
+  PATH="$tmpdir/bin:$PATH" \
+    KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
+    bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
+  if [[ -f "$cfg" ]] \
+     && grep -Fq "[model_providers.kiro]" "$cfg" \
+     && grep -Fq 'wire_api = "chat"' "$cfg" \
+     && grep -Fq 'model = "claude-opus-4.8"' "$cfg"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (config missing/incorrect at $cfg)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+setup_codex_config_test "setup-codex writes correct config.toml"
+
+# setup-codex: appends the codex-kiro alias
+setup_codex_alias_test() {
+  local name="$1"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
+  local rc="$tmpdir/.zshrc"
+  touch "$rc"
+  PATH="$tmpdir/bin:$PATH" \
+    KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
+    bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
+  if grep -Fq "alias codex-kiro" "$rc" && grep -Fq "CODEX_HOME" "$rc"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (alias not written to rc)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+setup_codex_alias_test "setup-codex appends codex-kiro alias"
+
+# setup-codex: idempotent — no duplicate config block or alias
+setup_codex_idempotent_test() {
+  local name="$1"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
+  local rc="$tmpdir/.zshrc"
+  touch "$rc"
+  local out
+  for _ in 1 2; do
+    out=$(PATH="$tmpdir/bin:$PATH" \
+      KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+      SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
+      bash "$SCRIPT" setup-codex 2>&1 || true)
+  done
+  local prov_count alias_count
+  prov_count=$(grep -cF "[model_providers.kiro]" "$tmpdir/.codex-kiro/config.toml")
+  alias_count=$(grep -cF "alias codex-kiro" "$rc")
+  if [[ "$prov_count" -eq 1 && "$alias_count" -eq 1 ]] && echo "$out" | grep -q "already present"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (prov=$prov_count alias=$alias_count out=$out)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+setup_codex_idempotent_test "setup-codex is idempotent"
+
+# setup-codex: missing codex binary still writes config + prints install hint
+setup_codex_missing_binary_test() {
+  local name="$1"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
+  touch "$tmpdir/.zshrc"
+  # PATH has ONLY the mock bin dir + coreutils; codex is absent by construction
+  local out
+  out=$(PATH="$tmpdir/bin:/usr/bin:/bin" \
+    KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
+    bash "$SCRIPT" setup-codex 2>&1 || true)
+  if [[ -f "$tmpdir/.codex-kiro/config.toml" ]] && echo "$out" | grep -q "npm i -g @openai/codex"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (out=$out)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+setup_codex_missing_binary_test "setup-codex handles missing codex binary"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

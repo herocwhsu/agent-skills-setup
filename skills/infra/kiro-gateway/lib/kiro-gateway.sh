@@ -223,6 +223,54 @@ cmd_setup_alias() {
   echo "Then launch Claude Code via: claude-kiro"
 }
 
+cmd_setup_codex() {
+  local codex_home="$HOME/.codex-kiro"
+  local config_file="$codex_home/config.toml"
+  local rc_file
+  rc_file=$(rc_file_path)
+
+  local read_cmd
+  read_cmd=$(store_proxy_key)
+
+  mkdir -p "$codex_home"
+  if grep -Fq "[model_providers.kiro]" "$config_file" 2>/dev/null; then
+    echo "codex-kiro config already present in $config_file"
+  else
+    cat > "$config_file" <<'EOF'
+[model_providers.kiro]
+name = "Kiro Gateway"
+base_url = "http://localhost:7788/v1"
+env_key = "KIRO_PROXY_KEY"
+wire_api = "chat"
+
+[profiles.kiro]
+model = "claude-opus-4.8"
+model_provider = "kiro"
+EOF
+    echo "Wrote $config_file"
+  fi
+
+  if grep -Fq "alias codex-kiro" "$rc_file" 2>/dev/null; then
+    echo "codex-kiro alias already present in $rc_file"
+  else
+    {
+      echo ""
+      echo "# kiro-gateway (codex)"
+      echo "alias codex-kiro='CODEX_HOME=\"\$HOME/.codex-kiro\" KIRO_PROXY_KEY=${read_cmd} codex --profile kiro'"
+    } >> "$rc_file"
+    echo "Added codex-kiro alias to $rc_file"
+  fi
+
+  if ! command -v codex &>/dev/null; then
+    echo ""
+    echo "Note: codex not found. Install it with:"
+    echo "  npm i -g @openai/codex"
+  fi
+  echo ""
+  echo "Activate now: source $rc_file"
+  echo "Then launch Codex via the gateway: codex-kiro"
+}
+
 cmd_rollback() {
   local previous
   previous=$(read_state previous)
@@ -253,5 +301,6 @@ case "${1:-}" in
   rollback)      cmd_rollback ;;
   status)        cmd_status ;;
   setup-alias)   cmd_setup_alias ;;
-  *)             die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status | setup-alias" ;;
+  setup-codex)   cmd_setup_codex ;;
+  *)             die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status | setup-alias | setup-codex" ;;
 esac
