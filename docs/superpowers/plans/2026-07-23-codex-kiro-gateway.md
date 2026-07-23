@@ -28,21 +28,27 @@
 
 ---
 
-### Task 1: Extract shared `rc_file_path` and `store_proxy_key` helpers
+### Task 1: Extract helpers + fix keychain-clobbering tests
 
-Refactor only — no behavior change. `setup-codex` (Task 2) needs the rc-file resolution and keychain-storage logic that currently lives inline in `cmd_setup_alias`. Extract both, rewire `cmd_setup_alias`, and prove the existing suite still passes.
+Two coupled changes: (a) extract the rc-file and keychain logic from
+`cmd_setup_alias` into reusable helpers that `setup-codex` (Task 2) will
+consume; (b) fix the existing `setup-alias` tests, which currently invoke the
+**real** `security` binary — writing `test-key` over the real proxy key and
+popping a macOS auth dialog on every run. Both tests must mock `security` and
+assert against the macOS code path (the current `grep KIRO_PROXY_KEY` assertion
+only ever matched the headless-Linux fallback).
 
 **Files:**
 - Modify: `skills/infra/kiro-gateway/lib/kiro-gateway.sh`
-- Test: `skills/infra/kiro-gateway/tests/test_kiro_gateway.sh` (existing tests are the guard)
+- Modify: `skills/infra/kiro-gateway/tests/test_kiro_gateway.sh`
 
 **Interfaces:**
-- Produces: `rc_file_path()` — echoes the rc file path based on `$SHELL`/OS. `store_proxy_key()` — stores `$KIRO_PROXY_KEY` (or prompts) into keychain and echoes the runtime read-command string on stdout; human notes go to stderr.
+- Produces: `rc_file_path()` — echoes the rc file path based on `$SHELL`/OS. `store_proxy_key()` — stores `$KIRO_PROXY_KEY` (or prompts) into keychain and echoes the runtime read-command string on stdout; human notes go to stderr. `make_mock_bin()` (test helper) — prepends a fake `security` to PATH so tests never touch the real keychain.
 
-- [ ] **Step 1: Run the existing suite to confirm a green baseline**
+- [ ] **Step 1: Run the existing suite to observe the failing baseline**
 
 Run: `bash skills/infra/kiro-gateway/tests/test_kiro_gateway.sh`
-Expected: PASS lines, ends with `Results: 6 passed, 0 failed`
+Expected: `Results: 5 passed, 1 failed` — the failure is `setup-alias writes alias and key to rc file` with a `security: ... authorization was canceled by the user` message (or, if you click Allow, it silently overwrites your real keychain key — do NOT click Allow). This task makes the suite green without touching the real keychain.
 
 - [ ] **Step 2: Add the two helpers**
 
@@ -122,16 +128,87 @@ cmd_setup_alias() {
 }
 ```
 
-- [ ] **Step 4: Run the suite to confirm the refactor is behavior-preserving**
+- [ ] **Step 4: Add the `make_mock_bin` test helper**
 
-Run: `bash skills/infra/kiro-gateway/tests/test_kiro_gateway.sh`
-Expected: `Results: 6 passed, 0 failed` (the two `setup-alias` tests still pass — they set `KIRO_PROXY_KEY` and check the rc file)
-
-- [ ] **Step 5: Commit**
+Add after the `expect_exit` helper (near line 41 of the test file):
 
 ```bash
-git add skills/infra/kiro-gateway/lib/kiro-gateway.sh
-git commit -m "refactor: extract rc_file_path and store_proxy_key helpers"
+# Prepend a fake `security` so tests never touch the real keychain.
+make_mock_bin() {
+  local dir="$1"
+  mkdir -p "$dir/bin"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$dir/bin/security"
+  chmod +x "$dir/bin/security"
+}
+```
+
+- [ ] **Step 5: Rewrite the two `setup-alias` tests to mock security and assert the macOS path**
+
+The current tests call the real `security` (clobbering the keychain, popping a dialog) and assert `grep KIRO_PROXY_KEY`, which only ever matched the headless-Linux fallback. Replace `setup_alias_test` (lines ~51-72) and keep `setup_alias_idempotent_test` but add mocking. Replace both function bodies + their call lines with:
+
+```bash
+# setup-alias: writes alias to a temp rc file (mock security, assert macOS path)
+setup_alias_test() {
+  local name="$1"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
+  local rc="$tmpdir/.zshrc"
+  touch "$rc"
+  local actual
+  actual=$(PATH="$tmpdir/bin:$PATH" \
+           KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+           SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
+           bash "$SCRIPT" setup-alias 2>&1 || true)
+  if grep -q "claude-kiro" "$rc" && grep -q "agent-skills-setup:kiro-gateway" "$rc"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (rc file missing alias; output: $actual)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+setup_alias_test "setup-alias writes alias and key to rc file"
+
+# setup-alias: idempotent — does not add duplicate
+setup_alias_idempotent_test() {
+  local name="$1"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
+  local rc="$tmpdir/.zshrc"
+  echo "alias claude-kiro='already here'" > "$rc"
+  local actual
+  actual=$(PATH="$tmpdir/bin:$PATH" \
+           KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+           SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
+           bash "$SCRIPT" setup-alias 2>&1 || true)
+  local count
+  count=$(grep -c "claude-kiro" "$rc")
+  if [[ "$count" -eq 1 ]] && echo "$actual" | grep -q "already present"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (count=$count, output: $actual)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+setup_alias_idempotent_test "setup-alias is idempotent"
+```
+
+- [ ] **Step 6: Run the suite — green with no keychain dialog**
+
+Run: `bash skills/infra/kiro-gateway/tests/test_kiro_gateway.sh`
+Expected: `Results: 6 passed, 0 failed`, and NO macOS keychain dialog appears during the run.
+
+- [ ] **Step 7: Verify the real keychain key is untouched**
+
+Run: `security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w | wc -c`
+Expected: `33` (32-char key + newline), NOT `9` (which would mean `test-key` clobbered it)
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add skills/infra/kiro-gateway/lib/kiro-gateway.sh skills/infra/kiro-gateway/tests/test_kiro_gateway.sh
+git commit -m "refactor: extract rc/keychain helpers and mock security in tests"
 ```
 
 ---
@@ -148,21 +225,9 @@ Writes the isolated Codex config and the `codex-kiro` alias; handles idempotency
 - Consumes: `rc_file_path()`, `store_proxy_key()` from Task 1.
 - Produces: `cmd_setup_codex()` — writes `$HOME/.codex-kiro/config.toml` and appends the `codex-kiro` alias to the rc file; dispatched via `setup-codex`.
 
-- [ ] **Step 1: Add the mock-bin helper and first failing test**
+- [ ] **Step 1: Write the first failing test**
 
-Add this helper to the test file after the `expect_exit` helper (near line 41):
-
-```bash
-# Prepend a fake `security` so tests never touch the real keychain.
-make_mock_bin() {
-  local dir="$1"
-  mkdir -p "$dir/bin"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$dir/bin/security"
-  chmod +x "$dir/bin/security"
-}
-```
-
-Add this test function before the final `echo ""` results block (near line 99):
+The `make_mock_bin` helper already exists in the test file (added in Task 1). Add this test function before the final `echo ""` results block:
 
 ```bash
 # setup-codex: writes config.toml with provider + profile
@@ -619,5 +684,5 @@ git commit -m "docs: document codex-kiro setup in kiro-gateway"
 
 ## Notes / Known Issues
 
-- The existing `setup-alias` tests do **not** mock `security`, so on macOS they write `test-key` into the real keychain under `agent-skills-setup:kiro-gateway`. New codex tests mock `security` to avoid this. Fixing the existing tests is out of scope for this change but worth a follow-up.
+- Task 1 fixes the pre-existing bug where `setup-alias` tests called the real `security` (clobbering the real keychain key and popping a macOS auth dialog). All tests now mock `security` via `make_mock_bin`. The old `grep KIRO_PROXY_KEY` assertion only matched the headless-Linux fallback; it is replaced with `grep agent-skills-setup:kiro-gateway`, which matches the macOS keychain-read code path.
 - End-to-end verification requires installing Codex CLI (`npm i -g @openai/codex`), then running the documented smoke test. Not automatable in this repo's test suite.
