@@ -40,6 +40,14 @@ expect_exit() {
   rm -rf "$tmpdir"
 }
 
+# Prepend a fake `security` so tests never touch the real keychain.
+make_mock_bin() {
+  local dir="$1"
+  mkdir -p "$dir/bin"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$dir/bin/security"
+  chmod +x "$dir/bin/security"
+}
+
 # --- tests ---
 
 expect_output "status no state file shows no state" "no state file" status
@@ -47,25 +55,23 @@ expect_output "rollback no previous exits with message" "no previous version" ro
 expect_exit   "rollback no previous exits 1" 1 rollback
 expect_exit   "unknown subcommand exits 1" 1 unknown-cmd
 
-# setup-alias: writes alias to a temp rc file
+# setup-alias: writes alias to a temp rc file (mock security, assert macOS path)
 setup_alias_test() {
   local name="$1"
   local tmpdir
   tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
   local rc="$tmpdir/.zshrc"
   touch "$rc"
   local actual
-  actual=$(KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
-           SHELL="/bin/zsh" \
-           HOME="$tmpdir" \
-           KIRO_PROXY_KEY="test-key" \
+  actual=$(PATH="$tmpdir/bin:$PATH" \
+           KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+           SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
            bash "$SCRIPT" setup-alias 2>&1 || true)
-  if grep -q "claude-kiro" "$rc" && grep -q "KIRO_PROXY_KEY" "$rc"; then
-    echo "PASS: $name"
-    PASS=$((PASS+1))
+  if grep -q "claude-kiro" "$rc" && grep -q "agent-skills-setup:kiro-gateway" "$rc"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
   else
-    echo "FAIL: $name (rc file missing alias; output: $actual)"
-    FAIL=$((FAIL+1))
+    echo "FAIL: $name (rc file missing alias; output: $actual)"; FAIL=$((FAIL+1))
   fi
   rm -rf "$tmpdir"
 }
@@ -76,22 +82,20 @@ setup_alias_idempotent_test() {
   local name="$1"
   local tmpdir
   tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
   local rc="$tmpdir/.zshrc"
   echo "alias claude-kiro='already here'" > "$rc"
   local actual
-  actual=$(KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
-           SHELL="/bin/zsh" \
-           HOME="$tmpdir" \
-           KIRO_PROXY_KEY="test-key" \
+  actual=$(PATH="$tmpdir/bin:$PATH" \
+           KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+           SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
            bash "$SCRIPT" setup-alias 2>&1 || true)
   local count
   count=$(grep -c "claude-kiro" "$rc")
   if [[ "$count" -eq 1 ]] && echo "$actual" | grep -q "already present"; then
-    echo "PASS: $name"
-    PASS=$((PASS+1))
+    echo "PASS: $name"; PASS=$((PASS+1))
   else
-    echo "FAIL: $name (count=$count, output: $actual)"
-    FAIL=$((FAIL+1))
+    echo "FAIL: $name (count=$count, output: $actual)"; FAIL=$((FAIL+1))
   fi
   rm -rf "$tmpdir"
 }

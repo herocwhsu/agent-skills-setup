@@ -45,6 +45,45 @@ container_status() {
   docker inspect --format '{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "absent"
 }
 
+rc_file_path() {
+  case "${SHELL:-}" in
+    */zsh)  echo "$HOME/.zshrc" ;;
+    */bash)
+      if [[ "$(uname -s)" == "Darwin" ]]; then
+        echo "$HOME/.bash_profile"
+      else
+        echo "$HOME/.bashrc"
+      fi
+      ;;
+    *) echo "$HOME/.zshrc" ;;
+  esac
+}
+
+# Stores the proxy key in the OS keychain (or headless fallback) and echoes the
+# shell snippet that reads it back at runtime. Notes go to stderr so stdout is
+# exactly the read command.
+store_proxy_key() {
+  local proxy_key="${KIRO_PROXY_KEY:-}"
+  if [[ -z "$proxy_key" ]]; then
+    read -rp "KIRO_PROXY_KEY value (leave blank for 'kiro-local'): " proxy_key
+    proxy_key="${proxy_key:-kiro-local}"
+  fi
+
+  if command -v security &>/dev/null; then
+    security delete-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" >/dev/null 2>&1 || true
+    security add-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w "$proxy_key"
+    echo '$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null)'
+  elif command -v secret-tool &>/dev/null; then
+    echo -n "$proxy_key" | secret-tool store --label="kiro-gateway proxy-key" \
+      service "agent-skills-setup:kiro-gateway" username "proxy-key"
+    echo '$(secret-tool lookup service "agent-skills-setup:kiro-gateway" username "proxy-key" 2>/dev/null)'
+  else
+    echo "export KIRO_PROXY_KEY=${proxy_key}" >> "$HOME/.zshrc.local"
+    echo "  Note: no keychain available — token written to ~/.zshrc.local (headless fallback)" >&2
+    echo "\${KIRO_PROXY_KEY}"
+  fi
+}
+
 resolve_digest() {
   local ref="$1"
   docker inspect --format '{{index .RepoDigests 0}}' "$ref" 2>/dev/null | grep -o 'sha256:[a-f0-9]*' || true
@@ -159,44 +198,15 @@ cmd_update() {
 
 cmd_setup_alias() {
   local rc_file
-  case "${SHELL:-}" in
-    */zsh)  rc_file="$HOME/.zshrc" ;;
-    */bash)
-      if [[ "$(uname -s)" == "Darwin" ]]; then
-        rc_file="$HOME/.bash_profile"
-      else
-        rc_file="$HOME/.bashrc"
-      fi
-      ;;
-    *) rc_file="$HOME/.zshrc" ;;
-  esac
+  rc_file=$(rc_file_path)
 
   if grep -Fq "claude-kiro" "$rc_file" 2>/dev/null; then
     echo "claude-kiro alias already present in $rc_file"
     return 0
   fi
 
-  local proxy_key="${KIRO_PROXY_KEY:-}"
-  if [[ -z "$proxy_key" ]]; then
-    read -rp "KIRO_PROXY_KEY value (leave blank for 'kiro-local'): " proxy_key
-    proxy_key="${proxy_key:-kiro-local}"
-  fi
-
-  # Store in keychain — never write plaintext token to shell rc files
-  if command -v security &>/dev/null; then
-    security delete-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" >/dev/null 2>&1 || true
-    security add-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w "$proxy_key"
-    local read_cmd='$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null)'
-  elif command -v secret-tool &>/dev/null; then
-    echo -n "$proxy_key" | secret-tool store --label="kiro-gateway proxy-key" \
-      service "agent-skills-setup:kiro-gateway" username "proxy-key"
-    local read_cmd='$(secret-tool lookup service "agent-skills-setup:kiro-gateway" username "proxy-key" 2>/dev/null)'
-  else
-    # Headless Linux fallback: write to ~/.zshrc.local, not main rc
-    local read_cmd="\${KIRO_PROXY_KEY}"
-    echo "export KIRO_PROXY_KEY=${proxy_key}" >> "$HOME/.zshrc.local"
-    echo "  Note: no keychain available — token written to ~/.zshrc.local (headless fallback)"
-  fi
+  local read_cmd
+  read_cmd=$(store_proxy_key)
 
   {
     echo ""
