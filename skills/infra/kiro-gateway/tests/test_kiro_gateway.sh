@@ -218,6 +218,25 @@ remove_codex_test() {
 }
 remove_codex_test "remove-codex strips alias and deletes dir"
 
+# status: reports codex configured after setup, independent of docker/state
+status_codex_configured_test() {
+  local name="$1"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/.codex-kiro"
+  printf '[model_providers.kiro]\n' > "$tmpdir/.codex-kiro/config.toml"
+  local out
+  out=$(KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" HOME="$tmpdir" \
+    bash "$SCRIPT" status 2>&1 || true)
+  if echo "$out" | grep -q "Codex:      configured"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (out=$out)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+status_codex_configured_test "status reports codex configured"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

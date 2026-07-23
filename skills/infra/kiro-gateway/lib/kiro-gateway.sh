@@ -109,6 +109,12 @@ start_container() {
 # ---------------------------------------------------------------------------
 
 cmd_status() {
+  if [[ -f "$HOME/.codex-kiro/config.toml" ]] \
+     && grep -Fq "[model_providers.kiro]" "$HOME/.codex-kiro/config.toml" 2>/dev/null; then
+    echo "Codex:      configured (~/.codex-kiro)"
+  else
+    echo "Codex:      not configured"
+  fi
   if [[ ! -f "$STATE_FILE" ]]; then
     echo "State file: no state file (run 'init' first)"
     return 0
