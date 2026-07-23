@@ -283,8 +283,8 @@ cmd_remove_codex() {
   rc_file=$(rc_file_path)
 
   if [[ -f "$rc_file" ]] && grep -Fq "codex-kiro" "$rc_file"; then
-    grep -v -e "alias codex-kiro" -e "kiro-gateway (codex)" "$rc_file" > "$rc_file.tmp" \
-      && mv "$rc_file.tmp" "$rc_file"
+    grep -v -e "alias codex-kiro" -e "kiro-gateway (codex)" "$rc_file" > "$rc_file.tmp" || true
+    mv "$rc_file.tmp" "$rc_file"
     echo "Removed codex-kiro alias from $rc_file"
   else
     echo "No codex-kiro alias found in $rc_file"

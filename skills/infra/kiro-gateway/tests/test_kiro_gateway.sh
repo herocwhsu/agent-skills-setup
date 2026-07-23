@@ -218,6 +218,35 @@ remove_codex_test() {
 }
 remove_codex_test "remove-codex strips alias and deletes dir"
 
+# remove-codex: rc file whose ONLY content is the codex-kiro block (no orphan tmp)
+remove_codex_only_content_test() {
+  local name="$1"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
+  local rc="$tmpdir/.zshrc"
+  touch "$rc"
+  # Run setup-codex so the rc contains ONLY the codex-kiro comment+alias
+  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
+    bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
+  # Now remove-codex: rc content is exactly those lines (grep -v produces empty output)
+  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" \
+    bash "$SCRIPT" remove-codex >/dev/null 2>&1 || true
+  local alias_gone tmp_gone
+  alias_gone=true; tmp_gone=true
+  grep -Fq "codex-kiro" "$rc" 2>/dev/null && alias_gone=false
+  [[ -f "$rc.tmp" ]] && tmp_gone=false
+  if $alias_gone && $tmp_gone; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (alias_gone=$alias_gone tmp_gone=$tmp_gone)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+remove_codex_only_content_test "remove-codex: empty-result grep leaves no orphan tmp file"
+
 # status: reports codex configured after setup, independent of docker/state
 status_codex_configured_test() {
   local name="$1"
