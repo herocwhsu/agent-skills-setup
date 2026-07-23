@@ -271,6 +271,27 @@ EOF
   echo "Then launch Codex via the gateway: codex-kiro"
 }
 
+cmd_remove_codex() {
+  local codex_home="$HOME/.codex-kiro"
+  local rc_file
+  rc_file=$(rc_file_path)
+
+  if [[ -f "$rc_file" ]] && grep -Fq "codex-kiro" "$rc_file"; then
+    grep -v -e "alias codex-kiro" -e "kiro-gateway (codex)" "$rc_file" > "$rc_file.tmp" \
+      && mv "$rc_file.tmp" "$rc_file"
+    echo "Removed codex-kiro alias from $rc_file"
+  else
+    echo "No codex-kiro alias found in $rc_file"
+  fi
+
+  if [[ -d "$codex_home" ]]; then
+    rm -rf "$codex_home"
+    echo "Removed $codex_home"
+  else
+    echo "No $codex_home directory to remove"
+  fi
+}
+
 cmd_rollback() {
   local previous
   previous=$(read_state previous)
@@ -302,5 +323,6 @@ case "${1:-}" in
   status)        cmd_status ;;
   setup-alias)   cmd_setup_alias ;;
   setup-codex)   cmd_setup_codex ;;
-  *)             die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status | setup-alias | setup-codex" ;;
+  remove-codex)  cmd_remove_codex ;;
+  *)             die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status | setup-alias | setup-codex | remove-codex" ;;
 esac

@@ -195,6 +195,29 @@ setup_codex_missing_binary_test() {
 }
 setup_codex_missing_binary_test "setup-codex handles missing codex binary"
 
+# remove-codex: strips alias and deletes the config dir
+remove_codex_test() {
+  local name="$1"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
+  local rc="$tmpdir/.zshrc"
+  touch "$rc"
+  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
+    bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
+  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" \
+    bash "$SCRIPT" remove-codex >/dev/null 2>&1 || true
+  if ! grep -Fq "codex-kiro" "$rc" && [[ ! -d "$tmpdir/.codex-kiro" ]]; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (alias or dir still present)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+remove_codex_test "remove-codex strips alias and deletes dir"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
