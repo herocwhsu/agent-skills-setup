@@ -56,6 +56,48 @@ On Linux, `secret-tool` is used instead of `security`. On headless Linux, the ke
 1. `bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh init` — start the container
 2. `claude-kiro` — launch Claude Code through the gateway
 
+## The codex-kiro alias
+
+`codex-kiro` launches OpenAI's Codex CLI against the gateway using an isolated
+config home so it never collides with anything already in `~/.codex`:
+
+```bash
+alias codex-kiro='CODEX_HOME="$HOME/.codex-kiro" KIRO_PROXY_KEY=$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null) codex --profile kiro'
+```
+
+Set it up with:
+
+```bash
+bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh setup-codex
+source ~/.zshrc
+```
+
+This writes `~/.codex-kiro/config.toml`:
+
+```toml
+[model_providers.kiro]
+name = "Kiro Gateway"
+base_url = "http://localhost:7788/v1"
+env_key = "KIRO_PROXY_KEY"
+wire_api = "chat"
+
+[profiles.kiro]
+model = "claude-opus-4.8"
+model_provider = "kiro"
+```
+
+`wire_api = "chat"` is required — the gateway serves OpenAI Chat Completions,
+not the Responses API. Override the model per run: `codex-kiro -m claude-sonnet-4.6`.
+
+If `codex` isn't installed, `setup-codex` still writes the config and prints
+`npm i -g @openai/codex`. Remove everything with `remove-codex`.
+
+Smoke test once installed:
+
+```bash
+codex-kiro exec "reply with OK"
+```
+
 ## Container details
 
 | Setting | Value |
