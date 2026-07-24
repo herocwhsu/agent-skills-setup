@@ -49,6 +49,7 @@ FAIL=0
 run_case() {
   local name="$1" expected="$2" cmd="$3" content="${4-}"
   local tmp; tmp=$(mktemp -d)
+  local code=0
   ( cd "$tmp"
     git init -q
     git config user.email t@t; git config user.name t
@@ -58,8 +59,7 @@ run_case() {
     fi
     printf '{"tool_input":{"command":%s}}' "$(printf '%s' "$cmd" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" \
       | bash "$HOOK" >/dev/null 2>&1
-  )
-  local code=$?
+  ) || code=$?
   if [[ "$code" -eq "$expected" ]]; then echo "PASS: $name"; PASS=$((PASS+1))
   else echo "FAIL: $name (expected exit $expected, got $code)"; FAIL=$((FAIL+1)); fi
   rm -rf "$tmp"
@@ -117,7 +117,11 @@ echo "$cmd" | grep -Eq '(^|[[:space:]])git[[:space:]]+([^[:space:]]+[[:space:]]+
 # Must be in a git repo.
 git rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
-mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.sh$' || true)
+# Portable (bash 3.2 / macOS /bin/bash has no `mapfile`).
+staged=()
+while IFS= read -r f; do
+  [[ -n "$f" ]] && staged+=("$f")
+done < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.sh$' || true)
 [[ ${#staged[@]} -eq 0 ]] && exit 0
 
 have_shellcheck=0
