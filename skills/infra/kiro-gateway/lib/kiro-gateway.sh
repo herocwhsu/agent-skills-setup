@@ -88,6 +88,33 @@ store_proxy_key() {
 
 build_path() { echo "$CANONICAL_DIR"; }
 
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PATCH_FILE="$LIB_DIR/../patches/kiro-gateway-system-role.patch"
+
+# Assert the role:str fix is present before any build; apply the tracked
+# patch if the field is still the strict Literal. Aborts loudly if the patch
+# cannot be applied — never build from known-broken code.
+fix_guard() {
+  local repo; repo="$(build_path)"
+  local model="$repo/kiro/models_anthropic.py"
+  [[ -f "$model" ]] || die "Cannot find $model — is the build path a kiro-gateway checkout?"
+
+  if grep -Eq '^\s*role:\s*str' "$model"; then
+    echo "Fix-guard: role:str present."
+    return 0
+  fi
+
+  echo "Fix-guard: strict role type detected — applying tracked patch..."
+  [[ -f "$PATCH_FILE" ]] || die "Fix patch missing: $PATCH_FILE"
+  if git -C "$repo" apply --check "$PATCH_FILE" 2>/dev/null; then
+    git -C "$repo" apply "$PATCH_FILE"
+  else
+    die "Fix patch will not apply cleanly to $repo — aborting before build. Resolve manually."
+  fi
+  grep -Eq '^\s*role:\s*str' "$model" || die "Fix-guard: role:str still absent after patch — aborting."
+  echo "Fix-guard: patch applied."
+}
+
 # Expand a leading ~ to $HOME and make absolute.
 _expand_path() {
   local p="$1"
@@ -390,5 +417,6 @@ case "${1:-}" in
   setup-codex)   cmd_setup_codex ;;
   remove-codex)  cmd_remove_codex ;;
   __resolve_build_path) resolve_build_path ;;
+  __fix_guard)   fix_guard ;;
   *)             die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status | setup-alias | setup-codex | remove-codex" ;;
 esac
