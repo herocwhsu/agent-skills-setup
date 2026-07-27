@@ -422,6 +422,83 @@ EOF
 }
 init_realdocker_absent_test "init handles real-docker absent (blank stdout + exit 1)"
 
+# Regression (C1): a FRESH init (no prior 'previous' sha) must EXIT 0 and must
+# actually RUN the health probe. write_state's last command is a conditional
+# echo that returns 1 when previous is empty; as cmd_init's last statement
+# before health_probe, a non-zero return aborts init under set -e — silently
+# skipping the probe (the branch's core verification) on every new build. This
+# test does NOT set SKIP_HEALTH_PROBE and asserts init exit 0 + probe ran (curl
+# mock touches a sentinel). Fails on buggy code (init exits 1, sentinel absent).
+init_fresh_exits_zero_and_probes_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
+  make_docker_git_mocks "$tmpdir" "abc1234"
+  cat > "$tmpdir/bin/security" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in *"find-generic-password"*"-w"*) echo "test-key-123";; *) exit 0;; esac
+EOF
+  # curl mock: prove the probe ran by touching a sentinel, then report HTTP 200.
+  cat > "$tmpdir/bin/curl" <<EOF
+#!/usr/bin/env bash
+touch "$tmpdir/probe.ran"
+echo -n 200
+EOF
+  chmod +x "$tmpdir/bin/security" "$tmpdir/bin/curl"
+  local state="$tmpdir/state" code=0
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    KIRO_GATEWAY_STATE_FILE="$state" KIRO_GATEWAY_DIR="" \
+    HEALTH_PROBE_RETRIES=2 HEALTH_PROBE_INTERVAL=0 \
+    bash "$SCRIPT" init >/dev/null 2>&1 || code=$?
+  if [[ "$code" -eq 0 ]] && [[ -f "$tmpdir/probe.ran" ]] \
+     && grep -q "current=abc1234" "$state" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (init exit=$code, probe.ran=$([[ -f "$tmpdir/probe.ran" ]] && echo yes || echo no))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+init_fresh_exits_zero_and_probes_test "fresh init exits 0 and runs the health probe"
+
+# Regression (I1): render_env_file must reach its store-and-retry fallback when
+# the keychain is EMPTY. `security find-generic-password -w` exits 44 when the
+# item is absent; a bare key="$(read_proxy_key)" inherits that under set -e and
+# aborts BEFORE the fallback can store+reread. Stateful security mock: find
+# exits 44 until add-generic-password stores a key. With KIRO_PROXY_KEY set, the
+# fallback stores non-interactively. Fixed code writes the key; buggy code
+# aborts and writes no env file.
+render_env_empty_keychain_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/bin" "$tmpdir/Library/Application Support/kiro-cli"
+  cat > "$tmpdir/bin/security" <<EOF
+#!/usr/bin/env bash
+KEYFILE="$tmpdir/kc.key"
+case "\$1" in
+  find-generic-password)
+    if [[ "\$*" == *"-w"* ]]; then
+      if [[ -f "\$KEYFILE" ]]; then cat "\$KEYFILE"; exit 0; else exit 44; fi
+    fi
+    exit 0 ;;
+  add-generic-password)
+    prev=""; for a in "\$@"; do [[ "\$prev" == "-w" ]] && printf '%s' "\$a" > "\$KEYFILE"; prev="\$a"; done
+    exit 0 ;;
+  *) exit 0 ;;
+esac
+EOF
+  chmod +x "$tmpdir/bin/security"
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" KIRO_PROXY_KEY="bootstrap-key" \
+    bash "$SCRIPT" __render_env >/dev/null 2>&1 || true
+  local envf="$tmpdir/.env.kiro-gateway"
+  if [[ -f "$envf" ]] && grep -q "^PROXY_API_KEY=bootstrap-key$" "$envf"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (env missing or key not stored: $(cat "$envf" 2>/dev/null))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+render_env_empty_keychain_test "render_env_file bootstraps from empty keychain (no set -e abort)"
+
 # init idempotency: on an ALREADY-RUNNING container, init must NOT rebuild and
 # must NOT rewrite state (else state.current drifts from the live image).
 init_running_noop_test() {
