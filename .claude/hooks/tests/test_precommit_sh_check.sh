@@ -38,6 +38,19 @@ if command -v shellcheck >/dev/null 2>&1; then
   run_case "shellcheck error blocks" 2 'git commit -m x' $'#!/usr/bin/env bash\necho "$(\n'
 fi
 
+settings_valid_test() {
+  local name="$1"
+  local settings
+  settings="$(cd "$(dirname "$0")/../.." && pwd)/settings.json"
+  if [[ -f "$settings" ]] \
+     && python3 -c "import json,sys; d=json.load(open('$settings')); h=d['hooks']['PreToolUse']; assert any('precommit-sh-check.sh' in json.dumps(x) for x in h)" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (settings missing or hook not registered)"; FAIL=$((FAIL+1))
+  fi
+}
+settings_valid_test "settings.json registers the PreToolUse hook"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
