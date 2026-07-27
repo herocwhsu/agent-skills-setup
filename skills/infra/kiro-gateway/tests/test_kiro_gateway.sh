@@ -379,6 +379,49 @@ EOF
 }
 init_builds_sha_test "init builds SHA-tagged image and records current"
 
+# init with a REAL-docker-style absent container: `docker inspect` prints a
+# blank line to stdout AND exits 1 when the container is missing. container_status
+# must still resolve to "absent" (not "\nabsent") so init reaches the build branch.
+init_realdocker_absent_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/bin"
+  # docker mock: inspect prints a BLANK line to stdout and exits 1 (real 29.x behavior)
+  cat > "$tmpdir/bin/docker" <<EOF
+#!/usr/bin/env bash
+echo "docker \$*" >> "$tmpdir/docker.calls"
+case "\$1" in
+  inspect) echo ""; exit 1 ;;
+  build|run|stop|rm|start|logs) exit 0 ;;
+  *) exit 0 ;;
+esac
+EOF
+  cat > "$tmpdir/bin/git" <<EOF
+#!/usr/bin/env bash
+if [[ "\$*" == *"rev-parse --short HEAD"* ]]; then echo "def5678"; exit 0; fi
+exit 0
+EOF
+  cat > "$tmpdir/bin/security" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in *"find-generic-password"*"-w"*) echo "k";; *) exit 0;; esac
+EOF
+  chmod +x "$tmpdir/bin/docker" "$tmpdir/bin/git" "$tmpdir/bin/security"
+  local state="$tmpdir/state"
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    KIRO_GATEWAY_STATE_FILE="$state" KIRO_GATEWAY_DIR="" SKIP_HEALTH_PROBE=1 \
+    bash "$SCRIPT" init >/dev/null 2>&1 || true
+  # must have reached the build branch (built def5678) and recorded it
+  if grep -q "build -t kiro-gateway:def5678" "$tmpdir/docker.calls" 2>/dev/null \
+     && grep -q "current=def5678" "$state" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (did not reach build branch: calls=$(cat "$tmpdir/docker.calls" 2>/dev/null))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+init_realdocker_absent_test "init handles real-docker absent (blank stdout + exit 1)"
+
 # init idempotency: on an ALREADY-RUNNING container, init must NOT rebuild and
 # must NOT rewrite state (else state.current drifts from the live image).
 init_running_noop_test() {

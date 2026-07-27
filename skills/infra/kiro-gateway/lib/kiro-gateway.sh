@@ -43,7 +43,12 @@ write_state() {
 }
 
 container_status() {
-  docker inspect --format '{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "absent"
+  # docker inspect prints a blank line to stdout AND exits non-zero when the
+  # container is missing (docker 29.x), so `|| echo absent` would yield
+  # "\nabsent". Capture stdout and treat empty as absent — exit-code-independent.
+  local s
+  s=$(docker inspect --format '{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null)
+  if [[ -n "$s" ]]; then echo "$s"; else echo "absent"; fi
 }
 
 rc_file_path() {
