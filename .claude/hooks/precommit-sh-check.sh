@@ -5,26 +5,45 @@
 set -euo pipefail
 
 input=$(cat)
-cmd=$(printf '%s' "$input" | python3 -c "
-import json,sys
+# Classify the command with proper shell tokenization (shlex), NOT substring
+# matching: decide whether it is a real `git commit` that should be gated.
+# Prints GATE to gate, or nothing to skip. Token-level parsing means flag-like
+# text inside the -m/-F message (e.g. `-m "fix --dry-run"`) stays one token and
+# cannot be mistaken for a real --dry-run/--help flag, and `commit` inside a
+# message cannot be mistaken for the subcommand. Fails open (skip) on any parse
+# error, matching the rest of the hook's fail-open posture.
+decision=$(printf '%s' "$input" | python3 -c "
+import json, shlex, sys
 try:
-    d=json.load(sys.stdin)
+    d = json.load(sys.stdin)
+    cmd = d.get('tool_input', {}).get('command', '')
+    toks = shlex.split(cmd)
 except Exception:
-    print(''); sys.exit(0)
-print(d.get('tool_input',{}).get('command',''))
+    sys.exit(0)  # unparseable -> skip (fail open)
+
+# Find a 'git' token, then its first non-option token = the subcommand.
+# Consume git global options that take a value (-C <path>, -c <kv>).
+i = 0
+while i < len(toks):
+    if toks[i] == 'git':
+        j = i + 1
+        while j < len(toks):
+            t = toks[j]
+            if t in ('-C', '-c'):
+                j += 2; continue
+            if t.startswith('-'):
+                j += 1; continue
+            break
+        if j < len(toks) and toks[j] == 'commit':
+            rest = toks[j+1:]
+            if '--dry-run' in rest or '--help' in rest or '-h' in rest:
+                sys.exit(0)  # not a real committing invocation -> skip
+            print('GATE')
+        sys.exit(0)
+    i += 1
 " 2>/dev/null)
 
-# Only gate real `git commit`. Skip dry-run/help and non-commit commands.
-case "$cmd" in
-  *"git commit"*) : ;;
-  *) exit 0 ;;
-esac
-case "$cmd" in
-  *"--dry-run"*|*"--help"*) exit 0 ;;
-esac
-# Guard against 'commit' only inside a message: require the token 'commit'
-# to follow 'git' as a subcommand.
-echo "$cmd" | grep -Eq '(^|[[:space:]])git[[:space:]]+([^[:space:]]+[[:space:]]+)*commit([[:space:]]|$)' || exit 0
+[[ "$decision" == "GATE" ]] || exit 0
 
 # Must be in a git repo.
 git rev-parse --git-dir >/dev/null 2>&1 || exit 0
@@ -39,19 +58,20 @@ done < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.sh$' || tr
 have_shellcheck=0
 command -v shellcheck >/dev/null 2>&1 && have_shellcheck=1
 
+scratch=$(mktemp)
+trap 'rm -f "$scratch"' EXIT
 fail=0
 msgs=""
 for f in "${staged[@]}"; do
   blob=$(git show ":$f" 2>/dev/null) || continue
-  if ! printf '%s' "$blob" | bash -n - 2>/tmp/.sc.$$; then
+  if ! printf '%s' "$blob" | bash -n - 2>"$scratch"; then
     fail=1; msgs+="  $f: bash syntax error"$'\n'
   elif [[ "$have_shellcheck" -eq 1 ]]; then
-    if ! printf '%s' "$blob" | shellcheck --severity=error - >/tmp/.sc.$$ 2>&1; then
+    if ! printf '%s' "$blob" | shellcheck --severity=error - >"$scratch" 2>&1; then
       fail=1; msgs+="  $f: shellcheck error"$'\n'
     fi
   fi
 done
-rm -f /tmp/.sc.$$
 
 if [[ "$fail" -eq 1 ]]; then
   {
