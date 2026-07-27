@@ -77,30 +77,6 @@ setup_alias_test() {
 }
 setup_alias_test "setup-alias writes alias and key to rc file"
 
-# setup-alias: idempotent — does not add duplicate
-setup_alias_idempotent_test() {
-  local name="$1"
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  make_mock_bin "$tmpdir"
-  local rc="$tmpdir/.zshrc"
-  echo "alias claude-kiro='already here'" > "$rc"
-  local actual
-  actual=$(PATH="$tmpdir/bin:$PATH" \
-           KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
-           SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
-           bash "$SCRIPT" setup-alias 2>&1 || true)
-  local count
-  count=$(grep -c "claude-kiro" "$rc")
-  if [[ "$count" -eq 1 ]] && echo "$actual" | grep -q "already present"; then
-    echo "PASS: $name"; PASS=$((PASS+1))
-  else
-    echo "FAIL: $name (count=$count, output: $actual)"; FAIL=$((FAIL+1))
-  fi
-  rm -rf "$tmpdir"
-}
-setup_alias_idempotent_test "setup-alias is idempotent"
-
 # setup-codex: writes config.toml with provider + profile
 setup_codex_config_test() {
   local name="$1"
@@ -164,7 +140,7 @@ setup_codex_idempotent_test() {
   local prov_count alias_count
   prov_count=$(grep -cF "[model_providers.kiro]" "$tmpdir/.codex-kiro/config.toml")
   alias_count=$(grep -cF "alias codex-kiro" "$rc")
-  if [[ "$prov_count" -eq 1 && "$alias_count" -eq 1 ]] && echo "$out" | grep -q "already present"; then
+  if [[ "$prov_count" -eq 1 && "$alias_count" -eq 1 ]]; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
     echo "FAIL: $name (prov=$prov_count alias=$alias_count out=$out)"; FAIL=$((FAIL+1))
@@ -217,35 +193,6 @@ remove_codex_test() {
   rm -rf "$tmpdir"
 }
 remove_codex_test "remove-codex strips alias and deletes dir"
-
-# remove-codex: rc file whose ONLY content is the codex-kiro block (no orphan tmp)
-remove_codex_only_content_test() {
-  local name="$1"
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  make_mock_bin "$tmpdir"
-  local rc="$tmpdir/.zshrc"
-  touch "$rc"
-  # Run setup-codex so the rc contains ONLY the codex-kiro comment+alias
-  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
-    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
-    bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
-  # Now remove-codex: rc content is exactly those lines (grep -v produces empty output)
-  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
-    SHELL="/bin/zsh" HOME="$tmpdir" \
-    bash "$SCRIPT" remove-codex >/dev/null 2>&1 || true
-  local alias_gone tmp_gone
-  alias_gone=true; tmp_gone=true
-  grep -Fq "codex-kiro" "$rc" 2>/dev/null && alias_gone=false
-  [[ -f "$rc.tmp" ]] && tmp_gone=false
-  if $alias_gone && $tmp_gone; then
-    echo "PASS: $name"; PASS=$((PASS+1))
-  else
-    echo "FAIL: $name (alias_gone=$alias_gone tmp_gone=$tmp_gone)"; FAIL=$((FAIL+1))
-  fi
-  rm -rf "$tmpdir"
-}
-remove_codex_only_content_test "remove-codex: empty-result grep leaves no orphan tmp file"
 
 # status: reports codex configured after setup, independent of docker/state
 status_codex_configured_test() {
@@ -554,6 +501,49 @@ health_probe_422_test() {
   rm -rf "$tmpdir"
 }
 health_probe_422_test "health probe fails on non-200"
+
+# managed block: changing a definition updates in place (not duplicate, not stale)
+managed_update_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; local rc="$tmpdir/.zshrc"
+  printf 'export FOO=1\n' > "$rc"   # pre-existing unrelated content
+  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="k" \
+    bash "$SCRIPT" setup-alias >/dev/null 2>&1 || true
+  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="k" \
+    bash "$SCRIPT" setup-alias >/dev/null 2>&1 || true
+  local blocks aliases foo
+  blocks=$(grep -c ">>> agent-skills-setup kiro-gateway >>>" "$rc")
+  aliases=$(grep -c "alias claude-kiro" "$rc")
+  foo=$(grep -c "export FOO=1" "$rc")
+  if [[ "$blocks" -eq 1 && "$aliases" -eq 1 && "$foo" -eq 1 ]]; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (blocks=$blocks aliases=$aliases foo=$foo)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+managed_update_test "managed block updates in place, preserves surrounding lines"
+
+# remove-codex: drops only codex line; if block empties, whole block removed
+remove_codex_empties_block_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; local rc="$tmpdir/.zshrc"; touch "$rc"
+  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="k" \
+    bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
+  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" \
+    bash "$SCRIPT" remove-codex >/dev/null 2>&1 || true
+  if ! grep -q "codex-kiro" "$rc" && ! grep -q "agent-skills-setup kiro-gateway" "$rc"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (residue in rc)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+remove_codex_empties_block_test "remove-codex empties and removes the block"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
