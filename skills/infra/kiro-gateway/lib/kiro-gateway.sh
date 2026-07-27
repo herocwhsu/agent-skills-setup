@@ -295,20 +295,36 @@ health_probe() {
   command -v curl &>/dev/null || { echo "curl not found — skipping health probe." >&2; return 0; }
   local key; key="$(read_proxy_key)" || true
   local body='{"model":"claude-sonnet-4-20250514","max_tokens":16,"messages":[{"role":"user","content":"ping"},{"role":"system","content":"be terse"}]}'
-  local code
-  code=$(curl -s -o /dev/null -w '%{http_code}' \
-    "http://${HOST_PORT}/v1/messages" \
-    -H "content-type: application/json" \
-    -H "x-api-key: ${key}" \
-    -H "anthropic-version: 2023-06-01" \
-    -d "$body" 2>/dev/null || echo "000")
-  if [[ "$code" == "200" ]]; then
-    echo "Health probe: HTTP 200 — system-role request accepted."
-    return 0
-  fi
-  echo "Health probe FAILED: HTTP $code" >&2
+  # Poll: the app has a blocking startup (token refresh, account init) and does
+  # not bind its port for several seconds after `docker run -d` returns. Retry
+  # while the connection is refused (HTTP 000), but fail FAST on any real HTTP
+  # response other than 200 (e.g. 422/500 — server is up and rejecting, so
+  # retrying won't help). Overridable for tests via HEALTH_PROBE_RETRIES/INTERVAL.
+  local retries="${HEALTH_PROBE_RETRIES:-20}" interval="${HEALTH_PROBE_INTERVAL:-2}"
+  local i code
+  for (( i=1; i<=retries; i++ )); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' \
+      "http://${HOST_PORT}/v1/messages" \
+      -H "content-type: application/json" \
+      -H "x-api-key: ${key}" \
+      -H "anthropic-version: 2023-06-01" \
+      -d "$body" 2>/dev/null)
+    case "$code" in
+      200)
+        echo "Health probe: HTTP 200 — system-role request accepted."
+        return 0
+        ;;
+      000|000000|"")
+        sleep "$interval" ;;  # not listening yet — wait and retry
+      *)
+        echo "Health probe FAILED: HTTP $code" >&2
+        docker logs --tail 30 "$CONTAINER_NAME" 2>&1 | sed 's/^/  /' >&2 || true
+        die "Gateway returned HTTP $code for a system-role request." ;;
+    esac
+  done
+  echo "Health probe FAILED: gateway not ready after $((retries * interval))s" >&2
   docker logs --tail 30 "$CONTAINER_NAME" 2>&1 | sed 's/^/  /' >&2 || true
-  die "Gateway did not return 200 for a system-role request (got $code)."
+  die "Gateway did not become ready (no HTTP 200 within timeout)."
 }
 
 cmd_status() {
