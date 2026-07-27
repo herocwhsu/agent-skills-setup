@@ -279,6 +279,57 @@ patch_exists_test() {
 }
 patch_exists_test "fix patch exists and targets role field"
 
+# build-path: KIRO_GATEWAY_DIR pointing at a git checkout creates a symlink
+resolve_symlink_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local target="$tmpdir/realrepo"; mkdir -p "$target/.git"
+  HOME="$tmpdir" KIRO_GATEWAY_DIR="$target" \
+    bash "$SCRIPT" __resolve_build_path >/dev/null 2>&1 || true
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  if [[ -L "$canon" && "$(readlink "$canon")" == "$target" ]]; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (canon=$canon link=$(readlink "$canon" 2>/dev/null))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+resolve_symlink_test "resolve: existing checkout becomes a symlink"
+
+# build-path: a real dir with content at canonical refuses to clobber
+resolve_refuse_clobber_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon"; echo x > "$canon/file"
+  local target="$tmpdir/realrepo"; mkdir -p "$target/.git"
+  local code=0
+  HOME="$tmpdir" KIRO_GATEWAY_DIR="$target" \
+    bash "$SCRIPT" __resolve_build_path >/dev/null 2>&1 || code=$?
+  if [[ "$code" -ne 0 && -e "$canon/file" ]]; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (code=$code)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+resolve_refuse_clobber_test "resolve: refuses to clobber a real canonical dir"
+
+# build-path: non-git target fails without leaving a dangling link
+resolve_nongit_fails_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local target="$tmpdir/notrepo"; mkdir -p "$target"
+  local code=0
+  HOME="$tmpdir" KIRO_GATEWAY_DIR="$target" \
+    bash "$SCRIPT" __resolve_build_path >/dev/null 2>&1 || code=$?
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  if [[ "$code" -ne 0 && ! -e "$canon" ]]; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (code=$code, canon exists=$([[ -e "$canon" ]] && echo yes || echo no))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+resolve_nongit_fails_test "resolve: non-git target fails without dangling link"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

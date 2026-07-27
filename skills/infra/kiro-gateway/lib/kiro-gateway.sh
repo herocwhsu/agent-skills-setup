@@ -7,6 +7,8 @@ CONTAINER_NAME="kiro-gateway"
 HOST_PORT="127.0.0.1:7788"
 CONTAINER_PORT="8000"
 STATE_FILE="${KIRO_GATEWAY_STATE_FILE:-$HOME/.agent-skills-setup/kiro-gateway.state}"
+FORK_REMOTE="git@github.com:herocwhsu/kiro-gateway.git"
+CANONICAL_DIR="${CANONICAL_DIR:-$HOME/.agent-skills-setup/kiro-gateway}"
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -82,6 +84,63 @@ store_proxy_key() {
     echo "  Note: no keychain available — token written to ~/.zshrc.local (headless fallback)" >&2
     echo "\${KIRO_PROXY_KEY}"
   fi
+}
+
+build_path() { echo "$CANONICAL_DIR"; }
+
+# Expand a leading ~ to $HOME and make absolute.
+_expand_path() {
+  local p="$1"
+  # shellcheck disable=SC2088 # intentional: matching literal "~/" prefix in case patterns, not shell-expanding it
+  case "$p" in
+    "~") p="$HOME" ;;
+    "~/"*) p="$HOME/${p#\~/}" ;;
+  esac
+  case "$p" in
+    /*) echo "$p" ;;
+    *)  echo "$PWD/$p" ;;
+  esac
+}
+
+_is_git_repo() { [[ -d "$1/.git" ]] || git -C "$1" rev-parse --git-dir >/dev/null 2>&1; }
+
+require_git() { command -v git &>/dev/null || die "git not found."; }
+
+# Ensure $CANONICAL_DIR resolves to a kiro-gateway checkout.
+# KIRO_GATEWAY_DIR (if set) is the non-interactive answer; blank prompt = clone.
+resolve_build_path() {
+  mkdir -p "$(dirname "$CANONICAL_DIR")"
+
+  local answer="${KIRO_GATEWAY_DIR-__UNSET__}"
+  if [[ "$answer" == "__UNSET__" ]]; then
+    read -rp "Path to an existing kiro-gateway checkout (blank = clone fresh): " answer
+  fi
+
+  if [[ -n "$answer" ]]; then
+    local target; target="$(_expand_path "$answer")"
+    _is_git_repo "$target" || die "Not a git checkout: $target"
+    if [[ -L "$CANONICAL_DIR" ]]; then
+      rm -f "$CANONICAL_DIR"
+    elif [[ -e "$CANONICAL_DIR" ]]; then
+      die "Refusing to overwrite existing $CANONICAL_DIR — remove it or unset KIRO_GATEWAY_DIR."
+    fi
+    ln -s "$target" "$CANONICAL_DIR"
+    local remote; remote="$(git -C "$target" remote get-url origin 2>/dev/null || true)"
+    [[ "$remote" == *herocwhsu/kiro-gateway* ]] || echo "Note: $target origin is '$remote' (not herocwhsu/kiro-gateway) — using it anyway." >&2
+    echo "Linked $CANONICAL_DIR -> $target"
+    return 0
+  fi
+
+  if _is_git_repo "$CANONICAL_DIR"; then
+    echo "Using existing clone at $CANONICAL_DIR"
+    return 0
+  fi
+  if [[ -e "$CANONICAL_DIR" && ! -L "$CANONICAL_DIR" ]]; then
+    die "Refusing to overwrite existing $CANONICAL_DIR — remove it first."
+  fi
+  require_git
+  echo "Cloning $FORK_REMOTE -> $CANONICAL_DIR"
+  git clone "$FORK_REMOTE" "$CANONICAL_DIR"
 }
 
 resolve_digest() {
@@ -330,5 +389,6 @@ case "${1:-}" in
   setup-alias)   cmd_setup_alias ;;
   setup-codex)   cmd_setup_codex ;;
   remove-codex)  cmd_remove_codex ;;
+  __resolve_build_path) resolve_build_path ;;
   *)             die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status | setup-alias | setup-codex | remove-codex" ;;
 esac
