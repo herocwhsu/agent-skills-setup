@@ -274,6 +274,23 @@ fix_guard_present_test() {
 }
 fix_guard_present_test "fix-guard passes when role:str present"
 
+# fix-guard: a field starting with "str" but not `str` (e.g. role: strict) must
+# NOT false-positive as the fix — it should be treated as unfixed and abort
+# (no git repo here → patch cannot apply → non-zero).
+fix_guard_no_false_positive_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"
+  printf 'class Message:\n    role: strict_enum\n' > "$canon/kiro/models_anthropic.py"
+  local code=0
+  HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    bash "$SCRIPT" __fix_guard >/dev/null 2>&1 || code=$?
+  if [[ "$code" -ne 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (role: strict_enum false-positived as fixed)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+fix_guard_no_false_positive_test "fix-guard does not false-positive on role: strict"
+
 # fix-guard: aborts when the field is strict and no applicable patch
 fix_guard_aborts_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
@@ -309,7 +326,10 @@ fix_guard() {
   local model="$repo/kiro/models_anthropic.py"
   [[ -f "$model" ]] || die "Cannot find $model — is the build path a kiro-gateway checkout?"
 
-  if grep -Eq '^\s*role:\s*str' "$model"; then
+  # Trailing (#|$) boundary so `role: strict`/`role: strawberry` cannot
+  # false-positive as the fix (which would skip the patch on broken code).
+  # Matches `role: str` alone and `role: str  # comment` (what the patch writes).
+  if grep -Eq '^\s*role:\s*str\s*(#|$)' "$model"; then
     echo "Fix-guard: role:str present."
     return 0
   fi
@@ -317,11 +337,11 @@ fix_guard() {
   echo "Fix-guard: strict role type detected — applying tracked patch..."
   [[ -f "$PATCH_FILE" ]] || die "Fix patch missing: $PATCH_FILE"
   if git -C "$repo" apply --check "$PATCH_FILE" 2>/dev/null; then
-    git -C "$repo" apply "$PATCH_FILE"
+    git -C "$repo" apply "$PATCH_FILE" || die "Fix patch --check passed but apply failed in $repo — aborting."
   else
     die "Fix patch will not apply cleanly to $repo — aborting before build. Resolve manually."
   fi
-  grep -Eq '^\s*role:\s*str' "$model" || die "Fix-guard: role:str still absent after patch — aborting."
+  grep -Eq '^\s*role:\s*str\s*(#|$)' "$model" || die "Fix-guard: role:str still absent after patch — aborting."
   echo "Fix-guard: patch applied."
 }
 ```
