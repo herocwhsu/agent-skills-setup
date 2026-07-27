@@ -43,7 +43,7 @@ settings_valid_test() {
   local settings
   settings="$(cd "$(dirname "$0")/../.." && pwd)/settings.json"
   if [[ -f "$settings" ]] \
-     && python3 -c "import json,sys; d=json.load(open('$settings')); h=d['hooks']['PreToolUse']; assert any('precommit-sh-check.sh' in json.dumps(x) for x in h)" 2>/dev/null; then
+     && python3 -c "import json,sys; d=json.load(open('$settings')); h=d['hooks']['PreToolUse']; assert any(x.get('matcher')=='Bash' and 'precommit-sh-check.sh' in json.dumps(x) for x in h)" 2>/dev/null; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
     echo "FAIL: $name (settings missing or hook not registered)"; FAIL=$((FAIL+1))
