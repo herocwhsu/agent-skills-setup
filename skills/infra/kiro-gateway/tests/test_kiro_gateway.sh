@@ -526,6 +526,7 @@ health_probe_200_test() {
   make_curl_mock "$tmpdir" "200"
   local code=0
   PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" \
+    HEALTH_PROBE_RETRIES=2 HEALTH_PROBE_INTERVAL=0 \
     bash "$SCRIPT" __health_probe >/dev/null 2>&1 || code=$?
   if [[ "$code" -eq 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
   else echo "FAIL: $name (code=$code)"; FAIL=$((FAIL+1)); fi
@@ -538,12 +539,54 @@ health_probe_422_test() {
   make_curl_mock "$tmpdir" "422"
   local code=0
   PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" \
+    HEALTH_PROBE_RETRIES=2 HEALTH_PROBE_INTERVAL=0 \
     bash "$SCRIPT" __health_probe >/dev/null 2>&1 || code=$?
   if [[ "$code" -ne 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
   else echo "FAIL: $name (expected non-zero)"; FAIL=$((FAIL+1)); fi
   rm -rf "$tmpdir"
 }
 health_probe_422_test "health probe fails on non-200"
+
+# readiness race: curl returns 000 (connection refused) repeatedly, then the
+# probe must retry and finally die non-zero after the window — NOT die on the
+# first 000. Uses a tiny window so the test is instant.
+health_probe_retries_then_fails_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/bin"
+  printf '#!/usr/bin/env bash\necho -n 000\n' > "$tmpdir/bin/curl"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$tmpdir/bin/docker"
+  chmod +x "$tmpdir/bin/curl" "$tmpdir/bin/docker"
+  local code=0
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" \
+    HEALTH_PROBE_RETRIES=3 HEALTH_PROBE_INTERVAL=0 \
+    bash "$SCRIPT" __health_probe >/dev/null 2>&1 || code=$?
+  if [[ "$code" -ne 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (expected non-zero after retries)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+health_probe_retries_then_fails_test "health probe retries on 000 then fails after window"
+
+# readiness race success: curl returns 000 twice, then 200 — probe must retry
+# through the 000s and succeed (exit 0), proving polling works end-to-end.
+health_probe_eventual_200_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/bin"
+  cat > "$tmpdir/bin/curl" <<EOF
+#!/usr/bin/env bash
+n=\$(cat "$tmpdir/n" 2>/dev/null || echo 0); n=\$((n+1)); echo "\$n" > "$tmpdir/n"
+if [[ "\$n" -ge 3 ]]; then echo -n 200; else echo -n 000; fi
+EOF
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$tmpdir/bin/docker"
+  chmod +x "$tmpdir/bin/curl" "$tmpdir/bin/docker"
+  local code=0
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" \
+    HEALTH_PROBE_RETRIES=5 HEALTH_PROBE_INTERVAL=0 \
+    bash "$SCRIPT" __health_probe >/dev/null 2>&1 || code=$?
+  if [[ "$code" -eq 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (expected success after eventual 200)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+health_probe_eventual_200_test "health probe succeeds when server ready after initial 000s"
 
 # managed block: changing a definition updates in place (not duplicate, not stale)
 managed_update_test() {
