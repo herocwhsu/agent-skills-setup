@@ -266,6 +266,19 @@ status_codex_configured_test() {
 }
 status_codex_configured_test "status reports codex configured"
 
+# patch: tracked fix patch exists and targets the role field
+patch_exists_test() {
+  local name="$1"
+  local patch
+  patch="$(cd "$(dirname "$0")/.." && pwd)/patches/kiro-gateway-system-role.patch"
+  if [[ -f "$patch" ]] && grep -Fq "models_anthropic.py" "$patch" && grep -Eq 'role' "$patch"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (patch missing or wrong target: $patch)"; FAIL=$((FAIL+1))
+  fi
+}
+patch_exists_test "fix patch exists and targets role field"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
