@@ -2,9 +2,13 @@
 # kiro-gateway.sh — manage the kiro-gateway Docker container
 set -euo pipefail
 
-CONTAINER_NAME="kiro-gateway"
-HOST_PORT="127.0.0.1:7788"
+CONTAINER_NAME="${KIRO_GATEWAY_CONTAINER:-kiro-gateway}"
+HOST_PORT="${KIRO_GATEWAY_HOST_PORT:-127.0.0.1:7788}"
 CONTAINER_PORT="8000"
+# The kiro-cli data dir is mounted at this fixed path INSIDE the container.
+# KIRO_CLI_DB_FILE must reference this container path — NOT the host path — or
+# the app cannot find the DB and crash-loops with "No Kiro credentials".
+CONTAINER_KIRO_DIR="/home/kiro/.local/share/kiro-cli"
 STATE_FILE="${KIRO_GATEWAY_STATE_FILE:-$HOME/.agent-skills-setup/kiro-gateway.state}"
 FORK_REMOTE="git@github.com:herocwhsu/kiro-gateway.git"
 CANONICAL_DIR="${CANONICAL_DIR:-$HOME/.agent-skills-setup/kiro-gateway}"
@@ -250,7 +254,7 @@ start_container() {
     --restart unless-stopped \
     -p "${HOST_PORT}:${CONTAINER_PORT}" \
     --env-file "$HOME/.env.kiro-gateway" \
-    -v "${data_dir}:/home/kiro/.local/share/kiro-cli:ro" \
+    -v "${data_dir}:${CONTAINER_KIRO_DIR}:ro" \
     -v "$HOME/kiro-gateway-logs:/app/debug_logs" \
     "kiro-gateway:$sha" \
     python main.py
@@ -275,7 +279,9 @@ render_env_file() {
   # Fail loud rather than write PROXY_API_KEY= and start an unauthenticated
   # gateway (no keychain tool, or store failed).
   [[ -n "$key" ]] || die "No proxy key available (keychain empty and no keychain tool) — cannot render ~/.env.kiro-gateway."
-  local db; db="$(kiro_data_dir)/data.sqlite3"
+  # Container path, not host path: the DB is read from inside the container,
+  # where kiro_data_dir is mounted at CONTAINER_KIRO_DIR (see start_container).
+  local db="${CONTAINER_KIRO_DIR}/data.sqlite3"
   local envf="$HOME/.env.kiro-gateway"
   # Values are UNQUOTED: docker --env-file does NOT strip quotes, so a quoted
   # value would reach the container with literal double-quotes embedded
