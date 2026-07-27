@@ -425,6 +425,47 @@ init_builds_sha_test() {
 }
 init_builds_sha_test "init builds SHA-tagged image and records current"
 
+# init idempotency: on an ALREADY-RUNNING container, init must NOT rebuild and
+# must NOT rewrite state (else state.current drifts from the live image — the
+# status/rollback trust a lie). Mock docker so `inspect --format {{.State.Status}}`
+# reports running; git returns a NEW sha that must NOT be recorded.
+init_running_noop_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  mkdir -p "$tmpdir/bin"
+  # docker mock: inspect (status query) => "running"; record other calls
+  cat > "$tmpdir/bin/docker" <<EOF
+#!/usr/bin/env bash
+echo "docker \$*" >> "$tmpdir/docker.calls"
+case "\$1" in
+  inspect) echo "running"; exit 0 ;;
+  *) exit 0 ;;
+esac
+EOF
+  # git mock: rev-parse returns a DIFFERENT sha than the recorded current
+  cat > "$tmpdir/bin/git" <<EOF
+#!/usr/bin/env bash
+if [[ "\$*" == *"rev-parse --short HEAD"* ]]; then echo "new999"; exit 0; fi
+exit 0
+EOF
+  chmod +x "$tmpdir/bin/docker" "$tmpdir/bin/git"
+  local state="$tmpdir/state"; printf 'current=old111\n' > "$state"
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    KIRO_GATEWAY_STATE_FILE="$state" KIRO_GATEWAY_DIR="" SKIP_HEALTH_PROBE=1 \
+    bash "$SCRIPT" init >/dev/null 2>&1 || true
+  # must NOT have built, and state must still say old111 (not new999)
+  if ! grep -q "build -t" "$tmpdir/docker.calls" 2>/dev/null \
+     && grep -q "current=old111" "$state" 2>/dev/null \
+     && ! grep -q "new999" "$state" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (rebuilt or rewrote state: calls=$(cat "$tmpdir/docker.calls" 2>/dev/null) state=$(cat "$state" 2>/dev/null))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+init_running_noop_test "init on running container does not rebuild or rewrite state"
+
 # rollback: fails loud when previous image absent from host
 rollback_missing_image_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
@@ -479,20 +520,33 @@ start_container() {
   echo "Started $CONTAINER_NAME (kiro-gateway:$sha)"
 }
 
+# Idempotent bring-up. Check container state FIRST; only the absent branch
+# builds a new image and writes state — so re-running init on a live container
+# never rebuilds/redeploys and never records a sha that isn't actually running
+# (that drift would make status/rollback trust a lie). `update` is the explicit
+# rebuild+redeploy path.
 cmd_init() {
   require_docker
-  resolve_build_path
-  fix_guard
-  render_env_file
-  local sha; sha="$(build_image)"
   local state; state=$(container_status)
   case "$state" in
-    running) echo "$CONTAINER_NAME already running." ;;
-    exited|created|paused) docker start "$CONTAINER_NAME" ;;
-    absent) start_container "$sha" ;;
+    running)
+      echo "$CONTAINER_NAME already running (kiro-gateway:$(read_state current)). Use 'update' to rebuild+redeploy."
+      return 0
+      ;;
+    exited|created|paused)
+      echo "Restarting existing container (image unchanged)..."
+      docker start "$CONTAINER_NAME"
+      ;;
+    absent)
+      resolve_build_path
+      fix_guard
+      render_env_file
+      local sha; sha="$(build_image)"
+      start_container "$sha"
+      write_state "$sha" "$(read_state previous)"
+      ;;
     *) die "Unexpected container state: $state" ;;
   esac
-  write_state "$sha" "$(read_state previous)"
   [[ "${SKIP_HEALTH_PROBE:-0}" == "1" ]] || health_probe
 }
 
