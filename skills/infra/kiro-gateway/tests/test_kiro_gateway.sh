@@ -588,6 +588,32 @@ EOF
 }
 health_probe_eventual_200_test "health probe succeeds when server ready after initial 000s"
 
+# Regression: real curl EXITS NON-ZERO (7) on connection-refused while still
+# printing 000. Under `set -e`, a bare `code=$(curl ...)` inherits that exit
+# and kills the script on the FIRST probe — before any retry, sleep, or echo
+# (the observed silent `init` exit-1). Prior 000 mocks all `exit 0`, so they
+# never caught this. Mock: exit 7 (prints 000) twice, then 200 (exit 0). Buggy
+# code dies before reaching 200; fixed code retries through and exits 0.
+health_probe_curl_nonzero_exit_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/bin"
+  cat > "$tmpdir/bin/curl" <<EOF
+#!/usr/bin/env bash
+n=\$(cat "$tmpdir/n" 2>/dev/null || echo 0); n=\$((n+1)); echo "\$n" > "$tmpdir/n"
+if [[ "\$n" -ge 3 ]]; then echo -n 200; exit 0; else echo -n 000; exit 7; fi
+EOF
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$tmpdir/bin/docker"
+  chmod +x "$tmpdir/bin/curl" "$tmpdir/bin/docker"
+  local code=0
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" \
+    HEALTH_PROBE_RETRIES=5 HEALTH_PROBE_INTERVAL=0 \
+    bash "$SCRIPT" __health_probe >/dev/null 2>&1 || code=$?
+  if [[ "$code" -eq 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (curl exit-7 killed probe before retry; code=$code)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+health_probe_curl_nonzero_exit_test "health probe survives curl non-zero exit (connection refused) and retries"
+
 # managed block: changing a definition updates in place (not duplicate, not stale)
 managed_update_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
