@@ -33,6 +33,12 @@ run_case "non-commit bash allows"        0 'git status'      $'#!/usr/bin/env ba
 run_case "dry-run allows"                0 'git commit --dry-run' $'#!/usr/bin/env bash\nif then fi\n'
 run_case "no staged sh allows"           0 'git commit -m x' ''
 
+# Regression: flag-like/subcommand-like text inside the -m message must NOT be
+# mistaken for a real flag or subcommand (token-level classification).
+run_case "dry-run text in message still blocks" 2 'git commit -m "fix --dry-run handling"' $'#!/usr/bin/env bash\nif then fi\n'
+run_case "help text in message still blocks"    2 'git commit -m "document --help output"' $'#!/usr/bin/env bash\nif then fi\n'
+run_case "commit word in echo does not block"   0 'echo "please git commit later"' $'#!/usr/bin/env bash\nif then fi\n'
+
 if command -v shellcheck >/dev/null 2>&1; then
   # SC2086-class issues are warnings; use an error-level construct.
   run_case "shellcheck error blocks" 2 'git commit -m x' $'#!/usr/bin/env bash\necho "$(\n'
