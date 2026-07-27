@@ -494,8 +494,15 @@ EOF
   local perm; perm=$(stat -f '%Lp' "$envf" 2>/dev/null || stat -c '%a' "$envf" 2>/dev/null)
   # Assert the exact UNQUOTED line (docker --env-file keeps literal quotes, so a
   # quoted value would be a bug). `^PROXY_API_KEY=test-key-123$` fails if quoted.
+  # KIRO_CLI_DB_FILE must be the CONTAINER path (where the data dir is mounted),
+  # never the host path — the host path exists nowhere in the container and the
+  # app crash-loops with "No Kiro credentials". The `! grep host-path` clause is
+  # the discriminating assertion that catches that regression.
   if [[ -f "$envf" ]] && grep -q "^PROXY_API_KEY=test-key-123$" "$envf" \
-     && grep -q "^FIRST_TOKEN_TIMEOUT=120$" "$envf" && [[ "$perm" == "600" ]]; then
+     && grep -q "^FIRST_TOKEN_TIMEOUT=120$" "$envf" \
+     && grep -q "^KIRO_CLI_DB_FILE=/home/kiro/.local/share/kiro-cli/data.sqlite3$" "$envf" \
+     && ! grep -q "^KIRO_CLI_DB_FILE=$tmpdir" "$envf" \
+     && [[ "$perm" == "600" ]]; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
     echo "FAIL: $name (perm=$perm content=$(cat "$envf" 2>/dev/null))"; FAIL=$((FAIL+1))
