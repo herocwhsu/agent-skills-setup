@@ -228,20 +228,33 @@ cmd_status() {
   echo "Port:       $HOST_PORT → $CONTAINER_PORT"
 }
 
+# Idempotent bring-up. Check container state FIRST; only the absent branch
+# builds a new image and writes state — so re-running init on a live container
+# never rebuilds/redeploys and never records a sha that isn't actually running
+# (that drift would make status/rollback trust a lie). `update` is the explicit
+# rebuild+redeploy path.
 cmd_init() {
   require_docker
-  resolve_build_path
-  fix_guard
-  render_env_file
-  local sha; sha="$(build_image)"
   local state; state=$(container_status)
   case "$state" in
-    running) echo "$CONTAINER_NAME already running." ;;
-    exited|created|paused) docker start "$CONTAINER_NAME" ;;
-    absent) start_container "$sha" ;;
+    running)
+      echo "$CONTAINER_NAME already running (kiro-gateway:$(read_state current)). Use 'update' to rebuild+redeploy."
+      return 0
+      ;;
+    exited|created|paused)
+      echo "Restarting existing container (image unchanged)..."
+      docker start "$CONTAINER_NAME"
+      ;;
+    absent)
+      resolve_build_path
+      fix_guard
+      render_env_file
+      local sha; sha="$(build_image)"
+      start_container "$sha"
+      write_state "$sha" "$(read_state previous)"
+      ;;
     *) die "Unexpected container state: $state" ;;
   esac
-  write_state "$sha" "$(read_state previous)"
   [[ "${SKIP_HEALTH_PROBE:-0}" == "1" ]] || health_probe
 }
 
