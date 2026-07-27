@@ -44,6 +44,11 @@ write_state() {
     echo "current=$current"
     [[ -n "$previous" ]] && echo "previous=$previous"
   } > "$STATE_FILE"
+  # Explicit: the conditional echo above is the group's last command and
+  # returns 1 when previous is empty (fresh init). Without this, write_state
+  # returns 1 and — as cmd_init's last statement before health_probe — aborts
+  # init under set -e, silently skipping the probe on every fresh build.
+  return 0
 }
 
 container_status() {
@@ -75,7 +80,9 @@ rc_file_path() {
 store_proxy_key() {
   local proxy_key="${KIRO_PROXY_KEY:-}"
   if [[ -z "$proxy_key" ]]; then
-    read -rp "KIRO_PROXY_KEY value (leave blank for 'kiro-local'): " proxy_key
+    # `|| true`: read returns non-zero on EOF; a bare read would abort under
+    # set -e before the default below applies. Degrade to the kiro-local default.
+    read -rp "KIRO_PROXY_KEY value (leave blank for 'kiro-local'): " proxy_key || true
     proxy_key="${proxy_key:-kiro-local}"
   fi
 
@@ -204,7 +211,10 @@ resolve_build_path() {
 
   local answer="${KIRO_GATEWAY_DIR-__UNSET__}"
   if [[ "$answer" == "__UNSET__" ]]; then
-    read -rp "Path to an existing kiro-gateway checkout (blank = clone fresh): " answer
+    # `|| answer=""`: read returns non-zero on EOF (closed stdin, e.g. piped/CI
+    # run without KIRO_GATEWAY_DIR). Under set -e a bare read would abort; degrade
+    # to blank instead, which is the documented "clone fresh" default.
+    read -rp "Path to an existing kiro-gateway checkout (blank = clone fresh): " answer || answer=""
   fi
 
   if [[ -n "$answer" ]]; then
@@ -238,7 +248,10 @@ image_exists() { docker image inspect "kiro-gateway:$1" >/dev/null 2>&1; }
 
 build_image() {
   local repo; repo="$(build_path)"
-  local sha; sha="$(git -C "$repo" rev-parse --short HEAD)"
+  # `|| true`: git rev-parse exits non-zero on a repo with no commits or a
+  # corrupt/shallow .git; a bare assignment would abort under set -e before the
+  # die-guard below can produce a clear message.
+  local sha; sha="$(git -C "$repo" rev-parse --short HEAD 2>/dev/null || true)"
   [[ -n "$sha" ]] || die "Could not resolve git SHA in $repo"
   docker build -t "kiro-gateway:$sha" "$repo" >&2
   echo "$sha"
@@ -274,8 +287,11 @@ read_proxy_key() {
 }
 
 render_env_file() {
-  local key; key="$(read_proxy_key)"
-  [[ -n "$key" ]] || { store_proxy_key >/dev/null; key="$(read_proxy_key)"; }
+  # `|| true`: security exits 44 when the item is absent (empty keychain on a
+  # fresh host). A bare assignment would inherit that under set -e and abort
+  # BEFORE the store-and-retry fallback below can run, defeating bootstrap.
+  local key; key="$(read_proxy_key || true)"
+  [[ -n "$key" ]] || { store_proxy_key >/dev/null; key="$(read_proxy_key || true)"; }
   # Fail loud rather than write PROXY_API_KEY= and start an unauthenticated
   # gateway (no keychain tool, or store failed).
   [[ -n "$key" ]] || die "No proxy key available (keychain empty and no keychain tool) — cannot render ~/.env.kiro-gateway."
