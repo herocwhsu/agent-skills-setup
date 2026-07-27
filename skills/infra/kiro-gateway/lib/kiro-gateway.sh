@@ -233,7 +233,25 @@ render_env_file() {
   echo "Rendered $envf (chmod 600)"
 }
 
-health_probe() { :; }      # replaced in Task 6
+health_probe() {
+  command -v curl &>/dev/null || { echo "curl not found — skipping health probe." >&2; return 0; }
+  local key; key="$(read_proxy_key)" || true
+  local body='{"model":"claude-sonnet-4-20250514","max_tokens":16,"messages":[{"role":"user","content":"ping"},{"role":"system","content":"be terse"}]}'
+  local code
+  code=$(curl -s -o /dev/null -w '%{http_code}' \
+    "http://${HOST_PORT}/v1/messages" \
+    -H "content-type: application/json" \
+    -H "x-api-key: ${key}" \
+    -H "anthropic-version: 2023-06-01" \
+    -d "$body" 2>/dev/null || echo "000")
+  if [[ "$code" == "200" ]]; then
+    echo "Health probe: HTTP 200 — system-role request accepted."
+    return 0
+  fi
+  echo "Health probe FAILED: HTTP $code" >&2
+  docker logs --tail 30 "$CONTAINER_NAME" 2>&1 | sed 's/^/  /' >&2 || true
+  die "Gateway did not return 200 for a system-role request (got $code)."
+}
 
 cmd_status() {
   if [[ -f "$HOME/.codex-kiro/config.toml" ]] \
@@ -432,5 +450,6 @@ case "${1:-}" in
   __resolve_build_path) resolve_build_path ;;
   __fix_guard)   fix_guard ;;
   __render_env)  render_env_file ;;
+  __health_probe) health_probe ;;
   *)             die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status | setup-alias | setup-codex | remove-codex" ;;
 esac

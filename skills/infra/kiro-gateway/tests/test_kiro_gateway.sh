@@ -514,6 +514,47 @@ EOF
 }
 render_env_test "render_env_file writes chmod 600 env with key"
 
+# health_probe: mocks curl (emulates -w '%{http_code}' -o /dev/null) and docker
+make_curl_mock() {
+  local dir="$1" code="$2"
+  mkdir -p "$dir/bin"
+  cat > "$dir/bin/curl" <<EOF
+#!/usr/bin/env bash
+# emulate -w '%{http_code}' -o /dev/null
+echo -n "$code"
+EOF
+  chmod +x "$dir/bin/curl"
+  cat > "$dir/bin/docker" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  chmod +x "$dir/bin/docker"
+}
+
+health_probe_200_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  make_curl_mock "$tmpdir" "200"
+  local code=0
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" \
+    bash "$SCRIPT" __health_probe >/dev/null 2>&1 || code=$?
+  if [[ "$code" -eq 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (code=$code)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+health_probe_200_test "health probe passes on HTTP 200"
+
+health_probe_422_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  make_curl_mock "$tmpdir" "422"
+  local code=0
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" \
+    bash "$SCRIPT" __health_probe >/dev/null 2>&1 || code=$?
+  if [[ "$code" -ne 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (expected non-zero)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+health_probe_422_test "health probe fails on non-200"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
