@@ -1,0 +1,21 @@
+From: herohsu <herocwhsu@users.noreply.github.com>
+Date: Thu, 25 Jun 2026 13:49:03 +0800
+Subject: [PATCH] fix: accept system role in AnthropicMessage to avoid 422 on Claude opus-4-8
+
+---
+ kiro/models_anthropic.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kiro/models_anthropic.py b/kiro/models_anthropic.py
+index c63d60b..06e3a73 100644
+--- a/kiro/models_anthropic.py
++++ b/kiro/models_anthropic.py
+@@ -187,7 +187,7 @@ class AnthropicMessage(BaseModel):
+         content: Message content (string or list of content blocks)
+     """
+ 
+-    role: Literal["user", "assistant"]
++    role: str  # accepts any role; normalize_message_roles() handles non-user/assistant values
+     content: Union[str, List[ContentBlock]]
+ 
+     model_config = {"extra": "allow"}
