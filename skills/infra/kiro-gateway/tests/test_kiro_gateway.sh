@@ -502,7 +502,9 @@ EOF
     bash "$SCRIPT" __render_env >/dev/null 2>&1 || true
   local envf="$tmpdir/.env.kiro-gateway"
   local perm; perm=$(stat -f '%Lp' "$envf" 2>/dev/null || stat -c '%a' "$envf" 2>/dev/null)
-  if [[ -f "$envf" ]] && grep -q "test-key-123" "$envf" \
+  # Assert the exact UNQUOTED line (docker --env-file keeps literal quotes, so a
+  # quoted value would be a bug). `^PROXY_API_KEY=test-key-123$` fails if quoted.
+  if [[ -f "$envf" ]] && grep -q "^PROXY_API_KEY=test-key-123$" "$envf" \
      && grep -q "^FIRST_TOKEN_TIMEOUT=120$" "$envf" && [[ "$perm" == "600" ]]; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else

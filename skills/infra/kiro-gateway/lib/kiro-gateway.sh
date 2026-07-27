@@ -214,13 +214,21 @@ read_proxy_key() {
 render_env_file() {
   local key; key="$(read_proxy_key)"
   [[ -n "$key" ]] || { store_proxy_key >/dev/null; key="$(read_proxy_key)"; }
+  # Fail loud rather than write PROXY_API_KEY= and start an unauthenticated
+  # gateway (no keychain tool, or store failed).
+  [[ -n "$key" ]] || die "No proxy key available (keychain empty and no keychain tool) — cannot render ~/.env.kiro-gateway."
   local db; db="$(kiro_data_dir)/data.sqlite3"
   local envf="$HOME/.env.kiro-gateway"
-  umask 077
+  # Values are UNQUOTED: docker --env-file does NOT strip quotes, so a quoted
+  # value would reach the container with literal double-quotes embedded
+  # (breaking auth and the DB path). --env-file reads the whole post-`=` line
+  # verbatim, so spaces in the DB path (…/Application Support/…) are preserved.
   # FIRST_TOKEN_TIMEOUT: gateway default (15) 500s high-effort/large-prompt
   # calls (e.g. Claude Code subagents) before first token; 120 avoids it and
   # stays below STREAMING_READ_TIMEOUT (300).
-  printf 'PROXY_API_KEY="%s"\nKIRO_CLI_DB_FILE="%s"\nFIRST_TOKEN_TIMEOUT=120\n' "$key" "$db" > "$envf"
+  # umask scoped to a subshell so it doesn't leak to the rest of the script.
+  ( umask 077
+    printf 'PROXY_API_KEY=%s\nKIRO_CLI_DB_FILE=%s\nFIRST_TOKEN_TIMEOUT=120\n' "$key" "$db" > "$envf" )
   chmod 600 "$envf"
   echo "Rendered $envf (chmod 600)"
 }
@@ -285,6 +293,7 @@ cmd_update() {
   local repo; repo="$(build_path)"
   git -C "$repo" pull --ff-only >&2 || die "git pull failed in $repo"
   fix_guard
+  render_env_file
   local new_sha; new_sha="$(build_image)"
   local current; current=$(read_state current)
   if [[ "$new_sha" == "$current" ]] && image_exists "$new_sha"; then
