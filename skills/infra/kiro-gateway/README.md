@@ -1,10 +1,11 @@
 # kiro-gateway
 
-Manages the kiro-gateway Docker container with digest pinning and rollback.
+Manages the kiro-gateway Docker container: builds a SHA-tagged image locally from a fork checkout, with rollback.
 
 ## Requirements
 
 - Docker installed and running
+- git, and SSH access to `git@github.com:herocwhsu/kiro-gateway.git` (the fork `init` clones)
 - Kiro CLI run at least once (creates the data dir the container mounts)
 
 ## Install
@@ -102,10 +103,10 @@ codex-kiro exec "reply with OK"
 
 | Setting | Value |
 |---|---|
-| Image | `ghcr.io/jwadow/kiro-gateway` (digest-pinned) |
+| Image | `kiro-gateway:<sha>` — built locally from the fork, SHA-tagged |
 | Host port | `127.0.0.1:7788` |
 | Container port | `8000` |
-| Volume | `<kiro-data-dir> → /home/ubuntu/.local/share/kiro-cli` |
+| Volume | `<kiro-data-dir> → /home/kiro/.local/share/kiro-cli` (read-only) |
 | Restart | `unless-stopped` |
 
 Data dir by platform:
@@ -116,7 +117,19 @@ Data dir by platform:
 
 `~/.agent-skills-setup/kiro-gateway.state`
 
-Tracks current and previous digests for rollback. Never delete this file manually — use `rollback` instead.
+Tracks current and previous image SHAs for rollback. Never delete this file manually — use `rollback` instead.
+
+## Build path
+
+`init` clones the fork (`git@github.com:herocwhsu/kiro-gateway.git`) into
+`~/.agent-skills-setup/kiro-gateway` on first run. To reuse an existing local
+checkout instead, set `KIRO_GATEWAY_DIR=/path/to/checkout` — it's symlinked in
+rather than cloned. Before every build, `fix_guard` asserts the `role: str`
+field is present in `kiro/models_anthropic.py`, applying the tracked patch
+(`patches/kiro-gateway-system-role.patch`) if not, and aborting if the patch
+won't apply cleanly. After a successful `init`/`update`, an HTTP health probe
+sends a system-role request and expects a 200 response. `status` reports the
+build path (linked vs. cloned) and the current image tag.
 
 ## Troubleshooting
 
@@ -126,4 +139,4 @@ Tracks current and previous digests for rollback. Never delete this file manuall
 
 **"docker: command not found"** — Install Docker Desktop (macOS) or `docker-ce` (Linux).
 
-**"no previous version recorded"** — `rollback` requires at least one prior `update`. There is no version before the first pinned digest.
+**"no previous version recorded"** — `rollback` requires at least one prior `update`. There is no version before the first SHA-tagged build.

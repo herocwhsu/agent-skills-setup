@@ -313,6 +313,15 @@ cmd_status() {
   else
     echo "Codex:      not configured"
   fi
+  if [[ -L "$CANONICAL_DIR" ]]; then
+    echo "Build path: linked → $(readlink "$CANONICAL_DIR")"
+  elif [[ -d "$CANONICAL_DIR" ]]; then
+    echo "Build path: cloned ($CANONICAL_DIR)"
+  else
+    echo "Build path: not set up (run 'init')"
+  fi
+  local cur; cur=$(read_state current)
+  [[ -n "$cur" ]] && echo "Image:      kiro-gateway:$cur"
   if [[ ! -f "$STATE_FILE" ]]; then
     echo "State file: no state file (run 'init' first)"
     return 0
@@ -453,4 +462,5 @@ case "${1:-}" in
   __render_env)  render_env_file ;;
   __health_probe) health_probe ;;
   *)             die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status | setup-alias | setup-codex | remove-codex" ;;
+
 esac
