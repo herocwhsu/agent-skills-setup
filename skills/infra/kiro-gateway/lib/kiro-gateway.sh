@@ -303,12 +303,16 @@ health_probe() {
   local retries="${HEALTH_PROBE_RETRIES:-20}" interval="${HEALTH_PROBE_INTERVAL:-2}"
   local i code
   for (( i=1; i<=retries; i++ )); do
+    # `|| true`: curl exits non-zero (7) on connection-refused while still
+    # printing 000. Under `set -e` a bare assignment would inherit that exit and
+    # kill the script on the first probe — before the retry loop can wait for the
+    # app to bind its port. Absorb it here; the 000 case below drives the retry.
     code=$(curl -s -o /dev/null -w '%{http_code}' \
       "http://${HOST_PORT}/v1/messages" \
       -H "content-type: application/json" \
       -H "x-api-key: ${key}" \
       -H "anthropic-version: 2023-06-01" \
-      -d "$body" 2>/dev/null)
+      -d "$body" 2>/dev/null || true)
     case "$code" in
       200)
         echo "Health probe: HTTP 200 — system-role request accepted."
