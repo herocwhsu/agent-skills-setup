@@ -1,6 +1,8 @@
+From 5b4b873bc9c7eaa66e9948104d49564ac2ad6efa Mon Sep 17 00:00:00 2001
 From: herohsu <herocwhsu@users.noreply.github.com>
 Date: Thu, 25 Jun 2026 13:49:03 +0800
-Subject: [PATCH] fix: accept system role in AnthropicMessage to avoid 422 on Claude opus-4-8
+Subject: [PATCH] fix: accept system role in AnthropicMessage to avoid 422 on
+ Claude opus-4-8
 
 ---
  kiro/models_anthropic.py | 2 +-
@@ -19,3 +21,6 @@ index c63d60b..06e3a73 100644
      content: Union[str, List[ContentBlock]]
  
      model_config = {"extra": "allow"}
+-- 
+2.50.1 (Apple Git-155)
+
