@@ -39,9 +39,11 @@ Run (uses the working checkout on this host; adjust the `-C` path if your clone 
 ```bash
 cd ~/Project/agent-skills-setup
 mkdir -p skills/infra/kiro-gateway/patches
-git -C ~/Project/kiro-gateway format-patch -1 5b4b873 \
+# NOTE: --stdout MUST come before the `--` pathspec separator. If placed after
+# `--`, git treats "--stdout" as a pathspec and writes a ~64-byte junk file.
+git -C ~/Project/kiro-gateway format-patch -1 5b4b873 --stdout \
   -- kiro/models_anthropic.py \
-  --stdout > skills/infra/kiro-gateway/patches/kiro-gateway-system-role.patch
+  > skills/infra/kiro-gateway/patches/kiro-gateway-system-role.patch
 ```
 
 - [ ] **Step 2: Verify the patch targets the right line**
