@@ -345,6 +345,23 @@ fix_guard_present_test() {
 }
 fix_guard_present_test "fix-guard passes when role:str present"
 
+# fix-guard: a field starting with "str" but not `str` (e.g. role: strict) must
+# NOT false-positive as the fix — treated as unfixed, must abort (no git repo
+# here → patch cannot apply → non-zero).
+fix_guard_no_false_positive_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"
+  printf 'class Message:\n    role: strict_enum\n' > "$canon/kiro/models_anthropic.py"
+  local code=0
+  HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    bash "$SCRIPT" __fix_guard >/dev/null 2>&1 || code=$?
+  if [[ "$code" -ne 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (role: strict_enum false-positived as fixed)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+fix_guard_no_false_positive_test "fix-guard does not false-positive on role: strict"
+
 # fix-guard: aborts when the field is strict and no applicable patch
 fix_guard_aborts_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)

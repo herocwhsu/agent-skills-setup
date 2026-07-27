@@ -99,7 +99,10 @@ fix_guard() {
   local model="$repo/kiro/models_anthropic.py"
   [[ -f "$model" ]] || die "Cannot find $model — is the build path a kiro-gateway checkout?"
 
-  if grep -Eq '^\s*role:\s*str' "$model"; then
+  # Trailing (#|$) boundary so `role: strict`/`role: strawberry` cannot
+  # false-positive as the fix (which would skip the patch on broken code).
+  # Matches `role: str` alone and `role: str  # comment` (what the patch writes).
+  if grep -Eq '^\s*role:\s*str\s*(#|$)' "$model"; then
     echo "Fix-guard: role:str present."
     return 0
   fi
@@ -107,11 +110,11 @@ fix_guard() {
   echo "Fix-guard: strict role type detected — applying tracked patch..."
   [[ -f "$PATCH_FILE" ]] || die "Fix patch missing: $PATCH_FILE"
   if git -C "$repo" apply --check "$PATCH_FILE" 2>/dev/null; then
-    git -C "$repo" apply "$PATCH_FILE"
+    git -C "$repo" apply "$PATCH_FILE" || die "Fix patch --check passed but apply failed in $repo — aborting."
   else
     die "Fix patch will not apply cleanly to $repo — aborting before build. Resolve manually."
   fi
-  grep -Eq '^\s*role:\s*str' "$model" || die "Fix-guard: role:str still absent after patch — aborting."
+  grep -Eq '^\s*role:\s*str\s*(#|$)' "$model" || die "Fix-guard: role:str still absent after patch — aborting."
   echo "Fix-guard: patch applied."
 }
 
