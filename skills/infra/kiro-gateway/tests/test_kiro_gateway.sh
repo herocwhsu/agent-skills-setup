@@ -545,6 +545,25 @@ remove_codex_empties_block_test() {
 }
 remove_codex_empties_block_test "remove-codex empties and removes the block"
 
+# status: reports build path (symlinked checkout) and image tag from state
+status_build_path_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$tmpdir/.agent-skills-setup"
+  local target="$tmpdir/realrepo"; mkdir -p "$target/.git"; ln -s "$target" "$canon"
+  local state="$tmpdir/state"; printf 'current=abc1234\n' > "$state"
+  local out
+  out=$(KIRO_GATEWAY_STATE_FILE="$state" HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    bash "$SCRIPT" status 2>&1 || true)
+  if echo "$out" | grep -q "Build path: linked" && echo "$out" | grep -q "kiro-gateway:abc1234"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (out=$out)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+status_build_path_test "status reports build path and image tag"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
