@@ -330,6 +330,37 @@ resolve_nongit_fails_test() {
 }
 resolve_nongit_fails_test "resolve: non-git target fails without dangling link"
 
+# fix-guard: passes when role: str already present
+fix_guard_present_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"
+  printf 'class Message:\n    role: str\n' > "$canon/kiro/models_anthropic.py"
+  local code=0
+  HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    bash "$SCRIPT" __fix_guard >/dev/null 2>&1 || code=$?
+  if [[ "$code" -eq 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (code=$code)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+fix_guard_present_test "fix-guard passes when role:str present"
+
+# fix-guard: aborts when the field is strict and no applicable patch
+fix_guard_aborts_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"
+  printf 'class Message:\n    role: Literal["user", "assistant"]\n' > "$canon/kiro/models_anthropic.py"
+  # No git repo in canon → patch cannot apply cleanly → must abort non-zero
+  local code=0
+  HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    bash "$SCRIPT" __fix_guard >/dev/null 2>&1 || code=$?
+  if [[ "$code" -ne 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (expected non-zero, got 0)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+fix_guard_aborts_test "fix-guard aborts when fix cannot be applied"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
