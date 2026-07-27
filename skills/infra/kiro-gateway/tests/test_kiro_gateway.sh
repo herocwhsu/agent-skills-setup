@@ -409,6 +409,15 @@ init_builds_sha_test() {
   # macOS data dir must exist for start_container's guard
   mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
   make_docker_git_mocks "$tmpdir" "abc1234"
+  # mock security so cmd_init's render_env_file never touches the real keychain
+  cat > "$tmpdir/bin/security" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in
+  *"find-generic-password"*"-w"*) echo "test-key-123" ;;
+  *) exit 0 ;;
+esac
+EOF
+  chmod +x "$tmpdir/bin/security"
   local state="$tmpdir/state"
   PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" CANONICAL_DIR="$canon" \
     KIRO_GATEWAY_STATE_FILE="$state" KIRO_GATEWAY_DIR="" SKIP_HEALTH_PROBE=1 \
@@ -474,6 +483,34 @@ rollback_missing_image_test() {
   rm -rf "$tmpdir"
 }
 rollback_missing_image_test "rollback fails loud when previous image absent"
+
+# render_env_file writes a chmod 600 file containing the proxy key
+render_env_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"   # mock security (exit 0)
+  # mock security to echo a key on find-generic-password -w
+  cat > "$tmpdir/bin/security" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in
+  *"find-generic-password"*"-w"*) echo "test-key-123" ;;
+  *) exit 0 ;;
+esac
+EOF
+  chmod +x "$tmpdir/bin/security"
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" \
+    bash "$SCRIPT" __render_env >/dev/null 2>&1 || true
+  local envf="$tmpdir/.env.kiro-gateway"
+  local perm; perm=$(stat -f '%Lp' "$envf" 2>/dev/null || stat -c '%a' "$envf" 2>/dev/null)
+  if [[ -f "$envf" ]] && grep -q "test-key-123" "$envf" \
+     && grep -q "^FIRST_TOKEN_TIMEOUT=120$" "$envf" && [[ "$perm" == "600" ]]; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (perm=$perm content=$(cat "$envf" 2>/dev/null))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+render_env_test "render_env_file writes chmod 600 env with key"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
