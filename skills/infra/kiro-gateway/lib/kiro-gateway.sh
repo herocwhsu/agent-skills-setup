@@ -203,7 +203,28 @@ start_container() {
 # subcommands
 # ---------------------------------------------------------------------------
 
-render_env_file() { :; }   # replaced in Task 5
+read_proxy_key() {
+  if command -v security &>/dev/null; then
+    security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null
+  elif command -v secret-tool &>/dev/null; then
+    secret-tool lookup service "agent-skills-setup:kiro-gateway" username "proxy-key" 2>/dev/null
+  fi
+}
+
+render_env_file() {
+  local key; key="$(read_proxy_key)"
+  [[ -n "$key" ]] || { store_proxy_key >/dev/null; key="$(read_proxy_key)"; }
+  local db; db="$(kiro_data_dir)/data.sqlite3"
+  local envf="$HOME/.env.kiro-gateway"
+  umask 077
+  # FIRST_TOKEN_TIMEOUT: gateway default (15) 500s high-effort/large-prompt
+  # calls (e.g. Claude Code subagents) before first token; 120 avoids it and
+  # stays below STREAMING_READ_TIMEOUT (300).
+  printf 'PROXY_API_KEY="%s"\nKIRO_CLI_DB_FILE="%s"\nFIRST_TOKEN_TIMEOUT=120\n' "$key" "$db" > "$envf"
+  chmod 600 "$envf"
+  echo "Rendered $envf (chmod 600)"
+}
+
 health_probe() { :; }      # replaced in Task 6
 
 cmd_status() {
@@ -401,5 +422,6 @@ case "${1:-}" in
   remove-codex)  cmd_remove_codex ;;
   __resolve_build_path) resolve_build_path ;;
   __fix_guard)   fix_guard ;;
+  __render_env)  render_env_file ;;
   *)             die "Unknown subcommand: '${1:-}'. Use: init | update | rollback | status | setup-alias | setup-codex | remove-codex" ;;
 esac
