@@ -550,6 +550,10 @@ git commit -m "feat: build kiro-gateway from fork with SHA-tagged images and rol
 # `kiro-gateway init` from the keychain entry agent-skills-setup:kiro-gateway.
 PROXY_API_KEY="replace-with-your-proxy-key"
 KIRO_CLI_DB_FILE="/Users/you/Library/Application Support/kiro-cli/data.sqlite3"
+# High-effort/large-prompt calls (e.g. Claude Code subagents) can take >15s to
+# first token; the gateway's default FIRST_TOKEN_TIMEOUT=15 would 500 them.
+# Must stay below STREAMING_READ_TIMEOUT (default 300).
+FIRST_TOKEN_TIMEOUT=120
 ```
 
 - [ ] **Step 2: Write the failing test**
@@ -573,7 +577,8 @@ EOF
     bash "$SCRIPT" __render_env >/dev/null 2>&1 || true
   local envf="$tmpdir/.env.kiro-gateway"
   local perm; perm=$(stat -f '%Lp' "$envf" 2>/dev/null || stat -c '%a' "$envf" 2>/dev/null)
-  if [[ -f "$envf" ]] && grep -q "test-key-123" "$envf" && [[ "$perm" == "600" ]]; then
+  if [[ -f "$envf" ]] && grep -q "test-key-123" "$envf" \
+     && grep -q "^FIRST_TOKEN_TIMEOUT=120$" "$envf" && [[ "$perm" == "600" ]]; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
     echo "FAIL: $name (perm=$perm content=$(cat "$envf" 2>/dev/null))"; FAIL=$((FAIL+1))
@@ -605,7 +610,10 @@ render_env_file() {
   local db; db="$(kiro_data_dir)/data.sqlite3"
   local envf="$HOME/.env.kiro-gateway"
   umask 077
-  printf 'PROXY_API_KEY="%s"\nKIRO_CLI_DB_FILE="%s"\n' "$key" "$db" > "$envf"
+  # FIRST_TOKEN_TIMEOUT: gateway default (15) 500s high-effort/large-prompt
+  # calls (e.g. Claude Code subagents) before first token; 120 avoids it and
+  # stays below STREAMING_READ_TIMEOUT (300).
+  printf 'PROXY_API_KEY="%s"\nKIRO_CLI_DB_FILE="%s"\nFIRST_TOKEN_TIMEOUT=120\n' "$key" "$db" > "$envf"
   chmod 600 "$envf"
   echo "Rendered $envf (chmod 600)"
 }
