@@ -2,7 +2,6 @@
 # kiro-gateway.sh — manage the kiro-gateway Docker container
 set -euo pipefail
 
-IMAGE_BASE="ghcr.io/jwadow/kiro-gateway"
 CONTAINER_NAME="kiro-gateway"
 HOST_PORT="127.0.0.1:7788"
 CONTAINER_PORT="8000"
@@ -173,29 +172,39 @@ resolve_build_path() {
   git clone "$FORK_REMOTE" "$CANONICAL_DIR"
 }
 
-resolve_digest() {
-  local ref="$1"
-  docker inspect --format '{{index .RepoDigests 0}}' "$ref" 2>/dev/null | grep -o 'sha256:[a-f0-9]*' || true
+image_exists() { docker image inspect "kiro-gateway:$1" >/dev/null 2>&1; }
+
+build_image() {
+  local repo; repo="$(build_path)"
+  local sha; sha="$(git -C "$repo" rev-parse --short HEAD)"
+  [[ -n "$sha" ]] || die "Could not resolve git SHA in $repo"
+  docker build -t "kiro-gateway:$sha" "$repo" >&2
+  echo "$sha"
 }
 
 start_container() {
-  local image_ref="$1"
-  local data_dir
-  data_dir=$(kiro_data_dir)
-  [[ -d "$data_dir" ]] || die "kiro data dir not found: $data_dir\nRun Kiro IDE or CLI once to create it, then retry."
+  local sha="$1"
+  local data_dir; data_dir=$(kiro_data_dir)
+  [[ -d "$data_dir" ]] || die "kiro data dir not found: $data_dir. Run Kiro CLI once, then retry."
+  mkdir -p "$HOME/kiro-gateway-logs"; chmod 755 "$HOME/kiro-gateway-logs"
   docker run -d \
     --name "$CONTAINER_NAME" \
     --restart unless-stopped \
     -p "${HOST_PORT}:${CONTAINER_PORT}" \
-    -v "${data_dir}:/home/ubuntu/.local/share/kiro-cli" \
-    "$image_ref" \
+    --env-file "$HOME/.env.kiro-gateway" \
+    -v "${data_dir}:/home/kiro/.local/share/kiro-cli:ro" \
+    -v "$HOME/kiro-gateway-logs:/app/debug_logs" \
+    "kiro-gateway:$sha" \
     python main.py
-  echo "Started $CONTAINER_NAME ($image_ref)"
+  echo "Started $CONTAINER_NAME (kiro-gateway:$sha)"
 }
 
 # ---------------------------------------------------------------------------
 # subcommands
 # ---------------------------------------------------------------------------
+
+render_env_file() { :; }   # replaced in Task 5
+health_probe() { :; }      # replaced in Task 6
 
 cmd_status() {
   if [[ -f "$HOME/.codex-kiro/config.toml" ]] \
@@ -221,74 +230,38 @@ cmd_status() {
 
 cmd_init() {
   require_docker
-  local image_ref
-  local current
-  current=$(read_state current)
-
-  if [[ -n "$current" ]]; then
-    image_ref="$current"
-    echo "Using pinned image: $image_ref"
-  else
-    echo "No state file — pulling latest to pin digest..."
-    docker pull "${IMAGE_BASE}:latest"
-    local digest
-    digest=$(resolve_digest "${IMAGE_BASE}:latest")
-    [[ -n "$digest" ]] || die "Could not resolve digest for ${IMAGE_BASE}:latest"
-    image_ref="${IMAGE_BASE}@${digest}"
-    write_state "$image_ref"
-    echo "Pinned: $image_ref"
-  fi
-
-  local state
-  state=$(container_status)
+  resolve_build_path
+  fix_guard
+  render_env_file
+  local sha; sha="$(build_image)"
+  local state; state=$(container_status)
   case "$state" in
-    running)
-      echo "$CONTAINER_NAME is already running."
-      ;;
-    exited|created|paused)
-      echo "Restarting stopped container..."
-      docker start "$CONTAINER_NAME"
-      ;;
-    absent)
-      start_container "$image_ref"
-      ;;
-    *)
-      die "Unexpected container state: $state"
-      ;;
+    running) echo "$CONTAINER_NAME already running." ;;
+    exited|created|paused) docker start "$CONTAINER_NAME" ;;
+    absent) start_container "$sha" ;;
+    *) die "Unexpected container state: $state" ;;
   esac
+  write_state "$sha" "$(read_state previous)"
+  [[ "${SKIP_HEALTH_PROBE:-0}" == "1" ]] || health_probe
 }
 
 cmd_update() {
   require_docker
-  echo "Pulling ${IMAGE_BASE}:latest..."
-  docker pull "${IMAGE_BASE}:latest"
-
-  local new_digest
-  new_digest=$(resolve_digest "${IMAGE_BASE}:latest")
-  [[ -n "$new_digest" ]] || die "Could not resolve digest after pull."
-  local new_ref="${IMAGE_BASE}@${new_digest}"
-
-  local current
-  current=$(read_state current)
-  if [[ "$new_ref" == "$current" ]]; then
-    echo "Already up to date: $new_ref"
-    exit 0
+  resolve_build_path
+  local repo; repo="$(build_path)"
+  git -C "$repo" pull --ff-only >&2 || die "git pull failed in $repo"
+  fix_guard
+  local new_sha; new_sha="$(build_image)"
+  local current; current=$(read_state current)
+  if [[ "$new_sha" == "$current" ]] && image_exists "$new_sha"; then
+    echo "Already up to date: kiro-gateway:$new_sha"; return 0
   fi
-
-  echo "Current: $current"
-  echo "New:     $new_ref"
-  read -rp "Apply update? [y/N] " confirm
-  [[ "$confirm" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
-
-  write_state "$new_ref" "${current:-}"
-
-  local state
-  state=$(container_status)
-  if [[ "$state" != "absent" ]]; then
-    docker stop "$CONTAINER_NAME"
-    docker rm "$CONTAINER_NAME"
+  if [[ "$(container_status)" != "absent" ]]; then
+    docker stop "$CONTAINER_NAME"; docker rm "$CONTAINER_NAME"
   fi
-  cmd_init
+  start_container "$new_sha"
+  write_state "$new_sha" "${current:-}"
+  [[ "${SKIP_HEALTH_PROBE:-0}" == "1" ]] || health_probe
 }
 
 cmd_setup_alias() {
@@ -388,23 +361,17 @@ cmd_remove_codex() {
 }
 
 cmd_rollback() {
-  local previous
-  previous=$(read_state previous)
+  local previous; previous=$(read_state previous)
   [[ -n "$previous" ]] || die "no previous version recorded. Rollback requires at least one prior update."
   require_docker
-  local current
-  current=$(read_state current)
-  echo "Rolling back: $current → $previous"
-
-  local state
-  state=$(container_status)
-  if [[ "$state" != "absent" ]]; then
-    docker stop "$CONTAINER_NAME"
-    docker rm "$CONTAINER_NAME"
+  image_exists "$previous" || die "previous image kiro-gateway:$previous not present on this host — cannot roll back."
+  local current; current=$(read_state current)
+  echo "Rolling back: $current -> $previous"
+  if [[ "$(container_status)" != "absent" ]]; then
+    docker stop "$CONTAINER_NAME"; docker rm "$CONTAINER_NAME"
   fi
-
-  write_state "$previous" "$current"
   start_container "$previous"
+  write_state "$previous" "$current"
 }
 
 # ---------------------------------------------------------------------------

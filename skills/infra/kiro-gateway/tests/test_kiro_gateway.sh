@@ -378,6 +378,67 @@ fix_guard_aborts_test() {
 }
 fix_guard_aborts_test "fix-guard aborts when fix cannot be applied"
 
+# Adds mock `docker` and `git` that record calls, so build/run logic is testable
+# without a daemon. `git rev-parse --short HEAD` returns a fixed sha.
+make_docker_git_mocks() {
+  local dir="$1" sha="$2"
+  mkdir -p "$dir/bin"
+  cat > "$dir/bin/docker" <<EOF
+#!/usr/bin/env bash
+echo "docker \$*" >> "$dir/docker.calls"
+case "\$1" in
+  inspect) exit 1 ;;   # container/image absent
+  build|run|stop|rm|start|logs) exit 0 ;;
+  *) exit 0 ;;
+esac
+EOF
+  cat > "$dir/bin/git" <<EOF
+#!/usr/bin/env bash
+if [[ "\$*" == *"rev-parse --short HEAD"* ]]; then echo "$sha"; exit 0; fi
+echo "git \$*" >> "$dir/git.calls"
+exit 0
+EOF
+  chmod +x "$dir/bin/docker" "$dir/bin/git"
+}
+
+# init: builds a SHA-tagged image and records current=<sha>
+init_builds_sha_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  # macOS data dir must exist for start_container's guard
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
+  make_docker_git_mocks "$tmpdir" "abc1234"
+  local state="$tmpdir/state"
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    KIRO_GATEWAY_STATE_FILE="$state" KIRO_GATEWAY_DIR="" SKIP_HEALTH_PROBE=1 \
+    bash "$SCRIPT" init >/dev/null 2>&1 || true
+  if grep -q "build -t kiro-gateway:abc1234" "$tmpdir/docker.calls" 2>/dev/null \
+     && grep -q "current=abc1234" "$state" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (calls=$(cat "$tmpdir/docker.calls" 2>/dev/null))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+init_builds_sha_test "init builds SHA-tagged image and records current"
+
+# rollback: fails loud when previous image absent from host
+rollback_missing_image_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  make_docker_git_mocks "$tmpdir" "abc1234"
+  local state="$tmpdir/state"; printf 'current=new123\nprevious=old999\n' > "$state"
+  # docker inspect returns 1 (image absent) via the mock → rollback must die
+  local code=0
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" \
+    KIRO_GATEWAY_STATE_FILE="$state" \
+    bash "$SCRIPT" rollback >/dev/null 2>&1 || code=$?
+  if [[ "$code" -ne 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (expected non-zero)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+rollback_missing_image_test "rollback fails loud when previous image absent"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
