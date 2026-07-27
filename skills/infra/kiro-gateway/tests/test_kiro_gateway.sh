@@ -423,6 +423,42 @@ init_builds_sha_test() {
 }
 init_builds_sha_test "init builds SHA-tagged image and records current"
 
+# init idempotency: on an ALREADY-RUNNING container, init must NOT rebuild and
+# must NOT rewrite state (else state.current drifts from the live image).
+init_running_noop_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  mkdir -p "$tmpdir/bin"
+  cat > "$tmpdir/bin/docker" <<EOF
+#!/usr/bin/env bash
+echo "docker \$*" >> "$tmpdir/docker.calls"
+case "\$1" in
+  inspect) echo "running"; exit 0 ;;
+  *) exit 0 ;;
+esac
+EOF
+  cat > "$tmpdir/bin/git" <<EOF
+#!/usr/bin/env bash
+if [[ "\$*" == *"rev-parse --short HEAD"* ]]; then echo "new999"; exit 0; fi
+exit 0
+EOF
+  chmod +x "$tmpdir/bin/docker" "$tmpdir/bin/git"
+  local state="$tmpdir/state"; printf 'current=old111\n' > "$state"
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    KIRO_GATEWAY_STATE_FILE="$state" KIRO_GATEWAY_DIR="" SKIP_HEALTH_PROBE=1 \
+    bash "$SCRIPT" init >/dev/null 2>&1 || true
+  if ! grep -q "build -t" "$tmpdir/docker.calls" 2>/dev/null \
+     && grep -q "current=old111" "$state" 2>/dev/null \
+     && ! grep -q "new999" "$state" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (rebuilt or rewrote state: calls=$(cat "$tmpdir/docker.calls" 2>/dev/null) state=$(cat "$state" 2>/dev/null))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+init_running_noop_test "init on running container does not rebuild or rewrite state"
+
 # rollback: fails loud when previous image absent from host
 rollback_missing_image_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
