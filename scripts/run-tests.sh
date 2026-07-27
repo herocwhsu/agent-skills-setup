@@ -50,6 +50,10 @@ for f in "$REPO_DIR/scripts/tests"/test_*.sh; do
   [[ -f "$f" ]] || continue
   run_bash "$f"
 done
+for f in "$REPO_DIR/.claude/hooks/tests"/test_*.sh; do
+  [[ -f "$f" ]] || continue
+  run_bash "$f"
+done
 
 echo ""
 echo "==> Skill tests"
