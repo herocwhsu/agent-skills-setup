@@ -85,6 +85,59 @@ store_proxy_key() {
   fi
 }
 
+BLOCK_START="# >>> agent-skills-setup kiro-gateway >>>"
+BLOCK_END="# <<< agent-skills-setup kiro-gateway <<<"
+
+# Read the current block body (lines between sentinels), if any.
+_read_block() {
+  local rc="$1"
+  [[ -f "$rc" ]] || return 0
+  awk -v s="$BLOCK_START" -v e="$BLOCK_END" '
+    $0==s {inb=1; next} $0==e {inb=0; next} inb {print}' "$rc"
+}
+
+# Rewrite the rc file with a new block body (may be empty → block removed).
+_write_block() {
+  local rc="$1" body="$2" tmp
+  tmp="$(mktemp)"
+  # copy everything outside the block
+  awk -v s="$BLOCK_START" -v e="$BLOCK_END" '
+    $0==s {inb=1; next} $0==e {inb=0; next} !inb {print}' "$rc" 2>/dev/null > "$tmp"
+  if [[ -n "$body" ]]; then
+    { echo "$BLOCK_START"; printf '%s\n' "$body"; echo "$BLOCK_END"; } >> "$tmp"
+  fi
+  mv "$tmp" "$rc"
+}
+
+# Insert or update one alias line (keyed by alias name) within the block.
+write_managed_line() {
+  local rc="$1" key="$2" line="$3"
+  touch "$rc"
+  local body; body="$(_read_block "$rc")"
+  local newbody=""
+  local found=0
+  while IFS= read -r l; do
+    [[ -z "$l" ]] && continue
+    if [[ "$l" == *"alias $key="* ]]; then newbody+="$line"$'\n'; found=1
+    else newbody+="$l"$'\n'; fi
+  done <<< "$body"
+  [[ "$found" -eq 0 ]] && newbody+="$line"$'\n'
+  _write_block "$rc" "${newbody%$'\n'}"
+}
+
+remove_managed_line() {
+  local rc="$1" key="$2"
+  [[ -f "$rc" ]] || return 0
+  local body; body="$(_read_block "$rc")"
+  local newbody=""
+  while IFS= read -r l; do
+    [[ -z "$l" ]] && continue
+    [[ "$l" == *"alias $key="* ]] && continue
+    newbody+="$l"$'\n'
+  done <<< "$body"
+  _write_block "$rc" "${newbody%$'\n'}"
+}
+
 build_path() { echo "$CANONICAL_DIR"; }
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -326,45 +379,22 @@ cmd_update() {
 }
 
 cmd_setup_alias() {
-  local rc_file
-  rc_file=$(rc_file_path)
-
-  if grep -Fq "claude-kiro" "$rc_file" 2>/dev/null; then
-    echo "claude-kiro alias already present in $rc_file"
-    return 0
-  fi
-
-  local read_cmd
-  read_cmd=$(store_proxy_key)
-
-  {
-    echo ""
-    echo "# kiro-gateway"
-    echo "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} claude'"
-    echo "alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} hermes --provider anthropic --model claude-sonnet-4-6'"
-  } >> "$rc_file"
-
-  echo "Token stored in keychain. Added to $rc_file:"
-  echo "  alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ...'"
-  echo "  alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ...'"
-  echo ""
-  echo "Activate now: source $rc_file"
-  echo "Then launch Claude Code via: claude-kiro"
+  local rc; rc=$(rc_file_path)
+  local read_cmd; read_cmd=$(store_proxy_key)
+  write_managed_line "$rc" "claude-kiro" \
+    "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} claude'"
+  write_managed_line "$rc" "hermes-kiro" \
+    "alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} hermes --provider anthropic --model claude-sonnet-4-6'"
+  echo "Reconciled claude-kiro/hermes-kiro in $rc. Activate: source $rc"
 }
 
 cmd_setup_codex() {
   local codex_home="$HOME/.codex-kiro"
   local config_file="$codex_home/config.toml"
-  local rc_file
-  rc_file=$(rc_file_path)
-
-  local read_cmd
-  read_cmd=$(store_proxy_key)
-
+  local rc; rc=$(rc_file_path)
+  local read_cmd; read_cmd=$(store_proxy_key)
   mkdir -p "$codex_home"
-  if grep -Fq "[model_providers.kiro]" "$config_file" 2>/dev/null; then
-    echo "codex-kiro config already present in $config_file"
-  else
+  if ! grep -Fq "[model_providers.kiro]" "$config_file" 2>/dev/null; then
     cat > "$config_file" <<'EOF'
 [model_providers.kiro]
 name = "Kiro Gateway"
@@ -378,47 +408,18 @@ model_provider = "kiro"
 EOF
     echo "Wrote $config_file"
   fi
-
-  if grep -Fq "alias codex-kiro" "$rc_file" 2>/dev/null; then
-    echo "codex-kiro alias already present in $rc_file"
-  else
-    {
-      echo ""
-      echo "# kiro-gateway (codex)"
-      echo "alias codex-kiro='CODEX_HOME=\"\$HOME/.codex-kiro\" KIRO_PROXY_KEY=${read_cmd} codex --profile kiro'"
-    } >> "$rc_file"
-    echo "Added codex-kiro alias to $rc_file"
-  fi
-
-  if ! command -v codex &>/dev/null; then
-    echo ""
-    echo "Note: codex not found. Install it with:"
-    echo "  npm i -g @openai/codex"
-  fi
-  echo ""
-  echo "Activate now: source $rc_file"
-  echo "Then launch Codex via the gateway: codex-kiro"
+  write_managed_line "$rc" "codex-kiro" \
+    "alias codex-kiro='CODEX_HOME=\"\$HOME/.codex-kiro\" KIRO_PROXY_KEY=${read_cmd} codex --profile kiro'"
+  command -v codex &>/dev/null || echo "Note: codex not found. Install: npm i -g @openai/codex"
+  echo "Reconciled codex-kiro in $rc. Activate: source $rc"
 }
 
 cmd_remove_codex() {
   local codex_home="$HOME/.codex-kiro"
-  local rc_file
-  rc_file=$(rc_file_path)
-
-  if [[ -f "$rc_file" ]] && grep -Fq "codex-kiro" "$rc_file"; then
-    grep -v -e "alias codex-kiro" -e "kiro-gateway (codex)" "$rc_file" > "$rc_file.tmp" || true
-    mv "$rc_file.tmp" "$rc_file"
-    echo "Removed codex-kiro alias from $rc_file"
-  else
-    echo "No codex-kiro alias found in $rc_file"
-  fi
-
-  if [[ -d "$codex_home" ]]; then
-    rm -rf "$codex_home"
-    echo "Removed $codex_home"
-  else
-    echo "No $codex_home directory to remove"
-  fi
+  local rc; rc=$(rc_file_path)
+  remove_managed_line "$rc" "codex-kiro"
+  echo "Removed codex-kiro from $rc"
+  if [[ -d "$codex_home" ]]; then rm -rf "$codex_home"; echo "Removed $codex_home"; fi
 }
 
 cmd_rollback() {
