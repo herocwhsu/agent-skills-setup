@@ -33,7 +33,11 @@ else
 fi
 
 # ── ups.sh: test-shutdown subcommand works without NUT installed ─────────────
-if bash "$SKILL_DIR/lib/ups.sh" test-shutdown 2>/dev/null | grep -q "DRY RUN"; then
+# Capture first, then match: piping directly into `grep -q` closes the pipe on
+# the first match, so ups.sh dies with SIGPIPE and the pipeline returns 141
+# under `set -o pipefail` — a false failure even though the output is correct.
+test_shutdown_out="$(bash "$SKILL_DIR/lib/ups.sh" test-shutdown 2>/dev/null || true)"
+if grep -q "DRY RUN" <<<"$test_shutdown_out"; then
   ok "ups.sh test-shutdown: dry-run output contains 'DRY RUN'"
 else
   fail "ups.sh test-shutdown: expected 'DRY RUN' in output"
@@ -60,8 +64,9 @@ else
 fi
 
 # ── install.sh: key config strings are present ───────────────────────────────
+# -E not -P: BSD grep (macOS) has no -P/PCRE flag; these patterns are plain ERE.
 for pattern in "usbhid-ups" "upssched" "START-TIMER onbatt 60" "CANCEL-TIMER onbatt" "LOWBATT.*EXECUTE"; do
-  if grep -qP "$pattern" "$SKILL_DIR/lib/install.sh"; then
+  if grep -qE "$pattern" "$SKILL_DIR/lib/install.sh"; then
     ok "install.sh contains: $pattern"
   else
     fail "install.sh missing: $pattern"
