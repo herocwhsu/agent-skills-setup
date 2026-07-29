@@ -22,15 +22,13 @@ _FALLBACK_STORE = "~/.agent-skills-setup/credentials.json"
 def _slugify_url(url: str) -> str:
     """Convert a URL to a keychain-safe slug. Mirrors lib/lib.sh:slugify_url.
 
-    Must collapse consecutive dashes and strip a trailing dash to match bash's
-    `sed 's|[^a-zA-Z0-9]|-|g;s/-\\+/-/g;s/-$//'` exactly — a prior version of
-    this function skipped the collapse step, so bash-stored credential keys
-    (single dash) silently failed to resolve here (triple dash), which is the
-    opposite of what the removed comment claimed.
+    Do NOT collapse consecutive dashes. BSD sed (macOS, used by bash's
+    slugify_url) does not support `\\+` as "one or more" the way GNU sed
+    does, so `sed 's/-\\+/-/g'` is a silent no-op on macOS — bash keeps
+    producing triple-dash keys (e.g. `https---host-com`). Collapsing here
+    diverges from what's actually stored in the keychain and breaks lookup.
     """
-    slug = re.sub(r"[^a-zA-Z0-9]", "-", url)
-    slug = re.sub(r"-+", "-", slug)
-    return slug.rstrip("-")
+    return re.sub(r"[^a-zA-Z0-9]", "-", url)
 
 
 def _service_slug(prefix: str, url: str) -> str:
