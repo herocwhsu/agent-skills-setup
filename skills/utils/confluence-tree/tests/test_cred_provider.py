@@ -46,7 +46,7 @@ def test_env_provider_returns_none_for_empty_string(monkeypatch):
 def test_keychain_provider_reads_from_credentials_json(tmp_path, monkeypatch):
     import cred_provider
     creds_file = tmp_path / "credentials.json"
-    svc = "agent-skills-setup:confluence-https-example-com"
+    svc = "agent-skills-setup:confluence-https---example-com"
     creds_file.write_text(json.dumps({f"{svc}:testuser": "kc-pass"}))
     monkeypatch.setattr(cred_provider, "_FALLBACK_STORE", str(creds_file))
     # skip subprocess by making both platform commands raise FileNotFoundError
@@ -96,7 +96,7 @@ def test_resolve_credential_uses_env_first(monkeypatch, tmp_path):
 def test_resolve_credential_falls_through_to_keychain(monkeypatch, tmp_path):
     import cred_provider
     creds_file = tmp_path / "credentials.json"
-    svc = "agent-skills-setup:confluence-https-example-com"
+    svc = "agent-skills-setup:confluence-https---example-com"
     creds_file.write_text(json.dumps({f"{svc}:user": "kc-pass"}))
     monkeypatch.setattr(cred_provider, "_FALLBACK_STORE", str(creds_file))
     monkeypatch.setattr(
@@ -122,16 +122,18 @@ def test_resolve_credential_returns_none_when_all_fail(monkeypatch, tmp_path):
 
 def test_slugify_url():
     import cred_provider
-    assert cred_provider._slugify_url("https://example.com") == "https-example-com"
+    # BSD sed's `s/-\+/-/g` doesn't collapse (no GNU-style \+ support), so
+    # bash-stored keychain keys keep triple dashes for "://". Must match.
+    assert cred_provider._slugify_url("https://example.com") == "https---example-com"
 
 
 def test_service_slug():
     import cred_provider
     slug = cred_provider._service_slug("confluence", "https://example.com")
-    assert slug == "confluence-https-example-com"
+    assert slug == "confluence-https---example-com"
 
 
 def test_bare_host_gets_https_prefix():
     import cred_provider
     p = cred_provider.ConfluenceConfigKeychainProvider("example.com", "user")
-    assert "https-example-com" in p._svc_key
+    assert "https---example-com" in p._svc_key
