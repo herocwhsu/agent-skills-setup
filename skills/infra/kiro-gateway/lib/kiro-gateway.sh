@@ -79,24 +79,40 @@ rc_file_path() {
 # exactly the read command.
 store_proxy_key() {
   local proxy_key="${KIRO_PROXY_KEY:-}"
+  # Decide whether to WRITE. setup-alias calls this only for the read-back
+  # snippet, so it must never overwrite an already-stored key: doing so with the
+  # prompt default (kiro-local) silently breaks auth against a gateway that was
+  # built with the real key. Store only when a key is explicitly provided via
+  # KIRO_PROXY_KEY, or when none is stored yet. Otherwise emit the snippet only.
+  local do_store=1
   if [[ -z "$proxy_key" ]]; then
-    # `|| true`: read returns non-zero on EOF; a bare read would abort under
-    # set -e before the default below applies. Degrade to the kiro-local default.
-    read -rp "KIRO_PROXY_KEY value (leave blank for 'kiro-local'): " proxy_key || true
-    proxy_key="${proxy_key:-kiro-local}"
+    if [[ -n "$(read_proxy_key || true)" ]]; then
+      do_store=0                       # key already stored — preserve it
+    else
+      # `|| true`: read returns non-zero on EOF; a bare read would abort under
+      # set -e before the default below applies. Degrade to the kiro-local default.
+      read -rp "KIRO_PROXY_KEY value (leave blank for 'kiro-local'): " proxy_key || true
+      proxy_key="${proxy_key:-kiro-local}"
+    fi
   fi
 
   if command -v security &>/dev/null; then
-    security delete-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" >/dev/null 2>&1 || true
-    security add-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w "$proxy_key"
+    if [[ "$do_store" == "1" ]]; then
+      security delete-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" >/dev/null 2>&1 || true
+      security add-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w "$proxy_key"
+    fi
     echo '$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null)'
   elif command -v secret-tool &>/dev/null; then
-    echo -n "$proxy_key" | secret-tool store --label="kiro-gateway proxy-key" \
-      service "agent-skills-setup:kiro-gateway" username "proxy-key"
+    if [[ "$do_store" == "1" ]]; then
+      echo -n "$proxy_key" | secret-tool store --label="kiro-gateway proxy-key" \
+        service "agent-skills-setup:kiro-gateway" username "proxy-key"
+    fi
     echo '$(secret-tool lookup service "agent-skills-setup:kiro-gateway" username "proxy-key" 2>/dev/null)'
   else
-    echo "export KIRO_PROXY_KEY=${proxy_key}" >> "$HOME/.zshrc.local"
-    echo "  Note: no keychain available — token written to ~/.zshrc.local (headless fallback)" >&2
+    if [[ "$do_store" == "1" ]]; then
+      echo "export KIRO_PROXY_KEY=${proxy_key}" >> "$HOME/.zshrc.local"
+      echo "  Note: no keychain available — token written to ~/.zshrc.local (headless fallback)" >&2
+    fi
     echo "\${KIRO_PROXY_KEY}"
   fi
 }

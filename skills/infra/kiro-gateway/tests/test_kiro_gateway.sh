@@ -77,6 +77,43 @@ setup_alias_test() {
 }
 setup_alias_test "setup-alias writes alias and key to rc file"
 
+# Regression: setup-alias must NOT overwrite an already-stored proxy key. It
+# calls store_proxy_key only for the read-back snippet; the buggy version
+# unconditionally delete+add, so with no KIRO_PROXY_KEY and closed stdin the
+# read hit EOF and stored the 'kiro-local' default — silently breaking auth
+# against a gateway built with the real key. Stateful security mock holds a
+# real key; assert it is unchanged after setup-alias. Fails on buggy code.
+setup_alias_preserves_key_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/bin"
+  cat > "$tmpdir/bin/security" <<EOF
+#!/usr/bin/env bash
+KF="$tmpdir/kc"
+case "\$1" in
+  find-generic-password) if [[ -f "\$KF" ]]; then cat "\$KF"; else exit 44; fi ;;
+  add-generic-password) p=""; for a in "\$@"; do [[ "\$p" == "-w" ]] && printf '%s' "\$a" > "\$KF"; p="\$a"; done ;;
+  delete-generic-password) rm -f "\$KF" ;;
+esac
+exit 0
+EOF
+  chmod +x "$tmpdir/bin/security"
+  printf 'REAL-32-char-key-aaaaaaaaaaaaaaaa' > "$tmpdir/kc"   # preexisting good key
+  local before after
+  before=$(cat "$tmpdir/kc")
+  # NO KIRO_PROXY_KEY; closed stdin so the prompt (if reached) hits EOF.
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" SHELL="/bin/zsh" \
+    KIRO_GATEWAY_STATE_FILE="$tmpdir/state" \
+    bash "$SCRIPT" setup-alias >/dev/null 2>&1 </dev/null || true
+  after=$(cat "$tmpdir/kc")
+  if [[ "$before" == "$after" ]]; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (key changed: '$after')"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+setup_alias_preserves_key_test "setup-alias preserves an existing proxy key (no clobber)"
+
 # setup-codex: writes config.toml with provider + profile
 setup_codex_config_test() {
   local name="$1"
