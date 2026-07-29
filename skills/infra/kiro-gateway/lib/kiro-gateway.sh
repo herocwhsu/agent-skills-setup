@@ -440,7 +440,7 @@ cmd_setup_alias() {
   write_managed_line "$rc" "claude-kiro" \
     "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} claude'"
   write_managed_line "$rc" "hermes-kiro" \
-    "alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} hermes --provider anthropic --model claude-sonnet-4-6'"
+    "alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} hermes --provider anthropic --model claude-sonnet-5'"
   echo "Reconciled claude-kiro/hermes-kiro in $rc. Activate: source $rc"
 }
 
