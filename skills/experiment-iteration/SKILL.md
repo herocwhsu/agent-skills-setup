@@ -32,11 +32,13 @@ workflow.
 ## How It Works
 
 1. **Load the charter** — read `docs/ai-learning-charter.md` in the current
-   repo. If not found, fall back to `~/.claude/docs/ai-learning-charter.md`.
-   If neither exists, tell the user and stop.
+   repo. If not found, tell the user this skill is `local-optional` and
+   requires opting in per repo (copy `docs/ai-learning-charter.md` and
+   `docs/experiment-template.md` from `agent-skills-setup/docs/` into this
+   repo's `docs/` directory — see this skill's README), then stop.
 
 2. **Load the template** — read `docs/experiment-template.md` in the current
-   repo. If not found, fall back to `~/.claude/docs/experiment-template.md`.
+   repo.
 
 3. **Identify the experiment** — ask the user for a short slug (e.g.
    `false-alarm-camera-examples`). Use it to derive the output path:
