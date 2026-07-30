@@ -390,8 +390,9 @@ init_builds_sha_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
-  # macOS data dir must exist for start_container's guard
-  mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
+  # kiro_data_dir's guard checks a platform-specific path (macOS vs Linux) —
+  # create both so this test passes on any CI runner, not just the author's OS.
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/.local/share/kiro-cli"
   make_docker_git_mocks "$tmpdir" "abc1234"
   # mock security so cmd_init's render_env_file never touches the real keychain
   cat > "$tmpdir/bin/security" <<'EOF'
@@ -423,7 +424,7 @@ init_realdocker_absent_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
-  mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/bin"
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/.local/share/kiro-cli" "$tmpdir/bin"
   # docker mock: inspect prints a BLANK line to stdout and exits 1 (real 29.x behavior)
   cat > "$tmpdir/bin/docker" <<EOF
 #!/usr/bin/env bash
@@ -470,7 +471,7 @@ init_fresh_exits_zero_and_probes_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
-  mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/.local/share/kiro-cli"
   make_docker_git_mocks "$tmpdir" "abc1234"
   cat > "$tmpdir/bin/security" <<'EOF'
 #!/usr/bin/env bash
@@ -605,7 +606,10 @@ EOF
   PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" \
     bash "$SCRIPT" __render_env >/dev/null 2>&1 || true
   local envf="$tmpdir/.env.kiro-gateway"
-  local perm; perm=$(stat -f '%Lp' "$envf" 2>/dev/null || stat -c '%a' "$envf" 2>/dev/null)
+  # GNU stat (-c) first: BSD's `stat -f` means something else on Linux
+  # ("report on the filesystem") and exits 0 with irrelevant output instead of
+  # erroring, so the `||` fallback never fires if tried second.
+  local perm; perm=$(stat -c '%a' "$envf" 2>/dev/null || stat -f '%Lp' "$envf" 2>/dev/null)
   # Assert the exact UNQUOTED line (docker --env-file keeps literal quotes, so a
   # quoted value would be a bug). `^PROXY_API_KEY=test-key-123$` fails if quoted.
   # KIRO_CLI_DB_FILE must be the CONTAINER path (where the data dir is mounted),
