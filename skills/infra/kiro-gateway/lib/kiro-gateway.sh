@@ -472,7 +472,7 @@ cmd_setup_codex() {
 name = "Kiro Gateway"
 base_url = "http://localhost:7788/v1"
 env_key = "KIRO_PROXY_KEY"
-wire_api = "chat"
+wire_api = "responses"
 
 [profiles.kiro]
 model = "claude-opus-4.8"
