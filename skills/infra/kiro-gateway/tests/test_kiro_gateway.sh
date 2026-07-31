@@ -128,7 +128,7 @@ setup_codex_config_test() {
     bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
   if [[ -f "$cfg" ]] \
      && grep -Fq "[model_providers.kiro]" "$cfg" \
-     && grep -Fq 'wire_api = "chat"' "$cfg" \
+     && grep -Fq 'wire_api = "responses"' "$cfg" \
      && grep -Fq 'model = "claude-opus-4.8"' "$cfg"; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
