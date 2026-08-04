@@ -80,15 +80,18 @@ This writes `~/.codex-kiro/config.toml`:
 name = "Kiro Gateway"
 base_url = "http://localhost:7788/v1"
 env_key = "KIRO_PROXY_KEY"
-wire_api = "chat"
+wire_api = "responses"
 
 [profiles.kiro]
 model = "claude-opus-4.8"
 model_provider = "kiro"
 ```
 
-`wire_api = "chat"` is required — the gateway serves OpenAI Chat Completions,
-not the Responses API. Override the model per run: `codex-kiro -m claude-sonnet-4.6`.
+`wire_api = "responses"` is required as of Feb 2026 — OpenAI removed
+`chat/completions` support from the Codex CLI entirely (it now hard-errors with
+"wire_api = \"chat\" is no longer supported"). The gateway added `/v1/responses`
+support to match; verify with `curl -s $GATEWAY_URL/openapi.json | grep -o '"/v1/[^"]*"'`
+if this ever flips again. Override the model per run: `codex-kiro -m claude-sonnet-4.6`.
 
 If `codex` isn't installed, `setup-codex` still writes the config and prints
 `npm i -g @openai/codex`. Remove everything with `remove-codex`.
