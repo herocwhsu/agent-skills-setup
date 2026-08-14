@@ -15,6 +15,7 @@ Cross-cutting utilities. Independent of the Spec-Gated workflow.
 | `/utils-confluence-tree-fetch <page-id>` | Walk a self-hosted Confluence page + descendants, write each as `<slug>.md` with frontmatter. Drawio/Gliffy diagrams preserved as opaque blocks; other macros flattened. | `confluence-tree/IMPL.md` |
 | `/utils-confluence-tree-upload <local-dir> --parent <id> --space <KEY>` | Reconcile titles, create stub pages under `<id>` in `<KEY>`, then upload content + attachments + diagrams. | `confluence-tree/IMPL.md` |
 | `/utils-confluence-link-rewrite-preview <local-dir> --parent <id>` | Dry-run: show how cross-tree links will rewrite given a destination parent. No network calls, no writes. | `confluence-tree/IMPL.md` |
+| `/utils-skill-eval <skill-name> <transcript-file>` | Mechanically scan a skill's transcript for `<PREFIX>_STATUS:` markers and tool-call counts to catch regressions after editing a skill. Narrows human review down to content-quality judgment only. | `skill-eval/IMPL.md` |
 
 ## When to use which subcommand
 
@@ -22,6 +23,7 @@ Cross-cutting utilities. Independent of the Spec-Gated workflow.
 Want polished prompts auto-shown after each turn → /utils-polish-input
 Need to migrate a Confluence Server/DC page tree to a new parent → /utils-confluence-tree-fetch + edit + upload
 Want to see how links would rewrite before actually uploading → /utils-confluence-link-rewrite-preview
+Just edited a skill's SKILL.md/IMPL.md and want to check for regressions → /utils-skill-eval
 ```
 
 ## polish-input hook
