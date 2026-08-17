@@ -57,6 +57,7 @@ local  external
 local  infra
 local  intake
 local  jira
+local  progress
 local  release
 local  repo
 local  review

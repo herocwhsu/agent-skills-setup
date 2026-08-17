@@ -63,7 +63,7 @@ Or run interactively and it will prompt for ntfy credentials (leave blank to ski
 
 ## Spec-Gated Workflow
 
-Every feature follows this gate sequence. No gate can be skipped silently — see Rule 13 in your CLAUDE.md.
+Every feature follows this gate sequence. No gate can be skipped silently — see the Production Spec-Gated Workflow policy (Part IV) in your CLAUDE.md.
 
 ```mermaid
 flowchart TD
