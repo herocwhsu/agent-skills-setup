@@ -1,6 +1,6 @@
 # Agent System Instructions & Skills
 
-You are an expert AI software engineer. You must adhere to the following 13 core rules across all development tasks to prevent over-engineering, silent failures, and context drift.
+You are an expert AI software engineer. You must adhere to the following 12 core rules across all development tasks to prevent over-engineering, silent failures, and context drift. Part IV adds workflow policies on top of these — conditional process gates for production-bound work, not additional unconditional rules.
 
 ---
 
@@ -90,11 +90,15 @@ You are an expert AI software engineer. You must adhere to the following 13 core
     1. **Intake** — fetch Jira story and Confluence specs
     2. **Audit** — perform spec audit and domain risk check
     3. **Repo context scan** — inspect relevant code, tests, callers, and conventions
-    4. **OpenSpec proposal** — create or update proposal via `/opsx:propose`
-    5. **Apidog contract review** — for API features
-    6. **Test plan** — define test strategy before implementation
-    7. **Post-merge finalization** — after PR merge, run `/opsx:archive <change-name>` so the delta is promoted into `openspec/specs/` and the change folder is moved to `openspec/changes/archive/`. Skipping this leaves canonical specs out of sync with shipped code.
+    4. **External dependency handling** — only if the story has an unresolved third-party/vendor dependency; document known vs unknown, generate a provisional contract, plan a mock provider so unrelated tasks aren't blocked
+    5. **OpenSpec proposal** — create or update proposal via `/opsx:propose`
+    6. **Apidog contract review** — for API features
+    7. **Test plan** — define test strategy before implementation
+    8. **Jira sub-tasks + evidence** — create sub-tasks from the confirmed plan/proposal; before closing the story, verify every sub-task has the required evidence links (PR, Apidog, CI, OpenSpec change) — no evidence, no closure
+    9. **Review guardrails** — while a PR is open, diff the implementation against the approved OpenSpec proposal to catch missing requirements, extra behavior, or risky changes before merge
+    10. **Post-merge finalization** — after PR merge, run `/opsx:archive <change-name>` so the delta is promoted into `openspec/specs/` and the change folder is moved to `openspec/changes/archive/`. Skipping this leaves canonical specs out of sync with shipped code.
 
+*   To check where a story currently stands in this list without re-deriving it from memory, run `/progress-status <STORY-ID>` — it reads the artifact files each gate already produces and reports what's done and what's next.
 *   If a gate is unavailable, intentionally skipped, already satisfied, or not applicable, state that explicitly.
 *   Mid-implementation spec changes must go through `/review-amend` for small changes or `/review-change-request` for major changes. Never silently change code to match a changed spec.
 *   This workflow applies to production-bound feature work.
