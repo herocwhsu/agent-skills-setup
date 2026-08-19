@@ -91,14 +91,14 @@ service_slug() {
 find_html2md() {
   local d
   # Pass 1: new spec-gated layout
-  for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills" "$HOME/.gemini/skills"; do
+  for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills" "$HOME/.gemini/antigravity-cli/skills"; do
     if [[ -f "$d/intake/web-page/html2md.py" ]]; then
       echo "$d/intake/web-page/html2md.py"
       return 0
     fi
   done
   # Pass 2: legacy layout (pre-spec-gated refactor)
-  for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills" "$HOME/.gemini/skills"; do
+  for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "$HOME/.copilot/skills" "$HOME/.codex/skills" "$HOME/.gemini/antigravity-cli/skills"; do
     if [[ -f "$d/fetch-page-to-markdown/html2md.py" ]]; then
       echo "$d/fetch-page-to-markdown/html2md.py"
       return 0

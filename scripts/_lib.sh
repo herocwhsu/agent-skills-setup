@@ -34,7 +34,7 @@ agent_skills_dir() {
   case "$agent" in
     kiro)    echo "$HOME/.kiro/skills" ;;
     claude)  echo "$HOME/.claude/skills" ;;
-    gemini)  echo "$HOME/.gemini/skills" ;;
+    gemini)  echo "$HOME/.gemini/antigravity-cli/skills" ;;
     *)       echo "" ;;
   esac
 }
@@ -490,7 +490,7 @@ select_agents() {
     echo "Which agent(s) to target?"
     echo "  1) Kiro IDE    (~/.kiro/skills/)"
     echo "  2) Claude Code (~/.claude/skills/)"
-    echo "  3) Gemini CLI  (~/.gemini/skills/)"
+    echo "  3) Antigravity CLI (~/.gemini/antigravity-cli/skills/)"
     echo "  4) All of the above"
     echo ""
     read -rp "Choice [1-4]: " input
@@ -520,6 +520,17 @@ wire_hook() {
   local skill="$1" repo_dir="$2" agent="${3:-claude}"
   local hook_path settings
 
+  # polish-input is unsupported on gemini (Antigravity CLI). Its OAuth
+  # subscription token can only be spent through the agy agent loop, not a
+  # text-in/text-out endpoint: the public Generative Language API rejects the
+  # token (403 insufficient scope) and cloudcode-pa returns 403
+  # SUBSCRIPTION_REQUIRED (#3501, enterprise-license-gated). With no reachable
+  # low-latency backend the hook would only ever fail open, so skip wiring it.
+  if [[ "$skill" == "polish-input" && "$agent" == "gemini" ]]; then
+    echo "  polish-input unsupported on gemini (no reachable low-latency backend) — skipped" >&2
+    return 0
+  fi
+
   # Try flat path first (legacy), then search one level deep (group/subcommand layout).
   if [[ -f "$repo_dir/skills/$skill/hook.json" ]]; then
     hook_path="$repo_dir/skills/$skill/hook.json"
@@ -530,7 +541,7 @@ wire_hook() {
   fi
 
   case "$agent" in
-    gemini) settings="$HOME/.gemini/settings.json" ;;
+    gemini) settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
     *)      settings="$HOME/.claude/settings.json" ;;
   esac
 
@@ -540,10 +551,9 @@ wire_hook() {
   fi
 
   if [[ "$skill" == "polish-input" ]]; then
+    # Only non-gemini agents reach here (gemini+polish-input is skipped above),
+    # so the required SDK is always the Anthropic client.
     local pkg="anthropic"
-    if [[ "$agent" == "gemini" ]]; then
-      pkg="google-generativeai google-auth"
-    fi
 
     echo "  Installing required SDK via pip..."
     local pip_cmd
@@ -590,7 +600,7 @@ unwire_hook() {
   fi
 
   case "$agent" in
-    gemini) settings="$HOME/.gemini/settings.json" ;;
+    gemini) settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
     *)      settings="$HOME/.claude/settings.json" ;;
   esac
 
