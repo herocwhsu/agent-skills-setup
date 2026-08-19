@@ -55,6 +55,26 @@ Read `./openspec/changes/<change-id>/proposal.md` and
 
 Also read `$STORY_DIR/repo-context.md` for existing API patterns.
 
+## Step 1.5 — Decide sequential vs parallel drafting
+
+Count the distinct API endpoints identified in Step 1 (from the proposal +
+`repo-context.md`).
+
+- **Fewer than 3 endpoints:** draft each endpoint's contract section
+  yourself, one after another, in Step 2 below.
+- **3 or more independent endpoints:** dispatch one sub-task per endpoint to
+  draft that endpoint's contract section in isolation. Give each sub-task
+  only what it needs: the endpoint's method + path, the relevant proposal
+  excerpt, and the matching API pattern from `repo-context.md` — not the
+  whole proposal. Use whatever native sub-agent/delegation mechanism this
+  host provides. Collect each sub-task's output and assemble them in the
+  same endpoint order before writing the final `contract.md`.
+
+  Only split endpoints that are genuinely independent — if two endpoints
+  share a request/response schema, or one endpoint's shape depends on
+  another's (e.g. a list endpoint and its corresponding detail endpoint),
+  draft those together in the same pass instead of splitting them.
+
 ## Step 2 — For each API endpoint, define
 
 | Field | Description |
