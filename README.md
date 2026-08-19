@@ -10,7 +10,7 @@ Installs:
 - **Claude Code plugins** (claude agent only) — [claude-hud](https://github.com/jarrodwatts/claude-hud) (statusline HUD), [trailofbits](https://github.com/trailofbits/skills) `differential-review` / `property-based-testing` / `static-analysis` (browse the other ~37 via `/plugin menu`)
 - **Optional Claude Code plugins** (not installed by default — see below) — [productivity + product-management](https://github.com/anthropics/knowledge-work-plugins), which each add several MCP servers (Jira/Confluence/Slack/Asana/Linear/Notion/ClickUp/Monday, or Amplitude/Figma/Fireflies/Intercom/Pendo/Similarweb) that require their own OAuth login
 
-Supports: Kiro, Claude Code, Antigravity CLI · macOS, Linux, Windows
+Supports: Kiro, Claude Code, Antigravity CLI, Codex CLI · macOS, Linux, Windows
 
 ---
 
@@ -196,6 +196,7 @@ When prompted, choose one or more:
 | 1 | Kiro | `~/.kiro/skills/` | ✓ | Also installs prompts to `~/.kiro/prompts/` |
 | 2 | Claude Code | `~/.claude/skills/` | ✓ | |
 | 3 | Antigravity CLI | `~/.gemini/antigravity-cli/skills/` | ✓ | |
+| 4 | Codex CLI | `~/.codex/skills/` | ✓ | Skills only — no hook support (`~/.codex/config.toml` has no `settings.json` equivalent) |
 | 4 | All | all of the above | — | |
 
 ---
@@ -294,7 +295,7 @@ github-skill  anthropics/skills  skills/webapp-testing
 # repo root IS the skill — optional last field renames it
 github-skill  wrsmith108/linear-claude-skill  .  linear
 
-# Claude Code plugin — installed via the claude CLI, skipped for Kiro/Gemini
+# Claude Code plugin — installed via the claude CLI, skipped for Kiro/Gemini/Codex
 plugin        anthropics/knowledge-work-plugins  productivity
 
 # when the repo's marketplace.json declares a name different from the repo name
