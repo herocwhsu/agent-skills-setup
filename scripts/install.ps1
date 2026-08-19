@@ -10,7 +10,7 @@
     .\scripts\install.ps1 -Agent kiro
 #>
 param(
-    [ValidateSet('kiro','claude','gemini','all')]
+    [ValidateSet('kiro','claude','gemini','codex','all')]
     [string]$Agent = ''
 )
 
@@ -29,6 +29,7 @@ function Get-AgentSkillsDir([string]$AgentName) {
         'kiro'    { Join-Path $env:USERPROFILE '.kiro\skills' }
         'claude'  { Join-Path $env:USERPROFILE '.claude\skills' }
         'gemini'  { Join-Path $env:USERPROFILE '.gemini\antigravity-cli\skills' }
+        'codex'   { Join-Path $env:USERPROFILE '.codex\skills' }
         default   { throw "Unknown agent: $AgentName" }
     }
 }
@@ -41,18 +42,20 @@ if (-not $Agent) {
     Write-Host "  1) Kiro        (~\.kiro\skills\)"
     Write-Host "  2) Claude Code (~\.claude\skills\)"
     Write-Host "  3) Antigravity CLI (~\.gemini\antigravity-cli\skills\)"
-    Write-Host "  4) All of the above"
-    $choice = Read-Host "Choice [1-4]"
+    Write-Host "  4) Codex CLI   (~\.codex\skills\)"
+    Write-Host "  5) All of the above"
+    $choice = Read-Host "Choice [1-5]"
     $Agent = switch ($choice) {
         '1' { 'kiro' }   '2' { 'claude' }
         '3' { 'gemini' }
-        '4' { 'all' }
+        '4' { 'codex' }
+        '5' { 'all' }
         default { Write-Warning "Invalid choice, defaulting to kiro."; 'kiro' }
     }
 }
 
 $SelectedAgents = if ($Agent -eq 'all') {
-    @('kiro','claude','gemini')
+    @('kiro','claude','gemini','codex')
 } else {
     @($Agent)
 }

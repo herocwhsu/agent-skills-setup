@@ -35,6 +35,7 @@ agent_skills_dir() {
     kiro)    echo "$HOME/.kiro/skills" ;;
     claude)  echo "$HOME/.claude/skills" ;;
     gemini)  echo "$HOME/.gemini/antigravity-cli/skills" ;;
+    codex)   echo "$HOME/.codex/skills" ;;
     *)       echo "" ;;
   esac
 }
@@ -478,9 +479,9 @@ uninstall_local_optional_skill() {
   remove_skill "$name" "$target_dir"
 }
 
-AGENTS=("kiro" "claude" "gemini")
+AGENTS=("kiro" "claude" "gemini" "codex")
 
-# Accept agent via $1 (kiro|claude|gemini|all). Prompt only if empty.
+# Accept agent via $1 (kiro|claude|gemini|codex|all). Prompt only if empty.
 # Sets global SELECTED_AGENTS array.
 select_agents() {
   local choice="${1:-}"
@@ -491,14 +492,16 @@ select_agents() {
     echo "  1) Kiro IDE    (~/.kiro/skills/)"
     echo "  2) Claude Code (~/.claude/skills/)"
     echo "  3) Antigravity CLI (~/.gemini/antigravity-cli/skills/)"
-    echo "  4) All of the above"
+    echo "  4) Codex CLI   (~/.codex/skills/)"
+    echo "  5) All of the above"
     echo ""
-    read -rp "Choice [1-4]: " input
+    read -rp "Choice [1-5]: " input
     case "$input" in
       1) choice="kiro" ;;
       2) choice="claude" ;;
       3) choice="gemini" ;;
-      4) choice="all" ;;
+      4) choice="codex" ;;
+      5) choice="all" ;;
       *) echo "Invalid choice, defaulting to claude."; choice="claude" ;;
     esac
   fi
@@ -507,7 +510,8 @@ select_agents() {
     kiro)    SELECTED_AGENTS=("kiro") ;;
     claude)  SELECTED_AGENTS=("claude") ;;
     gemini)  SELECTED_AGENTS=("gemini") ;;
-    all)     SELECTED_AGENTS=("kiro" "claude" "gemini") ;;
+    codex)   SELECTED_AGENTS=("codex") ;;
+    all)     SELECTED_AGENTS=("kiro" "claude" "gemini" "codex") ;;
     *)       echo "Invalid agent: $choice"; exit 1 ;;
   esac
 }
@@ -531,6 +535,16 @@ wire_hook() {
     return 0
   fi
 
+  # Codex has no settings.json hook mechanism at all — it configures via
+  # ~/.codex/config.toml, which has no equivalent of Claude Code's hook events.
+  # Skipped explicitly rather than falling through: the case below defaults
+  # unknown agents to Claude's settings.json, so without this a codex target
+  # would silently install its hooks into Claude Code's config instead.
+  if [[ "$agent" == "codex" ]]; then
+    echo "  hooks unsupported on codex (no settings.json equivalent) — skipped" >&2
+    return 0
+  fi
+
   # Try flat path first (legacy), then search one level deep (group/subcommand layout).
   if [[ -f "$repo_dir/skills/$skill/hook.json" ]]; then
     hook_path="$repo_dir/skills/$skill/hook.json"
@@ -541,8 +555,9 @@ wire_hook() {
   fi
 
   case "$agent" in
-    gemini) settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
-    *)      settings="$HOME/.claude/settings.json" ;;
+    gemini)      settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
+    claude|kiro) settings="$HOME/.claude/settings.json" ;;
+    *)           echo "  ERROR: no hook settings path known for agent '$agent'" >&2; return 1 ;;
   esac
 
   if [[ -z "$hook_path" || ! -f "$hook_path" ]]; then
@@ -600,8 +615,9 @@ unwire_hook() {
   fi
 
   case "$agent" in
-    gemini) settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
-    *)      settings="$HOME/.claude/settings.json" ;;
+    gemini)      settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
+    claude|kiro) settings="$HOME/.claude/settings.json" ;;
+    *)           echo "  ERROR: no hook settings path known for agent '$agent'" >&2; return 1 ;;
   esac
 
   if [[ -z "$hook_path" || ! -f "$hook_path" ]]; then
