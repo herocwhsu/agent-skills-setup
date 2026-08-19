@@ -36,6 +36,25 @@ CHANGE_ID=$(grep "^  - " "$STORY_DIR/intake-summary.md" 2>/dev/null | head -1 | 
 [[ -z "$CHANGE_ID" ]] && CHANGE_ID="${JIRA_ID,,}-$(story_slug_from_summary "$(grep '^# ' "$STORY_DIR/story.md" | head -1 | sed 's/^# [A-Z0-9-]*: //')")"
 ```
 
+## Step 0.5 — Decide sequential vs parallel drafting
+
+Count the distinct API endpoints (from `apidog/contract.md`) or acceptance
+criteria (from the OpenSpec specs) this story covers.
+
+- **Fewer than 3:** draft all sections below yourself, sequentially.
+- **3 or more:** dispatch one sub-task per endpoint/acceptance-criterion to
+  draft that unit's Unit/Integration/API test rows in isolation. Give each
+  sub-task only its own contract entry or acceptance-criterion text plus the
+  matching test pattern from `repo-context.md`. Use whatever native
+  sub-agent/delegation mechanism this host provides. Merge each sub-task's
+  rows into the tables below, in the same order as `apidog/contract.md` or
+  the acceptance criteria list, before writing `test-plan.md`.
+
+  Do not split the **Regression Coverage** and **Manual QA Checklist**
+  sections this way — those need a single pass over the whole story to
+  catch cross-cutting effects between endpoints; splitting them per-unit
+  would miss interactions.
+
 ## Test plan sections
 
 ### Unit tests
