@@ -28,7 +28,7 @@ function Get-AgentSkillsDir([string]$AgentName) {
     switch ($AgentName) {
         'kiro'    { Join-Path $env:USERPROFILE '.kiro\skills' }
         'claude'  { Join-Path $env:USERPROFILE '.claude\skills' }
-        'gemini'  { Join-Path $env:USERPROFILE '.gemini\skills' }
+        'gemini'  { Join-Path $env:USERPROFILE '.gemini\antigravity-cli\skills' }
         default   { throw "Unknown agent: $AgentName" }
     }
 }
@@ -40,7 +40,7 @@ if (-not $Agent) {
     Write-Host "`nWhich agent(s) to target?"
     Write-Host "  1) Kiro        (~\.kiro\skills\)"
     Write-Host "  2) Claude Code (~\.claude\skills\)"
-    Write-Host "  3) Gemini CLI  (~\.gemini\skills\)"
+    Write-Host "  3) Antigravity CLI (~\.gemini\antigravity-cli\skills\)"
     Write-Host "  4) All of the above"
     $choice = Read-Host "Choice [1-4]"
     $Agent = switch ($choice) {

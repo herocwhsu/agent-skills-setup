@@ -10,7 +10,7 @@ Installs:
 - **Claude Code plugins** (claude agent only) — [claude-hud](https://github.com/jarrodwatts/claude-hud) (statusline HUD), [trailofbits](https://github.com/trailofbits/skills) `differential-review` / `property-based-testing` / `static-analysis` (browse the other ~37 via `/plugin menu`)
 - **Optional Claude Code plugins** (not installed by default — see below) — [productivity + product-management](https://github.com/anthropics/knowledge-work-plugins), which each add several MCP servers (Jira/Confluence/Slack/Asana/Linear/Notion/ClickUp/Monday, or Amplitude/Figma/Fireflies/Intercom/Pendo/Similarweb) that require their own OAuth login
 
-Supports: Kiro, Claude Code, Gemini CLI · macOS, Linux, Windows
+Supports: Kiro, Claude Code, Antigravity CLI · macOS, Linux, Windows
 
 ---
 
@@ -195,7 +195,7 @@ When prompted, choose one or more:
 |---|---|---|---|---|
 | 1 | Kiro | `~/.kiro/skills/` | ✓ | Also installs prompts to `~/.kiro/prompts/` |
 | 2 | Claude Code | `~/.claude/skills/` | ✓ | |
-| 3 | Gemini CLI | `~/.gemini/skills/` | ✓ | |
+| 3 | Antigravity CLI | `~/.gemini/antigravity-cli/skills/` | ✓ | |
 | 4 | All | all of the above | — | |
 
 ---
@@ -337,7 +337,7 @@ For cross-cutting rules that should be loaded **on every session** (not invoked 
 | Tool | Host file |
 |---|---|
 | Claude Code | `~/.claude/CLAUDE.md` |
-| Gemini CLI | `~/.gemini/GEMINI.md` |
+| Antigravity CLI / Gemini CLI | `~/.gemini/GEMINI.md` |
 | Kiro | `~/.kiro/steering/engineering-rules.md` |
 
 ```bash

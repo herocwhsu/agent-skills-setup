@@ -84,7 +84,7 @@ keychain via `require_secret`.
 
 ## Workflow: tree-fetch
 
-> **Note:** The bash recipes below assume Claude Code (`$HOME/.claude/skills/confluence`). On Gemini CLI, Kiro, Copilot, or Codex, change `SKILL_DIR` to the matching path (e.g., `$HOME/.gemini/skills/confluence`).
+> **Note:** The bash recipes below assume Claude Code (`$HOME/.claude/skills/confluence`). On Antigravity CLI, Kiro, Copilot, or Codex, change `SKILL_DIR` to the matching path (e.g., `$HOME/.gemini/antigravity-cli/skills/confluence`).
 
 Argument: the source page ID. Output lands at `./docs/confluence/<YYYY-MM-DD>-<page-id>/` relative to the user's CWD.
 

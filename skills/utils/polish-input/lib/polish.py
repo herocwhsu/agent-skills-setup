@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-"""polish-input runtime: invoked as a UserPromptSubmit hook by Claude Code or Gemini CLI.
+"""polish-input runtime: invoked as a UserPromptSubmit hook by Claude Code or Antigravity CLI.
 
 Two stdin modes are supported:
 
-1. Hook-protocol mode (current Claude Code / Gemini): stdin is a JSON object with
+1. Hook-protocol mode (current Claude Code / Antigravity CLI): stdin is a JSON object with
    `hook_event_name == "UserPromptSubmit"` and a `prompt` field. We emit a
    JSON response on stdout containing `systemMessage` (user-visible) and,
    when POLISH_REPLACE=1, `hookSpecificOutput.additionalContext` so the
@@ -49,12 +49,12 @@ def build_providers(agent: str) -> list:
     """Return an ordered list of AuthProviders for the given agent."""
     from polish_engine import (
         ClaudeSessionProvider, AnthropicKeyProvider,
-        GeminiSessionProvider, GeminiKeyProvider, GeminiKeychainProvider,
+        GeminiAntigravityProvider, GeminiKeyProvider, GeminiKeychainProvider,
     )
     if agent == "claude":
         return [ClaudeSessionProvider(), AnthropicKeyProvider()]
     if agent == "gemini":
-        return [GeminiSessionProvider(), GeminiKeyProvider(), GeminiKeychainProvider()]
+        return [GeminiAntigravityProvider(), GeminiKeyProvider(), GeminiKeychainProvider()]
     return []
 
 

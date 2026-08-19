@@ -7,6 +7,7 @@ the detected agent context (see polish.py).
 """
 from __future__ import annotations
 
+import base64
 import datetime
 import json
 import os
@@ -104,26 +105,76 @@ class AnthropicKeyProvider(AuthProvider):
         return os.environ.get("ANTHROPIC_API_KEY") or None
 
 
-class GeminiSessionProvider(AuthProvider):
-    """OAuth credentials from the active Gemini CLI login session."""
-    name = "gemini-session"
+def _read_antigravity_keychain_value() -> str | None:
+    """Read the raw Antigravity CLI session blob from the OS keyring.
+
+    Antigravity CLI (agy) replaced the legacy Gemini CLI and stores its
+    Google OAuth session via a Go keyring library under
+    service="gemini", account="antigravity" — macOS Keychain or Linux
+    Secret Service depending on platform. The stored value is prefixed
+    "go-keyring-base64:" followed by base64-encoded JSON:
+    {"auth_method": ..., "token": {"access_token", "refresh_token",
+    "token_type", "expiry"}}.
+    """
+    try:
+        r = subprocess.run(
+            ["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", "-w"],
+            capture_output=True, text=True,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except FileNotFoundError:
+        pass
+
+    try:
+        r = subprocess.run(
+            ["secret-tool", "lookup", "service", "gemini", "username", "antigravity"],
+            capture_output=True, text=True,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except FileNotFoundError:
+        pass
+
+    return None
+
+
+class GeminiAntigravityProvider(AuthProvider):
+    """OAuth credentials from the active Antigravity CLI (agy) session.
+
+    Only the raw access_token is used — Antigravity's OAuth client_id is
+    not something we can reliably assume, so we don't attempt a refresh.
+    An expired token is treated as "no credential" (falls through to the
+    next provider) rather than risking a failed refresh call.
+    """
+    name = "gemini-antigravity"
     backend = "gemini"
     cred_type = "oauth"
 
     def credential(self) -> Any:
+        raw = _read_antigravity_keychain_value()
+        if not raw:
+            return None
         try:
             import google.oauth2.credentials
-            creds_path = Path(os.path.expanduser("~/.gemini/oauth_creds.json"))
-            if not creds_path.exists():
+            payload = raw
+            prefix = "go-keyring-base64:"
+            if payload.startswith(prefix):
+                payload = payload[len(prefix):]
+            decoded = base64.b64decode(payload + "=" * (-len(payload) % 4))
+            data = json.loads(decoded)
+            token = data.get("token", {})
+            access_token = token.get("access_token")
+            if not access_token:
                 return None
-            data = json.loads(creds_path.read_text())
-            return google.oauth2.credentials.Credentials(
-                token=data.get("access_token"),
-                refresh_token=data.get("refresh_token"),
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id="681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com",
-                client_secret=None,
-            )
+            expiry = token.get("expiry")
+            if expiry:
+                exp_dt = datetime.datetime.fromisoformat(expiry)
+                if exp_dt.tzinfo is None:
+                    exp_dt = exp_dt.replace(tzinfo=datetime.timezone.utc)
+                if datetime.datetime.now(datetime.timezone.utc) >= exp_dt:
+                    return None
+            return google.oauth2.credentials.Credentials(token=access_token)
         except Exception:
             return None
 
