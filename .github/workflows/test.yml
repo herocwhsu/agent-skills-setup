@@ -10,7 +10,7 @@ jobs:
   install-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # No requirements.txt exists (a dev host has these globally, masking the
       # gap) — pytest runs the *.py tests, lxml is needed by confluence-tree's
