@@ -20,6 +20,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+require_supported_os || exit 1
+
 select_agents "$AGENT_ARG"
 
 echo ""

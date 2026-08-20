@@ -10,7 +10,7 @@ Installs:
 - **Claude Code plugins** (claude agent only) — [claude-hud](https://github.com/jarrodwatts/claude-hud) (statusline HUD), [trailofbits](https://github.com/trailofbits/skills) `differential-review` / `property-based-testing` / `static-analysis` (browse the other ~37 via `/plugin menu`)
 - **Optional Claude Code plugins** (not installed by default — see below) — [productivity + product-management](https://github.com/anthropics/knowledge-work-plugins), which each add several MCP servers (Jira/Confluence/Slack/Asana/Linear/Notion/ClickUp/Monday, or Amplitude/Figma/Fireflies/Intercom/Pendo/Similarweb) that require their own OAuth login
 
-Supports: Kiro, Claude Code, Antigravity CLI, Codex CLI · macOS, Linux, Windows
+Supports: Kiro, Claude Code, Antigravity CLI, Codex CLI · macOS and Linux, x86_64 and arm64
 
 ---
 
@@ -28,13 +28,7 @@ bash scripts/setup-credentials.sh
 bash scripts/setup-host.sh
 ```
 
-**Windows 11 (native PowerShell):**
-```powershell
-git clone https://github.com/herocwhsu/agent-skills-setup
-cd agent-skills-setup
-.\scripts\install.ps1
-.\scripts\setup-credentials.ps1
-```
+**Windows:** not supported — see [Platform Support](#platform-support).
 
 Restart your shell after setup.
 
@@ -168,22 +162,50 @@ Re-run after upgrading openspec to refresh the installed skills.
 
 ---
 
+## Platform Support
+
+| Platform | Architecture | Status |
+|---|---|---|
+| Linux | x86_64, arm64 | Supported |
+| macOS | arm64 (Apple Silicon), x86_64 (Intel) | Supported |
+| Windows | — | **Not supported** (removed 2026-08-20) |
+
+Both architectures work without special handling: nothing here downloads an
+arch-specific binary (GitHub source archives and npm packages only), and every
+external tool is located with `command -v` rather than a hardcoded prefix, so
+Apple Silicon's `/opt/homebrew` and Intel's `/usr/local` both resolve normally.
+
+**Why Windows was removed.** It was carried as a parallel PowerShell
+implementation — `install.ps1`, `setup-credentials.ps1`, `credentials/_store.ps1`
+— that no test and no CI job ever executed on any machine. It had already
+diverged from the bash side: it never wrote `agent-selection.txt`, could not
+accept more than one agent, defaulted to a different agent on an invalid menu
+choice, and installed skills as **copies** rather than symlinks, so a skill
+dropped from `registry.txt` stayed behind as a working, unversioned duplicate
+that the agent would still load. Untested support that quietly does the wrong
+thing is worse than no support, so the scripts were deleted rather than left as
+a claim. `install.sh` and `uninstall.sh` now abort with a clear message on an
+unsupported OS instead of half-installing.
+
+To bring Windows back, the prerequisite is a `windows-latest` job in
+`.github/workflows/test.yml` that actually runs the installer.
+
+---
+
 ## Scripts
 
 | Script | Platform | What it does |
 |---|---|---|
-| `scripts/install.sh` | macOS / Linux / Git Bash | Install superpowers + custom skills |
-| `scripts/install.ps1` | Windows PowerShell | Same, native Windows |
-| `scripts/uninstall.sh` | macOS / Linux / Git Bash | Remove installed skills |
-| `scripts/update.sh` | macOS / Linux / Git Bash | `git pull` + re-install |
-| `scripts/run-tests.sh` | macOS / Linux / Git Bash | Run all skill + script tests (`--fast` skips integration tests) |
-| `scripts/setup-credentials.sh` | macOS / Linux / Git Bash | Store service credentials in keychain |
-| `scripts/setup-credentials.ps1` | Windows PowerShell | Same, via Windows Credential Manager |
+| `scripts/install.sh` | macOS / Linux | Install superpowers + custom skills |
+| `scripts/uninstall.sh` | macOS / Linux | Remove installed skills |
+| `scripts/update.sh` | macOS / Linux | `git pull` + re-install |
+| `scripts/run-tests.sh` | macOS / Linux | Run all skill + script tests (`--fast` skips integration tests) |
+| `scripts/setup-credentials.sh` | macOS / Linux | Store service credentials in keychain |
 
 **CI:** `.github/workflows/test.yml` runs on every push/PR to `main` — installs
 (`scripts/install.sh --agent claude`, non-interactive) then runs
 `scripts/run-tests.sh --fast` on a clean `ubuntu-latest` runner. No Renovate on this
-repo (no `renovate.json`); dependency-free bash/PowerShell scripts, nothing to bump.
+repo (no `renovate.json`); dependency-free bash scripts, nothing to bump.
 
 ---
 
@@ -203,7 +225,7 @@ When prompted, choose one or more:
 
 ## Credential Setup
 
-`setup-credentials.sh` (bash) and `setup-credentials.ps1` (PowerShell) manage credentials for multiple services. Passwords are stored in the platform keychain only — **never exported to env vars**.
+`setup-credentials.sh` manages credentials for multiple services. Passwords are stored in the platform keychain only — **never exported to env vars**.
 
 **Required Credentials by Skill:**
 
@@ -240,11 +262,8 @@ bash scripts/setup-credentials.sh confluence verify
 | macOS | Keychain (`security`) | `setup-credentials.sh` |
 | Linux (GUI) | GNOME Keyring (`secret-tool`) | `setup-credentials.sh` |
 | Linux (headless/CI) | Inject via pipeline secret at use-time | — |
-| Windows 11 | Credential Manager (`CredentialManager` PS module) | `setup-credentials.ps1` |
 
 All entries are namespaced `agent-skills-setup:<service>` to avoid collisions with system or browser keychain entries.
-
-**Windows note:** `setup-credentials.ps1` auto-installs the [`CredentialManager`](https://www.powershellgallery.com/packages/CredentialManager) module from PSGallery on first run.
 
 ---
 
@@ -394,4 +413,4 @@ The install script needs `bash` + one of `curl`/`wget` for downloading GitHub-so
 
 `pip` is used to install superpowers if available; otherwise the script falls back to downloading directly from GitHub — no pip required.
 
-**Windows limitations:** `update.sh`, `run-tests.sh`, and `install-agents-md.sh` are bash-only. Windows users should use Git Bash for these scripts or run them manually after `git pull`.
+All scripts are bash; there is no PowerShell path. See [Platform Support](#platform-support).

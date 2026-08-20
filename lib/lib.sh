@@ -198,16 +198,6 @@ print('\n'.join(out))
       # secret-tool has no enumerate-by-prefix; Linux users re-add credentials manually.
       :
       ;;
-    MINGW*|MSYS*|CYGWIN*)
-      # Windows migration via cmdkey list parsing — best-effort.
-      while IFS= read -r line; do
-        local target
-        target=$(echo "$line" | sed -n 's/.*Target: \(agent-skills:[^ ]*\).*/\1/p')
-        [[ -z "$target" ]] && continue
-        # Re-prompt is the safest cross-version path; log a hint.
-        echo "  → Windows migration needed for $target — run setup-credentials again." >&2
-      done < <(cmdkey /list 2>/dev/null)
-      ;;
   esac
 
   if [[ $count -gt 0 ]]; then

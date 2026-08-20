@@ -3,14 +3,36 @@
 # Source this file: source "$(dirname "$0")/_lib.sh"
 
 # Detect OS type
-# Returns: darwin | linux | windows
+# Returns: darwin | linux | unknown
+#
+# Windows was dropped 2026-08-20. It was carried as a parallel PowerShell
+# implementation (install.ps1, setup-credentials.ps1, _store.ps1) that no test
+# and no CI job ever executed, on any machine — so it was support in name only,
+# and it had already silently diverged from the bash side. Supported targets
+# are Linux and macOS, on x86_64 and arm64 alike; nothing here fetches an
+# arch-specific binary (GitHub source archives and npm packages only) and every
+# external tool is located with `command -v`, never a hardcoded prefix, so
+# Apple Silicon's /opt/homebrew and Intel's /usr/local both just work.
 detect_os() {
   case "$(uname -s)" in
-    Darwin)             echo "darwin" ;;
-    Linux)              echo "linux" ;;
-    MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
-    *)                  echo "unknown" ;;
+    Darwin) echo "darwin" ;;
+    Linux)  echo "linux" ;;
+    *)      echo "unknown" ;;
   esac
+}
+
+# Abort with a clear message on an unsupported OS, rather than half-installing.
+# A Windows user running this under Git Bash previously got `linux`-ish
+# behaviour from some helpers and Windows behaviour from others.
+require_supported_os() {
+  local os; os=$(detect_os)
+  if [[ "$os" == "unknown" ]]; then
+    echo "ERROR: unsupported platform '$(uname -s) $(uname -m)'." >&2
+    echo "       Supported: Linux and macOS (x86_64 or arm64)." >&2
+    echo "       Windows support was removed 2026-08-20 — see README." >&2
+    return 1
+  fi
+  return 0
 }
 
 # Download a URL to a file; tries curl then wget
@@ -127,18 +149,15 @@ install_kiro_agent_config() {
 
   echo "  ✓ kiro agent config → $out ($count resources)"
 }
-# Uses symlink on Unix, copy on Windows
 # Usage: install_skill <skill_src_dir> <skills_target_dir>
+# Always a symlink: both supported platforms have them, and a link keeps the
+# installed skill tracking the repo instead of going stale as a copy would.
 install_skill() {
   local src="$1" target_dir="$2"
   local name
   name=$(basename "$src")
   mkdir -p "$target_dir"
-  if [[ "$(detect_os)" == "windows" ]]; then
-    cp -r "$src" "$target_dir/$name"
-  else
-    ln -sfn "$src" "$target_dir/$name"
-  fi
+  ln -sfn "$src" "$target_dir/$name"
   echo "  ✓ $name"
   record_installed "$name"
 }

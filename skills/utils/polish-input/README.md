@@ -69,6 +69,3 @@ left in place; remove manually with `pip uninstall anthropic` if desired.
 - **Polish is slow (>3s):** The hook times out at 3s by default. Bump
   `POLISH_TIMEOUT_MS` if your gateway is slower.
 - **Wrong model used:** Set `POLISH_MODEL` to an alias your gateway exposes.
-- **Windows:** Auto-wiring is not implemented. Install the skill files
-  normally, then manually add the hook from `hook.json` to
-  `%USERPROFILE%\.claude\settings.json`.

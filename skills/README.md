@@ -25,7 +25,7 @@ skills/
 1. Create `skills/<skill-name>/SKILL.md` following the [agentskills.io spec](https://agentskills.io/specification)
 2. Add a `README.md` with human-readable usage examples
 3. Add `local  <skill-name>` to `../registry.txt`
-4. Run `bash ../scripts/install.sh` (or `.\scripts\install.ps1` on Windows) to deploy
+4. Run `bash ../scripts/install.sh` to deploy
 
 **Minimum `SKILL.md` structure:**
 
