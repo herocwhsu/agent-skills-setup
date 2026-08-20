@@ -356,6 +356,11 @@ prune_dead_skill_links() {
   [[ -d "$target_dir" ]] || return 0
   local link target n=0
   while IFS= read -r -d '' link; do
+    # `-xtype l` (GNU find) matches broken symlinks directly, but macOS's
+    # BSD find doesn't support -xtype at all — it errors out and the loop
+    # silently sees nothing. Enumerate with the portable `-type l` instead
+    # and test brokenness ourselves via `-e`, which follows the link.
+    [[ -e "$link" ]] && continue
     target=$(readlink "$link")
     [[ "$target" == "$repo_dir"/skills/* ]] || continue
     rm -f "$link"
@@ -366,7 +371,7 @@ prune_dead_skill_links() {
     # wrapper prints an error and returns nothing — silently, with status 0.
     # Exported into a script it would make this prune a no-op that reports
     # success. Bit me while verifying this very function on 2026-08-20.
-  done < <(command find "$target_dir" -maxdepth 1 -xtype l -print0)
+  done < <(command find "$target_dir" -maxdepth 1 -type l -print0)
   [[ $n -eq 0 ]] || echo "  ($n dead link(s) removed from $target_dir)"
 }
 
