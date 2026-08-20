@@ -1,0 +1,6 @@
+# gitleaks false positives — entropy-heuristic matches, not real secrets.
+# Format: <fingerprint> (from `gitleaks detect --redact -v`)
+
+# Recorded Apidog share-page JSON dump used to test scripts/apidog-share-fetch.py.
+# High-entropy strings are hashed/encoded UI state, not credentials.
+scripts/tests/fixtures/apidog-share-37491818.data:generic-api-key:1
