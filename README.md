@@ -202,6 +202,33 @@ To bring Windows back, the prerequisite is a `windows-latest` job in
 | `scripts/run-tests.sh` | macOS / Linux | Run all skill + script tests (`--fast` skips integration tests) |
 | `scripts/setup-credentials.sh` | macOS / Linux | Store service credentials in keychain |
 
+### Choosing agents
+
+`--agent` takes one agent, a comma-separated list, or `all`:
+
+```bash
+bash scripts/install.sh --agent claude
+bash scripts/install.sh --agent claude,codex   # one host, several agents
+bash scripts/install.sh --agent all
+```
+
+The choice is written to `~/.agent-skills-setup/agent-selection.txt` and replayed
+by `update.sh`, so **it decides what future updates refresh** — the value is
+echoed at install time for that reason. It *replaces* the previous selection
+rather than adding to it, so a narrow re-run narrows all later updates.
+
+This mattered: the field previously held a single agent, so a claude+codex host
+refreshed only whichever was installed last and let the other go stale — 11
+weeks, in one case. A sibling bug compared the selection count against a literal
+`3`, so adding a fourth agent made `--agent all` record `kiro` instead.
+
+**Pruning.** Installing is otherwise purely additive, and both `uninstall.sh` and
+`installed.txt` are driven from `registry.txt` — so a skill *dropped* from the
+registry was invisible to every code path and its symlink stayed behind forever.
+`install.sh` now removes broken links pointing into this repo before installing,
+reporting each one. It is deliberately narrow: only broken links whose target is
+inside the repo, never a real directory or a link of your own.
+
 **CI:** `.github/workflows/test.yml` runs on every push/PR to `main` — installs
 (`scripts/install.sh --agent claude`, non-interactive) then runs
 `scripts/run-tests.sh --fast` on a clean `ubuntu-latest` runner. No Renovate on this
