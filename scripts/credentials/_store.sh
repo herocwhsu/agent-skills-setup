@@ -27,7 +27,6 @@ _os() {
         echo "linux-file" # Fallback to file storage
       fi
       ;;
-    MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
     *)             echo "unknown" ;;
   esac
 }
@@ -65,9 +64,6 @@ store_credential() {
       echo "WARN: no keychain on headless Linux. Inject credential via CI secret." >&2
       return 1
       ;;
-    windows)
-      cmdkey /add:"$svc:$user" /user:"$user" /pass:"$pass" >nul 2>&1
-      ;;
   esac
 }
 
@@ -91,11 +87,6 @@ read_credential() {
       ;;
     linux-headless)
       echo "" ;;
-    windows)
-      powershell.exe -NoProfile -Command \
-        "(Get-StoredCredential -Target '${svc}:${user}').GetNetworkCredential().Password" \
-        2>/dev/null || true
-      ;;
   esac
 }
 
@@ -117,9 +108,6 @@ read_credential_inline() {
       ;;
     linux-headless)
       echo "echo \"\${CONFLUENCE_PASS:-}\"  # set via CI secret injection"
-      ;;
-    windows)
-      echo "powershell.exe -NoProfile -Command \"(Get-StoredCredential -Target '${svc}:${user}').GetNetworkCredential().Password\""
       ;;
   esac
 }
@@ -157,11 +145,6 @@ delete_credential() {
       ;;
     linux-headless)
       echo "  Nothing to delete (headless — no keychain)." ;;
-    windows)
-      cmdkey /delete:"${svc}:${user}" 2>/dev/null \
-        && echo "  ✓ deleted from Windows Credential Manager" \
-        || echo "  (not found)"
-      ;;
   esac
 }
 
@@ -191,10 +174,5 @@ for entry in sys.stdin.read().split('keychain:'):
       ;;
     linux-headless)
       echo "  (headless — credentials injected via CI, not stored locally)" ;;
-    windows)
-      cmdkey /list 2>/dev/null \
-        | grep "${_KEYCHAIN_PREFIX}:" \
-        || echo "  (none)"
-      ;;
   esac
 }

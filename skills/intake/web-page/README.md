@@ -24,12 +24,6 @@ bash scripts/setup-credentials.sh
 # Choose: 1) Confluence → 1) add
 ```
 
-**Windows:**
-```powershell
-.\scripts\setup-credentials.ps1
-# Choose: 1) Confluence → 1) add
-```
-
 Then restart your shell. The script stores the password in the platform keychain.
 
 To verify (without revealing the value):
