@@ -319,6 +319,38 @@ is_plugin_opt_in() {
   return 1
 }
 
+# ---------------------------------------------------------------------------
+# prune_dead_skill_links <target_dir> <repo_dir>
+#
+# Remove symlinks in the agent's skills dir that point into this repo's skills/
+# and no longer resolve. Installing is purely additive, and both uninstall.sh
+# and the installed.txt manifest are driven from registry.txt, so a skill
+# DROPPED from the registry leaves a dangling link that nothing ever cleans:
+# after the 561abae regrouping, seven sat in ~/.claude/skills and eight in
+# ~/.codex/skills. An agent listing its skills dir sees those names and cannot
+# read them.
+#
+# Deliberately narrow — only broken links whose target is under repo_dir. A
+# user's own symlinks, and every real directory, are left alone.
+prune_dead_skill_links() {
+  local target_dir="$1" repo_dir="$2"
+  [[ -d "$target_dir" ]] || return 0
+  local link target n=0
+  while IFS= read -r -d '' link; do
+    target=$(readlink "$link")
+    [[ "$target" == "$repo_dir"/skills/* ]] || continue
+    rm -f "$link"
+    echo "  pruned dead link: $(basename "$link") -> $target"
+    n=$((n+1))
+    # `command find`: Claude Code installs a shell FUNCTION named find that
+    # routes through its native binary, and when that binary is broken the
+    # wrapper prints an error and returns nothing — silently, with status 0.
+    # Exported into a script it would make this prune a no-op that reports
+    # success. Bit me while verifying this very function on 2026-08-20.
+  done < <(command find "$target_dir" -maxdepth 1 -xtype l -print0)
+  [[ $n -eq 0 ]] || echo "  ($n dead link(s) removed from $target_dir)"
+}
+
 # install_local_skill <skill_name> <repo_dir> <target_dir>
 install_local_skill() {
   local name="$1" repo_dir="$2" target_dir="$3"
@@ -481,8 +513,15 @@ uninstall_local_optional_skill() {
 
 AGENTS=("kiro" "claude" "gemini" "codex")
 
-# Accept agent via $1 (kiro|claude|gemini|codex|all). Prompt only if empty.
+# Accept agent via $1 (kiro|claude|gemini|codex|all, or a comma-separated list
+# such as "claude,codex"). Prompt only if empty.
 # Sets global SELECTED_AGENTS array.
+#
+# The list form exists because a host can legitimately run more than one agent
+# and only one of them was ever kept up to date: install.sh records the choice
+# for update.sh to replay, that record held a single token, so on a claude+codex
+# host update.sh silently refreshed whichever was installed last and let the
+# other rot. Found 2026-08-20 with ~/.codex/skills 11 weeks stale.
 select_agents() {
   local choice="${1:-}"
 
@@ -495,25 +534,50 @@ select_agents() {
     echo "  4) Codex CLI   (~/.codex/skills/)"
     echo "  5) All of the above"
     echo ""
-    read -rp "Choice [1-5]: " input
+    echo "  (or type a comma-separated list, e.g. claude,codex)"
+    echo ""
+    read -rp "Choice [1-5 or list]: " input
+    # Bare Enter (or EOF) keeps the long-standing default. A *typo*, by
+    # contrast, no longer silently becomes claude — it is parsed as an agent
+    # list and rejected below.
+    [[ -n "$input" ]] || input=2
     case "$input" in
       1) choice="kiro" ;;
       2) choice="claude" ;;
       3) choice="gemini" ;;
       4) choice="codex" ;;
       5) choice="all" ;;
-      *) echo "Invalid choice, defaulting to claude."; choice="claude" ;;
+      # Not an error: anything else is treated as a literal agent list and
+      # validated below, so "claude,codex" at the prompt works too.
+      *) choice="$input" ;;
     esac
   fi
 
-  case "$choice" in
-    kiro)    SELECTED_AGENTS=("kiro") ;;
-    claude)  SELECTED_AGENTS=("claude") ;;
-    gemini)  SELECTED_AGENTS=("gemini") ;;
-    codex)   SELECTED_AGENTS=("codex") ;;
-    all)     SELECTED_AGENTS=("kiro" "claude" "gemini" "codex") ;;
-    *)       echo "Invalid agent: $choice"; exit 1 ;;
-  esac
+  local -a requested=()
+  local a seen
+  IFS=',' read -ra requested <<< "$choice"
+
+  SELECTED_AGENTS=()
+  for a in "${requested[@]}"; do
+    a="${a//[[:space:]]/}"
+    [[ -n "$a" ]] || continue
+    if [[ "$a" == "all" ]]; then
+      SELECTED_AGENTS=("${AGENTS[@]}")
+      break
+    fi
+    # Validate against the agent list, so adding an agent needs one edit here.
+    printf '%s\n' "${AGENTS[@]}" | grep -qx -- "$a" \
+      || { echo "Invalid agent: $a (valid: ${AGENTS[*]}, all)" >&2; exit 1; }
+    # De-duplicate: "claude,claude" must not install twice.
+    seen=""
+    for existing in "${SELECTED_AGENTS[@]:-}"; do
+      [[ "$existing" == "$a" ]] && seen=1 && break
+    done
+    [[ -n "$seen" ]] || SELECTED_AGENTS+=("$a")
+  done
+
+  [[ ${#SELECTED_AGENTS[@]} -gt 0 ]] \
+    || { echo "No agent selected (got: '$choice')" >&2; exit 1; }
 }
 
 # ---------------------------------------------------------------------------

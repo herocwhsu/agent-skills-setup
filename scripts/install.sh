@@ -36,11 +36,20 @@ select_agents "$AGENT_ARG"
 # Save agent selection for update.sh to reuse
 SELECTION_FILE="$HOME/.agent-skills-setup/agent-selection.txt"
 mkdir -p "$(dirname "$SELECTION_FILE")"
-if [[ ${#SELECTED_AGENTS[@]} -eq 3 ]]; then
+# Record every selected agent, not just the first, and compare against the
+# agent list itself rather than a literal. Both halves of this were wrong:
+# the test read "-eq 3" and broke silently the moment codex made it four, and
+# the else-branch stored element 0, so a multi-agent install taught update.sh
+# to refresh exactly one of them.
+if [[ ${#SELECTED_AGENTS[@]} -eq ${#AGENTS[@]} ]]; then
   echo "all" > "$SELECTION_FILE"
 else
-  echo "${SELECTED_AGENTS[0]}" > "$SELECTION_FILE"
+  (IFS=','; echo "${SELECTED_AGENTS[*]}") > "$SELECTION_FILE"
 fi
+# Printed because this file drives every later update.sh: it replaces the
+# previous selection rather than adding to it, so a narrow re-run silently
+# narrowing future updates is exactly the failure to make visible.
+echo "  agent selection recorded for update.sh: $(cat "$SELECTION_FILE")"
 
 echo ""
 echo "==> Validating registry..."
@@ -77,6 +86,8 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   target_dir=$(agent_skills_dir "$agent")
   echo ""
   echo "  Agent: $agent → $target_dir"
+
+  prune_dead_skill_links "$target_dir" "$REPO_DIR"
 
   # Kiro also gets prompt files and an auto-generated agent config
   if [[ "$agent" == "kiro" ]]; then
