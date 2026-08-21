@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import datetime
+import hashlib
 import json
 import os
 import subprocess
@@ -41,7 +42,12 @@ def _state_dir() -> Path:
 
 
 def write_engine_error_hint_once(reason: str) -> None:
-    marker = _state_dir() / ".engine-error"
+    # De-dupe on the reason's content hash, not a single global marker. A stale
+    # marker from one early error must not silently swallow later errors with a
+    # different cause (that masked a Gemini 403 during debugging). Same reason
+    # still logs only once; a new distinct reason logs once more.
+    digest = hashlib.sha1(reason.encode("utf-8", "replace")).hexdigest()[:12]
+    marker = _state_dir() / f".engine-error-{digest}"
     if marker.exists():
         return
     hint = (
