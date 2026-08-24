@@ -201,6 +201,7 @@ To bring Windows back, the prerequisite is a `windows-latest` job in
 | `scripts/update.sh` | macOS / Linux | `git pull` + re-install |
 | `scripts/run-tests.sh` | macOS / Linux | Run all skill + script tests (`--fast` skips integration tests) |
 | `scripts/setup-credentials.sh` | macOS / Linux | Store service credentials in keychain |
+| `scripts/init-repo.sh` | macOS / Linux | Scaffold `.claude/hooks/` in another repo from the hook templates |
 
 ### Choosing agents
 
@@ -377,6 +378,32 @@ see [`docs/migration.md`](docs/migration.md).
 
 ---
 
+## Hook Templates
+
+[`hooks/`](hooks/README.md) is a library of Claude Code hook templates — local
+quality gates that run on your machine as you work, not in CI. Scaffold them into
+any repo:
+
+```bash
+bash scripts/init-repo.sh <profile> [/path/to/repo]
+```
+
+Profiles are `python-api`, `react`, `go-api`, `k8s`, and `full`. Each copies a
+matching set of hooks into the target's `.claude/hooks/`, plus the common ones
+(secret scan, SAST, CVE scan, shell check) and a `settings.json` with deny rules for
+force-push and secret files. Existing files are preserved unless `FORCE=1` is passed.
+
+Hooks fire at two points: `PostToolUse` after each edit (fast syntax and format
+checks) and `Stop` when the agent believes it is done (tests, SAST, dependency
+scans). A hook blocks by exiting 2 — the only exit code Claude Code feeds back to the
+agent so it can self-correct. Missing tools are skipped rather than fatal, so a host
+without `semgrep` or `grype` still works.
+
+This repo runs its own gates from [`.claude/`](.claude/settings.json): shell and
+Python syntax on every edit, plus registry validation, the test suite, and a secret
+scan on Stop. See [`hooks/README.md`](hooks/README.md) for the full template list and
+the tool inventory script.
+
 ## Always-On Engineering Rules (AGENTS.md style)
 
 For cross-cutting rules that should be loaded **on every session** (not invoked on demand like a skill), use `agents/engineering-rules.md` and the `install-agents-md.sh` deploy script. The script writes the rules into a marked block inside each host file:
@@ -408,10 +435,11 @@ The `--with-agents-md` flag deploys to Claude, Gemini, and Kiro simultaneously. 
 
 ## Custom Skills
 
-The five group skills (`intake`, `jira`, `review`, `infra`, `utils`) cover
-intake, planning, code review, infrastructure, and miscellaneous utilities.
-Each group's `skills/<group>/SKILL.md` is the entry point; per-subcommand
-recipes live in `skills/<group>/<subcommand>/IMPL.md`.
+The 14 group skills cover intake, spec audit, API contracts, testing, code
+review, release, and local infrastructure. Each group's
+`skills/<group>/SKILL.md` is the entry point; per-subcommand recipes live in
+`skills/<group>/<subcommand>/IMPL.md`. [`skills/README.md`](skills/README.md)
+indexes every group and subcommand.
 
 For example:
 
