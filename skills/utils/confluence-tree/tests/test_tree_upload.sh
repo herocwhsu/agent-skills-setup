@@ -154,7 +154,10 @@ start_server() {
   local pid=$!
   SERVER_PIDS+=("$pid")
   disown "$pid" 2>/dev/null || true
-  for _ in $(seq 1 30); do
+  # 30s ceiling: a cold python interpreter on a busy host takes ~15s to reach
+  # its first print, and a 3s budget failed with an empty server.log. The loop
+  # breaks as soon as `ready` appears, so a warm server still costs ~0.3s.
+  for _ in $(seq 1 300); do
     grep -q ready "$TMP/server.log" 2>/dev/null && break
     sleep 0.1
   done
@@ -355,7 +358,7 @@ PORT=$PORT5 PUT_FLAG=$PUT_FLAG python3 "$TMP/server5.py" >"$TMP/server5.log" 2>&
 SERVER5_PID=$!
 SERVER_PIDS+=("$SERVER5_PID")
 disown "$SERVER5_PID" 2>/dev/null || true
-for _ in $(seq 1 30); do
+for _ in $(seq 1 300); do
   grep -q ready "$TMP/server5.log" 2>/dev/null && break
   sleep 0.1
 done
