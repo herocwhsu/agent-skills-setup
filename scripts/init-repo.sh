@@ -67,7 +67,7 @@ case "$PROFILE" in
     copy_hook "$HOOKS_SRC/python/ruff-fix.sh"
     copy_hook "$HOOKS_SRC/python/py-guard.sh"
     copy_hook "$HOOKS_SRC/python/migration-guard.sh"
-    ;&
+    ;;
 esac
 
 case "$PROFILE" in
@@ -76,7 +76,7 @@ case "$PROFILE" in
     echo "--- js/ts ---"
     copy_hook "$HOOKS_SRC/js/ts-fix.sh"
     copy_hook "$HOOKS_SRC/js/ts-guard.sh"
-    ;&
+    ;;
 esac
 
 case "$PROFILE" in
@@ -85,7 +85,7 @@ case "$PROFILE" in
     echo "--- go ---"
     copy_hook "$HOOKS_SRC/go/gosec-guard.sh"
     copy_hook "$HOOKS_SRC/go/govulncheck-guard.sh"
-    ;&
+    ;;
 esac
 
 case "$PROFILE" in
