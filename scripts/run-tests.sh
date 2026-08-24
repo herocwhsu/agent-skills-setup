@@ -73,26 +73,15 @@ while IFS= read -r -d '' f; do
   esac
 done < <(find "$REPO_DIR/skills" -type f \( -name "test_*.sh" -o -name "test_*.py" \) -print0 | sort -z)
 
-# Check for subcommands with IMPL.md but no tests
+# Coverage check — see scripts/coverage-check.sh. Reported as a warning: this
+# suite's exit code tracks test results, so a coverage gap must not abort it.
 echo ""
-echo "==> Coverage check (subcommands without tests)"
-while IFS= read -r -d '' impl; do
-  subcommand_dir="$(dirname "$impl")"
-  # Only check leaf dirs (direct parent of IMPL.md that is not a group root)
-  if [[ "$(basename "$subcommand_dir")" == "$(basename "$(dirname "$subcommand_dir")")" ]]; then
-    continue
-  fi
-  # Skip group-level (SKILL.md dirs) — only subcommand dirs have IMPL.md
-  has_test=0
-  if find "$subcommand_dir" -name "test_*.sh" -o -name "test_*.py" 2>/dev/null | grep -q .; then
-    has_test=1
-  fi
-  if [[ $has_test -eq 0 ]]; then
-    echo "  UNTESTED  $impl"
-    untested=$((untested + 1))
-  fi
-done < <(find "$REPO_DIR/skills" -name "IMPL.md" -print0 | sort -z)
+echo "==> Coverage check (code-bearing subcommands without tests)"
+coverage_out=$(bash "$REPO_DIR/scripts/coverage-check.sh" "$REPO_DIR/skills" 2>&1) || true
+echo "$coverage_out"
+untested=$(sed -n 's/^Coverage: \([0-9]\{1,\}\) .*/\1/p' <<<"$coverage_out")
+untested=${untested:-0}
 
 echo ""
-echo "Results: $pass passed, $fail failed, $skip skipped, $untested subcommands without tests"
+echo "Results: $pass passed, $fail failed, $skip skipped, $untested code-bearing subcommands without tests"
 [[ $fail -eq 0 ]]
