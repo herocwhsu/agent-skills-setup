@@ -1,5 +1,5 @@
 ---
-name: confluence
+name: utils-confluence-tree
 description: Use when the user wants to migrate a Confluence page tree to a new location. Fetches a source page and all descendants as markdown, lets the user edit locally, then uploads the tree under a different parent page. Drawio/Gliffy diagrams preserved as opaque blocks; other macros flattened. Self-hosted Server/DC only.
 ---
 

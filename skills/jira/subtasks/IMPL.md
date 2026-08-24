@@ -1,5 +1,5 @@
 ---
-name: create-story-tasks
+name: jira-subtasks
 description: Use after writing-plans is approved to create Jira sub-tasks before implementation starts. Also use when adding a new sub-task mid-implementation for spec changes or bug fixes.
 ---
 
