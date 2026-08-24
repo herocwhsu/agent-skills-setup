@@ -16,7 +16,8 @@ Stop hooks fire when Claude thinks it's done   (tests, SAST, CVE scan)
 You commit — CI enforces the same gates for everyone
 ```
 
-Exit codes: `0` = ok, `1` = block (error), `2` = warn (agent self-corrects).
+Exit codes: `0` = ok, `2` = block (stderr is fed back so the agent can
+self-correct), `1` = non-blocking error.
 
 ## Required tools
 
@@ -52,7 +53,7 @@ common/
   secret-scan.sh      Stop — gitleaks + osv-scanner
   semgrep-guard.sh    Stop — SAST (customize --config flags for your stack)
   grype-guard.sh      Stop — CVE scan on filesystem / images (HIGH+ with fixes)
-  sh-check.sh         PostToolUse *.sh — bash -n + shellcheck
+  sh-check.sh         PostToolUse *.sh — bash -n + shellcheck (error severity)
 
 python/
   ruff-fix.sh         PostToolUse *.py — auto-format with ruff (silent)
@@ -118,5 +119,5 @@ Then wire hooks into `.claude/settings.json`:
 - **Repo-local, not global** — each repo owns its `.claude/` copy. Hooks evolve with the repo.
 - **agent-skills-setup is the template source** — copy on scaffold, then the repo owns it.
 - **Always skip, never crash** — every tool call is guarded with `command -v`. Missing tools print a SKIP line and exit 0.
-- **Warn (exit 2), don't block (exit 1)** — most hooks warn so the agent self-corrects. Only hard errors (bash syntax) block.
+- **Block with exit 2, not exit 1** — exit 2 is the only code Claude Code feeds back to the agent, so a gate that means to stop bad work must use it. Exit 1 surfaces an error without blocking; auto-fixers exit 0.
 - **stdin JSON** — PostToolUse hooks read the edited file path from Claude Code's JSON stdin, not `$1`.
