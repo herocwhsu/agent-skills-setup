@@ -1,5 +1,7 @@
 # confluence Skill: Implementation Plan
 
+**Status: superseded, never implemented as written.** The header below still says "pending approval"; the work was redesigned and shipped as `2026-06-03-confluence-migration.md`. Kept for the design discussion only.
+
 **Date:** 2026-06-02
 **Status:** Pending approval (test fixtures from real pages still needed before Task 1)
 

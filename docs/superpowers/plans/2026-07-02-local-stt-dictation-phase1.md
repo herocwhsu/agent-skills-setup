@@ -1,5 +1,7 @@
 # Local STT Dictation Phase 1 (Adopt Handy) Implementation Plan
 
+**Status: shipped (this repo's share).** Evidence: `config/handy/prompt-en-polish.txt`, `config/handy/prompt-zh-tw.txt`, `scripts/test-polish-endpoint.sh`, `docs/dictation-handy.md`. The Handy fork itself lives outside this repo and is not checked out on this host, so its build state cannot be verified from here.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace SuperWhisper with Handy (local, open-source dictation) on the Linux host and the macOS desktop, with Haiku-powered transcript polish (EN) and Traditional Chinese output (ZH-TW).

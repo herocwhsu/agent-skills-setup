@@ -1,5 +1,7 @@
 # Portable Skills Refactor Implementation Plan
 
+**Status: shipped.** Evidence: `lib/lib.sh` provides the slug, `find_html2md`, config and secret helpers; credential storage lives in `scripts/credentials/_store.sh`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Eliminate hardcoded user values from shipped skills, dedupe slug + html2md detection helpers, collapse credential scripts, and enable offline uninstall.

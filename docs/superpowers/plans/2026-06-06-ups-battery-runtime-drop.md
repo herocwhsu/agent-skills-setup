@@ -1,5 +1,7 @@
 # UPS Battery Runtime Drop Investigation & Fix
 
+**Status: partially done — remaining work is physical, not code.** The `battery-replace` subcommand shipped (`skills/infra/ups/lib/battery-replace.sh`). The open items are host operations: NUT/apctest install, deep calibration, runtime re-measurement, and a physical battery-label check.
+
 **Date:** 2026-06-06
 **Hardware:** APC Back-UPS RS 1500G (`apc-rs1500g`)
 **Symptom:** New battery installed ~3 days ago. Initial runtime estimate ~250 min → dropped to ~65 min.

@@ -1,5 +1,7 @@
 # UPS Power Protection Implementation Plan
 
+**Status: shipped.** Now `/infra-ups`. Evidence: `skills/infra/ups/lib/` (install, shutdown, status, battery-health, battery-replace) plus `tests/test_ups.sh`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Install and configure NUT (Network UPS Tools) so that when the APC Back-UPS RS 1500G loses mains power for ≥ 60 seconds, the host gracefully stops k3s, Docker, ZFS, and remaining services, flushes disk caches, then shuts down safely.

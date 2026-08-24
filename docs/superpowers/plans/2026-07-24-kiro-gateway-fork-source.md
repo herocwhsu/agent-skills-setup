@@ -1,5 +1,7 @@
 # kiro-gateway Fork-Source Reproducible Setup — Implementation Plan
 
+**Status: shipped.** Evidence: `skills/infra/kiro-gateway/patches/kiro-gateway-system-role.patch` and the fork-source resolver in `lib/kiro-gateway.sh`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Refactor the `infra/kiro-gateway` skill so it builds the gateway image from the user's fork (which carries the `role: str` 422 fix), verifies that fix on every build, corrects the container mount, keeps SHA-tagged rollback, and reconciles `~/.zshrc` aliases via a managed block.

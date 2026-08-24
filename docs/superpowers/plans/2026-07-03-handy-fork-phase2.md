@@ -1,5 +1,7 @@
 # Handy Fork Phase 2 (S2twp + Language-Mode Hotkey) Implementation Plan
 
+**Status: closed 2026-07-08 (see `docs/backlog.md`).** Both code items landed in the fork. The remaining unchecked boxes were skipped or deferred by explicit decision (full integration-branch build, upstream draft PRs) — they are not outstanding work.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** In the Handy fork (`~/projects/handy`, origin = herocwhsu/Handy, upstream = cjpais/Handy), make ZH output use Taiwan phrase conventions (OpenCC `S2twp`) and add one global hotkey that cycles the dictation mode EN ⇄ ZH-TW (switching STT language and the active post-process prompt together, with the mode visible in the tray menu).
