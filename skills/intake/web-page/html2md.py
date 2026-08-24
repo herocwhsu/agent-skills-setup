@@ -57,11 +57,14 @@ def html2md(html: str) -> str:
 
 
 def _strip(html: str) -> str:
-    """Remove all tags and decode entities from a fragment."""
-    text = re.sub(r'<[^>]+>', '', html)
-    text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>') \
-               .replace('&nbsp;', ' ').replace('&#39;', "'").replace('&quot;', '"')
-    return text.strip()
+    """Remove all tags from a fragment.
+
+    Entities are deliberately not decoded here. html2md() strips leftover tags
+    globally after fragments are converted, so a `&lt;c&gt;` decoded this early
+    would look like a tag by then and be deleted — losing any literal `<...>`
+    text in the page. Decoding happens once, at the end of html2md().
+    """
+    return re.sub(r'<[^>]+>', '', html).strip()
 
 
 def _convert_table(m: re.Match) -> str:
