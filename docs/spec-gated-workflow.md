@@ -741,6 +741,42 @@ No evidence, no closure.
 
 14. Recommended Agent Skills
 
+**These are design notes, not the shipped inventory.** The names below predate
+the skills that actually exist and several were folded together during the
+group/subcommand refactor — one shipped subcommand often covers two or three
+entries here. Sections 14.x and 15 keep the original names because the purpose
+and output descriptions are still the spec worth reading; use this table to
+reach the real slash command. Entries mapped to `/opsx:*` are handled by the OpenSpec CLI and are not skills in this repo's registry.
+
+| Design name (14.x, 15) | Shipped as |
+|---|---|
+| jira-intake | `/intake-jira-story` |
+| confluence-spec-reader | `/intake-web-page` |
+| spec-intake-summarizer | `/intake-spec-summary` |
+| confluence-spec-audit, spec-gap-detector | `/audit-spec` |
+| vortex-domain-risk-checker | `/audit-domain-risk` (the generic checker its own note asked for) |
+| github-repo-context-scan, implementation-surface-mapper, existing-test-discovery | `/repo-context-scan` |
+| openspec-proposal-generator, openspec-design-writer, openspec-task-generator, openspec-acceptance-criteria-generator | `/opsx:propose` (OpenSpec CLI, not a skill in this repo) |
+| external-dependency-handler, provisional-contract-generator, mock-provider-planner | `/external-deps` |
+| jira-subtask-generator, jira-dependency-mapper | `/jira-subtasks` |
+| jira-evidence-checker | `/jira-evidence` |
+| apidog-contract-planner | `/apidog-contract` |
+| apidog-mock-generator | `/apidog-mocks` |
+| apidog-testcase-generator | `/apidog-testcases` |
+| test-plan-generator, acceptance-test-mapper | `/testing-plan` |
+| regression-test-generator | `/testing-regression` |
+| qa-verification-checker | `/testing-qa-check` |
+| openspec-amendment-writer | `/review-amend` |
+| spec-change-impact-analyzer, openspec-change-request-writer, change-decision-log-updater | `/review-change-request` |
+| implementation-guardrail-checker, pr-spec-compliance-checker | `/review-guardrails` |
+| code-review-assistant | `/review-pr`, `/review-mine-patterns` |
+| release-readiness-checker | `/release-readiness` |
+| post-release-triage, follow-up-proposal-generator | `/release-triage` |
+| bugfix-spec-generator | `/release-bugfix-spec` |
+| openspec-archive-checker | `/release-archive-check` |
+
+Run `/progress-status <STORY-ID>` to see which gates a story has cleared.
+
 The following skills can be built gradually.
 
 Do not build everything at once.
