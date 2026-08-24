@@ -38,10 +38,12 @@ BASE = f"https://{HOST}/rest/api"
 
 def get_password() -> str:
     import subprocess
+
     svc = "agent-skills-setup:confluence-https---confluence-vivotek-com"
     r = subprocess.run(
         ["security", "find-generic-password", "-s", svc, "-a", USER, "-w"],
-        capture_output=True, text=True
+        capture_output=True,
+        text=True,
     )
     if r.returncode != 0 or not r.stdout.strip():
         sys.exit(f"ERROR: credential not found for {svc}")
@@ -49,6 +51,7 @@ def get_password() -> str:
 
 
 _PASS = None
+
 
 def auth_header() -> str:
     global _PASS
@@ -59,9 +62,9 @@ def auth_header() -> str:
 
 def get_page_version(page_id: str) -> int:
     url = f"{BASE}/content/{page_id}?expand=version"
-    req = urllib.request.Request(url, headers={
-        "Authorization": auth_header(), "Accept": "application/json"
-    })
+    req = urllib.request.Request(
+        url, headers={"Authorization": auth_header(), "Accept": "application/json"}
+    )
     try:
         with urllib.request.urlopen(req) as r:
             return json.loads(r.read())["version"]["number"]
@@ -70,18 +73,25 @@ def get_page_version(page_id: str) -> int:
 
 
 def put_content(page_id: str, title: str, xhtml_body: str, version: int) -> None:
-    payload = json.dumps({
-        "version": {"number": version},
-        "title": title,
-        "type": "page",
-        "body": {"storage": {"value": xhtml_body, "representation": "storage"}}
-    }).encode()
+    payload = json.dumps(
+        {
+            "version": {"number": version},
+            "title": title,
+            "type": "page",
+            "body": {"storage": {"value": xhtml_body, "representation": "storage"}},
+        }
+    ).encode()
     url = f"{BASE}/content/{page_id}"
-    req = urllib.request.Request(url, data=payload, method="PUT", headers={
-        "Authorization": auth_header(),
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    })
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        method="PUT",
+        headers={
+            "Authorization": auth_header(),
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
     with urllib.request.urlopen(req) as r:
         r.read()
 
@@ -126,8 +136,8 @@ def upload_page(page: dict, new_id: str, dry_run: bool) -> bool:
     if xhtml_body is None:
         # Fallback: placeholder with link to original
         xhtml_body = (
-            f'<p><strong>Note:</strong> Content could not be automatically migrated '
-            f'due to formatting. '
+            f"<p><strong>Note:</strong> Content could not be automatically migrated "
+            f"due to formatting. "
         )
         if source_url:
             xhtml_body += f'See original: <a href="{source_url}">{source_url}</a>'
@@ -153,8 +163,8 @@ def upload_page(page: dict, new_id: str, dry_run: bool) -> bool:
             # Retry with fallback placeholder
             print(f"  WARN XHTML rejected, uploading placeholder for: {page['title']}")
             fallback = (
-                f'<p><strong>Note:</strong> Content could not be automatically migrated '
-                f'due to formatting. '
+                f"<p><strong>Note:</strong> Content could not be automatically migrated "
+                f"due to formatting. "
             )
             if source_url:
                 fallback += f'See original: <a href="{source_url}">{source_url}</a>'
@@ -173,8 +183,11 @@ def upload_page(page: dict, new_id: str, dry_run: bool) -> bool:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--fetch-dir", default="docs/confluence/2026-06-09-296989759",
-                        help="Path to the fetch directory containing manifest.json and stub_map.json")
+    parser.add_argument(
+        "--fetch-dir",
+        default="docs/confluence/2026-06-09-296989759",
+        help="Path to the fetch directory containing manifest.json and stub_map.json",
+    )
     args = parser.parse_args()
 
     global FETCH_DIR

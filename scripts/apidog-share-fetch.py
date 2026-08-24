@@ -109,7 +109,9 @@ def _normalize_endpoint(rd: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(resp, dict):
             continue
         examples = [
-            ex.get("data", "") for ex in (resp.get("responseExamples") or []) if isinstance(ex, dict)
+            ex.get("data", "")
+            for ex in (resp.get("responseExamples") or [])
+            if isinstance(ex, dict)
         ]
         responses_out.append(
             {
@@ -192,7 +194,9 @@ def main(argv: list[str] | None = None) -> int:
             with open(args.from_file, "rb") as f:
                 resolved = _decode_data_file(f.read())
             rd = resolved["root"]["data"]["docsDataState"]["resourceData"]["data"]
-            json.dump(_normalize_endpoint(rd), sys.stdout, indent=2, ensure_ascii=False, sort_keys=True)
+            json.dump(
+                _normalize_endpoint(rd), sys.stdout, indent=2, ensure_ascii=False, sort_keys=True
+            )
             sys.stdout.write("\n")
             return 0
 

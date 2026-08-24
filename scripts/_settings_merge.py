@@ -8,6 +8,7 @@ Usage:
 Operates only on top-level "hooks.<EventName>" arrays. Preserves all other keys
 and other event names. Idempotent. Creates settings.json if missing on --merge.
 """
+
 import argparse
 import json
 import sys

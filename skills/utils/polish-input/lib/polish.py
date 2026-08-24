@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+
 """polish-input runtime: invoked as a UserPromptSubmit hook by Claude Code or Antigravity CLI.
 
 Two stdin modes are supported:
@@ -36,6 +37,7 @@ _MIGRATED = False
 # Agent detection + provider wiring
 # ---------------------------------------------------------------------------
 
+
 def detect_agent() -> str:
     """Identify the calling agent from sys.argv[0] (the literal hook command path)."""
     path = sys.argv[0]
@@ -48,9 +50,13 @@ def detect_agent() -> str:
 def build_providers(agent: str) -> list:
     """Return an ordered list of AuthProviders for the given agent."""
     from polish_engine import (
-        ClaudeSessionProvider, AnthropicKeyProvider,
-        GeminiAntigravityProvider, GeminiKeyProvider, GeminiKeychainProvider,
+        ClaudeSessionProvider,
+        AnthropicKeyProvider,
+        GeminiAntigravityProvider,
+        GeminiKeyProvider,
+        GeminiKeychainProvider,
     )
+
     if agent == "claude":
         return [ClaudeSessionProvider(), AnthropicKeyProvider()]
     if agent == "gemini":
@@ -61,6 +67,7 @@ def build_providers(agent: str) -> list:
 # ---------------------------------------------------------------------------
 # State / logging
 # ---------------------------------------------------------------------------
+
 
 def _migrate_legacy_state(new_dir: Path) -> None:
     global _MIGRATED
@@ -115,6 +122,7 @@ def _debug_log(event: str, detail: str = "") -> None:
 # Skip rules
 # ---------------------------------------------------------------------------
 
+
 def _skip_reason(text: str) -> str | None:
     if os.environ.get("POLISH_DISABLE") == "1":
         return "POLISH_DISABLE=1"
@@ -136,6 +144,7 @@ def should_skip(text: str) -> bool:
 # ---------------------------------------------------------------------------
 # Display formatters
 # ---------------------------------------------------------------------------
+
 
 def _format_line(corrected: str, _original: str) -> str:
     return f"[polish] {corrected}\n"
@@ -183,6 +192,7 @@ def _emit_polish_line(corrected: str, original: str) -> None:
 # Hook payload detection
 # ---------------------------------------------------------------------------
 
+
 def _parse_hook_payload(raw: str) -> dict | None:
     stripped = raw.lstrip()
     if not stripped.startswith("{"):
@@ -204,6 +214,7 @@ def _parse_hook_payload(raw: str) -> dict | None:
 # Core logic (providers injected by main)
 # ---------------------------------------------------------------------------
 
+
 def _polish_text(text: str, providers: list) -> tuple[str | None, str]:
     skip = _skip_reason(text)
     if skip is not None:
@@ -218,6 +229,7 @@ def _polish_text(text: str, providers: list) -> tuple[str | None, str]:
     if fake is not None:
         if fake == "RAISE":
             from polish_engine import write_engine_error_hint_once
+
             write_engine_error_hint_once("simulated engine failure")
             return None, "correct-failed"
         try:
@@ -228,6 +240,7 @@ def _polish_text(text: str, providers: list) -> tuple[str | None, str]:
     else:
         try:
             from polish_engine import polish as _engine_polish
+
             corrected = _engine_polish(text, providers)
         except Exception as e:
             _debug_log("correct-failed", str(e))

@@ -1,9 +1,14 @@
 import platform, os, multiprocessing, subprocess
 
+
 def get_cpu_brand():
     try:
         if platform.system() == "Darwin":
-            return subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"]).decode().strip()
+            return (
+                subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"])
+                .decode()
+                .strip()
+            )
         else:
             with open("/proc/cpuinfo") as f:
                 for line in f:
@@ -13,16 +18,20 @@ def get_cpu_brand():
         return "Unknown"
     return "Unknown"
 
+
 def get_ram_gb():
     try:
         system = platform.system()
         if system == "Darwin":
-            ram_bytes = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]).decode().strip())
+            ram_bytes = int(
+                subprocess.check_output(["sysctl", "-n", "hw.memsize"]).decode().strip()
+            )
         else:
             ram_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
-        return round(ram_bytes / (1024 ** 3), 2)
+        return round(ram_bytes / (1024**3), 2)
     except Exception:
         return 0.0
+
 
 def get_gpu_info():
     """Returns dict with vendor, driver, and whether it's a legacy Fermi-era card."""
@@ -43,6 +52,7 @@ def get_gpu_info():
         pass
     return info
 
+
 def get_cpu_max_temp():
     """Returns max CPU core temp in Celsius, or None if unavailable."""
     try:
@@ -56,19 +66,22 @@ def get_cpu_max_temp():
     except Exception:
         return None
 
+
 def get_profile():
     system = platform.system()
     return {
-        "os":        "linux" if system == "Linux" else "darwin" if system == "Darwin" else system.lower(),
-        "cores":     multiprocessing.cpu_count(),
-        "ram_gb":    get_ram_gb(),
-        "is_linux":  system == "Linux",
-        "is_macos":  system == "Darwin",
+        "os": "linux" if system == "Linux" else "darwin" if system == "Darwin" else system.lower(),
+        "cores": multiprocessing.cpu_count(),
+        "ram_gb": get_ram_gb(),
+        "is_linux": system == "Linux",
+        "is_macos": system == "Darwin",
         "cpu_brand": get_cpu_brand(),
-        "gpu":       get_gpu_info() if system == "Linux" else {},
-        "cpu_temp":  get_cpu_max_temp() if system == "Linux" else None,
+        "gpu": get_gpu_info() if system == "Linux" else {},
+        "cpu_temp": get_cpu_max_temp() if system == "Linux" else None,
     }
+
 
 if __name__ == "__main__":
     import json
+
     print(json.dumps(get_profile(), indent=2))

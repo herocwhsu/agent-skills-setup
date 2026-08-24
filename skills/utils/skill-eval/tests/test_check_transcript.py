@@ -3,6 +3,7 @@
 The tool is a heuristic reporter, not a pass/fail gate: it always exits 0 when
 given a readable transcript, so every assertion here is on what it reports.
 """
+
 import subprocess
 import sys
 from pathlib import Path

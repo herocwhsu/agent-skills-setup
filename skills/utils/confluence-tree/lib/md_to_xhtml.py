@@ -15,6 +15,7 @@ Wiki:// links are passed through verbatim — link_rewrite.py is expected to
 have rewritten them to real /pages/<id>/ URLs before this runs in production.
 Tests exercise the unresolved case to confirm pass-through.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -94,7 +95,11 @@ def parse_blocks(md: str) -> list[tuple[str, str]]:
             blocks.append(("diagram", re.match(r"^<!-- diagram:(d\d+) -->", line).group(1)))
             i += 1
             continue
-        if line.startswith("|") and i + 1 < len(lines) and re.match(r"^\|[\s\-|]+\|\s*$", lines[i + 1]):
+        if (
+            line.startswith("|")
+            and i + 1 < len(lines)
+            and re.match(r"^\|[\s\-|]+\|\s*$", lines[i + 1])
+        ):
             buf = [line]
             j = i + 1
             while j < len(lines) and lines[j].lstrip().startswith("|"):
@@ -105,7 +110,9 @@ def parse_blocks(md: str) -> list[tuple[str, str]]:
             continue
         if line.startswith("- ") or line.startswith("* "):
             buf = []
-            while i < len(lines) and (lines[i].startswith("- ") or lines[i].startswith("* ") or lines[i].startswith("  ")):
+            while i < len(lines) and (
+                lines[i].startswith("- ") or lines[i].startswith("* ") or lines[i].startswith("  ")
+            ):
                 buf.append(lines[i])
                 i += 1
             blocks.append(("ul", "\n".join(buf)))
@@ -146,12 +153,13 @@ def render_inline(text: str) -> str:
     # substitutions emit XHTML tags whose `<` and `>` must remain literal.
     raw = sax.escape(text)
     # images (must come before links — `![...](url)` would otherwise match the link regex)
-    raw = re.sub(r"!\[([^\]]*)\]\(\./([^)]+)\)",
-                 lambda m: _image_xml(m.group(1), m.group(2)), raw)
+    raw = re.sub(r"!\[([^\]]*)\]\(\./([^)]+)\)", lambda m: _image_xml(m.group(1), m.group(2)), raw)
     # links
-    raw = re.sub(r"\[([^\]]+)\]\(([^)]+)\)",
-                 lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}">{m.group(1)}</a>',
-                 raw)
+    raw = re.sub(
+        r"\[([^\]]+)\]\(([^)]+)\)",
+        lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}">{m.group(1)}</a>',
+        raw,
+    )
     # bold (must come before italic so `**x**` is not parsed as `*<em>x</em>*`)
     raw = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", raw)
     # italic
@@ -178,15 +186,25 @@ def render_block(kind: str, body: str, diagrams: dict) -> str:
         # admonition shorthand: paragraph that's actually a blockquote? handled in blockquote branch
         return f"<p>{render_inline(body)}</p>"
     if kind == "ul":
-        items = [render_inline(line[2:].strip()) for line in body.splitlines() if line.startswith(("- ", "* "))]
+        items = [
+            render_inline(line[2:].strip())
+            for line in body.splitlines()
+            if line.startswith(("- ", "* "))
+        ]
         return "<ul>" + "".join(f"<li>{it}</li>" for it in items) + "</ul>"
     if kind == "ol":
-        items = [render_inline(re.sub(r"^\d+\.\s+", "", line)) for line in body.splitlines() if re.match(r"^\d+\. ", line)]
+        items = [
+            render_inline(re.sub(r"^\d+\.\s+", "", line))
+            for line in body.splitlines()
+            if re.match(r"^\d+\. ", line)
+        ]
         return "<ol>" + "".join(f"<li>{it}</li>" for it in items) + "</ol>"
     if kind == "code":
         meta = json.loads(body)
         lang = meta["lang"]
-        lang_param = f'<ac:parameter ac:name="language">{sax.escape(lang)}</ac:parameter>' if lang else ""
+        lang_param = (
+            f'<ac:parameter ac:name="language">{sax.escape(lang)}</ac:parameter>' if lang else ""
+        )
         return (
             f'<ac:structured-macro ac:name="code">'
             f"{lang_param}"
@@ -202,7 +220,7 @@ def render_block(kind: str, body: str, diagrams: dict) -> str:
         for prefix, macro in ADMONITION_PREFIXES.items():
             head = f"**{prefix}:**"
             if body.lstrip().startswith(head):
-                inner = body.lstrip()[len(head):].lstrip()
+                inner = body.lstrip()[len(head) :].lstrip()
                 return (
                     f'<ac:structured-macro ac:name="{macro}">'
                     f"<ac:rich-text-body><p>{render_inline(inner)}</p></ac:rich-text-body>"

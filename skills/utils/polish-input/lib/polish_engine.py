@@ -5,6 +5,7 @@ AuthProvider subclasses supply credentials; polish() tries each in order and
 returns the first successful rewrite. Callers build the provider list based on
 the detected agent context (see polish.py).
 """
+
 from __future__ import annotations
 
 import base64
@@ -33,6 +34,7 @@ DEFAULT_STATE_DIR = "~/.agent-skills-setup/state/polish-input"
 # ---------------------------------------------------------------------------
 # State / logging
 # ---------------------------------------------------------------------------
+
 
 def _state_dir() -> Path:
     raw = os.environ.get("POLISH_STATE_DIR") or DEFAULT_STATE_DIR
@@ -68,10 +70,12 @@ def write_engine_error_hint_once(reason: str) -> None:
 # AuthProvider hierarchy
 # ---------------------------------------------------------------------------
 
+
 class AuthProvider:
     """Base class. Subclasses define name, backend, cred_type, and credential()."""
+
     name: str
-    backend: str    # "anthropic" | "gemini"
+    backend: str  # "anthropic" | "gemini"
     cred_type: str  # "key" | "bearer" | "oauth"
 
     def credential(self) -> Any:
@@ -80,12 +84,14 @@ class AuthProvider:
 
 class ClaudeSessionProvider(AuthProvider):
     """OAuth bearer token from the active Claude Code login session."""
+
     name = "claude-session"
     backend = "anthropic"
     cred_type = "bearer"
 
     def credential(self) -> str | None:
         import time
+
         creds_path = Path(os.path.expanduser("~/.claude/.credentials.json"))
         if not creds_path.exists():
             return None
@@ -103,6 +109,7 @@ class ClaudeSessionProvider(AuthProvider):
 
 class AnthropicKeyProvider(AuthProvider):
     """API key from the ANTHROPIC_API_KEY environment variable."""
+
     name = "anthropic-key"
     backend = "anthropic"
     cred_type = "key"
@@ -125,7 +132,8 @@ def _read_antigravity_keychain_value() -> str | None:
     try:
         r = subprocess.run(
             ["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", "-w"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         if r.returncode == 0 and r.stdout.strip():
             return r.stdout.strip()
@@ -135,7 +143,8 @@ def _read_antigravity_keychain_value() -> str | None:
     try:
         r = subprocess.run(
             ["secret-tool", "lookup", "service", "gemini", "username", "antigravity"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         if r.returncode == 0 and r.stdout.strip():
             return r.stdout.strip()
@@ -153,6 +162,7 @@ class GeminiAntigravityProvider(AuthProvider):
     An expired token is treated as "no credential" (falls through to the
     next provider) rather than risking a failed refresh call.
     """
+
     name = "gemini-antigravity"
     backend = "gemini"
     cred_type = "oauth"
@@ -163,10 +173,11 @@ class GeminiAntigravityProvider(AuthProvider):
             return None
         try:
             import google.oauth2.credentials
+
             payload = raw
             prefix = "go-keyring-base64:"
             if payload.startswith(prefix):
-                payload = payload[len(prefix):]
+                payload = payload[len(prefix) :]
             decoded = base64.b64decode(payload + "=" * (-len(payload) % 4))
             data = json.loads(decoded)
             token = data.get("token", {})
@@ -187,6 +198,7 @@ class GeminiAntigravityProvider(AuthProvider):
 
 class GeminiKeyProvider(AuthProvider):
     """API key from the GEMINI_API_KEY environment variable."""
+
     name = "gemini-key"
     backend = "gemini"
     cred_type = "key"
@@ -197,6 +209,7 @@ class GeminiKeyProvider(AuthProvider):
 
 class GeminiKeychainProvider(AuthProvider):
     """API key from the agent-skills-setup keychain (secret-tool or credentials.json)."""
+
     name = "gemini-keychain"
     backend = "gemini"
     cred_type = "key"
@@ -213,8 +226,16 @@ class GeminiKeychainProvider(AuthProvider):
 
             try:
                 result = subprocess.run(
-                    ["secret-tool", "lookup", "service", "agent-skills-setup:gemini", "username", user],
-                    capture_output=True, text=True,
+                    [
+                        "secret-tool",
+                        "lookup",
+                        "service",
+                        "agent-skills-setup:gemini",
+                        "username",
+                        user,
+                    ],
+                    capture_output=True,
+                    text=True,
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     return result.stdout.strip()
@@ -234,6 +255,7 @@ class GeminiKeychainProvider(AuthProvider):
 # Backend callers
 # ---------------------------------------------------------------------------
 
+
 def _polish_anthropic(text: str, cred: str, cred_type: str) -> str | None:
     try:
         import anthropic
@@ -251,7 +273,9 @@ def _polish_anthropic(text: str, cred: str, cred_type: str) -> str | None:
             max_tokens=DEFAULT_MAX_TOKENS,
             timeout=timeout_s,
             thinking={"type": "disabled"},
-            system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+            system=[
+                {"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}
+            ],
             messages=[{"role": "user", "content": text}],
         )
         for block in resp.content:
@@ -275,7 +299,9 @@ def _polish_gemini(text: str, cred: Any, cred_type: str) -> str | None:
         else:
             genai.configure(api_key=cred)
         timeout_ms = int(os.environ.get("POLISH_TIMEOUT_MS", str(DEFAULT_TIMEOUT_MS)))
-        model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_PROMPT)
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash", system_instruction=SYSTEM_PROMPT
+        )
         response = model.generate_content(text, request_options={"timeout": timeout_ms / 1000})
         try:
             return response.text.strip() if response.text else None
@@ -289,6 +315,7 @@ def _polish_gemini(text: str, cred: Any, cred_type: str) -> str | None:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def polish(text: str, providers: list[AuthProvider]) -> str | None:
     """Try each provider in order; return first successful rewrite, else None."""

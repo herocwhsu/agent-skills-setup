@@ -15,6 +15,7 @@ Subcommands:
       Unknown titles are left untouched (tree_upload.py turns them into
       real Confluence URLs after pages are created).
 """
+
 from __future__ import annotations
 
 import argparse

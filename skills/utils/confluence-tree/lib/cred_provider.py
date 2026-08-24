@@ -7,6 +7,7 @@ the first non-None result.
 
 Mirrors the AuthProvider pattern in polish_engine.py.
 """
+
 from __future__ import annotations
 
 import json
@@ -38,6 +39,7 @@ def _service_slug(prefix: str, url: str) -> str:
 
 class ConfluenceCredentialProvider:
     """Base class. Subclasses define name and credential()."""
+
     name: str
 
     def credential(self) -> str | None:
@@ -52,6 +54,7 @@ class ConfluenceEnvProvider(ConfluenceCredentialProvider):
     host resolve_credential() was called with — set CONFLUENCE_PASS
     explicitly to the correct value in that case.
     """
+
     name = "env"
 
     def credential(self) -> str | None:
@@ -65,6 +68,7 @@ class ConfluenceConfigKeychainProvider(ConfluenceCredentialProvider):
         SLUG=$(service_slug confluence "https://$CONFLUENCE_HOST")
         _PASS=$(require_secret "$SLUG" "$CONFLUENCE_USER")
     """
+
     name = "keychain"
 
     def __init__(self, host: str, user: str) -> None:
@@ -77,9 +81,9 @@ class ConfluenceConfigKeychainProvider(ConfluenceCredentialProvider):
         # Try macOS Keychain
         try:
             r = subprocess.run(
-                ["security", "find-generic-password",
-                 "-s", self._svc_key, "-a", self._user, "-w"],
-                capture_output=True, text=True,
+                ["security", "find-generic-password", "-s", self._svc_key, "-a", self._user, "-w"],
+                capture_output=True,
+                text=True,
             )
             if r.returncode == 0 and r.stdout.strip():
                 return r.stdout.strip()
@@ -89,9 +93,9 @@ class ConfluenceConfigKeychainProvider(ConfluenceCredentialProvider):
         # Try Linux secret-tool
         try:
             r = subprocess.run(
-                ["secret-tool", "lookup",
-                 "service", self._svc_key, "username", self._user],
-                capture_output=True, text=True,
+                ["secret-tool", "lookup", "service", self._svc_key, "username", self._user],
+                capture_output=True,
+                text=True,
             )
             if r.returncode == 0 and r.stdout.strip():
                 return r.stdout.strip()

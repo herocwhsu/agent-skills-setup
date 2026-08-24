@@ -24,6 +24,7 @@ Exit codes:
        in which case 0 is returned and individual failures are
        printed to stderr)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -51,6 +52,7 @@ def auth_header(user: str, secret: str) -> str:
     if PAT_PATTERN.match(secret) and ":" not in secret:
         return f"Bearer {secret}"
     import base64
+
     token = base64.b64encode(f"{user}:{secret}".encode()).decode()
     return f"Basic {token}"
 
@@ -114,6 +116,7 @@ def main(argv: list[str]) -> int:
 
     sys.path.insert(0, str(Path(__file__).parent))
     from cred_provider import resolve_credential
+
     secret = resolve_credential(args.host, args.user)
     if not secret:
         print(

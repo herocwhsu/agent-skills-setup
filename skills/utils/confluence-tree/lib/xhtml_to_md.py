@@ -18,6 +18,7 @@ Usage:
                            [--attachments-rel ./_index.attachments]
                            [--base-url https://...]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -73,11 +74,7 @@ def _substitute_entities(text: str) -> str:
 def wrap_with_ns(xhtml: str) -> str:
     """Wrap a fragment with explicit namespace declarations so lxml can parse it."""
     xhtml = _substitute_entities(xhtml)
-    return (
-        '<root xmlns:ac="http://example.org/ac" xmlns:ri="http://example.org/ri">'
-        f"{xhtml}"
-        "</root>"
-    )
+    return f'<root xmlns:ac="http://example.org/ac" xmlns:ri="http://example.org/ri">{xhtml}</root>'
 
 
 def _ns_matches(node, prefix: str) -> bool:
@@ -191,9 +188,15 @@ def _render(node, diagrams, next_id, attachments_rel, base_url) -> str:
         return f"{body}\n\n" if body.strip() else ""
 
     if tag in {"ul", "ol"}:
-        return _render_list(node, ordered=(tag == "ol"), depth=0,
-                            diagrams=diagrams, next_id=next_id,
-                            attachments_rel=attachments_rel, base_url=base_url)
+        return _render_list(
+            node,
+            ordered=(tag == "ol"),
+            depth=0,
+            diagrams=diagrams,
+            next_id=next_id,
+            attachments_rel=attachments_rel,
+            base_url=base_url,
+        )
 
     if tag == "table":
         return _render_table(node, diagrams, next_id, attachments_rel, base_url)
@@ -261,7 +264,11 @@ def _render_macro(node, diagrams, next_id, attachments_rel, base_url) -> str:
     if name in ADMONITION_MACROS:
         label = ADMONITION_MACROS[name]
         body_node = _find_child(node, "ac", "rich-text-body")
-        body = _inline(body_node, diagrams, next_id, attachments_rel, base_url) if body_node is not None else ""
+        body = (
+            _inline(body_node, diagrams, next_id, attachments_rel, base_url)
+            if body_node is not None
+            else ""
+        )
         return f"\n> **{label}:** {body.strip()}\n\n"
     if name == "code":
         lang_param = _find_macro_param(node, "language")
@@ -273,7 +280,11 @@ def _render_macro(node, diagrams, next_id, attachments_rel, base_url) -> str:
         title_param = _find_macro_param(node, "title")
         title = (title_param.text or "") if title_param is not None else "Details"
         body_node = _find_child(node, "ac", "rich-text-body")
-        body = _inline(body_node, diagrams, next_id, attachments_rel, base_url) if body_node is not None else ""
+        body = (
+            _inline(body_node, diagrams, next_id, attachments_rel, base_url)
+            if body_node is not None
+            else ""
+        )
         return f"\n**{title}**\n\n{body.strip()}\n\n"
     return ""
 
@@ -320,10 +331,17 @@ def _render_list(node, *, ordered, depth, diagrams, next_id, attachments_rel, ba
         for sub in li:
             sub_tag = etree.QName(sub).localname
             if sub_tag in {"ul", "ol"}:
-                out.append(_render_list(sub, ordered=(sub_tag == "ol"),
-                                        depth=depth + 1, diagrams=diagrams,
-                                        next_id=next_id, attachments_rel=attachments_rel,
-                                        base_url=base_url).rstrip("\n"))
+                out.append(
+                    _render_list(
+                        sub,
+                        ordered=(sub_tag == "ol"),
+                        depth=depth + 1,
+                        diagrams=diagrams,
+                        next_id=next_id,
+                        attachments_rel=attachments_rel,
+                        base_url=base_url,
+                    ).rstrip("\n")
+                )
     return "\n".join(out) + "\n\n"
 
 
@@ -335,7 +353,8 @@ def _render_table(node, diagrams, next_id, attachments_rel, base_url) -> str:
     for i, row in enumerate(rows):
         cells = row.findall("th") + row.findall("td")
         cell_texts = [
-            _inline(c, diagrams, next_id, attachments_rel, base_url).replace("\n", " ").strip() or " "
+            _inline(c, diagrams, next_id, attachments_rel, base_url).replace("\n", " ").strip()
+            or " "
             for c in cells
         ]
         out.append("| " + " | ".join(cell_texts) + " |")
