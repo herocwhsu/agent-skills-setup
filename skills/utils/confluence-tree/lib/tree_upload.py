@@ -35,6 +35,7 @@ Exit codes:
     3  auth failed (401)
     6  other HTTP error
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,49 +66,48 @@ def load_pages(tree: Path) -> list[dict]:
     """
     manifest_path = tree / "manifest.json"
     if not manifest_path.exists():
-        raise SystemExit(
-            (f"manifest.json not found in {tree}; was it written by tree_fetch?", 2)
-        )
+        raise SystemExit((f"manifest.json not found in {tree}; was it written by tree_fetch?", 2))
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     pages = manifest.get("pages", [])
 
     for p in pages:
         md_path = tree / p["relative_path"]
         if not md_path.is_file():
-            raise SystemExit(
-                (f"tree page {p['relative_path']} missing on disk", 2)
-            )
+            raise SystemExit((f"tree page {p['relative_path']} missing on disk", 2))
         fm = parse_frontmatter(md_path.read_text(encoding="utf-8"))
         on_disk_id = fm.get("source_page_id")
         on_disk_title = fm.get("source_title")
         if on_disk_id and on_disk_id != p["page_id"]:
-            raise SystemExit((
-                f"source_page_id mismatch in {p['relative_path']}: "
-                f"manifest says {p['page_id']}, frontmatter says {on_disk_id}",
-                2,
-            ))
+            raise SystemExit(
+                (
+                    f"source_page_id mismatch in {p['relative_path']}: "
+                    f"manifest says {p['page_id']}, frontmatter says {on_disk_id}",
+                    2,
+                )
+            )
         if on_disk_title:
             p["title"] = on_disk_title  # prefer on-disk; user may have edited
 
     return pages
 
 
-def stub_create(host: str, user: str, secret: str, space: str,
-                parent_id: str, title: str) -> str:
+def stub_create(host: str, user: str, secret: str, space: str, parent_id: str, title: str) -> str:
     """POST a placeholder page. Return the new page id."""
     auth = auth_header(user, secret)
-    payload = json.dumps({
-        "type": "page",
-        "title": title,
-        "space": {"key": space},
-        "ancestors": [{"id": parent_id}],
-        "body": {
-            "storage": {
-                "value": "<p>migrated, content pending</p>",
-                "representation": "storage",
-            }
-        },
-    }).encode()
+    payload = json.dumps(
+        {
+            "type": "page",
+            "title": title,
+            "space": {"key": space},
+            "ancestors": [{"id": parent_id}],
+            "body": {
+                "storage": {
+                    "value": "<p>migrated, content pending</p>",
+                    "representation": "storage",
+                }
+            },
+        }
+    ).encode()
     status, data = http_json(
         "POST",
         f"{base_url(host)}/rest/api/content",
@@ -127,17 +127,20 @@ def stub_create(host: str, user: str, secret: str, space: str,
     return str(data["id"])
 
 
-def update_page(host: str, user: str, secret: str, page_id: str, title: str,
-                xhtml: str, version: int) -> None:
+def update_page(
+    host: str, user: str, secret: str, page_id: str, title: str, xhtml: str, version: int
+) -> None:
     """PUT the encoded XHTML to a page. Version is current+1 (always 2 here)."""
     auth = auth_header(user, secret)
-    payload = json.dumps({
-        "id": page_id,
-        "type": "page",
-        "title": title,
-        "version": {"number": version},
-        "body": {"storage": {"value": xhtml, "representation": "storage"}},
-    }).encode()
+    payload = json.dumps(
+        {
+            "id": page_id,
+            "type": "page",
+            "title": title,
+            "version": {"number": version},
+            "body": {"storage": {"value": xhtml, "representation": "storage"}},
+        }
+    ).encode()
     status, data = http_json(
         "PUT",
         f"{base_url(host)}/rest/api/content/{page_id}",
@@ -154,14 +157,18 @@ def update_page(host: str, user: str, secret: str, page_id: str, title: str,
         raise SystemExit((f"PUT failed ({status}): {data}", 6))
 
 
-def rewrite_intra_tree_links(md: str, source_to_new_id: dict[str, str],
-                             source_title_to_id: dict[str, str],
-                             host_base_url: str) -> str:
+def rewrite_intra_tree_links(
+    md: str,
+    source_to_new_id: dict[str, str],
+    source_title_to_id: dict[str, str],
+    host_base_url: str,
+) -> str:
     """Replace wiki://page/<title> with absolute URLs to newly-created pages.
     Titles not in the tree (or whose source page failed stub creation) pass
     through verbatim — they become broken wiki:// links the user fixes
     manually, which is preferable to a guessed wrong target.
     """
+
     def repl(m):
         label = m.group(1)
         title = urllib.parse.unquote(m.group(2))
@@ -172,6 +179,7 @@ def rewrite_intra_tree_links(md: str, source_to_new_id: dict[str, str],
         if new_id is None:
             return m.group(0)
         return f"[{label}]({host_base_url}/pages/{new_id})"
+
     return WIKI_LINK_RE.sub(repl, md)
 
 
@@ -184,7 +192,7 @@ def strip_frontmatter_body(text: str) -> str:
     end = text.find("\n---\n", 4)
     if end == -1:
         return text
-    return text[end + 5:]
+    return text[end + 5 :]
 
 
 def encode_md(md_text: str, diagrams_path: Path | None) -> str:
@@ -207,8 +215,9 @@ def encode_md(md_text: str, diagrams_path: Path | None) -> str:
         return out_path.read_text(encoding="utf-8")
 
 
-def upload_attachments_for_page(host: str, user: str, secret: str,
-                                new_page_id: str, attachments_dir: Path) -> int:
+def upload_attachments_for_page(
+    host: str, user: str, secret: str, new_page_id: str, attachments_dir: Path
+) -> int:
     """Upload every file in the page's <basename>.attachments/ directory.
     Returns count of successful uploads. A single failed attachment WARNs
     and continues — manual fixup of one attachment is cheap, blocking the
@@ -233,8 +242,7 @@ def upload_attachments_for_page(host: str, user: str, secret: str,
                 msg, code = str(arg), 6
             if code == 3:
                 raise  # auth failures abort the whole upload
-            print(f"  WARN: attachment upload failed for {path.name}: {msg}",
-                  file=sys.stderr)
+            print(f"  WARN: attachment upload failed for {path.name}: {msg}", file=sys.stderr)
     return count
 
 
@@ -257,6 +265,7 @@ def main(argv: list[str]) -> int:
         secret = ""
     else:
         from cred_provider import resolve_credential
+
         secret = resolve_credential(args.host, args.user)
         if not secret:
             print(
@@ -286,15 +295,17 @@ def main(argv: list[str]) -> int:
     # ----- Pass 1: stubs -----
     source_to_new_id: dict[str, str] = {}
     if args.dry_run:
-        print(f"DRY RUN: would create {len(pages)} stubs under parent "
-              f"{args.new_parent} in space {args.space}")
+        print(
+            f"DRY RUN: would create {len(pages)} stubs under parent "
+            f"{args.new_parent} in space {args.space}"
+        )
         for p in pages:
             parent_label = (
-                args.new_parent if p["parent_id"] is None
+                args.new_parent
+                if p["parent_id"] is None
                 else f"source #{p['parent_id']} (will be a new page)"
             )
-            print(f"  stub: {p['title']!r} (source #{p['page_id']}) → "
-                  f"under {parent_label}")
+            print(f"  stub: {p['title']!r} (source #{p['page_id']}) → under {parent_label}")
     else:
         print(f"Pass 1: creating {len(pages)} stubs...", file=sys.stderr)
         for p in pages:
@@ -305,8 +316,12 @@ def main(argv: list[str]) -> int:
             )
             try:
                 new_id = stub_create(
-                    args.host, args.user, secret,
-                    args.space, parent_id, p["title"],
+                    args.host,
+                    args.user,
+                    secret,
+                    args.space,
+                    parent_id,
+                    p["title"],
                 )
             except SystemExit as e:
                 arg = e.args[0]
@@ -335,15 +350,17 @@ def main(argv: list[str]) -> int:
                 title = urllib.parse.unquote(m.group(2))
                 src_id = source_title_to_id.get(title)
                 if src_id is None:
-                    print(f"  link in {p['title']!r}: → wiki://page/{title} "
-                          f"(UNRESOLVED — outside tree, passthrough)")
+                    print(
+                        f"  link in {p['title']!r}: → wiki://page/{title} "
+                        f"(UNRESOLVED — outside tree, passthrough)"
+                    )
                 else:
-                    print(f"  link in {p['title']!r}: → {title!r} "
-                          f"(would rewrite to source #{src_id})")
+                    print(
+                        f"  link in {p['title']!r}: → {title!r} (would rewrite to source #{src_id})"
+                    )
         return 0
 
-    print(f"Pass 2: uploading content for {len(pages)} pages...",
-          file=sys.stderr)
+    print(f"Pass 2: uploading content for {len(pages)} pages...", file=sys.stderr)
     attached_total = 0
     for p in pages:
         md_path = tree / p["relative_path"]
@@ -351,7 +368,10 @@ def main(argv: list[str]) -> int:
         body = strip_frontmatter_body(text)
 
         body = rewrite_intra_tree_links(
-            body, source_to_new_id, source_title_to_id, host_base,
+            body,
+            source_to_new_id,
+            source_title_to_id,
+            host_base,
         )
 
         diagrams_path = md_path.parent / (md_path.stem + ".diagrams.json")
@@ -367,13 +387,16 @@ def main(argv: list[str]) -> int:
         new_id = source_to_new_id[p["page_id"]]
         try:
             attached_total += upload_attachments_for_page(
-                args.host, args.user, secret, new_id, attachments_dir,
+                args.host,
+                args.user,
+                secret,
+                new_id,
+                attachments_dir,
             )
         except SystemExit as e:
             arg = e.args[0]
             msg, code = arg if isinstance(arg, tuple) else (str(arg), 6)
-            print(f"ERROR: attachment auth failure on {p['title']}: {msg}",
-                  file=sys.stderr)
+            print(f"ERROR: attachment auth failure on {p['title']}: {msg}", file=sys.stderr)
             return code
 
         try:

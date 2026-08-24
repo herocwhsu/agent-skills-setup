@@ -28,6 +28,7 @@ Exit codes:
     4  page not found
     6  other HTTP error
 """
+
 from __future__ import annotations
 
 import argparse
@@ -70,18 +71,13 @@ def _escape_yaml(s: str) -> str:
       - backslash → forward slash
       - newlines / carriage returns → space
     """
-    return (
-        (s or "")
-        .replace("\\", "/")
-        .replace('"', "'")
-        .replace("\r", " ")
-        .replace("\n", " ")
-    )
+    return (s or "").replace("\\", "/").replace('"', "'").replace("\r", " ").replace("\n", " ")
 
 
 def http_get_json(url: str, auth: str) -> tuple[int, object]:
     req = urllib.request.Request(
-        url, method="GET",
+        url,
+        method="GET",
         headers={"Accept": "application/json", "Authorization": auth},
     )
     try:
@@ -110,8 +106,7 @@ def http_get_bytes(url: str, auth: str) -> tuple[int, bytes]:
 
 def fetch_page(host: str, page_id: str, auth: str):
     """Returns the page dict, or None on 403. Raises SystemExit on other errors."""
-    url = (f"{base_url(host)}/rest/api/content/{page_id}"
-           "?expand=body.storage,version,space,ancestors")
+    url = f"{base_url(host)}/rest/api/content/{page_id}?expand=body.storage,version,space,ancestors"
     status, data = http_get_json(url, auth)
     if status == 200 and isinstance(data, dict):
         return data
@@ -130,8 +125,10 @@ def list_children(host: str, page_id: str, auth: str) -> list[dict]:
     items: list[dict] = []
     start = 0
     while True:
-        url = (f"{base_url(host)}/rest/api/content/{page_id}/child/page"
-               f"?start={start}&limit={PAGE_LIMIT}")
+        url = (
+            f"{base_url(host)}/rest/api/content/{page_id}/child/page"
+            f"?start={start}&limit={PAGE_LIMIT}"
+        )
         status, data = http_get_json(url, auth)
         if status == 403:
             print(f"WARN: skipped children of page {page_id} (403)", file=sys.stderr)
@@ -150,8 +147,10 @@ def list_attachments(host: str, page_id: str, auth: str) -> list[dict]:
     items: list[dict] = []
     start = 0
     while True:
-        url = (f"{base_url(host)}/rest/api/content/{page_id}/child/attachment"
-               f"?start={start}&limit={ATTACH_LIMIT}&expand=metadata.mediaType")
+        url = (
+            f"{base_url(host)}/rest/api/content/{page_id}/child/attachment"
+            f"?start={start}&limit={ATTACH_LIMIT}&expand=metadata.mediaType"
+        )
         status, data = http_get_json(url, auth)
         if status == 403:
             print(f"WARN: skipped attachments of page {page_id} (403)", file=sys.stderr)
@@ -166,8 +165,7 @@ def list_attachments(host: str, page_id: str, auth: str) -> list[dict]:
     return items
 
 
-def download_attachment(host: str, page_id: str, attach: dict,
-                        dest_dir: Path, auth: str) -> bool:
+def download_attachment(host: str, page_id: str, attach: dict, dest_dir: Path, auth: str) -> bool:
     """Download one attachment to dest_dir. Returns True if saved."""
     raw_name = attach.get("title") or attach.get("id") or "unknown"
     # Confluence attachment titles are user-controlled. A title containing
@@ -175,29 +173,31 @@ def download_attachment(host: str, page_id: str, attach: dict,
     # directory. Reject anything where stripping path components changes
     # the name, plus the obvious "."/"..".
     filename = Path(raw_name).name
-    if (not filename or filename in {".", ".."}
-            or filename != raw_name):
-        print(f"WARN: attachment with invalid name {raw_name!r}, skipping",
-              file=sys.stderr)
+    if not filename or filename in {".", ".."} or filename != raw_name:
+        print(f"WARN: attachment with invalid name {raw_name!r}, skipping", file=sys.stderr)
         return False
     declared_size = (attach.get("extensions") or {}).get("fileSize")
     if declared_size is None:
-        print(f"  → no declared fileSize for {filename}; relying on "
-              "post-download check", file=sys.stderr)
+        print(
+            f"  → no declared fileSize for {filename}; relying on post-download check",
+            file=sys.stderr,
+        )
     elif isinstance(declared_size, int) and declared_size > MAX_DOWNLOAD_BYTES:
-        print(f"WARN: skipping {filename}: declared {declared_size} bytes "
-              "> 100MB limit", file=sys.stderr)
+        print(
+            f"WARN: skipping {filename}: declared {declared_size} bytes > 100MB limit",
+            file=sys.stderr,
+        )
         return False
-    download_link = (attach.get("_links") or {}).get("download") or \
-        f"/rest/api/content/{page_id}/child/attachment/{attach.get('id')}/download"
+    download_link = (attach.get("_links") or {}).get(
+        "download"
+    ) or f"/rest/api/content/{page_id}/child/attachment/{attach.get('id')}/download"
     url = base_url(host) + download_link
     status, body = http_get_bytes(url, auth)
     if status != 200:
         print(f"WARN: failed to download {filename} ({status})", file=sys.stderr)
         return False
     if len(body) > MAX_DOWNLOAD_BYTES:
-        print(f"WARN: skipping {filename} ({len(body)} bytes, exceeds 100MB)",
-              file=sys.stderr)
+        print(f"WARN: skipping {filename} ({len(body)} bytes, exceeds 100MB)", file=sys.stderr)
         return False
     dest_dir.mkdir(parents=True, exist_ok=True)
     (dest_dir / filename).write_bytes(body)
@@ -244,6 +244,7 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     from cred_provider import resolve_credential
+
     secret = resolve_credential(args.host, args.user)
     if not secret:
         print(
@@ -263,8 +264,7 @@ def main(argv: list[str]) -> int:
     sibling_slugs: dict[str, set[str]] = {}
     state = {"root_title": ""}
 
-    def visit(page_id: str, parent_id: str | None,
-              parent_rel_dir: str, depth: int) -> None:
+    def visit(page_id: str, parent_id: str | None, parent_rel_dir: str, depth: int) -> None:
         page = fetch_page(args.host, page_id, auth)
         if page is None:
             return  # 403 — prune subtree
@@ -292,8 +292,7 @@ def main(argv: list[str]) -> int:
                 basename = "_index"
             else:
                 page_rel_dir = parent_rel_dir
-                rel_md_path = (f"{parent_rel_dir}/{slug}.md"
-                               if parent_rel_dir else f"{slug}.md")
+                rel_md_path = f"{parent_rel_dir}/{slug}.md" if parent_rel_dir else f"{slug}.md"
                 basename = slug
 
         body_storage = ((page.get("body") or {}).get("storage") or {}).get("value", "") or ""
@@ -304,8 +303,7 @@ def main(argv: list[str]) -> int:
                 base_url=host_base,
             )
         except Exception as exc:  # malformed XHTML — fall back to raw
-            print(f"WARN: xhtml_to_md failed on page {page_id}: {exc}",
-                  file=sys.stderr)
+            print(f"WARN: xhtml_to_md failed on page {page_id}: {exc}", file=sys.stderr)
             body_md, diagrams = body_storage + "\n", {}
 
         attachments = list_attachments(args.host, page_id, auth)
@@ -320,23 +318,28 @@ def main(argv: list[str]) -> int:
         if has_diagrams:
             diag_path = md_path.parent / f"{basename}.diagrams.json"
             diag_path.parent.mkdir(parents=True, exist_ok=True)
-            diag_path.write_text(json.dumps(diagrams, indent=2) + "\n",
-                                 encoding="utf-8")
+            diag_path.write_text(json.dumps(diagrams, indent=2) + "\n", encoding="utf-8")
 
         write_markdown(
             md_path,
-            page=page, host=args.host, fetched_at=fetched_at,
-            basename=basename, body_md=body_md,
-            has_attachments=downloaded_any, has_diagrams=has_diagrams,
+            page=page,
+            host=args.host,
+            fetched_at=fetched_at,
+            basename=basename,
+            body_md=body_md,
+            has_attachments=downloaded_any,
+            has_diagrams=has_diagrams,
         )
 
-        manifest_pages.append({
-            "page_id": page_id,
-            "title": title,
-            "relative_path": rel_md_path,
-            "parent_id": parent_id,
-            "depth": depth,
-        })
+        manifest_pages.append(
+            {
+                "page_id": page_id,
+                "title": title,
+                "relative_path": rel_md_path,
+                "parent_id": parent_id,
+                "depth": depth,
+            }
+        )
 
         for child in children:
             visit(child["id"], page_id, page_rel_dir, depth + 1)
@@ -358,8 +361,7 @@ def main(argv: list[str]) -> int:
         "fetched_at": fetched_at,
         "pages": manifest_pages,
     }
-    (out_dir / "manifest.json").write_text(
-        json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(f"Fetched {len(manifest_pages)} page(s) → {out_dir}")
     return 0
 

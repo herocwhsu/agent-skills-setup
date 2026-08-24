@@ -3,10 +3,11 @@ from pathlib import Path
 import detect
 import backup
 
+
 def main():
     parser = argparse.ArgumentParser(description="Host Optimization Orchestrator")
-    parser.add_argument("--check",  action="store_true", help="Investigate host health (no changes)")
-    parser.add_argument("--apply",  action="store_true", help="Apply performance optimizations")
+    parser.add_argument("--check", action="store_true", help="Investigate host health (no changes)")
+    parser.add_argument("--apply", action="store_true", help="Apply performance optimizations")
     parser.add_argument("--revert", action="store_true", help="Revert optimization changes")
     args = parser.parse_args()
 
@@ -40,7 +41,9 @@ def main():
             sys.exit(1)
 
     if args.apply:
-        print(f"[host-opt] Host: {profile['os'].capitalize()} | {profile['cpu_brand']} | {profile['ram_gb']}GB RAM")
+        print(
+            f"[host-opt] Host: {profile['os'].capitalize()} | {profile['cpu_brand']} | {profile['ram_gb']}GB RAM"
+        )
         print("[host-opt] Applying performance profile...")
 
         if profile["is_linux"]:
@@ -50,6 +53,7 @@ def main():
             subprocess.run(["bash", str(lib_dir / "tune_macos.sh")], check=True)
 
         print("\n[host-opt] Done. Run --check to verify.")
+
 
 if __name__ == "__main__":
     main()

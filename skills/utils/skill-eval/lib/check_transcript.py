@@ -18,6 +18,7 @@ that look like tool-call boundaries (a crude proxy), and it can't read the
 transcript's actual meaning. Always follow up with the human-judgment step
 described in utils/skill-eval/IMPL.md.
 """
+
 import re
 import sys
 
@@ -25,7 +26,7 @@ import sys
 TOOL_CALL_MARKERS = (
     "[tool:",
     "tool_call",
-    "> $",       # shell prompt echoes, common in saved terminal transcripts
+    "> $",  # shell prompt echoes, common in saved terminal transcripts
     "$ ",
 )
 

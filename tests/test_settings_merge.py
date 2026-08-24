@@ -1,4 +1,5 @@
 """Tests for scripts/_settings_merge.py."""
+
 import json
 import subprocess
 import sys
