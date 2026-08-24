@@ -12,7 +12,7 @@
 
 **Spec source:** Conversation 2026-06-02/03 — "migrate tool: catch from somewhere and translate to md, push to somewhere" with macros flattened (info/warn/code/expand) but drawio/Gliffy preserved as opaque sidecar entries the user edits in Confluence post-upload.
 
-**Replaces:** `docs/superpowers/plans/2026-06-02-confluence-skill.md` (round-trip design — kept in git history, no longer authoritative).
+**Replaces:** `docs/superpowers/plans/archive/2026-06-02-confluence-skill.md` (round-trip design — kept in git history, no longer authoritative).
 
 ---
 
