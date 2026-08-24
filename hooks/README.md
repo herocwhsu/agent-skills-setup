@@ -56,6 +56,7 @@ common/
   sh-check.sh         PostToolUse *.sh — bash -n + shellcheck (error severity)
 
 python/
+  py-check.sh         PostToolUse *.py — ast.parse syntax gate (blocks)
   ruff-fix.sh         PostToolUse *.py — auto-format with ruff (silent)
   py-guard.sh         Stop — ruff check + bandit + pip-audit + pytest
   migration-guard.sh  PostToolUse *.sql — warn if modifying committed migration
@@ -83,7 +84,7 @@ check-tools.sh        Inventory which tools are installed (run once per machine)
 bash scripts/init-repo.sh <profile> [/path/to/repo]
 
 # profiles
-python-api   — ruff-fix, migration-guard, py-guard + common
+python-api   — py-check, ruff-fix, migration-guard, py-guard + common
 react        — ts-fix, ts-guard + common
 go-api       — gosec-guard, govulncheck-guard + common
 k8s          — yaml-validate, placeholder-guard, checkov-guard + common
@@ -97,6 +98,7 @@ Then wire hooks into `.claude/settings.json`:
   "hooks": {
     "PostToolUse": [
       { "matcher": "Edit|Write|MultiEdit", "hooks": [
+        { "type": "command", "command": "bash .claude/hooks/py-check.sh" },
         { "type": "command", "command": "bash .claude/hooks/ruff-fix.sh" },
         { "type": "command", "command": "bash .claude/hooks/migration-guard.sh" },
         { "type": "command", "command": "bash .claude/hooks/sh-check.sh" }
