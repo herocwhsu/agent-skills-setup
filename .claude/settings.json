@@ -11,23 +11,38 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/sh-check.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/py-check.sh\""
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/registry-guard.sh\"",
-            "statusMessage": "validating registry.txt…"
+            "statusMessage": "validating registry.txt\u2026"
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/tests-guard.sh\"",
-            "statusMessage": "running test suite…"
+            "statusMessage": "running test suite\u2026"
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/secret-scan.sh\"",
-            "statusMessage": "secret scan…"
+            "statusMessage": "secret scan\u2026"
           }
         ]
       }
@@ -38,17 +53,17 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/registry-guard.sh\"",
-            "statusMessage": "validating registry.txt…"
+            "statusMessage": "validating registry.txt\u2026"
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/tests-guard.sh\"",
-            "statusMessage": "running test suite…"
+            "statusMessage": "running test suite\u2026"
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/secret-scan.sh\"",
-            "statusMessage": "secret scan…"
+            "statusMessage": "secret scan\u2026"
           }
         ]
       }
