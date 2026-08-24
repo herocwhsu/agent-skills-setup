@@ -90,7 +90,10 @@ PORT=$((42000 + RANDOM % 1000))
 PORT=$PORT python3 "$TMP/server.py" >"$TMP/server.log" 2>&1 &
 SERVER_PID=$!
 
-for _ in $(seq 1 30); do
+# 30s ceiling: a cold python interpreter on a busy host takes ~15s to reach
+# its first print, and a 3s budget failed with an empty server.log. The loop
+# breaks as soon as `ready` appears, so a warm server still costs ~0.3s.
+for _ in $(seq 1 300); do
   grep -q ready "$TMP/server.log" 2>/dev/null && break
   sleep 0.1
 done
@@ -180,7 +183,7 @@ PORT2=$((43000 + RANDOM % 1000))
 PORT=$PORT2 python3 "$TMP/server2.py" >"$TMP/server2.log" 2>&1 &
 SERVER2_PID=$!
 trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER2_PID:-}" ]] && kill "$SERVER2_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
-for _ in $(seq 1 30); do grep -q ready "$TMP/server2.log" 2>/dev/null && break; sleep 0.1; done
+for _ in $(seq 1 300); do grep -q ready "$TMP/server2.log" 2>/dev/null && break; sleep 0.1; done
 grep -q ready "$TMP/server2.log" || { cat "$TMP/server2.log"; echo "FAIL test 5: server didn't start"; exit 1; }
 
 OUT2="$TMP/out2"
@@ -242,7 +245,7 @@ PORT3=$((44000 + RANDOM % 1000))
 PORT=$PORT3 python3 "$TMP/server3.py" >"$TMP/server3.log" 2>&1 &
 SERVER3_PID=$!
 trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER2_PID:-}" ]] && kill "$SERVER2_PID" 2>/dev/null; [[ -n "${SERVER3_PID:-}" ]] && kill "$SERVER3_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
-for _ in $(seq 1 30); do grep -q ready "$TMP/server3.log" 2>/dev/null && break; sleep 0.1; done
+for _ in $(seq 1 300); do grep -q ready "$TMP/server3.log" 2>/dev/null && break; sleep 0.1; done
 grep -q ready "$TMP/server3.log" || { cat "$TMP/server3.log"; echo "FAIL test 6: server didn't start"; exit 1; }
 
 OUT3="$TMP/out3"

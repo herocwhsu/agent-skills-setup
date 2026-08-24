@@ -73,7 +73,10 @@ PORT=$PORT MODE_FILE=$MODE_FILE AUTH_RECORD=$AUTH_RECORD \
 SERVER_PID=$!
 
 # Wait for "ready"
-for _ in $(seq 1 30); do
+# 30s ceiling: a cold python interpreter on a busy host takes ~15s to reach
+# its first print, and a 3s budget failed with an empty server.log. The loop
+# breaks as soon as `ready` appears, so a warm server still costs ~0.3s.
+for _ in $(seq 1 300); do
   grep -q ready "$TMP/server.log" 2>/dev/null && break
   sleep 0.1
 done
@@ -168,7 +171,7 @@ PORT2=$((46000 + RANDOM % 1000))
 PORT=$PORT2 python3 "$TMP/server2.py" >"$TMP/server2.log" 2>&1 &
 SERVER2_PID=$!
 trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER2_PID:-}" ]] && kill "$SERVER2_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
-for _ in $(seq 1 30); do grep -q ready "$TMP/server2.log" 2>/dev/null && break; sleep 0.1; done
+for _ in $(seq 1 300); do grep -q ready "$TMP/server2.log" 2>/dev/null && break; sleep 0.1; done
 grep -q ready "$TMP/server2.log" || { cat "$TMP/server2.log"; echo "FAIL test 5: server didn't start"; exit 1; }
 
 echo "<p>x</p>" > "$TMP/page.xhtml"
