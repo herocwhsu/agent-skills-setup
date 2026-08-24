@@ -1,5 +1,7 @@
 # review-pr Skill Implementation Plan
 
+**Status: shipped.** Now `/review-pr` and `/review-mine-patterns`. Evidence: `skills/review/pr/` and `skills/review/mine-patterns/`, each with tests.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build two slash-command skills — `mine-review-patterns` and `review-pr` — that mine the target repo's closed PRs into a playbook, then use the playbook to produce focused reviews on new PRs.

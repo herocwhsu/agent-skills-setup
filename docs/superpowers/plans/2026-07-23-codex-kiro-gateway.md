@@ -1,5 +1,7 @@
 # codex-kiro Gateway Integration Implementation Plan
 
+**Status: shipped.** Evidence: `cmd_setup_codex` in `skills/infra/kiro-gateway/lib/kiro-gateway.sh` (commit 2026-07-23), exposed as `/infra-kiro-gateway setup-codex`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add `setup-codex` / `remove-codex` subcommands to `kiro-gateway.sh` so OpenAI's Codex CLI routes through the existing kiro-gateway container, mirroring `claude-kiro`.

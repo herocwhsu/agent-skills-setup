@@ -1,5 +1,7 @@
 # Claude Code Skills Support Implementation Plan
 
+**Status: shipped.** Superseded by the 2026-05-19 portable-skills refactor, which generalized the same paths. Evidence: `lib/lib.sh` `find_html2md()`, and no bare `~/.kiro` paths remain in credential or converter examples.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the four local skills (fetch-page-to-markdown, fetch-jira-story, plan-story, create-story-tasks) work for Claude Code without breaking Kiro, by replacing hardcoded `~/.kiro/skills/` paths with runtime-detected paths and adding dual sub-skill invocation instructions.

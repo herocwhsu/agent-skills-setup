@@ -1,5 +1,7 @@
 # polish-input Implementation Plan
 
+**Status: shipped, then redesigned.** The rule-based engine this plan describes was replaced by the LLM engine in `2026-05-29-polish-input-llm-redesign.md` — read that one for current behavior. Evidence: `skills/utils/polish-input/`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a `polish-input` skill that auto-polishes English prompts via a Claude Code `UserPromptSubmit` hook, using local LanguageTool. Default behavior shows the polish on stderr without changing what Claude receives.

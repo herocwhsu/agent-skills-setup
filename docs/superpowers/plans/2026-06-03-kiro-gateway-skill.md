@@ -1,5 +1,7 @@
 # kiro-gateway Skill Implementation Plan
 
+**Status: shipped.** Now `/infra-kiro-gateway`. Extended twice since: see `2026-07-23-codex-kiro-gateway.md` and `2026-07-24-kiro-gateway-fork-source.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a `kiro-gateway` skill to `agent-skills-setup` that manages the kiro-gateway Docker container with digest-pinned versioning and one-step rollback.

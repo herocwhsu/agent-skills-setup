@@ -1,5 +1,7 @@
 # Confluence Migration Skill — Implementation Plan
 
+**Status: shipped.** Now `/utils-confluence-tree-fetch` and `-upload`. Evidence: `skills/utils/confluence-tree/lib/` with 10 passing test files.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Refactor `skills/confluence/` from a round-trip editor into a one-way migration tool: fetch a source page tree, edit/reorganize locally, upload as a new page tree under a different parent.

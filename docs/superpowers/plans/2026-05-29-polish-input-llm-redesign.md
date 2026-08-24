@@ -1,5 +1,7 @@
 # polish-input LLM Redesign Implementation Plan
 
+**Status: shipped.** Evidence: `skills/utils/polish-input/lib/polish_engine.py` plus `tests/test_polish_engine.py` and `tests/test_polish.py`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace LanguageTool with Claude Haiku 4.5 (via Anthropic SDK) as the polish engine, keeping all hook plumbing intact.
