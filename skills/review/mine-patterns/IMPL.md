@@ -1,5 +1,5 @@
 ---
-name: mine-review-patterns
+name: review-mine-patterns
 description: Use when the user wants to (re)build the code-review playbook for a target repo. Scans closed PRs, extracts recurring issues, missed patterns, reviewer over-focus, and domain gotchas into `.code-review/playbook.md`. Run from inside the target repo. Optional argument is the PR count to scan (default 50).
 ---
 

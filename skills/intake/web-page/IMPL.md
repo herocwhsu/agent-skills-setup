@@ -1,6 +1,6 @@
 ---
-name: fetch-page-to-markdown
-description: Use when given one or more web URLs to fetch and save as markdown reference files, with optional auth. Handles Confluence REST API, internal wikis, or any authenticated web page. Multi-platform credential storage (macOS Keychain, Linux secret-tool, Windows Credential Manager, CI env vars).
+name: intake-web-page
+description: Use when given one or more web URLs to fetch and save as markdown reference files, with optional auth. Handles Confluence REST API, internal wikis, or any authenticated web page. Credentials come from the platform keychain (macOS Keychain, Linux secret-tool, or a file fallback).
 ---
 
 # Fetch Page to Markdown

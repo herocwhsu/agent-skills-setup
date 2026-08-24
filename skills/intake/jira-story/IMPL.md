@@ -1,5 +1,5 @@
 ---
-name: fetch-jira-story
+name: intake-jira-story
 slash: /intake-jira-story <STORY-ID>
 description: Use when given a Jira story ID or URL to fetch story details and save as markdown reference files. Follows embedded Confluence and Apidog links automatically. Requires Jira credentials in keychain.
 ---

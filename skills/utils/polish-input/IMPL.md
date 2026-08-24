@@ -1,5 +1,5 @@
 ---
-name: polish-input
+name: utils-polish-input
 description: Use when the user wants automatic English polish on every prompt. Installs a Claude Code UserPromptSubmit hook that uses Claude Haiku 4.5 to rewrite each single-line prompt as natural English, displayed to the user as a learning side-channel. Default behavior does not change what Claude receives.
 ---
 

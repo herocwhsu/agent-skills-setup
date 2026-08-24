@@ -1,5 +1,5 @@
 ---
-name: host-optimization
+name: infra-host-optimization
 description: Linux/macOS host performance and power tuning. Investigates governor, PCI PM, GPU errors, services, apt health, thermals. Applies fixes with --apply. Subcommands: --check (default), --apply, --revert.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: kiro-gateway
+name: infra-kiro-gateway
 description: Use when the user wants to initialize, update, rollback, or check the status of the kiro-gateway Docker container. Builds a SHA-tagged image locally from a fork checkout, with one-step rollback. Subcommands: init, update, rollback, status, setup-alias, setup-codex, remove-codex.
 ---
 
