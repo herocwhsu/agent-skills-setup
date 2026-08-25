@@ -411,13 +411,13 @@ For cross-cutting rules that should be loaded **on every session** (not invoked 
 | Tool | Host file |
 |---|---|
 | Claude Code | `~/.claude/CLAUDE.md` |
-| Antigravity CLI / Gemini CLI | `~/.gemini/GEMINI.md` |
+| Antigravity CLI (`agy`) | `~/.gemini/GEMINI.md` |
 | Kiro | `~/.kiro/steering/engineering-rules.md` |
 
 ```bash
-bash scripts/install-agents-md.sh             # Claude + Gemini + Kiro
+bash scripts/install-agents-md.sh             # Claude + Antigravity + Codex + Kiro
 bash scripts/install-agents-md.sh --claude    # Claude only
-bash scripts/install-agents-md.sh --gemini    # Gemini only
+bash scripts/install-agents-md.sh --antigravity  # Antigravity only (--gemini is an alias)
 bash scripts/install-agents-md.sh --kiro      # Kiro only
 bash scripts/install-agents-md.sh --uninstall # strip from all
 ```
@@ -429,7 +429,7 @@ bash scripts/install.sh --with-hook polish-input --with-agents-md
 bash scripts/uninstall.sh --with-hook polish-input --with-agents-md
 ```
 
-The `--with-agents-md` flag deploys to Claude, Gemini, and Kiro simultaneously. The script is **idempotent**: re-running replaces the block in place, leaving other content in the host file untouched. Edit `agents/engineering-rules.md`, re-run, and all three tools pick up the change on next session.
+The `--with-agents-md` flag deploys to Claude, Antigravity, Codex, and Kiro simultaneously. The script is **idempotent**: re-running replaces the block in place, leaving other content in the host file untouched. Edit `agents/engineering-rules.md`, re-run, and all three tools pick up the change on next session.
 
 ---
 
