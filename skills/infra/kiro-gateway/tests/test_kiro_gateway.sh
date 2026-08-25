@@ -114,7 +114,7 @@ EOF
 }
 setup_alias_preserves_key_test "setup-alias preserves an existing proxy key (no clobber)"
 
-# setup-codex: writes config.toml with provider + profile
+# setup-codex: provider in config.toml, model in kiro.config.toml
 setup_codex_config_test() {
   local name="$1"
   local tmpdir
@@ -122,21 +122,26 @@ setup_codex_config_test() {
   make_mock_bin "$tmpdir"
   touch "$tmpdir/.zshrc"
   local cfg="$tmpdir/.codex-kiro/config.toml"
+  local prof="$tmpdir/.codex-kiro/kiro.config.toml"
   PATH="$tmpdir/bin:$PATH" \
     KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
     SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
     bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
-  if [[ -f "$cfg" ]] \
+  # --profile layers $CODEX_HOME/<name>.config.toml over config.toml, so the
+  # model belongs in kiro.config.toml and must NOT be left in config.toml.
+  if [[ -f "$cfg" && -f "$prof" ]] \
      && grep -Fq "[model_providers.kiro]" "$cfg" \
      && grep -Fq 'wire_api = "responses"' "$cfg" \
-     && grep -Fq 'model = "claude-opus-4.8"' "$cfg"; then
+     && grep -Fq 'model = "claude-opus-4.8"' "$prof" \
+     && grep -Fq 'model_provider = "kiro"' "$prof" \
+     && ! grep -Fq "[profiles.kiro]" "$cfg"; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
-    echo "FAIL: $name (config missing/incorrect at $cfg)"; FAIL=$((FAIL+1))
+    echo "FAIL: $name (expected provider in $cfg and model in $prof)"; FAIL=$((FAIL+1))
   fi
   rm -rf "$tmpdir"
 }
-setup_codex_config_test "setup-codex writes correct config.toml"
+setup_codex_config_test "setup-codex splits provider and profile files"
 
 # setup-codex: appends the codex-kiro alias
 setup_codex_alias_test() {
@@ -177,10 +182,15 @@ setup_codex_idempotent_test() {
   local prov_count alias_count
   prov_count=$(grep -cF "[model_providers.kiro]" "$tmpdir/.codex-kiro/config.toml")
   alias_count=$(grep -cF "alias codex-kiro" "$rc")
-  if [[ "$prov_count" -eq 1 && "$alias_count" -eq 1 ]]; then
+  local model_count
+  # `|| echo 0`: the file is absent on a regression, and a bare $(grep -c) on a
+  # missing file exits 2, which aborts this whole runner under set -e -- turning
+  # a clean FAIL into a truncated suite that hides every later test.
+  model_count=$(grep -cF 'model_provider = "kiro"' "$tmpdir/.codex-kiro/kiro.config.toml" 2>/dev/null || echo 0)
+  if [[ "$prov_count" -eq 1 && "$alias_count" -eq 1 && "$model_count" -eq 1 ]]; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
-    echo "FAIL: $name (prov=$prov_count alias=$alias_count out=$out)"; FAIL=$((FAIL+1))
+    echo "FAIL: $name (prov=$prov_count alias=$alias_count model=$model_count out=$out)"; FAIL=$((FAIL+1))
   fi
   rm -rf "$tmpdir"
 }
@@ -238,6 +248,7 @@ status_codex_configured_test() {
   tmpdir=$(mktemp -d)
   mkdir -p "$tmpdir/.codex-kiro"
   printf '[model_providers.kiro]\n' > "$tmpdir/.codex-kiro/config.toml"
+  printf 'model_provider = "kiro"\n' > "$tmpdir/.codex-kiro/kiro.config.toml"
   local out
   out=$(KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" HOME="$tmpdir" \
     bash "$SCRIPT" status 2>&1 || true)
@@ -249,6 +260,28 @@ status_codex_configured_test() {
   rm -rf "$tmpdir"
 }
 status_codex_configured_test "status reports codex configured"
+
+# status: provider present but kiro.config.toml missing is INCOMPLETE, not
+# "configured". This is the exact live-host state the old single-marker check
+# reported as healthy, so it stays a test rather than a comment.
+status_codex_incomplete_test() {
+  local name="$1"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/.codex-kiro"
+  printf '[model_providers.kiro]\n' > "$tmpdir/.codex-kiro/config.toml"
+  local out
+  out=$(KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" HOME="$tmpdir" \
+    bash "$SCRIPT" status 2>&1 || true)
+  if echo "$out" | grep -q "Codex:      INCOMPLETE" \
+     && ! echo "$out" | grep -q "Codex:      configured"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (out=$out)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+status_codex_incomplete_test "status flags codex provider without profile"
 
 # patch: tracked fix patch exists and targets the role field
 patch_exists_test() {
