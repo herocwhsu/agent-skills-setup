@@ -6,6 +6,7 @@ Usage:
     cat page.html   | python3 html2md.py
 """
 
+import functools
 import re
 import sys
 
@@ -18,7 +19,7 @@ def html2md(html: str) -> str:
     for i in range(1, 7):
         html = re.sub(
             rf"<h{i}[^>]*>(.*?)</h{i}>",
-            lambda m, n=i: f"\n{'#' * n} {_strip(m.group(1))}\n",
+            functools.partial(_heading, level=i),
             html,
             flags=re.DOTALL | re.IGNORECASE,
         )
@@ -104,6 +105,10 @@ def html2md(html: str) -> str:
     # Collapse 3+ blank lines → 2
     html = re.sub(r"\n{3,}", "\n\n", html)
     return html.strip()
+
+
+def _heading(m: re.Match, level: int) -> str:
+    return f"\n{'#' * level} {_strip(m.group(1))}\n"
 
 
 def _strip(html: str) -> str:

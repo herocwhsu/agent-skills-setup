@@ -266,7 +266,7 @@ def main(argv: list[str]) -> int:
     else:
         from cred_provider import resolve_credential
 
-        secret = resolve_credential(args.host, args.user)
+        secret = resolve_credential(args.host, args.user) or ""
         if not secret:
             print(
                 "ERROR: no Confluence credential found.\n"
