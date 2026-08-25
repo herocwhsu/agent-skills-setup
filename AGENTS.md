@@ -43,12 +43,25 @@ plus `|| true` and therefore blocked nothing while presenting as a gate — ever
 scaffolded from it inherited a no-op. When adding a gate, assert the exit code in a
 test rather than assuming it.
 
-## Python: formatter yes, linter no
+## Python: formatter and types yes, linter no
 
 `ruff.toml` sets `line-length = 100` for `ruff format` only. `ruff check` is
 deliberately unwired — 74 pre-existing findings, so gating an edit on it would block
-over unrelated code. Not `pyproject.toml`: osv-scanner treats that as a dependency
-manifest and `secret-scan.sh` special-cases this repo's "no package sources found".
+over unrelated code.
+
+`mypy.ini` drives a type gate that runs at Stop (`.claude/hooks/types-guard.sh`) and
+is clean, so keep it clean. It is not `--strict`: 103 of 233 functions carry no
+annotations, and `disallow_untyped_defs` would have made the gate suppressed from
+birth.
+
+Run mypy over the **whole tree**, never per file. Invoking it on one file
+re-reports every error living in the modules it imports — `mypy polish.py` shows 11
+errors that are all in `polish_engine.py`, which is how a 15-error baseline gets
+miscounted as 30.
+
+Neither config lives in `pyproject.toml`: osv-scanner treats that as a dependency
+manifest and `secret-scan.sh` special-cases this repo's "no package sources found"
+result, so adding one would change a Stop hook as a side effect of a typing choice.
 
 Use `ast.parse` rather than `py_compile` to syntax-check — `py_compile` litters
 `__pycache__` beside every file it touches.
