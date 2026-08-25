@@ -322,9 +322,15 @@ render_env_file() {
   # FIRST_TOKEN_TIMEOUT: gateway default (15) 500s high-effort/large-prompt
   # calls (e.g. Claude Code subagents) before first token; 120 avoids it and
   # stays below STREAMING_READ_TIMEOUT (300).
+  # SQLITE_READONLY: the kiro-cli data dir is bind-mounted :ro (see
+  # start_container), so the gateway's post-refresh write-back to that DB can
+  # never succeed. Left unset, every refresh logs two WARNINGs whose text
+  # ("no matching keys found") misdescribes the cause: the keys DO match, but
+  # the UPDATE is rejected and the error is swallowed. Setting this skips the
+  # write-back before it opens the DB. Upstream default is false.
   # umask scoped to a subshell so it doesn't leak to the rest of the script.
   ( umask 077
-    printf 'PROXY_API_KEY=%s\nKIRO_CLI_DB_FILE=%s\nFIRST_TOKEN_TIMEOUT=120\n' "$key" "$db" > "$envf" )
+    printf 'PROXY_API_KEY=%s\nKIRO_CLI_DB_FILE=%s\nFIRST_TOKEN_TIMEOUT=120\nSQLITE_READONLY=true\n' "$key" "$db" > "$envf" )
   chmod 600 "$envf"
   echo "Rendered $envf (chmod 600)"
 }
