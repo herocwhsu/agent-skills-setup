@@ -91,8 +91,9 @@ def parse_blocks(md: str) -> list[tuple[str, str]]:
             blocks.append(("code", json.dumps({"lang": lang, "body": "\n".join(buf)})))
             i = j + 1
             continue
-        if re.match(r"^<!-- diagram:(d\d+) -->\s*$", line):
-            blocks.append(("diagram", re.match(r"^<!-- diagram:(d\d+) -->", line).group(1)))
+        diagram = re.match(r"^<!-- diagram:(d\d+) -->\s*$", line)
+        if diagram:
+            blocks.append(("diagram", diagram.group(1)))
             i += 1
             continue
         if (
@@ -231,9 +232,9 @@ def render_block(kind: str, body: str, diagrams: dict) -> str:
         rows = [r for r in body.splitlines() if r.strip().startswith("|")]
         if not rows:
             return ""
-        head = [c.strip() for c in rows[0].strip().strip("|").split("|")]
+        header_cells = [c.strip() for c in rows[0].strip().strip("|").split("|")]
         out = ["<table>"]
-        out.append("<tr>" + "".join(f"<th>{render_inline(c)}</th>" for c in head) + "</tr>")
+        out.append("<tr>" + "".join(f"<th>{render_inline(c)}</th>" for c in header_cells) + "</tr>")
         for r in rows[2:]:
             cells = [c.strip() for c in r.strip().strip("|").split("|")]
             out.append("<tr>" + "".join(f"<td>{render_inline(c)}</td>" for c in cells) + "</tr>")

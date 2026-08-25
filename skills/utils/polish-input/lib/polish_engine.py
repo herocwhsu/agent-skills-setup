@@ -280,7 +280,8 @@ def _polish_anthropic(text: str, cred: str, cred_type: str) -> str | None:
         )
         for block in resp.content:
             if getattr(block, "type", None) == "text":
-                return block.text.strip()
+                text = getattr(block, "text", "")
+                return text.strip()
         return None
     except Exception as e:
         write_engine_error_hint_once(f"Anthropic API call failed: {e}")
