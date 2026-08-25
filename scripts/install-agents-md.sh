@@ -3,6 +3,14 @@
 #
 # Writes the contents of agents/engineering-rules.md into a marked block inside
 # each host file (~/.claude/CLAUDE.md, ~/.gemini/GEMINI.md, $CODEX_HOME/AGENTS.md).
+#
+# ~/.gemini/GEMINI.md is the ANTIGRAVITY target, not a legacy gemini-cli leftover:
+# Antigravity lives under ~/.gemini/ and its own docs
+# (builtin/skills/agy-customizations/docs/rules.md) name GEMINI.md/AGENTS.md as the
+# rules filenames. ~/.gemini/config/ is the global root but holds JSON only
+# (skills.json, plugins.json, mcp_config.json) -- there is no global rules .md
+# convention there. Do not "migrate" this to ~/.gemini/antigravity-cli/GEMINI.md;
+# that path is read by nothing.
 # For Kiro, the rules are deployed as a steering file
 # (~/.kiro/steering/engineering-rules.md).
 # Idempotent: a second run replaces the marked block in place.
@@ -14,7 +22,8 @@
 # Usage:
 #   bash scripts/install-agents-md.sh             # install for all agents
 #   bash scripts/install-agents-md.sh --claude    # only Claude Code
-#   bash scripts/install-agents-md.sh --gemini    # only Gemini CLI
+#   bash scripts/install-agents-md.sh --antigravity  # only Antigravity CLI
+#   bash scripts/install-agents-md.sh --gemini       # alias for --antigravity
 #   bash scripts/install-agents-md.sh --kiro      # only Kiro (steering)
 #   bash scripts/install-agents-md.sh --codex     # only Codex CLI
 #   bash scripts/install-agents-md.sh --uninstall # strip the block from all
@@ -45,7 +54,9 @@ only() { WANT_CLAUDE=0; WANT_GEMINI=0; WANT_KIRO=0; WANT_CODEX=0; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --claude)    only; WANT_CLAUDE=1; shift ;;
-    --gemini)    only; WANT_GEMINI=1; shift ;;
+    # --gemini kept as an alias: the flag predates the Antigravity rename and
+    # is referenced by older notes and by test_install_agents_md.sh.
+    --antigravity|--gemini) only; WANT_GEMINI=1; shift ;;
     --kiro)      only; WANT_KIRO=1;   shift ;;
     --codex)     only; WANT_CODEX=1;  shift ;;
     --uninstall) ACTION="uninstall"; shift ;;
@@ -132,7 +143,7 @@ run() {
 }
 
 [[ $WANT_CLAUDE -eq 1 ]] && run "Claude Code" "$HOME/.claude/CLAUDE.md"
-[[ $WANT_GEMINI -eq 1 ]] && run "Gemini CLI"  "$HOME/.gemini/GEMINI.md"
+[[ $WANT_GEMINI -eq 1 ]] && run "Antigravity CLI" "$HOME/.gemini/GEMINI.md"
 [[ $WANT_CODEX  -eq 1 ]] && run "Codex CLI"   "$CODEX_DIR/AGENTS.md"
 
 # Kiro uses steering files instead of a KIRO.md host file.

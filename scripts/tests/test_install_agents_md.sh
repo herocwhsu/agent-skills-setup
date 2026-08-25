@@ -110,6 +110,34 @@ else
   fail "kiro steering file removed on uninstall" "file still present"
 fi
 
+# --- Test 8b: --antigravity is the current name for the ~/.gemini/GEMINI.md target ---
+# The flag was renamed when Gemini CLI became Antigravity; --gemini stays as an
+# alias because older notes and the tests above still use it. The PATH is
+# deliberately unchanged: Antigravity reads ~/.gemini/GEMINI.md.
+TARGET_AGY="$TMPDIR/.gemini/GEMINI.md"
+rm -f "$TARGET_AGY"
+# `|| true`: on a regression the flag is unknown and the script exits 1,
+# which would abort this runner under set -e and hide every later test.
+# The real assertion is the file check below.
+run_script --antigravity >/dev/null || true
+if [[ -f "$TARGET_AGY" ]] && grep -qF "$BEGIN" "$TARGET_AGY" && grep -qF "Rule 1" "$TARGET_AGY"; then
+  ok "--antigravity writes ~/.gemini/GEMINI.md"
+else
+  fail "--antigravity writes ~/.gemini/GEMINI.md" "$TARGET_AGY missing or wrong content"
+fi
+
+# --- Test 8c: --gemini alias still resolves to the same target ---
+rm -f "$TARGET_AGY"
+# `|| true`: on a regression the flag is unknown and the script exits 1,
+# which would abort this runner under set -e and hide every later test.
+# The real assertion is the file check below.
+run_script --gemini >/dev/null || true
+if [[ -f "$TARGET_AGY" ]] && grep -qF "$BEGIN" "$TARGET_AGY"; then
+  ok "--gemini alias still works"
+else
+  fail "--gemini alias still works" "alias stopped writing $TARGET_AGY"
+fi
+
 # --- Test 9: Codex global AGENTS.md written ---
 # Codex reads a global AGENTS.md from its config home ($CODEX_HOME, default
 # ~/.codex). Confirmed from the 0.145.0 binary's own strings ("Failed to read
@@ -176,7 +204,11 @@ INSTALLER="$SCRIPT_DIR/install-agents-md.sh"
 missing=""
 for agent in $(grep -oE '^AGENTS=\(.*\)' "$LIB" | tr -d '"' | sed 's/^AGENTS=(//; s/)$//'); do
   upper=$(echo "$agent" | tr '[:lower:]' '[:upper:]')
-  grep -qE "^\s*--$agent\)" "$INSTALLER"    || missing="$missing --$agent"
+  # Alternation-tolerant: an arm may list aliases (`--antigravity|--gemini)`) after
+  # a rename. Still anchored at line start so a usage line in the header comment
+  # cannot satisfy the ratchet.
+  grep -qE "^[[:space:]]*(--[a-z-]+\|)*--$agent[|)]" "$INSTALLER" \
+    || missing="$missing --$agent"
   # Whitespace-tolerant: the run() calls are column-aligned, so the guard
   # reads `$WANT_CODEX  -eq 1` with two spaces.
   grep -qE "WANT_${upper}[[:space:]]+-eq[[:space:]]+1" "$INSTALLER" \
