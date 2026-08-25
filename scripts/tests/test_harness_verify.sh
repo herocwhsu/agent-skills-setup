@@ -16,13 +16,14 @@ fail=0
 ok()  { echo "  PASS  $1"; pass=$((pass + 1)); }
 bad() { echo "  FAIL  $1: $2"; fail=$((fail + 1)); }
 
-# stub_gates <registry_exit> <tests_exit> <secret_exit>
+# stub_gates <registry_exit> <tests_exit> <secret_exit> [types_exit]
 stub_gates() {
   local d="$TMPDIR/hooks"
   rm -rf "$d"; mkdir -p "$d"
   printf '#!/usr/bin/env bash\necho "registry says hi"\nexit %s\n' "$1" > "$d/registry-guard.sh"
   printf '#!/usr/bin/env bash\necho "a test failed loudly"\nexit %s\n' "$2" > "$d/tests-guard.sh"
   printf '#!/usr/bin/env bash\necho "scanning"\nexit %s\n'          "$3" > "$d/secret-scan.sh"
+  printf '#!/usr/bin/env bash\necho "typing"\nexit %s\n'       "${4:-0}" > "$d/types-guard.sh"
   echo "$d"
 }
 
@@ -39,7 +40,7 @@ fi
 
 # --- every gate is reported OK ---
 missing=""
-for g in registry tests "secret scan"; do
+for g in registry types tests "secret scan"; do
   grep -qE "OK +$g" <<<"$out" || missing="$missing $g"
 done
 [[ -z "$missing" ]] && ok "each gate reported OK" || bad "each gate reported OK" "absent:$missing"
@@ -107,6 +108,22 @@ if ! grep -vE '^[[:space:]]*#' "$SCRIPT" \
 else
   bad "delegates to hooks instead of reimplementing gates" "script calls a checker directly"
 fi
+
+# --- every gate in .claude/hooks that is a *-guard or scan runs here ---
+# A hook can be registered in settings.json yet missing from this script, in
+# which case an on-demand verify silently checks less than a Stop does.
+HOOKS_REAL="$SCRIPT_DIR/../.claude/hooks"
+unrun=""
+for h in "$HOOKS_REAL"/*-guard.sh "$HOOKS_REAL"/secret-scan.sh; do
+  [[ -f "$h" ]] || continue
+  b=$(basename "$h")
+  # PostToolUse/PreToolUse hooks are per-edit, not whole-repo gates.
+  case "$b" in sh-check.sh|py-check.sh|precommit-sh-check.sh) continue ;; esac
+  grep -q "$b" "$SCRIPT" || unrun="$unrun $b"
+done
+[[ -z "$unrun" ]] \
+  && ok "every whole-repo gate is wired into harness-verify" \
+  || bad "every whole-repo gate is wired into harness-verify" "not run:$unrun"
 
 echo ""
 echo "test_harness_verify: $pass passed, $fail failed"

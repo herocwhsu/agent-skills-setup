@@ -36,6 +36,11 @@
           },
           {
             "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/types-guard.sh\"",
+            "statusMessage": "type checking\u2026"
+          },
+          {
+            "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/tests-guard.sh\"",
             "statusMessage": "running test suite\u2026"
           },
@@ -54,6 +59,11 @@
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/registry-guard.sh\"",
             "statusMessage": "validating registry.txt\u2026"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/types-guard.sh\"",
+            "statusMessage": "type checking\u2026"
           },
           {
             "type": "command",
