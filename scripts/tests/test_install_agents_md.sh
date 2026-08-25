@@ -110,6 +110,84 @@ else
   fail "kiro steering file removed on uninstall" "file still present"
 fi
 
+# --- Test 9: Codex global AGENTS.md written ---
+# Codex reads a global AGENTS.md from its config home ($CODEX_HOME, default
+# ~/.codex). Confirmed from the 0.145.0 binary's own strings ("Failed to read
+# global AGENTS.md instructions from") and the published AGENTS.md docs.
+CODEX_TARGET="$TMPDIR/.codex/AGENTS.md"
+rm -f "$CODEX_TARGET"
+run_script --codex >/dev/null
+if [[ -f "$CODEX_TARGET" ]] && grep -qF "$BEGIN" "$CODEX_TARGET" && grep -qF "Rule 1" "$CODEX_TARGET"; then
+  ok "codex global AGENTS.md written"
+else
+  fail "codex global AGENTS.md written" "$CODEX_TARGET missing or wrong content"
+fi
+
+# --- Test 10: Codex block stripped on uninstall ---
+run_script --uninstall --codex >/dev/null
+if [[ ! -f "$CODEX_TARGET" ]] || ! grep -qF "$BEGIN" "$CODEX_TARGET" 2>/dev/null; then
+  ok "codex block removed on uninstall"
+else
+  fail "codex block removed on uninstall" "block still present"
+fi
+
+# --- Test 11: AGENTS.override.md is never written ---
+# At the global level Codex prefers AGENTS.override.md over AGENTS.md, so
+# writing the override would shadow whatever the user put there.
+run_script --codex >/dev/null
+if [[ ! -e "$TMPDIR/.codex/AGENTS.override.md" ]]; then
+  ok "codex override file left untouched"
+else
+  fail "codex override file left untouched" "installer wrote AGENTS.override.md"
+fi
+
+# --- Test 12: CODEX_HOME is honoured ---
+ALT="$TMPDIR/alt-codex-home"
+CODEX_HOME="$ALT" run_script --codex >/dev/null
+if [[ -f "$ALT/AGENTS.md" ]] && grep -qF "$BEGIN" "$ALT/AGENTS.md"; then
+  ok "CODEX_HOME redirects the codex target"
+else
+  fail "CODEX_HOME redirects the codex target" "$ALT/AGENTS.md not written"
+fi
+
+# --- Test 13: an agent-specific flag selects ONLY that agent ---
+# The flags used to zero their two siblings by name, so each newly added agent
+# was silently still enabled by every other flag.
+rm -f "$TMPDIR/.claude/CLAUDE.md" "$TMPDIR/.gemini/GEMINI.md" "$CODEX_TARGET"
+rm -f "$TMPDIR/.kiro/steering/engineering-rules.md"
+run_script --claude >/dev/null
+others=""
+[[ -f "$TMPDIR/.gemini/GEMINI.md" ]] && others="$others gemini"
+[[ -f "$CODEX_TARGET" ]] && others="$others codex"
+[[ -f "$TMPDIR/.kiro/steering/engineering-rules.md" ]] && others="$others kiro"
+if [[ -f "$TMPDIR/.claude/CLAUDE.md" && -z "$others" ]]; then
+  ok "--claude writes claude only"
+else
+  fail "--claude writes claude only" "also wrote:$others"
+fi
+
+# --- Test 14: every agent in _lib.sh's AGENTS list has a target here ---
+# The ratchet: codex was declared first-class in the installer (AGENTS list,
+# ~/.codex/skills) while this script wrote only three files, so codex ran with
+# no engineering rules at all. Derive the expectation from _lib.sh so the next
+# agent added cannot repeat it.
+LIB="$SCRIPT_DIR/_lib.sh"
+INSTALLER="$SCRIPT_DIR/install-agents-md.sh"
+missing=""
+for agent in $(grep -oE '^AGENTS=\(.*\)' "$LIB" | tr -d '"' | sed 's/^AGENTS=(//; s/)$//'); do
+  upper=$(echo "$agent" | tr '[:lower:]' '[:upper:]')
+  grep -qE "^\s*--$agent\)" "$INSTALLER"    || missing="$missing --$agent"
+  # Whitespace-tolerant: the run() calls are column-aligned, so the guard
+  # reads `$WANT_CODEX  -eq 1` with two spaces.
+  grep -qE "WANT_${upper}[[:space:]]+-eq[[:space:]]+1" "$INSTALLER" \
+    || missing="$missing WANT_$upper"
+done
+if [[ -z "$missing" ]]; then
+  ok "every agent in AGENTS has a rules target"
+else
+  fail "every agent in AGENTS has a rules target" "absent:$missing"
+fi
+
 echo ""
 echo "Results: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

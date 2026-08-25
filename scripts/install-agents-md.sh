@@ -2,15 +2,21 @@
 # install-agents-md.sh — deploy canonical engineering rules into agent host files.
 #
 # Writes the contents of agents/engineering-rules.md into a marked block inside
-# each host file (~/.claude/CLAUDE.md, ~/.gemini/GEMINI.md). For Kiro, the rules
-# are deployed as a steering file (~/.kiro/steering/engineering-rules.md).
+# each host file (~/.claude/CLAUDE.md, ~/.gemini/GEMINI.md, $CODEX_HOME/AGENTS.md).
+# For Kiro, the rules are deployed as a steering file
+# (~/.kiro/steering/engineering-rules.md).
 # Idempotent: a second run replaces the marked block in place.
 #
+# Every agent in _lib.sh's AGENTS list needs a target here; test_install_agents_md.sh
+# asserts that, because codex was declared first-class in the installer while this
+# script still wrote only three files, leaving it with no rules at all.
+#
 # Usage:
-#   bash scripts/install-agents-md.sh             # install for Claude + Gemini + Kiro
+#   bash scripts/install-agents-md.sh             # install for all agents
 #   bash scripts/install-agents-md.sh --claude    # only Claude Code
 #   bash scripts/install-agents-md.sh --gemini    # only Gemini CLI
 #   bash scripts/install-agents-md.sh --kiro      # only Kiro (steering)
+#   bash scripts/install-agents-md.sh --codex     # only Codex CLI
 #   bash scripts/install-agents-md.sh --uninstall # strip the block from all
 
 set -euo pipefail
@@ -23,16 +29,28 @@ END_MARK="<!-- END agent-skills-setup:engineering-rules -->"
 WANT_CLAUDE=1
 WANT_GEMINI=1
 WANT_KIRO=1
+WANT_CODEX=1
 ACTION="install"
+
+# Codex reads a global AGENTS.md from its config home, honouring CODEX_HOME
+# (default ~/.codex). AGENTS.override.md wins over AGENTS.md at that level, so
+# never write the override file — it would shadow a user's own.
+CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
+
+# An agent-specific flag means "only this one": zero every target, then the arm
+# below re-enables its own. Pairwise zeroing (--claude turning off exactly the
+# other two) silently missed each newly added agent.
+only() { WANT_CLAUDE=0; WANT_GEMINI=0; WANT_KIRO=0; WANT_CODEX=0; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --claude)    WANT_GEMINI=0; WANT_KIRO=0; shift ;;
-    --gemini)    WANT_CLAUDE=0; WANT_KIRO=0; shift ;;
-    --kiro)      WANT_CLAUDE=0; WANT_GEMINI=0; shift ;;
+    --claude)    only; WANT_CLAUDE=1; shift ;;
+    --gemini)    only; WANT_GEMINI=1; shift ;;
+    --kiro)      only; WANT_KIRO=1;   shift ;;
+    --codex)     only; WANT_CODEX=1;  shift ;;
     --uninstall) ACTION="uninstall"; shift ;;
     -h|--help)
-      sed -n '2,14p' "$0" | sed 's/^# \?//'
+      sed -n '2,21p' "$0" | sed 's/^# \?//'
       exit 0 ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
@@ -115,6 +133,7 @@ run() {
 
 [[ $WANT_CLAUDE -eq 1 ]] && run "Claude Code" "$HOME/.claude/CLAUDE.md"
 [[ $WANT_GEMINI -eq 1 ]] && run "Gemini CLI"  "$HOME/.gemini/GEMINI.md"
+[[ $WANT_CODEX  -eq 1 ]] && run "Codex CLI"   "$CODEX_DIR/AGENTS.md"
 
 # Kiro uses steering files instead of a KIRO.md host file.
 # Deploy as ~/.kiro/steering/engineering-rules.md (plain copy, no marked block).
