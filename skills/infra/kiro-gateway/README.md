@@ -73,7 +73,11 @@ bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh setup-codex
 source ~/.zshrc
 ```
 
-This writes `~/.codex-kiro/config.toml`:
+This writes **two** files. `codex --help` documents `--profile <name>` as
+"Layer `$CODEX_HOME/<name>.config.toml` on top of the base user config", so the
+provider and the model live in separate files.
+
+`~/.codex-kiro/config.toml` — the base config, provider only:
 
 ```toml
 [model_providers.kiro]
@@ -81,11 +85,21 @@ name = "Kiro Gateway"
 base_url = "http://localhost:7788/v1"
 env_key = "KIRO_PROXY_KEY"
 wire_api = "responses"
+```
 
-[profiles.kiro]
+`~/.codex-kiro/kiro.config.toml` — layered on top by `--profile kiro`:
+
+```toml
 model = "claude-opus-4.8"
 model_provider = "kiro"
 ```
+
+A `[profiles.kiro]` table inside `config.toml` is the pre-V2 layout this script
+used to write; `setup-codex` reports one if it finds it but does not delete it.
+`setup-codex` never overwrites an existing `kiro.config.toml`, since that is
+where a model is pinned. `status` prints `INCOMPLETE` when one file is present
+without the other — a provider with no profile is not a working setup, and
+reporting it as configured hid exactly that state on this host.
 
 `wire_api = "responses"` is required as of Feb 2026 — OpenAI removed
 `chat/completions` support from the Codex CLI entirely (it now hard-errors with
