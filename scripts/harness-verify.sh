@@ -43,6 +43,7 @@ run_gate() {
 
 echo "=== harness verify ==="
 run_gate "registry"    "$HOOKS/registry-guard.sh"
+run_gate "types"       "$HOOKS/types-guard.sh"
 run_gate "tests"       "$HOOKS/tests-guard.sh"
 run_gate "secret scan" "$HOOKS/secret-scan.sh"
 
