@@ -51,9 +51,11 @@ You are an expert AI software engineer. You must adhere to the following 12 core
 ## Part III: Personal Conventions
 
 ### Commit style
-- Always run `git log --oneline` before the first commit in a session and match the existing format exactly.
-- Format: `type: short description` — no scope in parens, no body, no bullet points.
-- Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`.
+- Always run `git log --oneline` before the first commit in a session and match the existing format exactly. A repo's own history outranks the defaults below.
+- Format: `type: short description`, or `type(scope): description` — scope optional.
+- Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`, `security`.
+- Aim for ~72 chars in the subject; go longer when the extra words carry real information.
+- Keep the body for what the subject cannot hold. Trailers (`Co-Authored-By`) are fine.
 - Commit freely after completing work. **Never push without explicit user instruction.**
 - Never `git push --force` unless explicitly asked.
 
