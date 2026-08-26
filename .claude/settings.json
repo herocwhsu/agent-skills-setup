@@ -32,22 +32,27 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/registry-guard.sh\"",
-            "statusMessage": "validating registry.txt\u2026"
+            "statusMessage": "validating registry.txt…"
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/types-guard.sh\"",
-            "statusMessage": "type checking\u2026"
+            "statusMessage": "type checking…"
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/tests-guard.sh\"",
-            "statusMessage": "running test suite\u2026"
+            "statusMessage": "running test suite…"
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/secret-scan.sh\"",
-            "statusMessage": "secret scan\u2026"
+            "statusMessage": "secret scan…"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/commit-evidence.sh\"",
+            "statusMessage": "checking commit evidence…"
           }
         ]
       }
@@ -58,22 +63,22 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/registry-guard.sh\"",
-            "statusMessage": "validating registry.txt\u2026"
+            "statusMessage": "validating registry.txt…"
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/types-guard.sh\"",
-            "statusMessage": "type checking\u2026"
+            "statusMessage": "type checking…"
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/tests-guard.sh\"",
-            "statusMessage": "running test suite\u2026"
+            "statusMessage": "running test suite…"
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/secret-scan.sh\"",
-            "statusMessage": "secret scan\u2026"
+            "statusMessage": "secret scan…"
           }
         ]
       }

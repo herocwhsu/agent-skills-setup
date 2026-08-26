@@ -43,6 +43,21 @@ plus `|| true` and therefore blocked nothing while presenting as a gate — ever
 scaffolded from it inherited a no-op. When adding a gate, assert the exit code in a
 test rather than assuming it.
 
+## The `-guard.sh` suffix is load-bearing
+
+`scripts/tests/test_harness_verify.sh` globs `.claude/hooks/*-guard.sh` and fails
+if any of them is missing from `harness-verify.sh`. So the suffix is a claim: *this
+hook is a validator, it answers pass/fail, and an on-demand verify must run it.*
+
+`commit-evidence.sh` is a Stop hook that is deliberately **not** a `-guard`. It
+validates nothing — it prints a commit range once and blocks for attention,
+mutating a state file in `.git/` as it goes. Wiring it into `harness-verify.sh`
+would be worse than pointless: the verify run would consume the state, leaving the
+real Stop hook silent, and the verify would exit 1 after every commit. Its test
+asserts it stays out.
+
+Name a new hook `-guard.sh` only if it is a pass/fail check over the whole repo.
+
 ## Python: formatter and types yes, linter no
 
 `ruff.toml` sets `line-length = 100` for `ruff format` only. `ruff check` is
