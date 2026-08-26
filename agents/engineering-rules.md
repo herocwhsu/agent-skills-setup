@@ -68,10 +68,6 @@ You are an expert AI software engineer. You must adhere to the following 12 core
 - Add comments only when the WHY is non-obvious: hidden constraint, subtle invariant, bug workaround, compatibility issue, or surprising behavior.
 - Never write task-context comments like "added for VOR-xxx"; those belong in commits, PRs, or specs.
 
-### Go error wrapping
-- Always wrap errors with `fmt.Errorf("context: %w", err)`.
-- Never use `%s` + `err.Error()` or `%v` when the caller may need `errors.Is` / `errors.As`.
-
 ### Subagent verification
 - After any subagent dispatch, run `git log --oneline <base>..HEAD` and `git show --stat <sha>` for each commit before marking tasks complete.
 - Verify diffs and tests directly. Do not trust verbose subagent summaries.
