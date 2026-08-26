@@ -174,32 +174,62 @@ build_path() { echo "$CANONICAL_DIR"; }
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PATCH_FILE="$LIB_DIR/../patches/kiro-gateway-system-role.patch"
+PATCH_FILE_NAMESPACE="$LIB_DIR/../patches/kiro-gateway-namespace-tools.patch"
 
-# Assert the role:str fix is present before any build; apply the tracked
-# patch if the field is still the strict Literal. Aborts loudly if the patch
-# cannot be applied — never build from known-broken code.
-fix_guard() {
+# _require_fix <label> <file> <marker-regex> <patch-file>
+#
+# One tracked fix: assert its marker is present, else apply the patch and assert
+# again. Aborts loudly rather than building from known-broken code. Kept as a
+# helper because there are now two of these and bash 3.2 has no associative
+# arrays to table-drive them.
+_require_fix() {
+  local label="$1" file="$2" marker="$3" patch="$4"
   local repo; repo="$(build_path)"
-  local model="$repo/kiro/models_anthropic.py"
-  [[ -f "$model" ]] || die "Cannot find $model — is the build path a kiro-gateway checkout?"
 
-  # Trailing (#|$) boundary so `role: strict`/`role: strawberry` cannot
-  # false-positive as the fix (which would skip the patch on broken code).
-  # Matches `role: str` alone and `role: str  # comment` (what the patch writes).
-  if grep -Eq '^\s*role:\s*str\s*(#|$)' "$model"; then
-    echo "Fix-guard: role:str present."
+  [[ -f "$file" ]] || die "Cannot find $file — is the build path a kiro-gateway checkout?"
+
+  if grep -Eq "$marker" "$file"; then
+    echo "Fix-guard: $label present."
     return 0
   fi
 
-  echo "Fix-guard: strict role type detected — applying tracked patch..."
-  [[ -f "$PATCH_FILE" ]] || die "Fix patch missing: $PATCH_FILE"
-  if git -C "$repo" apply --check "$PATCH_FILE" 2>/dev/null; then
-    git -C "$repo" apply "$PATCH_FILE" || die "Fix patch --check passed but apply failed in $repo — aborting."
+  echo "Fix-guard: $label missing — applying tracked patch..."
+  [[ -f "$patch" ]] || die "Fix patch missing: $patch"
+  if git -C "$repo" apply --check "$patch" 2>/dev/null; then
+    git -C "$repo" apply "$patch" || die "$label patch --check passed but apply failed in $repo — aborting."
   else
-    die "Fix patch will not apply cleanly to $repo — aborting before build. Resolve manually."
+    die "$label patch will not apply cleanly to $repo — aborting before build. Resolve manually."
   fi
-  grep -Eq '^\s*role:\s*str\s*(#|$)' "$model" || die "Fix-guard: role:str still absent after patch — aborting."
-  echo "Fix-guard: patch applied."
+  grep -Eq "$marker" "$file" || die "Fix-guard: $label still absent after patch — aborting."
+  echo "Fix-guard: $label patch applied."
+  return 0
+}
+
+# Assert every tracked fix is present before any build. Both are fork-local
+# carries that an upstream sync (cmd_update runs `git pull --ff-only`) would
+# silently revert, which is the whole reason they are patches and not just
+# commits.
+fix_guard() {
+  local repo; repo="$(build_path)"
+
+  # role:str — without it, any system-role request 422s. Trailing (#|$) boundary
+  # so `role: strict`/`role: strawberry` cannot false-positive as the fix (which
+  # would skip the patch on broken code). Matches `role: str` alone and
+  # `role: str  # comment` (what the patch writes).
+  _require_fix "role:str" \
+    "$repo/kiro/models_anthropic.py" \
+    '^\s*role:\s*str\s*(#|$)' \
+    "$PATCH_FILE"
+
+  # Namespace tool flattening — Codex 0.149.1 sends no top-level `tools` key;
+  # declarations arrive as `additional_tools` holding `namespace` containers.
+  # Unflattened, every nested tool is dropped and the model reports having no
+  # terminal tool. Anchored to the `def` so a comment or a call site cannot
+  # satisfy it.
+  _require_fix "namespace tool flattening" \
+    "$repo/kiro/responses_adapter.py" \
+    '^def _flatten_tool_namespaces\(' \
+    "$PATCH_FILE_NAMESPACE"
 }
 
 # Expand a leading ~ to $HOME and make absolute.

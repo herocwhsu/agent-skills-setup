@@ -141,9 +141,20 @@ Tracks current and previous image SHAs for rollback. Never delete this file manu
 `init` clones the fork (`git@github.com:herocwhsu/kiro-gateway.git`) into
 `~/.agent-skills-setup/kiro-gateway` on first run. To reuse an existing local
 checkout instead, set `KIRO_GATEWAY_DIR=/path/to/checkout` — it's symlinked in
-rather than cloned. Before every build, `fix_guard` asserts the `role: str`
-field is present in `kiro/models_anthropic.py`, applying the tracked patch
-(`patches/kiro-gateway-system-role.patch`) if not, and aborting if the patch
+rather than cloned. Before every build, `fix_guard` asserts **both** tracked
+fork-local fixes are present, applying the matching patch if one is missing:
+
+| fix | marker | patch |
+|---|---|---|
+| `role: str` in `kiro/models_anthropic.py` | any system-role request 422s without it | `patches/kiro-gateway-system-role.patch` |
+| `_flatten_tool_namespaces` in `kiro/responses_adapter.py` | Codex 0.149.1 sends tools as `namespace` containers inside `additional_tools`; unflattened they are dropped and the model reports having no terminal tool | `patches/kiro-gateway-namespace-tools.patch` |
+
+Both are carried as patches rather than only commits because `update` runs
+`git pull --ff-only`, which would silently revert a fork-local edit. Note the
+namespace fix emits **bare** tool names (`exec`, not `functions.exec`): the Kiro
+backend rejects a dot in a tool name with HTTP 400 `Invalid tool use format`.
+
+`fix_guard` aborts if a patch
 won't apply cleanly. After a successful `init`/`update`, an HTTP health probe
 sends a system-role request and expects a 200 response. `status` reports the
 build path (linked vs. cloned) and the current image tag.
