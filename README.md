@@ -57,7 +57,7 @@ Or run interactively and it will prompt for ntfy credentials (leave blank to ski
 
 ## Spec-Gated Workflow
 
-Every feature follows this gate sequence. No gate can be skipped silently — see the Production Spec-Gated Workflow policy (Part IV) in your CLAUDE.md.
+Every feature follows this gate sequence. No gate can be skipped silently — see the Production Spec-Gated Workflow policy (Part IV) in your CLAUDE.md. The default flow keeps every artifact under `./docs/stories/<JIRA-ID>-<slug>/` and needs no OpenSpec; the OpenSpec gates (`/opsx:propose`, review guardrails, `/opsx:archive`) are a nested addendum that applies only in repos that have an `openspec/` directory.
 
 ```mermaid
 flowchart TD
@@ -86,7 +86,7 @@ flowchart TD
 
     G3 --> G4
 
-    subgraph G4["Gate 4 — OpenSpec Proposal"]
+    subgraph G4["Gate 4 — OpenSpec Proposal (openspec/ repos only)"]
         I["/opsx:propose"]
     end
 
@@ -94,7 +94,7 @@ flowchart TD
     API_CHECK -- yes --> G5
     API_CHECK -- no --> G6
 
-    subgraph G5["Gate 5 — Apidog Contract"]
+    subgraph G5["Gate 5 — Apidog Contract (needs an openspec proposal)"]
         J["/apidog-contract &lt;STORY-ID&gt;"]
         K["/apidog-mocks &lt;STORY-ID&gt;"]
         L["/apidog-testcases &lt;STORY-ID&gt;"]
