@@ -288,7 +288,9 @@ patch_exists_test() {
   local name="$1"
   local patch
   patch="$(cd "$(dirname "$0")/.." && pwd)/patches/kiro-gateway-system-role.patch"
-  if [[ -f "$patch" ]] && grep -Fq "models_anthropic.py" "$patch" && grep -Eq 'role' "$patch"; then
+  local nspatch="$(cd "$(dirname "$0")/.." && pwd)/patches/kiro-gateway-namespace-tools.patch"
+  if [[ -f "$patch" ]] && grep -Fq "models_anthropic.py" "$patch" && grep -Eq 'role' "$patch" \
+     && [[ -f "$nspatch" ]] && grep -Fq "_flatten_tool_namespaces" "$nspatch"; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
     echo "FAIL: $name (patch missing or wrong target: $patch)"; FAIL=$((FAIL+1))
@@ -353,6 +355,9 @@ fix_guard_present_test() {
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"
   printf 'class Message:\n    role: str\n' > "$canon/kiro/models_anthropic.py"
+  # fix_guard asserts every tracked fix, so a fake checkout needs a marker for
+  # each one; with only models_anthropic.py the guard aborts on the second.
+  printf 'def _flatten_tool_namespaces(x):\n    return x\n' > "$canon/kiro/responses_adapter.py"
   local code=0
   HOME="$tmpdir" CANONICAL_DIR="$canon" \
     bash "$SCRIPT" __fix_guard >/dev/null 2>&1 || code=$?
@@ -395,6 +400,29 @@ fix_guard_aborts_test() {
 }
 fix_guard_aborts_test "fix-guard aborts when fix cannot be applied"
 
+# fix-guard: role:str present but the namespace flattening absent must STILL
+# abort. The role guard runs first, so without this case a regression in the
+# second fix would pass every other test here.
+fix_guard_namespace_missing_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"
+  printf 'class Message:\n    role: str\n' > "$canon/kiro/models_anthropic.py"
+  # adapter present but WITHOUT the marker → patch must apply; no git repo here
+  # → cannot apply → must abort non-zero.
+  printf 'def something_else(x):\n    return x\n' > "$canon/kiro/responses_adapter.py"
+  local code=0 out
+  out=$(HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    bash "$SCRIPT" __fix_guard 2>&1) || code=$?
+  if [[ "$code" -ne 0 ]] && echo "$out" | grep -q 'namespace tool flattening'; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (code=$code out=$out)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+fix_guard_namespace_missing_test "fix-guard aborts when namespace fix is absent"
+
 # Adds mock `docker` and `git` that record calls, so build/run logic is testable
 # without a daemon. `git rev-parse --short HEAD` returns a fixed sha.
 make_docker_git_mocks() {
@@ -423,6 +451,7 @@ init_builds_sha_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  printf 'def _flatten_tool_namespaces(x):\n    return x\n' > "$canon/kiro/responses_adapter.py"
   # kiro_data_dir's guard checks a platform-specific path (macOS vs Linux) —
   # create both so this test passes on any CI runner, not just the author's OS.
   mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/.local/share/kiro-cli"
@@ -457,6 +486,7 @@ init_realdocker_absent_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  printf 'def _flatten_tool_namespaces(x):\n    return x\n' > "$canon/kiro/responses_adapter.py"
   mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/.local/share/kiro-cli" "$tmpdir/bin"
   # docker mock: inspect prints a BLANK line to stdout and exits 1 (real 29.x behavior)
   cat > "$tmpdir/bin/docker" <<EOF
@@ -504,6 +534,7 @@ init_fresh_exits_zero_and_probes_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  printf 'def _flatten_tool_namespaces(x):\n    return x\n' > "$canon/kiro/responses_adapter.py"
   mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/.local/share/kiro-cli"
   make_docker_git_mocks "$tmpdir" "abc1234"
   cat > "$tmpdir/bin/security" <<'EOF'
@@ -576,6 +607,7 @@ init_running_noop_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  printf 'def _flatten_tool_namespaces(x):\n    return x\n' > "$canon/kiro/responses_adapter.py"
   mkdir -p "$tmpdir/bin"
   cat > "$tmpdir/bin/docker" <<EOF
 #!/usr/bin/env bash
