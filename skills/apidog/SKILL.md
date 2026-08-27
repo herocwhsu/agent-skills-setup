@@ -1,6 +1,6 @@
 ---
 name: apidog
-description: Use after the OpenSpec proposal is approved to plan and document the API contract, mock responses, and test cases in Apidog. Subcommands generate local markdown then push directly to Apidog via MCP. Four subcommands, in workflow order: contract, diff, mocks, testcases.
+description: Use when a story's API contract, mock responses, or test cases need planning and documenting in Apidog. Prefers an approved OpenSpec proposal as the spec source but falls back to the story artifacts, so a missing proposal does not block it. Subcommands generate local markdown then push directly to Apidog via MCP. Four subcommands, in workflow order: contract, diff, mocks, testcases.
 ---
 
 # apidog
