@@ -111,7 +111,7 @@ You are an expert AI software engineer. You must adhere to the following 12 core
 Some shared repos layer OpenSpec on the flow above. `/opsx:*` is the OpenSpec CLI, not a skill here, so with no `openspec/` directory skip this addendum entirely rather than reporting a blocked gate. Where it applies, add:
 
 *   After gate 2, create or update the proposal via `/opsx:propose <change-id>`. `audit-handoff` prints the invocation rather than running it.
-*   **Apidog contract review** for API features (`apidog`) — it hard-requires `openspec/changes/<change-id>/proposal.md` and exits rather than degrading, so it belongs here rather than above.
+*   **Apidog contract review** for API features (`apidog`) — it prefers the approved proposal as its spec source, and says so in the generated contract when it had to fall back to the story artifacts instead.
 *   While a PR is open, diff the implementation against the approved proposal (`review-guardrails`) to catch missing requirements, extra behavior, or risky changes before merge.
 *   After merge, run `/opsx:archive <change-name>` — it promotes the delta into `openspec/specs/` and archives the change folder. Skipping it leaves canonical specs out of sync with shipped code.
 

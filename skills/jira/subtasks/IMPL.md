@@ -7,7 +7,7 @@ description: Use after writing-plans is approved to create Jira sub-tasks before
 
 ## Overview
 
-Read `openspec-tasks.md` (or `plan.md` fallback) → group into PR-shaped flows → write `pr-plan.md` → present estimates → create Jira sub-tasks (impl `T<n>` + uat companion `U<n>`) → write IDs to `jira-subtasks.md` and `pr-plan.md` → transition sub-tasks to In Progress when work starts.
+Read `openspec/changes/<change-id>/tasks.md` (or `plan.md` when there is no OpenSpec change) → group into PR-shaped flows → write `pr-plan.md` → present estimates → create Jira sub-tasks (impl `T<n>` + uat companion `U<n>`) → write IDs to `jira-subtasks.md` and `pr-plan.md` → transition sub-tasks to In Progress when work starts.
 
 ## Sub-task ID convention
 
@@ -51,8 +51,12 @@ load_config || exit 1
 ### Step 1 — Derive tasks from OpenSpec or plan
 
 Read tasks from (in order, use first that exists):
-1. `./docs/stories/<STORY-ID>-<slug>/openspec-tasks.md` — canonical post-OpenSpec source
-2. `./docs/stories/<STORY-ID>-<slug>/plan.md` — legacy fallback
+1. `./openspec/changes/<change-id>/tasks.md` — canonical post-OpenSpec source.
+   The `<change-id>` comes from the `openspec_changes` frontmatter list in
+   `$STORY_DIR/intake-summary.md`.
+2. `./docs/stories/<STORY-ID>-<slug>/plan.md` — used when the story has no
+   OpenSpec change (docs/stories-only work), and for stories planned before
+   OpenSpec was in the loop
 
 Group tasks into logical sub-tasks (one sub-task per major section, not one per checklist item).
 
