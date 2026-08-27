@@ -1,6 +1,6 @@
 ---
 name: repo
-description: Use before writing an OpenSpec proposal to understand what the target codebase actually looks like. Subcommand context-scan identifies affected modules, existing APIs, DTOs, DB tables, test patterns, and known limitations. Third gate of the spec-gated workflow.
+description: Use before writing an OpenSpec proposal to understand what the target codebase actually looks like. Subcommands scan the codebase for affected modules, existing APIs, DTOs, DB tables, test patterns, and known limitations (context-scan), and cache facts learned during investigation for later stories (domain-notes). Third gate of the spec-gated workflow.
 ---
 
 # repo
@@ -11,11 +11,11 @@ codebase.
 
 ## Subcommands
 
-| Slash command | What it does | Output |
-|---|---|---|
-| `/repo-context-scan <STORY-ID>` | Scan affected modules, APIs, DTOs, DB schema, test coverage, and coding conventions. Uses `gh` CLI + `grep` + `find`. | `./docs/stories/<ID>-<slug>/repo-context.md` |
-| `/repo-domain-notes query <keyword>` | Search the repo's persistent knowledge cache before doing git archaeology or code reading. | reads `./.spec-gated/domain-notes.md` |
-| `/repo-domain-notes add` | Append a fact learned during this story's investigation (removed module, permission-check chain, migration history, naming quirk) so the next story doesn't re-discover it. | `./.spec-gated/domain-notes.md` |
+| Slash command | What it does | Output | Implementation |
+|---|---|---|---|
+| `/repo-context-scan <STORY-ID>` | Scan affected modules, APIs, DTOs, DB schema, test coverage, and coding conventions. Uses `gh` CLI + `grep` + `find`. | `./docs/stories/<ID>-<slug>/repo-context.md` | `context-scan/IMPL.md` |
+| `/repo-domain-notes query <keyword>` | Search the repo's persistent knowledge cache before doing git archaeology or code reading. | reads `./.spec-gated/domain-notes.md` | `domain-notes/IMPL.md` |
+| `/repo-domain-notes add` | Append a fact learned during this story's investigation (removed module, permission-check chain, migration history, naming quirk) so the next story doesn't re-discover it. | `./.spec-gated/domain-notes.md` | `domain-notes/IMPL.md` |
 
 ## Prerequisites
 

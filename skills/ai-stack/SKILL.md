@@ -18,6 +18,8 @@ usage, not story phases.
 |---|---|---|
 | `ai-stack/baml` | BAML — typed LLM functions with schema-driven response parsing for Python/TypeScript services | `baml/IMPL.md` |
 | `ai-stack/langgraph` | LangGraph — graph-based orchestration for stateful, multi-step, or multi-agent workflows | `langgraph/IMPL.md` |
+| `ai-stack/ai-hedge-fund` | ai-hedge-fund — multi-agent investor-persona stock analysis built on LangGraph. Educational/research only, not for real trading | `ai-hedge-fund/IMPL.md` |
+| `ai-stack/memu` | memU — compiles a workspace into durable agent memory layers (INDEX.md, MEMORY.md, SKILL.md) for cross-session context | `memu/IMPL.md` |
 
 ## When to use which subcommand
 

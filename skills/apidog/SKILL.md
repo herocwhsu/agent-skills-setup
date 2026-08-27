@@ -1,6 +1,6 @@
 ---
 name: apidog
-description: Use after the OpenSpec proposal is approved to plan and document the API contract, mock responses, and test cases in Apidog. Subcommands generate local markdown then push directly to Apidog via MCP. Four subcommands: contract, mocks, testcases, diff.
+description: Use after the OpenSpec proposal is approved to plan and document the API contract, mock responses, and test cases in Apidog. Subcommands generate local markdown then push directly to Apidog via MCP. Four subcommands, in workflow order: contract, diff, mocks, testcases.
 ---
 
 # apidog
@@ -29,12 +29,12 @@ Never update Apidog after implementation as documentation only. It is a gate.
 
 ## Subcommands
 
-| Slash command | What it does | Output |
-|---|---|---|
-| `/apidog-contract <STORY-ID>` | Generate API contract from the OpenSpec proposal, write locally, push to Apidog via MCP. | `./docs/stories/<ID>-<slug>/apidog/contract.md` + Apidog |
-| `/apidog-mocks <STORY-ID>` | Generate mock response examples, write locally, push cases to Apidog via MCP. | `./docs/stories/<ID>-<slug>/apidog/mocks.md` + Apidog |
-| `/apidog-testcases <STORY-ID>` | Generate API test cases, write locally, push to Apidog via MCP. | `./docs/stories/<ID>-<slug>/apidog/testcases.md` + Apidog |
-| `/apidog-diff <STORY-ID>` | Compare local contract against live Apidog state. Report missing, extra, and drifted endpoints. | stdout only |
+| Slash command | What it does | Output | Implementation |
+|---|---|---|---|
+| `/apidog-contract <STORY-ID>` | Generate API contract from the OpenSpec proposal, write locally, push to Apidog via MCP. | `./docs/stories/<ID>-<slug>/apidog/contract.md` + Apidog | `contract/IMPL.md` |
+| `/apidog-mocks <STORY-ID>` | Generate mock response examples, write locally, push cases to Apidog via MCP. | `./docs/stories/<ID>-<slug>/apidog/mocks.md` + Apidog | `mocks/IMPL.md` |
+| `/apidog-testcases <STORY-ID>` | Generate API test cases, write locally, push to Apidog via MCP. | `./docs/stories/<ID>-<slug>/apidog/testcases.md` + Apidog | `testcases/IMPL.md` |
+| `/apidog-diff <STORY-ID>` | Compare local contract against live Apidog state. Report missing, extra, and drifted endpoints. | stdout only | `diff/IMPL.md` |
 
 ## Prerequisites
 

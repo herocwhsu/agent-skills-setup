@@ -10,12 +10,12 @@ Plans the test strategy before implementation starts. Workflow spec §4.7:
 
 ## Subcommands
 
-| Slash command | What it does | Output |
-|---|---|---|
-| `/testing-plan <STORY-ID>` | Generate test plan from OpenSpec acceptance criteria + Apidog contract. Covers unit, integration, API, regression, and manual QA. | `./docs/stories/<ID>-<slug>/test-plan.md` |
-| `/testing-write <STORY-ID>` | For each PR group in `pr-plan.md`, create a `U<n>` companion sub-task in the test repo's Jira project and scaffold RED test stubs in that repo. Impl PR turns them GREEN. | Jira `U<n>` ticket(s) + test files in test repo + updated `pr-plan.md` |
-| `/testing-regression <STORY-ID>` | Generate regression tests for a bug fix or change request. Triggered from `change-requests/` or `release/bugfix/`. | `./docs/stories/<ID>-<slug>/regression-tests.md` |
-| `/testing-qa-check <STORY-ID>` | Verify test coverage before verification gate. Checks every acceptance criterion, API error, and permission rule has a corresponding test. | stdout only |
+| Slash command | What it does | Output | Implementation |
+|---|---|---|---|
+| `/testing-plan <STORY-ID>` | Generate test plan from OpenSpec acceptance criteria + Apidog contract. Covers unit, integration, API, regression, and manual QA. | `./docs/stories/<ID>-<slug>/test-plan.md` | `plan/IMPL.md` |
+| `/testing-write <STORY-ID>` | For each PR group in `pr-plan.md`, create a `U<n>` companion sub-task in the test repo's Jira project and scaffold RED test stubs in that repo. Impl PR turns them GREEN. | Jira `U<n>` ticket(s) + test files in test repo + updated `pr-plan.md` | `write/IMPL.md` |
+| `/testing-regression <STORY-ID>` | Generate regression tests for a bug fix or change request. Triggered from `change-requests/` or `release/bugfix/`. | `./docs/stories/<ID>-<slug>/regression-tests.md` | `regression/IMPL.md` |
+| `/testing-qa-check <STORY-ID>` | Verify test coverage before verification gate. Checks every acceptance criterion, API error, and permission rule has a corresponding test. | stdout only | `qa-check/IMPL.md` |
 
 ## When to use which subcommand
 
