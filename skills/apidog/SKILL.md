@@ -38,7 +38,10 @@ Never update Apidog after implementation as documentation only. It is a gate.
 
 ## Prerequisites
 
-- OpenSpec proposal exists at `./openspec/changes/<change-id>/proposal.md`
+- A spec source for the contract, in preference order: an OpenSpec proposal at
+  `./openspec/changes/<change-id>/proposal.md`, else `audit-report.md`, else
+  `story.md` in the story folder. Without a proposal the contract is generated
+  and labelled as not derived from an approved spec — it does not abort.
 - `./docs/stories/<STORY-ID>-<slug>/` exists
 - Apidog MCP server configured. Set up once per machine:
   ```bash

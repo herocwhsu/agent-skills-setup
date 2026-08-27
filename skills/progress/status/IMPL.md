@@ -43,7 +43,9 @@ command. Read-only — writes nothing.
    | release-readiness | `release/readiness.md` | file exists |
 
 3. Print a checklist, ordered top to bottom as the workflow runs, using `[x]`
-   for found, `[ ]` for missing, and skip the `external` row if
+   for found, `[ ]` for missing, `[-]` for not applicable (a gate this repo or
+   story does not use), `[?]` for unknown (inferred gates that cannot be
+   checked), and skip the `external` row if
    `external-deps.md` doesn't exist (don't print `[ ]` for a gate that may
    not even apply to this story).
 
@@ -72,9 +74,21 @@ Story: VOR-31324
 Next: /apidog-contract VOR-31324
 ```
 
-If a story has no `openspec_changes` in its `intake-summary.md` frontmatter
-yet, print `openspec` as missing and stop the checklist there — nothing
-downstream can be verified without a change-id to look inside.
+If a story has no `openspec_changes` in its `intake-summary.md` frontmatter,
+print `openspec` as `[-]` (not applicable — this repo or story does not use
+OpenSpec) and **keep going**. Do not stop the checklist: `apidog`,
+`testing-plan`, `jira-subtasks` and `release-readiness` are all detected from
+files under `docs/stories/`, so they are still verifiable without a change-id.
+
+Only the two rows that genuinely need one degrade:
+
+| Row | Without a change-id |
+|---|---|
+| `openspec` | `[-]` not applicable |
+| `audit-handoff` | `[?]` unknown — it is inferred from the proposal existing |
+
+Stopping the whole checklist here reported later gates as unreachable when their
+artifacts were sitting in the story folder.
 
 ## Do not
 

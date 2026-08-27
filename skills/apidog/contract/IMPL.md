@@ -37,12 +37,34 @@ if [[ -z "$CHANGE_ID" ]]; then
     CHANGE_ID=$(echo "$STORY_BASENAME" | tr '[:upper:]' '[:lower:]')
 fi
 
-[[ -f "./openspec/changes/$CHANGE_ID/proposal.md" ]] || {
-    echo "ERROR: proposal not found at ./openspec/changes/$CHANGE_ID/proposal.md"
-    echo "Run /intake-spec-summary $1 first, or verify the change-id."
+# The proposal is the preferred spec source, not a hard requirement: only repos
+# that use OpenSpec have one. Degrade to the story artifacts rather than exiting,
+# matching testing/plan (which reads story.md when OpenSpec is absent). Exiting
+# here made this gate unusable for docs/stories-only work.
+SPEC_SOURCE=""
+if [[ -f "./openspec/changes/$CHANGE_ID/proposal.md" ]]; then
+    SPEC_SOURCE="./openspec/changes/$CHANGE_ID/proposal.md"
+elif [[ -f "$STORY_DIR/audit-report.md" ]]; then
+    SPEC_SOURCE="$STORY_DIR/audit-report.md"
+    echo "NOTE: no OpenSpec proposal for '$CHANGE_ID'; deriving the contract from"
+    echo "      $SPEC_SOURCE. Confirm endpoint shapes with a human before pushing."
+elif [[ -f "$STORY_DIR/story.md" ]]; then
+    SPEC_SOURCE="$STORY_DIR/story.md"
+    echo "NOTE: no OpenSpec proposal and no audit report; deriving the contract from"
+    echo "      $SPEC_SOURCE only. Treat every endpoint shape as unverified."
+else
+    echo "ERROR: no spec source found. Need one of:"
+    echo "  ./openspec/changes/$CHANGE_ID/proposal.md"
+    echo "  $STORY_DIR/audit-report.md"
+    echo "  $STORY_DIR/story.md"
+    echo "Run /intake-jira-story $1 first."
     exit 1
-}
+fi
 ```
+
+`$SPEC_SOURCE` is what Step 1 reads. When it is not the proposal, say so in the
+generated `contract.md` so a reviewer knows the contract was not derived from an
+approved spec.
 
 ## Step 1 — Read OpenSpec proposal
 
