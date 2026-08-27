@@ -175,6 +175,7 @@ build_path() { echo "$CANONICAL_DIR"; }
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PATCH_FILE="$LIB_DIR/../patches/kiro-gateway-system-role.patch"
 PATCH_FILE_NAMESPACE="$LIB_DIR/../patches/kiro-gateway-namespace-tools.patch"
+PATCH_FILE_TOOLINDEX="$LIB_DIR/../patches/kiro-gateway-toolcall-index.patch"
 
 # _require_fix <label> <file> <marker-regex> <patch-file>
 #
@@ -230,6 +231,17 @@ fix_guard() {
     "$repo/kiro/responses_adapter.py" \
     '^def _flatten_tool_namespaces\(' \
     "$PATCH_FILE_NAMESPACE"
+
+  # Streamed tool calls keyed by the upstream index. As a list built with
+  # append(), an upstream whose first tool_call delta carried index 1 landed at
+  # position 0 and the next `assistant_tool_calls[index]` read raised
+  # IndexError — swallowed by the broad except and surfaced as response.failed.
+  # Marker is the type annotation, so a rename fails the guard loudly (patch
+  # re-applied, abort if it cannot) rather than silently skipping.
+  _require_fix "tool-call index keying" \
+    "$repo/kiro/responses_adapter.py" \
+    '^\s*assistant_tool_calls: Dict\[int' \
+    "$PATCH_FILE_TOOLINDEX"
 }
 
 # Expand a leading ~ to $HOME and make absolute.
