@@ -1,6 +1,6 @@
 ---
 name: infra
-description: Use to manage local infrastructure that supports Claude Code and Kiro IDE workflows. Subcommands manage the kiro-gateway Docker proxy (kiro-gateway), run host-level performance/security tuning (host-optimization), set up the Apidog MCP server (apidog-mcp), and configure tmux clipboard integration (tmux-yank). Not part of the spec-gated workflow — these run independently.
+description: Use to manage local infrastructure that supports Claude Code and Kiro IDE workflows. Subcommands manage the kiro-gateway Docker proxy (kiro-gateway), run host-level performance/security tuning (host-optimization), set up the Apidog MCP server (apidog-mcp), configure tmux clipboard integration (tmux-yank), and manage UPS battery monitoring (ups). Not part of the spec-gated workflow — these run independently.
 ---
 
 # infra

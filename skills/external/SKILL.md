@@ -10,9 +10,9 @@ what they can, without pretending the spec is complete.
 
 ## Subcommands
 
-| Slash command | What it does | Output |
-|---|---|---|
-| `/external-deps <STORY-ID>` | Document the dependency, generate provisional contract, plan mock provider. Merged: dependency-handler + provisional-contract-generator + mock-provider-planner. | `./docs/stories/<ID>-<slug>/external-deps.md` |
+| Slash command | What it does | Output | Implementation |
+|---|---|---|---|
+| `/external-deps <STORY-ID>` | Document the dependency, generate provisional contract, plan mock provider. Merged: dependency-handler + provisional-contract-generator + mock-provider-planner. | `./docs/stories/<ID>-<slug>/external-deps.md` | `deps/IMPL.md` |
 
 ## When to use
 

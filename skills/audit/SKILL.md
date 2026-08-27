@@ -10,11 +10,11 @@ No implementation happens until this group's gates pass.
 
 ## Subcommands
 
-| Slash command | What it does | Output |
-|---|---|---|
-| `/audit-spec <STORY-ID>` | Audit the intake artifacts for conflicts, gaps, missing behaviors. Merged spec-audit + gap-detector (always co-triggered, same input). | `./docs/stories/<ID>-<slug>/audit-report.md` |
-| `/audit-domain-risk <STORY-ID>` | Check for domain-specific risks (permissions, tenant isolation, error handling, etc.) against a generic or repo-customized checklist. | `./docs/stories/<ID>-<slug>/domain-risk.md` |
-| `/audit-handoff <STORY-ID>` | Assemble all upstream evidence, invoke brainstorming, then print the recommended `/opsx:propose <change-id>` invocation. This is the gate to OpenSpec. | stdout only |
+| Slash command | What it does | Output | Implementation |
+|---|---|---|---|
+| `/audit-spec <STORY-ID>` | Audit the intake artifacts for conflicts, gaps, missing behaviors. Merged spec-audit + gap-detector (always co-triggered, same input). | `./docs/stories/<ID>-<slug>/audit-report.md` | `spec/IMPL.md` |
+| `/audit-domain-risk <STORY-ID>` | Check for domain-specific risks (permissions, tenant isolation, error handling, etc.) against a generic or repo-customized checklist. | `./docs/stories/<ID>-<slug>/domain-risk.md` | `domain-risk/IMPL.md` |
+| `/audit-handoff <STORY-ID>` | Assemble all upstream evidence, invoke brainstorming, then print the recommended `/opsx:propose <change-id>` invocation. This is the gate to OpenSpec. | stdout only | `handoff/IMPL.md` |
 
 ## When to use which subcommand
 
