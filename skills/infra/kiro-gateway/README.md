@@ -146,7 +146,7 @@ fork-local fixes are present, applying the matching patch if one is missing:
 
 | fix | marker | patch |
 |---|---|---|
-| `role: str` in `kiro/models_anthropic.py` | any system-role request 422s without it | `patches/kiro-gateway-system-role.patch` |
+| `system` in the `role` Literal in `kiro/models_anthropic.py` | any system-role request 422s without it | `patches/kiro-gateway-system-role.patch` |
 | `_flatten_tool_namespaces` in `kiro/responses_adapter.py` | Codex 0.149.1 sends tools as `namespace` containers inside `additional_tools`; unflattened they are dropped and the model reports having no terminal tool | `patches/kiro-gateway-namespace-tools.patch` |
 | `assistant_tool_calls: Dict[int, ...]` in `kiro/responses_adapter.py` | streamed tool calls are read by the upstream `index`; as an append-ordered list, a first delta at index 1 raised IndexError and surfaced as `response.failed` | `patches/kiro-gateway-toolcall-index.patch` |
 
