@@ -485,7 +485,19 @@ cmd_init() {
       render_env_file
       local sha; sha="$(build_image)"
       start_container "$sha"
-      write_state "$sha" "$(read_state previous)"
+      # Rotate the image we just displaced into 'previous', matching cmd_update.
+      # Passing read_state previous here instead would carry the stale previous
+      # forward and drop the displaced sha — and since --env-file binds at
+      # create time, stop+rm+init is the deploy path in practice, so rollback
+      # never got a target. Only rotate on a sha CHANGE: a re-init that rebuilds
+      # the same sha must not set previous=current, which would aim rollback at
+      # the running image.
+      local displaced; displaced=$(read_state current)
+      if [[ -n "$displaced" && "$displaced" != "$sha" ]]; then
+        write_state "$sha" "$displaced"
+      else
+        write_state "$sha" "$(read_state previous)"
+      fi
       ;;
     *) die "Unexpected container state: $state" ;;
   esac

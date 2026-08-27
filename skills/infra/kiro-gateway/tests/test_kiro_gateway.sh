@@ -891,6 +891,69 @@ status_build_path_test() {
 }
 status_build_path_test "status reports build path and image tag"
 
+
+# Regression (S1): init on an ABSENT container that builds a DIFFERENT sha must
+# rotate the displaced image into 'previous'. cmd_init passed
+# `$(read_state previous)` — carrying the stale previous forward and dropping
+# the image it just displaced — so a stop+rm+init deploy cycle (the only path
+# used in practice, since --env-file binds at create time) never recorded a
+# rollback target. cmd_update already does this correctly. Rebuilding the SAME
+# sha must NOT rotate, else a no-op re-init would clobber real history.
+init_absent_rotates_previous_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
+  make_docker_git_mocks "$tmpdir" "new999"
+  cat > "$tmpdir/bin/security" <<'EOS'
+#!/usr/bin/env bash
+case "$*" in *"find-generic-password"*"-w"*) echo "test-key-123";; *) exit 0;; esac
+EOS
+  chmod +x "$tmpdir/bin/security"
+  local state="$tmpdir/state"; printf 'current=old111\nprevious=ancient0\n' > "$state"
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    KIRO_GATEWAY_STATE_FILE="$state" KIRO_GATEWAY_DIR="" SKIP_HEALTH_PROBE=1 \
+    bash "$SCRIPT" init >/dev/null 2>&1 || true
+  # displaced old111 becomes previous; stale ancient0 is dropped
+  if grep -q "current=new999" "$state" 2>/dev/null \
+     && grep -q "previous=old111" "$state" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (state=$(tr '\n' ' ' < "$state" 2>/dev/null))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+init_absent_rotates_previous_test "init rotates displaced sha into previous"
+
+# Guard the other half: a re-init that rebuilds the SAME sha must preserve the
+# existing previous rather than setting previous=current (which would make
+# rollback a no-op pointing at the running image).
+init_absent_same_sha_keeps_previous_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
+  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
+  make_docker_git_mocks "$tmpdir" "same777"
+  cat > "$tmpdir/bin/security" <<'EOS'
+#!/usr/bin/env bash
+case "$*" in *"find-generic-password"*"-w"*) echo "test-key-123";; *) exit 0;; esac
+EOS
+  chmod +x "$tmpdir/bin/security"
+  local state="$tmpdir/state"; printf 'current=same777\nprevious=older22\n' > "$state"
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" CANONICAL_DIR="$canon" \
+    KIRO_GATEWAY_STATE_FILE="$state" KIRO_GATEWAY_DIR="" SKIP_HEALTH_PROBE=1 \
+    bash "$SCRIPT" init >/dev/null 2>&1 || true
+  if grep -q "current=same777" "$state" 2>/dev/null \
+     && grep -q "previous=older22" "$state" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (state=$(tr '\n' ' ' < "$state" 2>/dev/null))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+init_absent_same_sha_keeps_previous_test "re-init with same sha preserves previous"
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
