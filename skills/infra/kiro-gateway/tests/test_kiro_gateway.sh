@@ -351,12 +351,12 @@ resolve_nongit_fails_test() {
 }
 resolve_nongit_fails_test "resolve: non-git target fails without dangling link"
 
-# fix-guard: passes when role: str already present
+# fix-guard: passes when the role Literal already includes system
 fix_guard_present_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"
-  printf 'class Message:\n    role: str\n' > "$canon/kiro/models_anthropic.py"
+  printf 'class Message:\n    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   # fix_guard asserts every tracked fix, so a fake checkout needs a marker for
   # each one; with only models_anthropic.py the guard aborts on the second.
   printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
@@ -367,24 +367,25 @@ fix_guard_present_test() {
   else echo "FAIL: $name (code=$code)"; FAIL=$((FAIL+1)); fi
   rm -rf "$tmpdir"
 }
-fix_guard_present_test "fix-guard passes when role:str present"
+fix_guard_present_test "fix-guard passes when role Literal includes system"
 
-# fix-guard: a field starting with "str" but not `str` (e.g. role: strict) must
-# NOT false-positive as the fix — treated as unfixed, must abort (no git repo
-# here → patch cannot apply → non-zero).
+# fix-guard: "system" in a trailing COMMENT must NOT false-positive as the fix.
+# The marker requires system INSIDE the Literal brackets, so a narrow upstream
+# Literal with an explanatory comment counts as unfixed and must abort (no git
+# repo here → patch cannot apply → non-zero).
 fix_guard_no_false_positive_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"
-  printf 'class Message:\n    role: strict_enum\n' > "$canon/kiro/models_anthropic.py"
+  printf 'class Message:\n    role: Literal["user", "assistant"]  # system handled elsewhere\n' > "$canon/kiro/models_anthropic.py"
   local code=0
   HOME="$tmpdir" CANONICAL_DIR="$canon" \
     bash "$SCRIPT" __fix_guard >/dev/null 2>&1 || code=$?
   if [[ "$code" -ne 0 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
-  else echo "FAIL: $name (role: strict_enum false-positived as fixed)"; FAIL=$((FAIL+1)); fi
+  else echo "FAIL: $name (system in a comment false-positived as fixed)"; FAIL=$((FAIL+1)); fi
   rm -rf "$tmpdir"
 }
-fix_guard_no_false_positive_test "fix-guard does not false-positive on role: strict"
+fix_guard_no_false_positive_test "fix-guard does not false-positive on system in a comment"
 
 # fix-guard: aborts when the field is strict and no applicable patch
 fix_guard_aborts_test() {
@@ -402,14 +403,14 @@ fix_guard_aborts_test() {
 }
 fix_guard_aborts_test "fix-guard aborts when fix cannot be applied"
 
-# fix-guard: role:str present but the namespace flattening absent must STILL
+# fix-guard: role fix present but the namespace flattening absent must STILL
 # abort. The role guard runs first, so without this case a regression in the
 # second fix would pass every other test here.
 fix_guard_namespace_missing_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"
-  printf 'class Message:\n    role: str\n' > "$canon/kiro/models_anthropic.py"
+  printf 'class Message:\n    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   # adapter present but WITHOUT the marker → patch must apply; no git repo here
   # → cannot apply → must abort non-zero.
   printf 'def something_else(x):\n    return x\n' > "$canon/kiro/responses_adapter.py"
@@ -425,13 +426,13 @@ fix_guard_namespace_missing_test() {
 }
 fix_guard_namespace_missing_test "fix-guard aborts when namespace fix is absent"
 
-# fix-guard: role:str AND namespace flattening present, but the tool-call index
+# fix-guard: role fix AND namespace flattening present, but the tool-call index
 # keying absent, must STILL abort — and name the right fix.
 fix_guard_toolindex_missing_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"
-  printf 'class Message:\n    role: str\n' > "$canon/kiro/models_anthropic.py"
+  printf 'class Message:\n    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   # namespace marker present, index marker absent (list-based, the old shape)
   printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: List[Dict[str, Any]] = []\n' \
     > "$canon/kiro/responses_adapter.py"
@@ -474,7 +475,7 @@ EOF
 init_builds_sha_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
-  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  mkdir -p "$canon/kiro"; printf '    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
   # kiro_data_dir's guard checks a platform-specific path (macOS vs Linux) —
   # create both so this test passes on any CI runner, not just the author's OS.
@@ -509,7 +510,7 @@ init_builds_sha_test "init builds SHA-tagged image and records current"
 init_realdocker_absent_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
-  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  mkdir -p "$canon/kiro"; printf '    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
   mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/.local/share/kiro-cli" "$tmpdir/bin"
   # docker mock: inspect prints a BLANK line to stdout and exits 1 (real 29.x behavior)
@@ -557,7 +558,7 @@ init_realdocker_absent_test "init handles real-docker absent (blank stdout + exi
 init_fresh_exits_zero_and_probes_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
-  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  mkdir -p "$canon/kiro"; printf '    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
   mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/.local/share/kiro-cli"
   make_docker_git_mocks "$tmpdir" "abc1234"
@@ -630,7 +631,7 @@ render_env_empty_keychain_test "render_env_file bootstraps from empty keychain (
 init_running_noop_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
-  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  mkdir -p "$canon/kiro"; printf '    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
   mkdir -p "$tmpdir/bin"
   cat > "$tmpdir/bin/docker" <<EOF
@@ -902,7 +903,7 @@ status_build_path_test "status reports build path and image tag"
 init_absent_rotates_previous_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
-  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  mkdir -p "$canon/kiro"; printf '    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
   mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
   make_docker_git_mocks "$tmpdir" "new999"
@@ -932,7 +933,7 @@ init_absent_rotates_previous_test "init rotates displaced sha into previous"
 init_absent_same_sha_keeps_previous_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
-  mkdir -p "$canon/kiro"; printf '    role: str\n' > "$canon/kiro/models_anthropic.py"
+  mkdir -p "$canon/kiro"; printf '    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
   mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
   make_docker_git_mocks "$tmpdir" "same777"

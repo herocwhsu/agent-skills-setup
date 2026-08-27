@@ -213,13 +213,17 @@ _require_fix() {
 fix_guard() {
   local repo; repo="$(build_path)"
 
-  # role:str — without it, any system-role request 422s. Trailing (#|$) boundary
-  # so `role: strict`/`role: strawberry` cannot false-positive as the fix (which
-  # would skip the patch on broken code). Matches `role: str` alone and
-  # `role: str  # comment` (what the patch writes).
-  _require_fix "role:str" \
+  # role accepts system — without it, any system-role request 422s. The marker is
+  # the presence of "system" INSIDE the Literal, which upstream's
+  # `role: Literal["user", "assistant"]` cannot satisfy, so broken code can never
+  # false-positive as fixed. An earlier version of this patch widened the field to
+  # a bare `role: str`, which accepted every role including garbage and broke
+  # upstream's own invalid-role test; the marker matched that shape, so keep this
+  # regex anchored on the role SET, not on the annotation being permissive.
+  # AnthropicResponse's `role: Literal["assistant"]` has no "system" and is safe.
+  _require_fix "role accepts system" \
     "$repo/kiro/models_anthropic.py" \
-    '^\s*role:\s*str\s*(#|$)' \
+    '^\s*role:\s*Literal\[[^]]*"system"' \
     "$PATCH_FILE"
 
   # Namespace tool flattening — Codex 0.149.1 sends no top-level `tools` key;

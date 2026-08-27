@@ -17,7 +17,7 @@ index c63d60b..06e3a73 100644
      """
  
 -    role: Literal["user", "assistant"]
-+    role: str  # accepts any role; normalize_message_roles() handles non-user/assistant values
++    role: Literal["user", "assistant", "system", "developer"]  # normalize_message_roles() maps system/developer to user
      content: Union[str, List[ContentBlock]]
  
      model_config = {"extra": "allow"}
