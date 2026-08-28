@@ -35,6 +35,9 @@ The user passes the share UUID either as a second CLI argument or in `intake-sum
 
 ```bash
 SHARE_UUID=$(echo "$SHARE_URL" | grep -oE '[0-9a-f-]{36}')
+# setup_repo_dir comes from lib.sh, sourced in Prerequisites above. The script
+# lives in the agent-skills-setup tree, not in the repo under review.
+REPO_DIR=$(setup_repo_dir) || exit 1
 SCRIPT="$REPO_DIR/scripts/apidog-share-fetch.py"
 
 # Pull every endpoint matching the contract's path prefix

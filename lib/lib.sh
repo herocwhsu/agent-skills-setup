@@ -110,6 +110,46 @@ find_html2md() {
 }
 
 # ---------------------------------------------------------------------------
+# setup_repo_dir
+#   Echo the absolute path of the agent-skills-setup working tree.
+#
+#   Needed by skills that shell out to scripts/ (e.g. apidog-share-fetch.py):
+#   those live outside skills/, so an installed skill symlink does not reach
+#   them. Derived from that symlink rather than recorded at install time
+#   because this file is *copied* to ~/.agent-skills-setup/lib.sh by
+#   install_runtime_dir — it cannot resolve the repo from its own location,
+#   and a stale recorded path would fail the way an undefined $REPO_DIR did:
+#   expanding to something plausible that is not there.
+#
+#   install_local_skill uses `ln -sfn`, so any local skill dir under an agent
+#   skills dir points into the working tree. registry.txt is the sentinel that
+#   distinguishes this repo from any other symlinked skill collection.
+# ---------------------------------------------------------------------------
+setup_repo_dir() {
+  local d s target root
+  for d in "$HOME/.claude/skills" "$HOME/.kiro/skills" "$HOME/.codex/skills" \
+           "$HOME/.copilot/skills" "$HOME/.gemini/antigravity-cli/skills"; do
+    [[ -d "$d" ]] || continue
+    for s in "$d"/*; do
+      [[ -L "$s" ]] || continue
+      target=$(cd -P "$s" 2>/dev/null && pwd) || continue
+      case "$target" in
+        */skills/*) ;;
+        *) continue ;;
+      esac
+      root="${target%/skills/*}"
+      [[ -f "$root/registry.txt" && -d "$root/scripts" ]] || continue
+      echo "$root"
+      return 0
+    done
+  done
+  echo "ERROR: agent-skills-setup working tree not found." >&2
+  echo "  Expected a skill symlink under ~/.claude/skills pointing into it." >&2
+  echo "  Run: bash scripts/install.sh" >&2
+  return 1
+}
+
+# ---------------------------------------------------------------------------
 # Source _store.sh from the same directory (installed alongside lib.sh).
 # Provides: store_credential, read_credential, verify_credential, list_credentials.
 # ---------------------------------------------------------------------------
