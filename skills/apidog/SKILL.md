@@ -69,6 +69,6 @@ Apidog has four read/write surfaces and they don't compose. Pick by what you're 
 | Read non-default branch (e.g. Sprint 90) | `scripts/apidog-share-fetch.py --share-uuid <uuid>` | MCP has no branch flag; Apidog REST `/v1/shared-docs/<uuid>/export-openapi` redirects to docs (verified 2026-06-18) |
 | Write (create/update/wipe) | MCP `apidog_import_openapi` / `apidog_update` | Default branch only — branch writes go through the UI |
 
-The share-fetch script reads the public share link's Remix `.data` loader and decodes the turbo-stream payload (positional `_N` slot refs). Output is normalized JSON with `id`, `method`, `path`, `name`, `status`, `description`, `request`, `responses[].type_enums`. See `scripts/apidog-share-fetch.py --help`.
+The share-fetch script lives in the agent-skills-setup tree, not in the repo under review — resolve its path with `setup_repo_dir` from `lib.sh`. It reads the public share link's Remix `.data` loader and decodes the turbo-stream payload (positional `_N` slot refs). Output is normalized JSON with `id`, `method`, `path`, `name`, `status`, `description`, `request`, `responses[].type_enums`. See `scripts/apidog-share-fetch.py --help`.
 
 Don't try to read non-default branches via the MCP or REST. The MCP package source has zero `branch` strings (`grep -i branch dist/index.js`); the REST path silently redirects. Both verified 2026-06-18 during VOR-31255.
