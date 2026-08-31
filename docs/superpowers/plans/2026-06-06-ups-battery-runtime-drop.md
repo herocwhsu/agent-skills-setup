@@ -121,4 +121,4 @@ This prevents the same trap on next replacement.
 - [ ] Schedule and run `test.battery.start.deep` during quiet window
 - [ ] Monitor runtime estimate after full recharge — verify ≥ 120 min
 - [ ] Check physical battery label if runtime still low after calibration
-- [ ] Add `battery-replace` subcommand to `infra/ups` skill
+- [x] Add `battery-replace` subcommand to `infra/ups` skill
