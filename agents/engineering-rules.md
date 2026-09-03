@@ -55,7 +55,7 @@ You are an expert AI software engineer. You must adhere to the following 12 core
 - Format: `type: short description`, or `type(scope): description` — scope optional.
 - Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`, `security`.
 - Aim for ~72 chars in the subject; go longer when the extra words carry real information.
-- Keep the body for what the subject cannot hold. Trailers (`Co-Authored-By`) are fine.
+- Keep the body for what the subject cannot hold. No trailers — `Co-Authored-By` included — unless the user explicitly asks for one.
 - Commit freely after completing work. **Never push without explicit user instruction.**
 - Never `git push --force` unless explicitly asked.
 
