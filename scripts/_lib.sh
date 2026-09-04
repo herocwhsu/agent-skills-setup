@@ -410,6 +410,10 @@ install_runtime_dir() {
   mkdir -p "$rtdir"
   cp -f "$repo_dir/lib/lib.sh" "$rtdir/lib.sh"
   cp -f "$repo_dir/scripts/credentials/_store.sh" "$rtdir/_store.sh"
+  # Identity of the tree this runtime was installed from. setup_repo_dir reads it
+  # to pick its OWN repo when sibling forks (same shape, different id) are also
+  # installed. Absent it, setup_repo_dir falls back to a shape check and says so.
+  cp -f "$repo_dir/.skills-repo-id" "$rtdir/.skills-repo-id"
   echo "  ✓ runtime → $rtdir"
 }
 

@@ -110,23 +110,44 @@ find_html2md() {
 }
 
 # ---------------------------------------------------------------------------
+# _skills_repo_id <dir>
+#   Echo the repo identity recorded in <dir>/.skills-repo-id, or nothing.
+#   Whitespace-stripped first line only, so a stray newline cannot break a match.
+# ---------------------------------------------------------------------------
+_skills_repo_id() {
+  [[ -f "$1/.skills-repo-id" ]] || return 1
+  head -1 "$1/.skills-repo-id" | tr -d '[:space:]'
+}
+
+# ---------------------------------------------------------------------------
 # setup_repo_dir
-#   Echo the absolute path of the agent-skills-setup working tree.
+#   Echo the absolute path of THIS runtime's own working tree.
 #
 #   Needed by skills that shell out to scripts/ (e.g. apidog-share-fetch.py):
 #   those live outside skills/, so an installed skill symlink does not reach
 #   them. Derived from that symlink rather than recorded at install time
-#   because this file is *copied* to ~/.agent-skills-setup/lib.sh by
-#   install_runtime_dir — it cannot resolve the repo from its own location,
-#   and a stale recorded path would fail the way an undefined $REPO_DIR did:
-#   expanding to something plausible that is not there.
+#   because this file is *copied* to the runtime dir by install_runtime_dir --
+#   it cannot resolve the repo from its own location, and a stale recorded path
+#   would fail the way an undefined $REPO_DIR did: expanding to something
+#   plausible that is not there.
 #
-#   install_local_skill uses `ln -sfn`, so any local skill dir under an agent
-#   skills dir points into the working tree. registry.txt is the sentinel that
-#   distinguishes this repo from any other symlinked skill collection.
+#   Identity, not shape, is what selects the tree. An earlier version accepted
+#   any symlinked tree carrying registry.txt + scripts/, which is every repo
+#   built from this one -- so with two installed it could hand a skill the wrong
+#   sibling's scripts/. Each repo therefore ships .skills-repo-id naming itself,
+#   install copies it into the runtime dir, and a candidate must match the id
+#   beside this file. Renaming a fork updates one file, not a grep.
+#
+#   No marker beside this file means a pre-marker install: fall back to the old
+#   shape check so an un-reinstalled host keeps working, and say so, because a
+#   silent fallback is indistinguishable from a match.
 # ---------------------------------------------------------------------------
 setup_repo_dir() {
-  local d s target root
+  local want d s target root
+  # _LIB_DIR is the runtime dir for an installed copy, lib/ when sourced from
+  # the tree itself; the marker lives at the repo root in the latter case.
+  want=$(_skills_repo_id "$_LIB_DIR" || _skills_repo_id "$_LIB_DIR/.." || true)
+
   for d in "$HOME/.claude/skills" "$HOME/.kiro/skills" "$HOME/.codex/skills" \
            "$HOME/.copilot/skills" "$HOME/.gemini/antigravity-cli/skills"; do
     [[ -d "$d" ]] || continue
@@ -138,13 +159,23 @@ setup_repo_dir() {
         *) continue ;;
       esac
       root="${target%/skills/*}"
-      [[ -f "$root/registry.txt" && -d "$root/scripts" ]] || continue
+      [[ -d "$root/scripts" ]] || continue
+      if [[ -n "$want" ]]; then
+        [[ "$(_skills_repo_id "$root" || true)" == "$want" ]] || continue
+      else
+        [[ -f "$root/registry.txt" ]] || continue
+      fi
       echo "$root"
       return 0
     done
   done
-  echo "ERROR: agent-skills-setup working tree not found." >&2
-  echo "  Expected a skill symlink under ~/.claude/skills pointing into it." >&2
+
+  if [[ -n "$want" ]]; then
+    echo "ERROR: no installed skill symlink points into a tree identifying as '$want'." >&2
+  else
+    echo "ERROR: skills working tree not found, and no .skills-repo-id beside lib.sh" \
+         "to identify which one to look for." >&2
+  fi
   echo "  Run: bash scripts/install.sh" >&2
   return 1
 }
