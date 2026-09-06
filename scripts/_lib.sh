@@ -53,6 +53,26 @@ skills_runtime_dir() {
   echo "$HOME/.${id:-agent-skills-setup}"
 }
 
+# ---------------------------------------------------------------------------
+# _other_skills_runtimes <own_runtime_dir>
+#   Echo each other installed repo's runtime dir, one per line. A runtime dir is
+#   identified by the .skills-repo-id install_runtime_dir copies into it.
+#   Used before removing anything global, which no HOME-scoped reasoning covers.
+# ---------------------------------------------------------------------------
+_other_skills_runtimes() {
+  local own="${1:-}" d base
+  for d in "$HOME"/.*; do
+    # "$HOME"/.* also matches . and .., and $HOME/.. is the parent directory --
+    # a marker anywhere above HOME would then read as a sibling repo and block a
+    # legitimate uninstall. Skip them by basename.
+    base=${d##*/}
+    [[ "$base" == "." || "$base" == ".." ]] && continue
+    [[ -d "$d" && -f "$d/.skills-repo-id" ]] || continue
+    [[ "$d" == "$own" ]] && continue
+    echo "$d"
+  done
+}
+
 download_file() {
   local url="$1" dest="$2"
   if command -v curl &>/dev/null; then
@@ -519,16 +539,46 @@ uninstall_pip_skill() {
   if command -v pip3 &>/dev/null; then pip_cmd="pip3"
   elif command -v pip &>/dev/null; then pip_cmd="pip"
   else return 0; fi
-  "$pip_cmd" uninstall -y "$pkg" 2>/dev/null || true
-  echo "  ✓ $pkg (pip uninstalled)"
+  # Same shared-global rule as uninstall_npm_skill: a pip package is not scoped
+  # to this repo, so another installed skills repo may depend on it. No pip entry
+  # exists in either registry today, but the dispatch in uninstall.sh is live and
+  # an asymmetric guard here would reintroduce the bug the moment one is added.
+  local other
+  other=$(_other_skills_runtimes "$(skills_runtime_dir "${REPO_DIR:-}")")
+  if [[ -n "$other" ]]; then
+    echo "  - $pkg (kept: another skills repo is installed)" >&2
+    echo "      $(echo "$other" | tr '\n' ' ')" >&2
+    echo "      remove manually with: $pip_cmd uninstall -y $pkg" >&2
+    return 0
+  fi
+  if "$pip_cmd" uninstall -y "$pkg" >/dev/null 2>&1; then
+    echo "  ✓ $pkg (pip uninstalled)"
+  else
+    echo "  - $pkg (not installed via pip, or removal failed)" >&2
+  fi
 }
 
 # uninstall_npm_skill <package>
 uninstall_npm_skill() {
   local pkg="$1"
   if ! command -v npm &>/dev/null; then return 0; fi
-  npm uninstall -g "$pkg" 2>/dev/null || true
-  echo "  ✓ $pkg (npm uninstalled)"
+  # Global packages are NOT scoped to this repo: another installed skills repo may
+  # declare the same one (both declare @fission-ai/openspec, which the /opsx:*
+  # archive step needs). Removing it would break that repo, so skip and say so --
+  # the same "don't delete what isn't unambiguously ours" rule remove_skill follows.
+  local other
+  other=$(_other_skills_runtimes "$(skills_runtime_dir "${REPO_DIR:-}")")
+  if [[ -n "$other" ]]; then
+    echo "  - $pkg (kept: another skills repo is installed)" >&2
+    echo "      $(echo "$other" | tr '\n' ' ')" >&2
+    echo "      remove manually with: npm uninstall -g $pkg" >&2
+    return 0
+  fi
+  if npm uninstall -g "$pkg" >/dev/null 2>&1; then
+    echo "  ✓ $pkg (npm uninstalled)"
+  else
+    echo "  - $pkg (not installed globally, or removal failed)" >&2
+  fi
 }
 
 # uninstall_github_skill <owner/repo> <skills-subpath> <target_dir>
