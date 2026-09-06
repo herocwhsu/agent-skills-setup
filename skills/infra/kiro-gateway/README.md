@@ -36,11 +36,11 @@ Tell your AI agent: "set up kiro-gateway" / "update kiro-gateway" / "rollback ki
 Or run directly:
 
 ```bash
-bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh init
-bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh update
-bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh rollback
-bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh status
-bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh setup-alias
+bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh init
+bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh update
+bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh rollback
+bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh status
+bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh setup-alias
 ```
 
 ## The claude-kiro alias
@@ -54,7 +54,7 @@ alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=$(
 On Linux, `secret-tool` is used instead of `security`. On headless Linux, the key falls back to `$KIRO_PROXY_KEY` set in `~/.zshrc.local`.
 
 **Workflow:**
-1. `bash ~/.claude/skills/kiro-gateway/lib/kiro-gateway.sh init` — start the container
+1. `bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh init` — start the container
 2. `claude-kiro` — launch Claude Code through the gateway
 
 ## The codex-kiro alias

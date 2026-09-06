@@ -247,7 +247,7 @@ When prompted, choose one or more:
 | 2 | Claude Code | `~/.claude/skills/` | ✓ | |
 | 3 | Antigravity CLI | `~/.gemini/antigravity-cli/skills/` | ✓ | |
 | 4 | Codex CLI | `~/.codex/skills/` | ✓ | Skills only — no hook support (`~/.codex/config.toml` has no `settings.json` equivalent) |
-| 4 | All | all of the above | — | |
+| 5 | All | all of the above | — | |
 
 ---
 
