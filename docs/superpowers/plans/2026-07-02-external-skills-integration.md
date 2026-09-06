@@ -29,7 +29,7 @@
 3. **Conflicts to resolve:**
    - claude-hud **replaces the statusline** that `setup-host.sh` installs (`config/statusline-command.sh` with the `[ctx: Xk/Yk]` display). Both can't own the statusline.
    - claude-mem **overlaps the built-in Claude Code auto-memory** (MEMORY.md per project). Running both means two memory systems writing in parallel.
-   - Google Workspace skills state **"Personal Gmail accounts are not supported"** — the account in use (`user@example.com`) is personal Gmail unless a Workspace account exists. Verify before investing setup time.
+   - Google Workspace skills state **"Personal Gmail accounts are not supported"** — the account in use is a personal Gmail unless a Workspace account exists. Verify before investing setup time.
 
 ---
 

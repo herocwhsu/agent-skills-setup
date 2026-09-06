@@ -10,7 +10,7 @@ CONTAINER_PORT="8000"
 # the app cannot find the DB and crash-loops with "No Kiro credentials".
 CONTAINER_KIRO_DIR="/home/kiro/.local/share/kiro-cli"
 STATE_FILE="${KIRO_GATEWAY_STATE_FILE:-$HOME/.agent-skills-setup/kiro-gateway.state}"
-FORK_REMOTE="git@github.com:herocwhsu/kiro-gateway.git"
+FORK_REMOTE="${KIRO_GATEWAY_FORK_REMOTE:-git@github.com:herocwhsu/kiro-gateway.git}"
 CANONICAL_DIR="${CANONICAL_DIR:-$HOME/.agent-skills-setup/kiro-gateway}"
 
 # ---------------------------------------------------------------------------
@@ -289,7 +289,7 @@ resolve_build_path() {
     fi
     ln -s "$target" "$CANONICAL_DIR"
     local remote; remote="$(git -C "$target" remote get-url origin 2>/dev/null || true)"
-    [[ "$remote" == *herocwhsu/kiro-gateway* ]] || echo "Note: $target origin is '$remote' (not herocwhsu/kiro-gateway) — using it anyway." >&2
+    [[ "$remote" == "$FORK_REMOTE" ]] || echo "Note: $target origin is '$remote' (not $FORK_REMOTE) — using it anyway." >&2
     echo "Linked $CANONICAL_DIR -> $target"
     return 0
   fi

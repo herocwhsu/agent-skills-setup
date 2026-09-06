@@ -29,7 +29,7 @@ import urllib.request
 from typing import Any, Iterable
 
 SHARE_HOST = "https://share.apidog.com"
-USER_AGENT = "apidog-share-fetch/1.0 (+https://your-org.atlassian.net/browse/HUM-17)"
+USER_AGENT = "apidog-share-fetch/1.0"
 TIMEOUT_S = 30
 
 

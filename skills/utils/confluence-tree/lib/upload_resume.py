@@ -27,27 +27,26 @@ SKILL_DIR = Path.home() / ".claude/skills/utils/confluence-tree/lib"
 sys.path.insert(0, str(SKILL_DIR))
 
 import md_to_xhtml
+import cred_provider
 import attach
 import tempfile
 
 FETCH_DIR = Path("docs/confluence/2026-06-09-296989759")
-HOST = "confluence.example.com"
-USER = "hero.hsu"
+HOST = os.environ.get("CONFLUENCE_HOST", "")
+USER = os.environ.get("CONFLUENCE_USER", "")
 BASE = f"https://{HOST}/rest/api"
 
 
 def get_password() -> str:
-    import subprocess
-
-    svc = "agent-skills-setup:confluence-https---confluence-vivotek-com"
-    r = subprocess.run(
-        ["security", "find-generic-password", "-s", svc, "-a", USER, "-w"],
-        capture_output=True,
-        text=True,
-    )
-    if r.returncode != 0 or not r.stdout.strip():
-        sys.exit(f"ERROR: credential not found for {svc}")
-    return r.stdout.strip()
+    # cred_provider owns the keychain slug: its _slugify_url deliberately does
+    # NOT collapse consecutive dashes, because bash's slugify_url cannot on
+    # macOS (BSD sed lacks `\+`), so the stored key really is `https---host`.
+    # Re-deriving the slug here reproduced that subtlety wrongly and broke the
+    # lookup, so ask cred_provider instead. It also adds the env fallback.
+    cred = cred_provider.resolve_credential(HOST, USER)
+    if cred is None:
+        sys.exit(f"ERROR: no Confluence credential for {USER}@{HOST}")
+    return cred
 
 
 _PASS = None
@@ -181,6 +180,10 @@ def upload_page(page: dict, new_id: str, dry_run: bool) -> bool:
 
 
 def main():
+    # Checked here, not at module level: a module-level exit would make merely
+    # importing this file kill the interpreter.
+    if not HOST or not USER:
+        sys.exit("Set CONFLUENCE_HOST and CONFLUENCE_USER before running this script.")
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
