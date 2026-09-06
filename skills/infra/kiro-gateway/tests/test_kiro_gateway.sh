@@ -905,7 +905,7 @@ init_absent_rotates_previous_test() {
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"; printf '    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
-  mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/.local/share/kiro-cli"
   make_docker_git_mocks "$tmpdir" "new999"
   cat > "$tmpdir/bin/security" <<'EOS'
 #!/usr/bin/env bash
@@ -935,7 +935,7 @@ init_absent_same_sha_keeps_previous_test() {
   local canon="$tmpdir/.agent-skills-setup/kiro-gateway"
   mkdir -p "$canon/kiro"; printf '    role: Literal["user", "assistant", "system", "developer"]\n' > "$canon/kiro/models_anthropic.py"
   printf 'def _flatten_tool_namespaces(x):\n    return x\n\n\ndef stream():\n    assistant_tool_calls: Dict[int, Dict[str, Any]] = {}\n' > "$canon/kiro/responses_adapter.py"
-  mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli" "$tmpdir/.local/share/kiro-cli"
   make_docker_git_mocks "$tmpdir" "same777"
   cat > "$tmpdir/bin/security" <<'EOS'
 #!/usr/bin/env bash
