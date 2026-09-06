@@ -116,12 +116,67 @@ RT_WS="$TMP/rt-ws"; mkdir -p "$RT_WS"; cp "$LIB" "$RT_WS/lib.sh"
 printf '  agent-skills-setup  \n\n' > "$RT_WS/.skills-repo-id"
 check "surrounding whitespace in the marker is ignored"        "$A" "$(resolve "$RT_WS" "$H")"
 
-# --- install copies the marker into the runtime dir ------------------------
-# Without this the marker never reaches an installed host and every install
-# silently degrades to the shape fallback.
-grep -q 'cp -f "$repo_dir/.skills-repo-id" "$rtdir/.skills-repo-id"' "$REPO_DIR/scripts/_lib.sh" \
-  && echo "OK: install_runtime_dir copies .skills-repo-id" \
-  || { echo "FAIL: install_runtime_dir does not copy the marker"; fails=$((fails + 1)); }
+# --- install_runtime_dir: marker handling, exercised not grepped ------------
+# This was a grep for the cp line, which passed whether or not the cp was guarded
+# -- and an unguarded cp took all of install.sh down at line 62 for any tree
+# without a marker. HOME is redirected: install_runtime_dir writes to
+# $HOME/.agent-skills-setup and would otherwise overwrite the real one.
+
+# fake_src <dir> <id|->   a tree install_runtime_dir can be pointed at
+fake_src() {
+  local d="$1" id="$2"
+  mkdir -p "$d/lib" "$d/scripts/credentials"
+  cp "$LIB" "$d/lib/lib.sh"
+  : > "$d/scripts/credentials/_store.sh"
+  [[ "$id" == "-" ]] || printf '%s\n' "$id" > "$d/.skills-repo-id"
+}
+
+# run_install_runtime <src> <home>  -> "exit|stderr"
+run_install_runtime() {
+  local out rc
+  out=$(HOME="$2" bash -c '
+    set -euo pipefail
+    source "$0" >/dev/null 2>&1
+    install_runtime_dir "$1" >/dev/null
+  ' "$REPO_DIR/scripts/_lib.sh" "$1" 2>&1) && rc=0 || rc=$?
+  printf '%s|%s' "$rc" "$out"
+}
+
+SRC_ID="$TMP/src-id"; fake_src "$SRC_ID" agent-skills-setup
+H_ID="$TMP/home-rt-id"; mkdir -p "$H_ID"
+res=$(run_install_runtime "$SRC_ID" "$H_ID")
+check "marker present: install_runtime_dir exits 0"  "0" "${res%%|*}"
+check "marker reaches the runtime dir"               "agent-skills-setup" \
+      "$(head -1 "$H_ID/.agent-skills-setup/.skills-repo-id" 2>/dev/null | tr -d '[:space:]')"
+
+# A tree with no marker is a supported state (setup_repo_dir has a shape
+# fallback), so this must warn and carry on -- not abort the install.
+SRC_NO="$TMP/src-nomarker"; fake_src "$SRC_NO" -
+H_NO="$TMP/home-rt-nomarker"; mkdir -p "$H_NO"
+res=$(run_install_runtime "$SRC_NO" "$H_NO")
+check "no marker: install_runtime_dir still exits 0" "0" "${res%%|*}"
+case "${res#*|}" in
+  *"no .skills-repo-id"*) echo "OK: absent marker warns on stderr" ;;
+  *) echo "FAIL: absent marker warned nothing (got: ${res#*|})"; fails=$((fails + 1)) ;;
+esac
+[[ -e "$H_NO/.agent-skills-setup/.skills-repo-id" ]] \
+  && { echo "FAIL: wrote a marker that the source tree does not have"; fails=$((fails + 1)); } \
+  || echo "OK: no marker written when the tree has none"
+
+# Re-installing from a tree that dropped its marker must clear the stale one,
+# or the runtime keeps claiming an identity its tree no longer has.
+res=$(run_install_runtime "$SRC_NO" "$H_ID")
+check "re-install from an unmarked tree exits 0"     "0" "${res%%|*}"
+[[ -e "$H_ID/.agent-skills-setup/.skills-repo-id" ]] \
+  && { echo "FAIL: stale marker survived a re-install"; fails=$((fails + 1)); } \
+  || echo "OK: stale marker cleared on re-install"
+
+# --- the shape fallback must say so ---------------------------------------
+# A silent fallback is indistinguishable from a real identity match.
+case "$(resolve_err "$RT_OLD" "$H4")" in
+  *"selecting the skills tree by"*) echo "OK: shape fallback announces itself" ;;
+  *) echo "FAIL: shape fallback is silent"; fails=$((fails + 1)) ;;
+esac
 
 # --- this repo ships its own marker ---------------------------------------
 if [[ -f "$REPO_DIR/.skills-repo-id" ]]; then

@@ -133,7 +133,7 @@ for agent in "${SELECTED_AGENTS[@]}"; do
         install_local_skill "$id" "$REPO_DIR" "$target_dir" || true
         ;;
       local-optional)
-        install_local_optional_skill "$id" "$REPO_DIR" "$target_dir"
+        install_local_optional_skill "$id" "$REPO_DIR" "$target_dir" || true
         ;;
       *)
         echo "  WARNING: unknown type '$type' for '$id', skipping." >&2

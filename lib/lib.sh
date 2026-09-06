@@ -147,6 +147,11 @@ setup_repo_dir() {
   # _LIB_DIR is the runtime dir for an installed copy, lib/ when sourced from
   # the tree itself; the marker lives at the repo root in the latter case.
   want=$(_skills_repo_id "$_LIB_DIR" || _skills_repo_id "$_LIB_DIR/.." || true)
+  if [[ -z "$want" ]]; then
+    # stderr only: stdout is the resolved path and callers capture it.
+    echo "NOTICE: no .skills-repo-id beside lib.sh -- selecting the skills tree by" \
+         "shape, which cannot tell sibling forks apart. Re-run: bash scripts/install.sh" >&2
+  fi
 
   for d in "$HOME/.claude/skills" "$HOME/.kiro/skills" "$HOME/.codex/skills" \
            "$HOME/.copilot/skills" "$HOME/.gemini/antigravity-cli/skills"; do

@@ -154,11 +154,35 @@ install_kiro_agent_config() {
 # installed skill tracking the repo instead of going stale as a copy would.
 install_skill() {
   local src="$1" target_dir="$2"
-  local name
+  local name path existing
   name=$(basename "$src")
   mkdir -p "$target_dir"
-  ln -sfn "$src" "$target_dir/$name"
-  echo "  ✓ $name"
+  path="$target_dir/$name"
+
+  # ~/.claude/skills is one flat namespace shared by every installed repo, and a
+  # skill name is the only key an agent has -- it has no notion of which repo a
+  # skill came from. So print the resolved target on every install: that line is
+  # the only place the repo behind a name is visible.
+  if [[ -L "$path" ]]; then
+    existing=$(readlink "$path")
+    if [[ "$existing" != "$src" ]]; then
+      # Two repos claiming one name. `ln -sfn` would just overwrite, and the
+      # loser's version would vanish with no output at all.
+      echo "  WARNING: $name is already installed from another tree -- overwriting" >&2
+      echo "      was: $existing" >&2
+      echo "      now: $src" >&2
+    fi
+  elif [[ -e "$path" ]]; then
+    # A real dir or file. `ln -sfn` does NOT overwrite it: it creates the link
+    # *inside* it ($path/$name) and still exits 0, so the skill never loads and
+    # nothing says why. Refuse instead.
+    echo "  ERROR: $name exists and is not a symlink -- refusing to install over it" >&2
+    echo "      path: $path" >&2
+    return 1
+  fi
+
+  ln -sfn "$src" "$path"
+  echo "  ✓ $name -> $src"
   record_installed "$name"
 }
 
@@ -218,7 +242,7 @@ install_github_skill() {
   local repo="$1" subpath="$2" target_dir="$3"
   local reponame="${repo##*/}"
   local zip extract branch_dir
-  zip=$(mktemp /tmp/agent-skills-XXXXXX.zip)
+  zip=$(mktemp /tmp/agent-skills-XXXXXX)
   extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
 
   download_file "https://github.com/${repo}/archive/HEAD.zip" "$zip" || {
@@ -245,6 +269,12 @@ install_github_skill() {
     [[ -d "$skill_dir" ]] || continue
     local skill_name
     skill_name=$(basename "$skill_dir")
+    # Replace, don't merge. Without this a file deleted upstream survives forever
+    # in the installed copy, and the copy only avoided nesting itself inside the
+    # old dir because the `*/` glob leaves a trailing slash on $skill_dir -- which
+    # BSD and GNU cp do not treat alike. install_github_single_skill already does
+    # this; the two paths had drifted.
+    rm -rf "${target_dir:?}/${skill_name}"
     cp -r "$skill_dir" "$target_dir/$skill_name"
     record_installed "$skill_name"
     count=$((count + 1))
@@ -272,7 +302,7 @@ install_github_single_skill() {
   fi
 
   local zip extract branch_dir
-  zip=$(mktemp /tmp/agent-skills-XXXXXX.zip)
+  zip=$(mktemp /tmp/agent-skills-XXXXXX)
   extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
 
   download_file "https://github.com/${repo}/archive/HEAD.zip" "$zip" || {
@@ -412,8 +442,17 @@ install_runtime_dir() {
   cp -f "$repo_dir/scripts/credentials/_store.sh" "$rtdir/_store.sh"
   # Identity of the tree this runtime was installed from. setup_repo_dir reads it
   # to pick its OWN repo when sibling forks (same shape, different id) are also
-  # installed. Absent it, setup_repo_dir falls back to a shape check and says so.
-  cp -f "$repo_dir/.skills-repo-id" "$rtdir/.skills-repo-id"
+  # installed. A tree without one is a *supported* state -- setup_repo_dir falls
+  # back to a shape check -- so a missing marker must warn, never abort: an
+  # unguarded cp here under `set -e` took the whole install down at install.sh:62.
+  # Clear a marker left by an earlier install, or the runtime keeps hunting for an
+  # identity this tree no longer claims.
+  if [[ -f "$repo_dir/.skills-repo-id" ]]; then
+    cp -f "$repo_dir/.skills-repo-id" "$rtdir/.skills-repo-id"
+  else
+    rm -f "$rtdir/.skills-repo-id"
+    echo "  WARNING: no .skills-repo-id in $repo_dir -- skills will select their tree by shape" >&2
+  fi
   echo "  ✓ runtime → $rtdir"
 }
 
@@ -478,7 +517,7 @@ uninstall_github_skill() {
   echo "  WARNING: $list missing — falling back to network re-fetch" >&2
   local reponame="${repo##*/}"
   local zip extract branch_dir
-  zip=$(mktemp /tmp/agent-skills-XXXXXX.zip)
+  zip=$(mktemp /tmp/agent-skills-XXXXXX)
   extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
 
   download_file "https://github.com/${repo}/archive/HEAD.zip" "$zip" || {
@@ -683,7 +722,7 @@ wire_hook() {
   local skills_dir
   skills_dir=$(agent_skills_dir "$agent")
   local tmp_hook
-  tmp_hook=$(mktemp /tmp/hook-XXXXXX.json)
+  tmp_hook=$(mktemp /tmp/hook-XXXXXX)
   sed "s|\${AGENT_SKILLS_DIR}|${skills_dir}|g" "$hook_path" > "$tmp_hook"
   python3 "$repo_dir/scripts/_settings_merge.py" --merge "$tmp_hook" "$settings"
   rm -f "$tmp_hook"
@@ -725,7 +764,7 @@ unwire_hook() {
   local skills_dir
   skills_dir=$(agent_skills_dir "$agent")
   local tmp_hook
-  tmp_hook=$(mktemp /tmp/hook-XXXXXX.json)
+  tmp_hook=$(mktemp /tmp/hook-XXXXXX)
   sed "s|\${AGENT_SKILLS_DIR}|${skills_dir}|g" "$hook_path" > "$tmp_hook"
   python3 "$repo_dir/scripts/_settings_merge.py" --remove "$tmp_hook" "$settings"
   rm -f "$tmp_hook"
