@@ -6,7 +6,7 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=scripts/_lib.sh
 source "$REPO_DIR/scripts/_lib.sh"
 
-SELECTION_FILE="$HOME/.agent-skills-setup/agent-selection.txt"
+SELECTION_FILE="$(skills_runtime_dir "$REPO_DIR")/agent-selection.txt"
 
 echo "==> Pulling latest changes..."
 if ! git -C "$REPO_DIR" pull --ff-only; then

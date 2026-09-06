@@ -2,7 +2,8 @@
 # credentials/_store.sh — generic keychain CRUD with namespace prefix
 # Source this file: source "$(dirname "$0")/_store.sh"
 #
-# All keychain entries are prefixed with "agent-skills-setup:" to avoid collisions.
+# Keychain entries are prefixed with this runtime's repo id (default
+# "agent-skills-setup:") so two installed repos cannot read each other's secrets.
 # Passwords are NEVER exported to env vars — read from keychain at use-time only.
 #
 # Public API:
@@ -13,7 +14,25 @@
 #   list_credentials                                   → prints stored entries
 #   verify_credential      <service-slug> <username>  → exits 1 if not found
 
-readonly _KEYCHAIN_PREFIX="agent-skills-setup"
+# Prefix and fallback store follow the repo this copy belongs to. The marker sits
+# beside this file in an installed runtime dir, or two levels up in the tree
+# (scripts/credentials/_store.sh -> repo root). Absent it, keep the historical
+# name so a pre-marker host is unaffected.
+if [[ -z "${_KEYCHAIN_PREFIX:-}" ]]; then
+  _STORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+  _store_id=""
+  for _d in "$_STORE_DIR" "$_STORE_DIR/.." "$_STORE_DIR/../.."; do
+    if [[ -f "$_d/.skills-repo-id" ]]; then
+      _store_id=$(head -1 "$_d/.skills-repo-id" | tr -d '[:space:]')
+      break
+    fi
+  done
+  readonly _KEYCHAIN_PREFIX="${_store_id:-agent-skills-setup}"
+  # Published for anything that sources this file: service.sh sources _store.sh
+  # and nothing else, so it has no other way to reach the derived path.
+  readonly _SKILLS_RUNTIME_DIR="$HOME/.${_KEYCHAIN_PREFIX}"
+  unset _store_id _d
+fi
 
 _svc_key() { echo "${_KEYCHAIN_PREFIX}:$1"; }
 
@@ -31,7 +50,9 @@ _os() {
   esac
 }
 
-readonly _FALLBACK_STORE="$HOME/.agent-skills-setup/credentials.json"
+if [[ -z "${_FALLBACK_STORE:-}" ]]; then
+  readonly _FALLBACK_STORE="${_SKILLS_RUNTIME_DIR}/credentials.json"
+fi
 
 _ensure_fallback_dir() {
   mkdir -p "$(dirname "$_FALLBACK_STORE")"

@@ -15,6 +15,25 @@ import json
 import os
 import subprocess
 from pathlib import Path
+
+
+def _repo_id(start: str) -> str:
+    """Repo id from the nearest .skills-repo-id at or above `start`.
+
+    Mirrors _skills_repo_id in lib/lib.sh. Two repos installed on one machine
+    must not share a keychain prefix; absent a marker, keep the historical name.
+    """
+    d = Path(start).resolve()
+    for cand in (d, *d.parents):
+        marker = cand / ".skills-repo-id"
+        if marker.is_file():
+            return marker.read_text().split("\n")[0].strip() or "agent-skills-setup"
+    return "agent-skills-setup"
+
+
+_KEYCHAIN_PREFIX = _repo_id(__file__)
+_GEMINI_SVC = f"{_KEYCHAIN_PREFIX}:gemini"
+_FALLBACK_STORE = f"~/.{_KEYCHAIN_PREFIX}/credentials.json"
 from typing import Any
 
 SYSTEM_PROMPT = (
@@ -28,7 +47,7 @@ SYSTEM_PROMPT = (
 DEFAULT_MODEL = "claude-haiku-4-5"
 DEFAULT_TIMEOUT_MS = 3000
 DEFAULT_MAX_TOKENS = 1500
-DEFAULT_STATE_DIR = "~/.agent-skills-setup/state/polish-input"
+DEFAULT_STATE_DIR = f"~/.{_KEYCHAIN_PREFIX}/state/polish-input"
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +227,7 @@ class GeminiKeyProvider(AuthProvider):
 
 
 class GeminiKeychainProvider(AuthProvider):
-    """API key from the agent-skills-setup keychain (secret-tool or credentials.json)."""
+    """API key from this runtime's keychain (secret-tool or credentials.json)."""
 
     name = "gemini-keychain"
     backend = "gemini"
@@ -217,7 +236,7 @@ class GeminiKeychainProvider(AuthProvider):
     def credential(self) -> str | None:
         try:
             user = "default"
-            config_path = Path(os.path.expanduser("~/.agent-skills-setup/config.sh"))
+            config_path = Path(os.path.expanduser(f"~/.{_KEYCHAIN_PREFIX}/config.sh"))
             if config_path.exists():
                 for line in config_path.read_text().splitlines():
                     if line.startswith("GEMINI_USER="):
@@ -230,7 +249,7 @@ class GeminiKeychainProvider(AuthProvider):
                         "secret-tool",
                         "lookup",
                         "service",
-                        "agent-skills-setup:gemini",
+                        _GEMINI_SVC,
                         "username",
                         user,
                     ],
@@ -242,10 +261,10 @@ class GeminiKeychainProvider(AuthProvider):
             except FileNotFoundError:
                 pass
 
-            fb = Path(os.path.expanduser("~/.agent-skills-setup/credentials.json"))
+            fb = Path(os.path.expanduser(_FALLBACK_STORE))
             if fb.exists():
                 data = json.loads(fb.read_text())
-                return data.get(f"agent-skills-setup:gemini:{user}") or None
+                return data.get(f"{_GEMINI_SVC}:{user}") or None
         except Exception:
             pass
         return None

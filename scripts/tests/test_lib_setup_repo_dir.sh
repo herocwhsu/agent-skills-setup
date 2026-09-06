@@ -178,6 +178,70 @@ case "$(resolve_err "$RT_OLD" "$H4")" in
   *) echo "FAIL: shape fallback is silent"; fails=$((fails + 1)) ;;
 esac
 
+# --- per-repo runtime dirs -------------------------------------------------
+# One hardcoded ~/.agent-skills-setup meant two installed repos shared config.sh,
+# installed.txt and a keychain prefix: the second install overwrote the first's
+# marker, and the first repo's skills then resolved to the sibling's tree.
+# Verified by behavior (two dirs, two prefixes), never by grepping the source.
+
+# full_src <dir> <id|->  a tree install_runtime_dir accepts, with _store.sh
+full_src() {
+  local d="$1" id="$2"
+  mkdir -p "$d/lib" "$d/scripts/credentials"
+  cp "$LIB" "$d/lib/lib.sh"
+  cp "$REPO_DIR/scripts/credentials/_store.sh" "$d/scripts/credentials/_store.sh"
+  [[ "$id" == "-" ]] || printf '%s\n' "$id" > "$d/.skills-repo-id"
+}
+
+H_MULTI="$TMP/home-multi"; mkdir -p "$H_MULTI"
+SRC_A="$TMP/src-team";  full_src "$SRC_A" agent-skills-setup
+SRC_B="$TMP/src-we";    full_src "$SRC_B" we-skills
+for src in "$SRC_A" "$SRC_B"; do
+  HOME="$H_MULTI" bash -c '
+    set -euo pipefail
+    source "$0" >/dev/null 2>&1
+    install_runtime_dir "$1" >/dev/null
+  ' "$REPO_DIR/scripts/_lib.sh" "$src" 2>/dev/null || true
+done
+check "team repo gets its own runtime dir"        "agent-skills-setup" \
+      "$(head -1 "$H_MULTI/.agent-skills-setup/.skills-repo-id" 2>/dev/null | tr -d '[:space:]')"
+check "sibling repo gets a separate runtime dir"  "we-skills" \
+      "$(head -1 "$H_MULTI/.we-skills/.skills-repo-id" 2>/dev/null | tr -d '[:space:]')"
+
+# Distinct state files are the point: one repo's config must not be the other's.
+printf 'JIRA_HOST=team.example.com\n'     > "$H_MULTI/.agent-skills-setup/config.sh"
+printf 'JIRA_HOST=personal.example.com\n' > "$H_MULTI/.we-skills/config.sh"
+got=$(HOME="$H_MULTI" bash -c '
+  source "$0" >/dev/null 2>&1
+  load_config >/dev/null 2>&1 && echo "$JIRA_HOST"
+' "$H_MULTI/.we-skills/lib.sh" 2>/dev/null)
+check "load_config reads THIS runtime's config.sh" "personal.example.com" "$got"
+
+# _store.sh derives the keychain prefix from the marker beside it, so the two
+# repos cannot read each other's secrets.
+for pair in "agent-skills-setup:.agent-skills-setup" "we-skills:.we-skills"; do
+  want="${pair%%:*}"; dir="${pair#*:}"
+  got=$(HOME="$H_MULTI" bash -c 'source "$0" >/dev/null 2>&1; echo "$_KEYCHAIN_PREFIX"' \
+        "$H_MULTI/$dir/_store.sh" 2>/dev/null)
+  check "keychain prefix for $want"              "$want" "$got"
+done
+got=$(HOME="$H_MULTI" bash -c 'source "$0" >/dev/null 2>&1; echo "$_FALLBACK_STORE"' \
+      "$H_MULTI/.we-skills/_store.sh" 2>/dev/null)
+check "fallback store follows the prefix"        "$H_MULTI/.we-skills/credentials.json" "$got"
+
+# A tree with no marker keeps the historical path, so a pre-marker host is
+# unaffected by any of this.
+SRC_OLD="$TMP/src-nomark2"; full_src "$SRC_OLD" -
+H_OLD2="$TMP/home-nomark2"; mkdir -p "$H_OLD2"
+HOME="$H_OLD2" bash -c '
+  set -uo pipefail
+  source "$0" >/dev/null 2>&1
+  install_runtime_dir "$1" >/dev/null 2>&1
+' "$REPO_DIR/scripts/_lib.sh" "$SRC_OLD" || true
+[[ -f "$H_OLD2/.agent-skills-setup/lib.sh" ]] \
+  && echo "OK: unmarked tree still installs to the historical dir" \
+  || { echo "FAIL: unmarked tree did not use ~/.agent-skills-setup"; fails=$((fails + 1)); }
+
 # --- this repo ships its own marker ---------------------------------------
 if [[ -f "$REPO_DIR/.skills-repo-id" ]]; then
   id=$(head -1 "$REPO_DIR/.skills-repo-id" | tr -d '[:space:]')

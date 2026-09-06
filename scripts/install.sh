@@ -36,7 +36,7 @@ require_supported_os || exit 1
 select_agents "$AGENT_ARG"
 
 # Save agent selection for update.sh to reuse
-SELECTION_FILE="$HOME/.agent-skills-setup/agent-selection.txt"
+SELECTION_FILE="$(skills_runtime_dir "$REPO_DIR")/agent-selection.txt"
 mkdir -p "$(dirname "$SELECTION_FILE")"
 # Record every selected agent, not just the first, and compare against the
 # agent list itself rather than a literal. Both halves of this were wrong:
@@ -64,10 +64,10 @@ install_runtime_dir "$REPO_DIR"
 echo ""
 echo "==> Migrating keychain entries (if any)..."
 # shellcheck source=/dev/null
-source "$HOME/.agent-skills-setup/lib.sh"
+source "$(skills_runtime_dir "$REPO_DIR")/lib.sh"
 migrate_keychain
 
-INSTALLED_LIST="$HOME/.agent-skills-setup/installed.txt"
+INSTALLED_LIST="$(skills_runtime_dir "$REPO_DIR")/installed.txt"
 > "$INSTALLED_LIST"  # truncate
 
 # Install global (non-agent-specific) packages once before the agent loop.

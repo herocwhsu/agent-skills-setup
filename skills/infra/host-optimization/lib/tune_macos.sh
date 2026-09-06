@@ -2,7 +2,17 @@
 # Host Optimization - macOS Provider
 set -euo pipefail
 
-BACKUP_FILE="$HOME/.agent-skills-setup/backups/host-optimization/macos-defaults.sh"
+# Runtime dir follows this tree's .skills-repo-id, so two installed repos keep
+# separate backups. Absent a marker, keep the historical name.
+_tm_id=""
+_tm_d="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+while [[ "$_tm_d" != "/" ]]; do
+  if [[ -f "$_tm_d/.skills-repo-id" ]]; then
+    _tm_id=$(head -1 "$_tm_d/.skills-repo-id" | tr -d '[:space:]'); break
+  fi
+  _tm_d="$(dirname "$_tm_d")"
+done
+BACKUP_FILE="$HOME/.${_tm_id:-agent-skills-setup}/backups/host-optimization/macos-defaults.sh"
 
 # ── Backup current values before changing ────────────────────────────────────
 backup_macos() {

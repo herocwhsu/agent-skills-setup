@@ -37,6 +37,22 @@ require_supported_os() {
 
 # Download a URL to a file; tries curl then wget
 # Usage: download_file <url> <dest>
+# ---------------------------------------------------------------------------
+# skills_runtime_dir <repo_dir>
+#   Echo the runtime state dir for <repo_dir>: ~/.<its .skills-repo-id>, or
+#   ~/.agent-skills-setup when it ships no marker. Keeps two installed repos
+#   from sharing config.sh, installed.txt and a keychain prefix.
+#   install.sh needs this BEFORE the runtime lib exists, so it lives here (in
+#   the tree-side lib) rather than in lib/lib.sh.
+# ---------------------------------------------------------------------------
+skills_runtime_dir() {
+  local repo_dir="${1:-}" id=""
+  if [[ -n "$repo_dir" && -f "$repo_dir/.skills-repo-id" ]]; then
+    id=$(head -1 "$repo_dir/.skills-repo-id" | tr -d '[:space:]')
+  fi
+  echo "$HOME/.${id:-agent-skills-setup}"
+}
+
 download_file() {
   local url="$1" dest="$2"
   if command -v curl &>/dev/null; then
@@ -431,12 +447,13 @@ install_local_optional_skill() {
 
 # ---------------------------------------------------------------------------
 # install_runtime_dir <repo_dir>
-#   Create ~/.agent-skills-setup/ and copy runtime files (lib.sh, _store.sh)
+#   Create the runtime dir and copy runtime files (lib.sh, _store.sh, marker)
 #   into it. Idempotent.
 # ---------------------------------------------------------------------------
 install_runtime_dir() {
   local repo_dir="$1"
-  local rtdir="$HOME/.agent-skills-setup"
+  local rtdir
+  rtdir=$(skills_runtime_dir "$repo_dir")
   mkdir -p "$rtdir"
   cp -f "$repo_dir/lib/lib.sh" "$rtdir/lib.sh"
   cp -f "$repo_dir/scripts/credentials/_store.sh" "$rtdir/_store.sh"
@@ -458,7 +475,7 @@ install_runtime_dir() {
 
 # ---------------------------------------------------------------------------
 # record_installed <skill_name>
-#   Append a skill name to ~/.agent-skills-setup/installed.txt for offline
+#   Append a skill name to <runtime-dir>/installed.txt for offline
 #   uninstall. No-op if INSTALLED_LIST is unset.
 # ---------------------------------------------------------------------------
 record_installed() {
@@ -494,11 +511,11 @@ uninstall_npm_skill() {
 }
 
 # uninstall_github_skill <owner/repo> <skills-subpath> <target_dir>
-# Reads ~/.agent-skills-setup/installed.txt to know which skills to remove.
+# Reads <runtime-dir>/installed.txt to know which skills to remove.
 # Falls back to network re-fetch only if installed.txt is missing.
 uninstall_github_skill() {
   local repo="$1" subpath="$2" target_dir="$3"
-  local list="$HOME/.agent-skills-setup/installed.txt"
+  local list="$(skills_runtime_dir "${REPO_DIR:-}")/installed.txt"
 
   if [[ -f "$list" ]]; then
     local count=0

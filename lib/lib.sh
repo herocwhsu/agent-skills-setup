@@ -120,6 +120,23 @@ _skills_repo_id() {
 }
 
 # ---------------------------------------------------------------------------
+# _skills_runtime_dir
+#   Echo THIS runtime's own state dir. Two repos installed on one machine must
+#   not share config.sh, installed.txt, or a keychain prefix -- with one fixed
+#   path the second install overwrote the first's marker and its skills then
+#   resolved to the sibling's tree.
+#
+#   Derived from the marker beside this file (runtime dir) or its parent (when
+#   sourced from lib/ in the tree). No marker means a pre-marker host: fall back
+#   to the historical path so it keeps working.
+# ---------------------------------------------------------------------------
+_skills_runtime_dir() {
+  local id
+  id=$(_skills_repo_id "$_LIB_DIR" || _skills_repo_id "$_LIB_DIR/.." || true)
+  echo "$HOME/.${id:-agent-skills-setup}"
+}
+
+# ---------------------------------------------------------------------------
 # setup_repo_dir
 #   Echo the absolute path of THIS runtime's own working tree.
 #
@@ -197,11 +214,11 @@ fi
 
 # ---------------------------------------------------------------------------
 # load_config
-#   Source ~/.agent-skills-setup/config.sh into the current shell.
+#   Source <runtime-dir>/config.sh into the current shell.
 #   Print a clear hint and return 1 if missing.
 # ---------------------------------------------------------------------------
 load_config() {
-  local config="$HOME/.agent-skills-setup/config.sh"
+  local config="$(_skills_runtime_dir)/config.sh"
   if [[ ! -f "$config" ]]; then
     echo "ERROR: $config not found." >&2
     echo "  Run: bash scripts/setup-credentials.sh <service> add" >&2

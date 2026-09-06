@@ -1,7 +1,22 @@
 import shutil, os, time, sys
 from pathlib import Path
 
-BACKUP_DIR = Path(os.path.expanduser("~/.agent-skills-setup/backups/host-optimization"))
+
+def _repo_id(start: str) -> str:
+    """Repo id from the nearest .skills-repo-id at or above `start`.
+
+    Mirrors _skills_repo_id in lib/lib.sh. Two repos installed on one machine
+    must not share runtime state; absent a marker, keep the historical name.
+    """
+    d = Path(start).resolve()
+    for cand in (d, *d.parents):
+        marker = cand / ".skills-repo-id"
+        if marker.is_file():
+            return marker.read_text().split("\n")[0].strip() or "agent-skills-setup"
+    return "agent-skills-setup"
+
+
+BACKUP_DIR = Path(os.path.expanduser(f"~/.{_repo_id(__file__)}/backups/host-optimization"))
 
 
 def backup_file(path: str):
