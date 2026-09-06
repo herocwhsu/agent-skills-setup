@@ -3,10 +3,24 @@ from __future__ import annotations
 """Unit tests for polish.py — skip rules."""
 import os
 import subprocess
+
+import pytest
 import sys
 from pathlib import Path
 
 POLISH = Path(__file__).resolve().parents[1] / "lib" / "polish.py"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_home(monkeypatch, tmp_path):
+    """Keep state writes out of the real HOME (AGENTS.md: tests redirect HOME).
+
+    polish.py's default state dir is ~/.<repo-id>/state/polish-input, so without
+    this every case wrote debug.log and .engine-error-* markers into the user's
+    live runtime dir. Setting HOME rather than POLISH_STATE_DIR because run_polish
+    strips POLISH_* from the env it passes down.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
 
 
 def run_polish(stdin_text: str, env_overrides: dict | None = None) -> tuple[str, str, int]:

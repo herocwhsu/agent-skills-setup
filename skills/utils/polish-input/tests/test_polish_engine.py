@@ -13,10 +13,13 @@ sys.path.insert(0, str(LIB))
 
 
 @pytest.fixture(autouse=True)
-def _clean_env(monkeypatch):
+def _clean_env(monkeypatch, tmp_path):
     for k in list(os.environ):
         if k.startswith("POLISH_") or k.startswith("ANTHROPIC_"):
             monkeypatch.delenv(k, raising=False)
+    # Also redirect HOME: the engine's default state dir is ~/.<repo-id>/state/
+    # polish-input, so these cases were writing into the user's live runtime dir.
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
 
 
 def _install_fake_anthropic(monkeypatch, response_text=None, raises=None, blocks=None):

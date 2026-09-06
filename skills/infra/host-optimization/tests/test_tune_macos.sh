@@ -7,6 +7,14 @@ TUNE_MACOS="$SCRIPT_DIR/tune_macos.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
+# backup_macos() writes $HOME/.<repo-id>/backups/host-optimization/macos-defaults.sh
+# -- the file `--revert` restores from. Without redirecting HOME this test
+# regenerated the user's real backup: a no-op on an untuned host, but on a tuned
+# one it would capture post-tuning values as the originals and lose the revert
+# data. AGENTS.md requires tests to redirect HOME regardless.
+export HOME="$TMP/home"
+mkdir -p "$HOME"
+
 # Mocking defaults, killall, and sudo
 MOCK_BIN="$TMP/bin"
 mkdir -p "$MOCK_BIN"
