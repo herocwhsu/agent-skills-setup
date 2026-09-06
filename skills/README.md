@@ -45,6 +45,7 @@ Not part of the spec-gated workflow; these run on their own.
 |---|---|---|
 | [infra](infra/SKILL.md) | `kiro-gateway` `host-optimization` `apidog-mcp` `tmux-yank` `ups` | Local infrastructure behind Claude Code and Kiro workflows |
 | [utils](utils/SKILL.md) | `polish-input` `confluence-tree` `skill-eval` | Cross-cutting helpers that belong to no single gate |
+| [sre-migration](sre-migration/SKILL.md) | `scaffold` `draft` `lint` `ticket` | Scaffold a data-correction tool and gate its Migration Execution ticket before filing |
 | [ai-stack](ai-stack/SKILL.md) | `baml` `langgraph` `memu` `ai-hedge-fund` | Reference material for adding AI/LLM features to a service |
 | [experiment-iteration](experiment-iteration/SKILL.md) | — | Hypothesis → experiment → learning loops for exploratory work |
 
