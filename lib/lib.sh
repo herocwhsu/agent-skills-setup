@@ -254,13 +254,20 @@ require_secret() {
 
 # ---------------------------------------------------------------------------
 # migrate_keychain
-#   Rename keychain entries from agent-skills:* to agent-skills-setup:*.
+#   Rename keychain entries from agent-skills:* to this runtime's prefix.
 #   Idempotent: no-op and silent if all entries already use new prefix.
 #   Safe: only deletes old entry after new entry write succeeds.
 # ---------------------------------------------------------------------------
 migrate_keychain() {
-  local count=0 os
+  local count=0 os prefix
   os=$(uname -s)
+
+  # Destination prefix follows THIS runtime's identity, never a fixed name.
+  prefix="${_KEYCHAIN_PREFIX:-}"
+  if [[ -z "$prefix" ]]; then
+    prefix=$(_skills_repo_id "$_LIB_DIR" || _skills_repo_id "$_LIB_DIR/.." || true)
+    prefix="${prefix:-agent-skills-setup}"
+  fi
 
   case "$os" in
     Darwin)
@@ -278,7 +285,7 @@ print('\n'.join(out))
 
       while IFS=$'\t' read -r svc user; do
         [[ -z "$svc" ]] && continue
-        local newsvc="agent-skills-setup:${svc#agent-skills:}"
+        local newsvc="${prefix}:${svc#agent-skills:}"
         local pass
         pass=$(security find-generic-password -s "$svc" -a "$user" -w 2>/dev/null) || continue
         if security add-generic-password -s "$newsvc" -a "$user" -w "$pass" 2>/dev/null; then
@@ -294,6 +301,6 @@ print('\n'.join(out))
   esac
 
   if [[ $count -gt 0 ]]; then
-    echo "  ✓ migrated $count keychain entries: agent-skills: → agent-skills-setup:"
+    echo "  ✓ migrated $count keychain entries: agent-skills: → ${prefix}:"
   fi
 }
