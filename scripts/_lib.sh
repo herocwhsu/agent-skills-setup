@@ -202,13 +202,34 @@ install_skill() {
   record_installed "$name"
 }
 
-# Remove a single skill from a target skills dir (safe: only removes if it's
-# a symlink pointing into this repo, or a dir — never touches unrelated files)
-# Usage: remove_skill <skill_name> <skills_target_dir>
+# Remove a single skill from a target skills dir.
+# Usage: remove_skill <skill_name> <skills_target_dir> [repo_dir]
+#
+# A symlink is removed ONLY when it points into <repo_dir>/skills/. The comment
+# here used to claim that and the code did not check: it removed whatever sat at
+# the name. With two repos installed that share skill names, one repo's uninstall
+# deleted the other's live links -- confirmed by uninstalling agent-skills-setup
+# and finding we-skills' apidog link gone. Provenance is checked the same way
+# prune_dead_skill_links does it.
+#
+# A real directory carries no provenance (github/pip/npm entries are `cp -r`
+# copies, not links), so it is still removed on the caller's word. Two repos
+# installing the same upstream skill both claim that name; the content is
+# identical and the other repo can reinstall it.
 remove_skill() {
-  local name="$1" target_dir="$2"
-  local path="$target_dir/$name"
-  if [[ -L "$path" ]] || [[ -d "$path" ]]; then
+  local name="$1" target_dir="$2" repo_dir="${3:-${REPO_DIR:-}}"
+  local path="$target_dir/$name" target
+  if [[ -L "$path" ]]; then
+    if [[ -n "$repo_dir" ]]; then
+      target=$(readlink "$path")
+      if [[ "$target" != "$repo_dir"/skills/* ]]; then
+        echo "  skipped $name — installed from another tree ($target)" >&2
+        return 0
+      fi
+    fi
+    rm -f "$path"
+    echo "  ✓ removed $name"
+  elif [[ -d "$path" ]]; then
     rm -rf "$path"
     echo "  ✓ removed $name"
   fi
