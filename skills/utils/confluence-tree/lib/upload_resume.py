@@ -31,7 +31,7 @@ import cred_provider
 import attach
 import tempfile
 
-FETCH_DIR = Path("docs/confluence/2026-06-09-296989759")
+FETCH_DIR = Path(".")  # placeholder; main() sets it from --fetch-dir
 HOST = os.environ.get("CONFLUENCE_HOST", "")
 USER = os.environ.get("CONFLUENCE_USER", "")
 BASE = f"https://{HOST}/rest/api"
@@ -188,7 +188,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
         "--fetch-dir",
-        default="docs/confluence/2026-06-09-296989759",
+        required=True,
         help="Path to the fetch directory containing manifest.json and stub_map.json",
     )
     args = parser.parse_args()
