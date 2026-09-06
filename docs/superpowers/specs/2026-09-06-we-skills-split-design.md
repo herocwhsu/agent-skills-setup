@@ -64,8 +64,10 @@ new dir and then dies sourcing the old one:
 - Prefix definitions, 2 independent: `scripts/credentials/_store.sh:16`
   (`_KEYCHAIN_PREFIX`) and `:34` (`_FALLBACK_STORE`), plus
   `skills/utils/confluence-tree/lib/cred_provider.py:19` (a third, in Python).
-- Prefix literals, 13: `kiro-gateway.sh` (7), `polish_engine.py` (2),
-  `apidog-mcp/IMPL.md` (2), `kiro-gateway/README.md` (2). These bypass
+- Prefix literals, 13 in this repo: `kiro-gateway.sh` (7),
+  `kiro-gateway/README.md` (2), `polish_engine.py` (2), `apidog-mcp/IMPL.md` (2).
+  we-skills inherits only 4 of these, since it does not carry kiro-gateway.
+  These bypass
   `require_secret`/`read_secret`; left as literals in a copy they would read the
   *team* credential while sibling recipes read the personal one — a split-brain
   that fails silently.
@@ -126,6 +128,21 @@ values → env/config placeholders.
 ### Not carried
 
 - `sre-migration` — org SRE work.
+- `infra/kiro-gateway` — manages a Docker proxy built from a **patched personal
+  fork** (`README.md:8` requires SSH access to `git@github.com:herocwhsu/kiro-gateway.git`,
+  and the 3 patches apply only to that upstream). A public repo should not ship
+  tooling whose default target is a private fork. Removing it is not just
+  deleting `skills/infra/kiro-gateway/` (8 files, 3 of which carry a personal
+  email in `From:` headers) — it is a **subcommand of the `infra` skill**, so the
+  transform must also edit: `skills/infra/SKILL.md` (frontmatter description,
+  subcommand table, decision tree, state table, install-path notes),
+  `skills/README.md:46` (the infra row), `docs/migration.md`, and
+  `scripts/setup-credentials.sh:18,52` — a platform file that offers
+  `kiro-gateway` as credential menu option 6. Note that `kiro-gateway` is absent
+  from `service_def()` in `service.sh`: it stores its key directly via
+  `security add-generic-password` (`kiro-gateway.sh:101-102`) rather than through
+  the service table, so the menu entry and the table are already inconsistent in
+  this repo. Verify where option 6 routes before deleting it.
 - `migrate_keychain` (`lib/lib.sh:244`, called at `install.sh:68`) — renames a
   legacy `agent-skills:*` prefix to a hardcoded `agent-skills-setup:*`. The
   legacy entry count on this host is **0**, so it is dead code; in we-skills it
@@ -137,13 +154,40 @@ values → env/config placeholders.
   containing org data. Needs a synthetic replacement, and `.gitleaksignore`
   updated to match.
 
-### Open, to settle during planning
+### Confluence: what carries, and what each part provides
 
-`infra/kiro-gateway` (hardcoded to a personal fork; 3 patch files carry a
-personal email in `From:` headers) and `utils/confluence-tree` (built around one
-Confluence instance). Both are parameterizable rather than inherently internal.
-Confluence *credentials* carry either way, since `intake` fetches Confluence
-specs.
+`utils/confluence-tree` **is carried.** An earlier draft of this design called it
+"built around one Confluence instance" — that was wrong. It reads `CONFLUENCE_HOST`
+and `CONFLUENCE_USER` from `config.sh` throughout, and `charter.md:105` already
+forbids hardcoded URLs. The only instance-specific residue was two copies of a
+past migration job's page ID in `upload_resume.py`, fixed in `453e3f6`:
+`--fetch-dir` is now required with no default, matching `tree_fetch.py --out-dir`
+and `link_rewrite.py --out`.
+
+Read and write come from different skills, which matters if the scope ever
+narrows again:
+
+| Capability | Provider |
+|---|---|
+| Read a Confluence page | `intake/web-page` — its own `curl -u` against `/rest/api/content`, via `service_slug` + `require_secret`. `intake/` contains zero POST/PUT. |
+| Create / update / attach | `confluence-tree` only — every write in the repo lives here (`push.py:89`, `tree_upload.py:112,145`, `attach.py:89`, `upload_resume.py:87`) |
+
+So dropping confluence-tree would have cost writes and nothing else; carrying it
+keeps both. Credentials are unaffected either way — `service.sh` and the keychain
+entry are platform, not part of the skill.
+
+**Known limitation, carried as-is:** confluence-tree is documented self-hosted
+**Server/DC only** (`IMPL.md:3`, `README.md:11`, `charter.md:13`). `base_url()`
+prepends `https://` and callers append `/rest/api/...`; Confluence **Cloud**
+serves `/wiki/rest/api`, and there are zero `/wiki/rest` references in `skills/`.
+The only Confluence credential on this host is the team's self-hosted instance,
+while the personal Atlassian site (`dibts3.atlassian.net`) is Cloud. Passing
+`CONFLUENCE_HOST=<site>/wiki` would plausibly produce correct Cloud paths, since
+`base_url()` accepts a full base URL — but auth differs (Cloud wants email + API
+token, and the PAT-shape autodetect at `attach.py:52` may guess wrong) and
+several documented behaviors are Server-specific (`ac:structured-macro` → 501,
+unique-title-per-space). Untested against a live Cloud instance. Treat Cloud
+support as separate work, not part of this split.
 
 ---
 
