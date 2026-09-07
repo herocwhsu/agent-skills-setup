@@ -164,6 +164,21 @@ delete_credential() {
         && echo "  ✓ deleted from libsecret" \
         || echo "  (not found)"
       ;;
+    linux-file)
+      if [[ -f "$_FALLBACK_STORE" ]] && python3 -c "
+import json, os, sys
+p = os.path.expanduser('$_FALLBACK_STORE')
+d = json.load(open(p))
+if '$svc:$user' not in d:
+    sys.exit(1)
+del d['$svc:$user']
+json.dump(d, open(p, 'w'), indent=2)
+"; then
+        echo "  ✓ deleted from $_FALLBACK_STORE"
+      else
+        echo "  (not found)"
+      fi
+      ;;
     linux-headless)
       echo "  Nothing to delete (headless — no keychain)." ;;
   esac
@@ -192,6 +207,22 @@ for entry in sys.stdin.read().split('keychain:'):
       secret-tool search service "" 2>/dev/null \
         | grep "${_KEYCHAIN_PREFIX}:" \
         || echo "  (none)"
+      ;;
+    linux-file)
+      local out=""
+      if [[ -f "$_FALLBACK_STORE" ]]; then
+        out=$(python3 -c "
+import json, os
+p = os.path.expanduser('$_FALLBACK_STORE')
+PREFIX = '${_KEYCHAIN_PREFIX}:'
+for key in sorted(json.load(open(p))):
+    if not key.startswith(PREFIX):
+        continue
+    svc, _, acct = key.rpartition(':')
+    print('  ' + svc + '  [' + (acct or '<no account>') + ']')
+")
+      fi
+      [ -n "$out" ] && echo "$out" || echo "  (none)"
       ;;
     linux-headless)
       echo "  (headless — credentials injected via CI, not stored locally)" ;;
