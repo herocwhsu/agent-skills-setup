@@ -31,7 +31,10 @@ through the Model Context Protocol using your access token.
 
 ### Step 1 — Verify credentials
 
-The keychain entry stores email and token concatenated. Extract just the token:
+The keychain entry holds the account (your Apidog email) and the secret (the
+`adgp_...` token) in separate fields, as `setup-credentials.sh apidog add`
+writes them. Older entries stored the email prefixed onto the secret; the grep
+below tolerates both shapes:
 
 ```bash
 RAW=$(security find-generic-password -s "agent-skills-setup:apidog" -w 2>/dev/null) || {
@@ -39,7 +42,7 @@ RAW=$(security find-generic-password -s "agent-skills-setup:apidog" -w 2>/dev/nu
   exit 1
 }
 APIDOG_ACCESS_TOKEN=$(echo "$RAW" | grep -o 'adgp_[^[:space:]]*') || {
-  echo "ERROR: Could not extract token from keychain entry. Expected format: <email>adgp_<token>"
+  echo "ERROR: Could not extract token from keychain entry. Expected secret: adgp_<token>"
   exit 1
 }
 [[ -n "${APIDOG_PROJECT_ID:-}" ]] || {
@@ -111,7 +114,7 @@ each agent's settings file. The globally installed npm package can stay.
 
 | Variable | Source | Description |
 |---|---|---|
-| `APIDOG_ACCESS_TOKEN` | Keychain — extract with `grep -o 'adgp_[^[:space:]]*'` | Personal access token (`adgp_...`) from Apidog Settings |
+| `APIDOG_ACCESS_TOKEN` | Keychain secret — pass through `grep -o 'adgp_[^[:space:]]*'` so legacy `<email>adgp_<token>` entries also work | Personal access token (`adgp_...`) from Apidog Settings |
 | `APIDOG_PROJECT_ID` | `~/.agent-skills-setup/config.sh` | Default project ID |
 | `APIDOG_MODULES` | Optional, `config.sh` | JSON map of module names to IDs |
 
