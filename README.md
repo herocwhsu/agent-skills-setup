@@ -10,7 +10,21 @@ Installs:
 - **Claude Code plugins** (claude agent only) — [claude-hud](https://github.com/jarrodwatts/claude-hud) (statusline HUD), [trailofbits](https://github.com/trailofbits/skills) `differential-review` / `property-based-testing` / `static-analysis` (browse the other ~37 via `/plugin menu`)
 - **Optional Claude Code plugins** (not installed by default — see below) — [productivity + product-management](https://github.com/anthropics/knowledge-work-plugins), which each add several MCP servers (Jira/Confluence/Slack/Asana/Linear/Notion/ClickUp/Monday, or Amplitude/Figma/Fireflies/Intercom/Pendo/Similarweb) that require their own OAuth login
 
+The story flow these skills implement is documented in [Spec-Gated Workflow](#spec-gated-workflow) below.
+
 Supports: Kiro, Claude Code, Antigravity CLI, Codex CLI · macOS and Linux, x86_64 and arm64
+
+---
+
+## Requirements
+
+Python 3 is required at install time (used by `install-agents-md.sh` for block rewriting and by `install_kiro_agent_config` for JSON validation). It is also required at runtime for fetch/confluence/polish skills.
+
+The install script needs `bash` + one of `curl`/`wget` for downloading GitHub-sourced skills.
+
+`pip` is used to install superpowers if available; otherwise the script falls back to downloading directly from GitHub — no pip required.
+
+All scripts are bash; there is no PowerShell path. See [Platform Support](#platform-support).
 
 ---
 
@@ -52,6 +66,189 @@ NTFY_TOKEN=tk_xxx \
 ```
 
 Or run interactively and it will prompt for ntfy credentials (leave blank to skip notifications).
+
+---
+
+## Post-install: OpenSpec setup
+
+Two additional steps are required before `/opsx:propose` and other OpenSpec slash commands will work.
+
+**Step 1 — Initialize OpenSpec in each project:**
+```bash
+cd <your-project>
+openspec init
+```
+Creates a `.openspec/` directory and installs `/opsx:*` slash-command skills into `.claude/` (or equivalent for other agents). Run once per project.
+
+**Step 2 — Keep skills up to date:**
+```bash
+openspec update
+```
+Re-run after upgrading openspec to refresh the installed skills.
+
+> **Note:** Skills are installed per-project into `.claude/skills/` — not globally. Run `openspec init` in every project where you want `/opsx:*` commands. Restart your IDE after running either command.
+
+---
+
+## Uninstall
+
+```bash
+bash scripts/uninstall.sh                       # prompts for agents
+bash scripts/uninstall.sh --agent claude        # one agent
+bash scripts/uninstall.sh --agent claude,codex  # several
+bash scripts/uninstall.sh --agent all
+```
+
+Removes the skills this repo installed, driven from `registry.txt` — the
+same source `installed.txt` is built from.
+
+Hooks and the engineering-rules block are opt-in, and are left in place unless
+asked for:
+
+```bash
+bash scripts/uninstall.sh --with-hook polish-input --with-agents-md
+```
+
+`--with-hook <skill>` unwires that skill's hook and is repeatable;
+`--with-agents-md` strips the rules block via `install-agents-md.sh --uninstall`.
+
+A symlink is removed only when it points into **this** repo's `skills/`. Links
+installed from a sibling skills repo are left alone and reported, so uninstalling
+one repo cannot delete another's live links.
+
+---
+
+## Platform Support
+
+| Platform | Architecture | Status |
+|---|---|---|
+| Linux | x86_64, arm64 | Supported |
+| macOS | arm64 (Apple Silicon), x86_64 (Intel) | Supported |
+| Windows | — | **Not supported** (removed 2026-08-20) |
+
+Both architectures work without special handling: nothing here downloads an
+arch-specific binary (GitHub source archives and npm packages only), and every
+external tool is located with `command -v` rather than a hardcoded prefix, so
+Apple Silicon's `/opt/homebrew` and Intel's `/usr/local` both resolve normally.
+
+**Why Windows was removed.** It was carried as a parallel PowerShell
+implementation — `install.ps1`, `setup-credentials.ps1`, `credentials/_store.ps1`
+— that no test and no CI job ever executed on any machine. It had already
+diverged from the bash side: it never wrote `agent-selection.txt`, could not
+accept more than one agent, defaulted to a different agent on an invalid menu
+choice, and installed skills as **copies** rather than symlinks, so a skill
+dropped from `registry.txt` stayed behind as a working, unversioned duplicate
+that the agent would still load. Untested support that quietly does the wrong
+thing is worse than no support, so the scripts were deleted rather than left as
+a claim. `install.sh` and `uninstall.sh` now abort with a clear message on an
+unsupported OS instead of half-installing.
+
+To bring Windows back, the prerequisite is a `windows-latest` job in
+`.github/workflows/test.yml` that actually runs the installer.
+
+---
+
+## Supported Agents
+
+When prompted, choose one or more:
+
+| # | Agent | Skills directory | Custom skills | Notes |
+|---|---|---|---|---|
+| 1 | Kiro | `~/.kiro/skills/` | ✓ | Also installs prompts to `~/.kiro/prompts/` |
+| 2 | Claude Code | `~/.claude/skills/` | ✓ | |
+| 3 | Antigravity CLI | `~/.gemini/antigravity-cli/skills/` | ✓ | |
+| 4 | Codex CLI | `~/.codex/skills/` | ✓ | Skills only — no hook support (`~/.codex/config.toml` has no `settings.json` equivalent) |
+| 5 | All | all of the above | — | |
+
+### Choosing agents
+
+`--agent` takes one agent, a comma-separated list, or `all`:
+
+```bash
+bash scripts/install.sh --agent claude
+bash scripts/install.sh --agent claude,codex   # one host, several agents
+bash scripts/install.sh --agent all
+```
+
+The choice is written to `~/.agent-skills-setup/agent-selection.txt` and replayed
+by `update.sh`, so **it decides what future updates refresh** — the value is
+echoed at install time for that reason. It *replaces* the previous selection
+rather than adding to it, so a narrow re-run narrows all later updates.
+
+This mattered: the field previously held a single agent, so a claude+codex host
+refreshed only whichever was installed last and let the other go stale — 11
+weeks, in one case. A sibling bug compared the selection count against a literal
+`3`, so adding a fourth agent made `--agent all` record `kiro` instead.
+
+---
+
+## Scripts
+
+| Script | Platform | What it does |
+|---|---|---|
+| `scripts/install.sh` | macOS / Linux | Install superpowers + custom skills |
+| `scripts/uninstall.sh` | macOS / Linux | Remove installed skills |
+| `scripts/update.sh` | macOS / Linux | `git pull` + re-install |
+| `scripts/run-tests.sh` | macOS / Linux | Run all skill + script tests (`--fast` skips integration tests) |
+| `scripts/setup-credentials.sh` | macOS / Linux | Store service credentials in keychain |
+| `scripts/init-repo.sh` | macOS / Linux | Scaffold `.claude/hooks/` in another repo from the hook templates |
+
+**Pruning.** Installing is otherwise purely additive, and both `uninstall.sh` and
+`installed.txt` are driven from `registry.txt` — so a skill *dropped* from the
+registry was invisible to every code path and its symlink stayed behind forever.
+`install.sh` now removes broken links pointing into this repo before installing,
+reporting each one. It is deliberately narrow: only broken links whose target is
+inside the repo, never a real directory or a link of your own.
+
+**CI:** `.github/workflows/test.yml` runs on every push/PR to `main` — installs
+(`scripts/install.sh --agent claude`, non-interactive) then runs
+`scripts/run-tests.sh --fast` on a clean `ubuntu-latest` runner. No Renovate on this
+repo (no `renovate.json`); dependency-free bash scripts, nothing to bump.
+
+---
+
+## Credential Setup
+
+`setup-credentials.sh` manages credentials for multiple services. Passwords are stored in the platform keychain only — **never exported to env vars**.
+
+**Required Credentials by Skill:**
+
+| Group / Subcommand | Service | Required Key/Auth |
+|---|---|---|
+| `utils/polish-input` | **Gemini** / Anthropic | `GEMINI_API_KEY` (or Google ADC) / `ANTHROPIC_API_KEY` |
+| `linear` skill | **Linear** | Personal API key (Linear Settings → Security & access) |
+| `apidog` group | **Apidog** | `APIDOG_ACCESS_TOKEN` (`adgp_...`, Apidog Settings) + `APIDOG_PROJECT_ID` in `config.sh` |
+| `intake/web-page` | **Confluence** | REST API Token + User |
+| `intake/jira-story` | **Jira** | REST API Token + User |
+| `jira/subtasks` | **Jira** | (Uses same Jira credentials as above) |
+| `utils/confluence-tree` | **Confluence** | (Uses same Confluence credentials as above) |
+
+**Actions:** `add` · `update` · `delete` · `list` · `verify`
+
+**Example: Add Gemini key for polish-input:**
+```bash
+bash scripts/setup-credentials.sh gemini add
+```
+
+**Example: Add Anthropic key (alternative):**
+```bash
+bash scripts/setup-credentials.sh anthropic add
+```
+
+**Verify a credential is stored (safe — value never printed):**
+```bash
+bash scripts/setup-credentials.sh confluence verify
+```
+
+**Platform storage:**
+
+| Platform | Storage | Script |
+|---|---|---|
+| macOS | Keychain (`security`) | `setup-credentials.sh` |
+| Linux (GUI) | GNOME Keyring (`secret-tool`) | `setup-credentials.sh` |
+| Linux (headless/CI) | Inject via pipeline secret at use-time | — |
+
+All entries are namespaced `agent-skills-setup:<service>` to avoid collisions with system or browser keychain entries.
 
 ---
 
@@ -140,159 +337,6 @@ flowchart TD
 
     G8 --> Z([Shipped ✓])
 ```
-
-
-
-## Post-install: OpenSpec setup Two additional steps are required before `/opsx:propose` and other OpenSpec slash commands will work.
-
-**Step 1 — Initialize OpenSpec in each project:**
-```bash
-cd <your-project>
-openspec init
-```
-Creates a `.openspec/` directory and installs `/opsx:*` slash-command skills into `.claude/` (or equivalent for other agents). Run once per project.
-
-**Step 2 — Keep skills up to date:**
-```bash
-openspec update
-```
-Re-run after upgrading openspec to refresh the installed skills.
-
-> **Note:** Skills are installed per-project into `.claude/skills/` — not globally. Run `openspec init` in every project where you want `/opsx:*` commands. Restart your IDE after running either command.
-
----
-
-## Platform Support
-
-| Platform | Architecture | Status |
-|---|---|---|
-| Linux | x86_64, arm64 | Supported |
-| macOS | arm64 (Apple Silicon), x86_64 (Intel) | Supported |
-| Windows | — | **Not supported** (removed 2026-08-20) |
-
-Both architectures work without special handling: nothing here downloads an
-arch-specific binary (GitHub source archives and npm packages only), and every
-external tool is located with `command -v` rather than a hardcoded prefix, so
-Apple Silicon's `/opt/homebrew` and Intel's `/usr/local` both resolve normally.
-
-**Why Windows was removed.** It was carried as a parallel PowerShell
-implementation — `install.ps1`, `setup-credentials.ps1`, `credentials/_store.ps1`
-— that no test and no CI job ever executed on any machine. It had already
-diverged from the bash side: it never wrote `agent-selection.txt`, could not
-accept more than one agent, defaulted to a different agent on an invalid menu
-choice, and installed skills as **copies** rather than symlinks, so a skill
-dropped from `registry.txt` stayed behind as a working, unversioned duplicate
-that the agent would still load. Untested support that quietly does the wrong
-thing is worse than no support, so the scripts were deleted rather than left as
-a claim. `install.sh` and `uninstall.sh` now abort with a clear message on an
-unsupported OS instead of half-installing.
-
-To bring Windows back, the prerequisite is a `windows-latest` job in
-`.github/workflows/test.yml` that actually runs the installer.
-
----
-
-## Scripts
-
-| Script | Platform | What it does |
-|---|---|---|
-| `scripts/install.sh` | macOS / Linux | Install superpowers + custom skills |
-| `scripts/uninstall.sh` | macOS / Linux | Remove installed skills |
-| `scripts/update.sh` | macOS / Linux | `git pull` + re-install |
-| `scripts/run-tests.sh` | macOS / Linux | Run all skill + script tests (`--fast` skips integration tests) |
-| `scripts/setup-credentials.sh` | macOS / Linux | Store service credentials in keychain |
-| `scripts/init-repo.sh` | macOS / Linux | Scaffold `.claude/hooks/` in another repo from the hook templates |
-
-### Choosing agents
-
-`--agent` takes one agent, a comma-separated list, or `all`:
-
-```bash
-bash scripts/install.sh --agent claude
-bash scripts/install.sh --agent claude,codex   # one host, several agents
-bash scripts/install.sh --agent all
-```
-
-The choice is written to `~/.agent-skills-setup/agent-selection.txt` and replayed
-by `update.sh`, so **it decides what future updates refresh** — the value is
-echoed at install time for that reason. It *replaces* the previous selection
-rather than adding to it, so a narrow re-run narrows all later updates.
-
-This mattered: the field previously held a single agent, so a claude+codex host
-refreshed only whichever was installed last and let the other go stale — 11
-weeks, in one case. A sibling bug compared the selection count against a literal
-`3`, so adding a fourth agent made `--agent all` record `kiro` instead.
-
-**Pruning.** Installing is otherwise purely additive, and both `uninstall.sh` and
-`installed.txt` are driven from `registry.txt` — so a skill *dropped* from the
-registry was invisible to every code path and its symlink stayed behind forever.
-`install.sh` now removes broken links pointing into this repo before installing,
-reporting each one. It is deliberately narrow: only broken links whose target is
-inside the repo, never a real directory or a link of your own.
-
-**CI:** `.github/workflows/test.yml` runs on every push/PR to `main` — installs
-(`scripts/install.sh --agent claude`, non-interactive) then runs
-`scripts/run-tests.sh --fast` on a clean `ubuntu-latest` runner. No Renovate on this
-repo (no `renovate.json`); dependency-free bash scripts, nothing to bump.
-
----
-
-## Supported Agents
-
-When prompted, choose one or more:
-
-| # | Agent | Skills directory | Custom skills | Notes |
-|---|---|---|---|---|
-| 1 | Kiro | `~/.kiro/skills/` | ✓ | Also installs prompts to `~/.kiro/prompts/` |
-| 2 | Claude Code | `~/.claude/skills/` | ✓ | |
-| 3 | Antigravity CLI | `~/.gemini/antigravity-cli/skills/` | ✓ | |
-| 4 | Codex CLI | `~/.codex/skills/` | ✓ | Skills only — no hook support (`~/.codex/config.toml` has no `settings.json` equivalent) |
-| 5 | All | all of the above | — | |
-
----
-
-## Credential Setup
-
-`setup-credentials.sh` manages credentials for multiple services. Passwords are stored in the platform keychain only — **never exported to env vars**.
-
-**Required Credentials by Skill:**
-
-| Group / Subcommand | Service | Required Key/Auth |
-|---|---|---|
-| `utils/polish-input` | **Gemini** / Anthropic | `GEMINI_API_KEY` (or Google ADC) / `ANTHROPIC_API_KEY` |
-| `linear` skill | **Linear** | Personal API key (Linear Settings → Security & access) |
-| `apidog` group | **Apidog** | `APIDOG_ACCESS_TOKEN` (`adgp_...`, Apidog Settings) + `APIDOG_PROJECT_ID` in `config.sh` |
-| `intake/web-page` | **Confluence** | REST API Token + User |
-| `intake/jira-story` | **Jira** | REST API Token + User |
-| `jira/subtasks` | **Jira** | (Uses same Jira credentials as above) |
-| `utils/confluence-tree` | **Confluence** | (Uses same Confluence credentials as above) |
-
-**Actions:** `add` · `update` · `delete` · `list` · `verify`
-
-**Example: Add Gemini key for polish-input:**
-```bash
-bash scripts/setup-credentials.sh gemini add
-```
-
-**Example: Add Anthropic key (alternative):**
-```bash
-bash scripts/setup-credentials.sh anthropic add
-```
-
-**Verify a credential is stored (safe — value never printed):**
-```bash
-bash scripts/setup-credentials.sh confluence verify
-```
-
-**Platform storage:**
-
-| Platform | Storage | Script |
-|---|---|---|
-| macOS | Keychain (`security`) | `setup-credentials.sh` |
-| Linux (GUI) | GNOME Keyring (`secret-tool`) | `setup-credentials.sh` |
-| Linux (headless/CI) | Inject via pipeline secret at use-time | — |
-
-All entries are namespaced `agent-skills-setup:<service>` to avoid collisions with system or browser keychain entries.
 
 ---
 
@@ -405,6 +449,8 @@ Python syntax on every edit, plus registry validation, the test suite, and a sec
 scan on Stop. See [`hooks/README.md`](hooks/README.md) for the full template list and
 the tool inventory script.
 
+---
+
 ## Always-On Engineering Rules (AGENTS.md style)
 
 For cross-cutting rules that should be loaded **on every session** (not invoked on demand like a skill), use `agents/engineering-rules.md` and the `install-agents-md.sh` deploy script. The script writes the rules into a marked block inside each host file:
@@ -458,15 +504,3 @@ previous flat-skill layout.
 > (`~/.kiro/skills/intake/web-page/`, `~/.claude/skills/intake/web-page/`,
 > etc.), with a fallback to the legacy `fetch-page-to-markdown/` path for
 > previously installed agents.
-
----
-
-## Requirements
-
-Python 3 is required at install time (used by `install-agents-md.sh` for block rewriting and by `install_kiro_agent_config` for JSON validation). It is also required at runtime for fetch/confluence/polish skills.
-
-The install script needs `bash` + one of `curl`/`wget` for downloading GitHub-sourced skills.
-
-`pip` is used to install superpowers if available; otherwise the script falls back to downloading directly from GitHub — no pip required.
-
-All scripts are bash; there is no PowerShell path. See [Platform Support](#platform-support).
