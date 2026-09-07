@@ -261,6 +261,7 @@ When prompted, choose one or more:
 |---|---|---|
 | `utils/polish-input` | **Gemini** / Anthropic | `GEMINI_API_KEY` (or Google ADC) / `ANTHROPIC_API_KEY` |
 | `linear` skill | **Linear** | Personal API key (Linear Settings → Security & access) |
+| `apidog` group | **Apidog** | `APIDOG_ACCESS_TOKEN` (`adgp_...`, Apidog Settings) + `APIDOG_PROJECT_ID` in `config.sh` |
 | `intake/web-page` | **Confluence** | REST API Token + User |
 | `intake/jira-story` | **Jira** | REST API Token + User |
 | `jira/subtasks` | **Jira** | (Uses same Jira credentials as above) |
