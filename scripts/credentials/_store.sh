@@ -183,8 +183,8 @@ PREFIX = '${_KEYCHAIN_PREFIX}:'
 for entry in sys.stdin.read().split('keychain:'):
     svce = re.search(r'\"svce\"<blob>=\"([^\"]+)\"', entry)
     acct = re.search(r'\"acct\"<blob>=\"([^\"]+)\"', entry)
-    if svce and acct and svce.group(1).startswith(PREFIX):
-        print('  ' + svce.group(1) + '  [' + acct.group(1) + ']')
+    if svce and svce.group(1).startswith(PREFIX):
+        print('  ' + svce.group(1) + '  [' + (acct.group(1) if acct else '<no account>') + ']')
 ")
       [ -n "$out" ] && echo "$out" || echo "  (none)"
       ;;

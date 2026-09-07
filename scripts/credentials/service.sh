@@ -23,7 +23,7 @@ service_def() {
       echo "jira|Jira URL (e.g. https://your-org.atlassian.net)|JIRA_HOST|JIRA_USER|JIRA_PROJECT_KEY:Jira project key (e.g. VOR)"
       ;;
     apidog)
-      echo "apidog||APIDOG_HOST|APIDOG_USER|"
+      echo "apidog|||APIDOG_USER|"
       ;;
     anthropic)
       echo "anthropic|||ANTHROPIC_USER|"
