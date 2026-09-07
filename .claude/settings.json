@@ -51,6 +51,11 @@
           },
           {
             "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/credential-backend-guard.sh\"",
+            "statusMessage": "checking credential backends…"
+          },
+          {
+            "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/secret-scan.sh\"",
             "statusMessage": "secret scan…"
           },
@@ -84,6 +89,11 @@
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/skill-paths-guard.sh\"",
             "statusMessage": "checking skill paths…"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/credential-backend-guard.sh\"",
+            "statusMessage": "checking credential backends…"
           },
           {
             "type": "command",
