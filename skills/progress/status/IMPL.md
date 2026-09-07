@@ -60,18 +60,18 @@ command. Read-only — writes nothing.
 ## Output format
 
 ```
-Story: VOR-31324
-./docs/stories/VOR-31324-vortex-permission-migration/
+Story: EXAMPLE-100
+./docs/stories/EXAMPLE-100-add-camera-group-filter/
 
 [x] intake         story.md, intake-summary.md
 [x] audit          audit-report.md, domain-risk.md
-[x] openspec       vor-31324-vortex-permission-migration/proposal.md (approved)
+[x] openspec       example-100-add-camera-group-filter/proposal.md (approved)
 [ ] apidog         no contract.md yet
 [ ] testing-plan
 [ ] jira-subtasks
 [ ] release
 
-Next: /apidog-contract VOR-31324
+Next: /apidog-contract EXAMPLE-100
 ```
 
 If a story has no `openspec_changes` in its `intake-summary.md` frontmatter,

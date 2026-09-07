@@ -174,7 +174,7 @@ schema, because it reads as a guarantee.
 `<target>-correction-prod.json` in one tool, versus
 `<tool>/templates/<jira-id>/<env>-<target>-<action>.json` in the other. Per
 Rule 7 the scaffold emits the **env-prefix** form only, and the mixed form is
-flagged for deprecation rather than supported alongside it. VOR-33290 settled
+flagged for deprecation rather than supported alongside it. A prior migration ticket settled
 this in practice: its 11 new samples all use the env-prefix form, so the
 convention picked here is the one the repo converged on independently.
 

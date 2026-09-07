@@ -155,7 +155,7 @@ methods called directly from `internal/controller/{organizations,vortex}/*.go`:
 - `CanVortexToken` — HQ_PM (any), HQ_Sales/Region (same region only), Dealer (own company only)
 
 Verified at commit: 6eba17f18
-Source story: VOR-31324
+Source story: EXAMPLE-100
 
 ---
 ```
