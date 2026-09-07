@@ -127,6 +127,9 @@ read_credential_inline() {
     linux-gui)
       echo "secret-tool lookup service '${svc}' username '${user}' 2>/dev/null"
       ;;
+    linux-file)
+      echo "python3 -c \"import json, os; p = os.path.expanduser('${_FALLBACK_STORE}'); d = json.load(open(p)) if os.path.exists(p) else {}; print(d.get('${svc}:${user}', ''))\" 2>/dev/null"
+      ;;
     linux-headless)
       echo "echo \"\${CONFLUENCE_PASS:-}\"  # set via CI secret injection"
       ;;
