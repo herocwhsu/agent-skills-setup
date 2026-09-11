@@ -9,6 +9,7 @@ source "$REPO_DIR/scripts/_lib.sh"
 AGENT_ARG=""
 HOOK_SKILLS=()
 WITH_AGENTS_MD=0
+UPDATE_AGENTS=0
 PLUGIN_OPT_IN=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -26,6 +27,8 @@ while [[ $# -gt 0 ]]; do
       PLUGIN_OPT_IN+=("${1#*=}"); shift ;;
     --with-agents-md)
       WITH_AGENTS_MD=1; shift ;;
+    --update-agents)
+      UPDATE_AGENTS=1; shift ;;
     *)
       echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
@@ -156,6 +159,17 @@ if [[ $WITH_AGENTS_MD -eq 1 ]]; then
   echo ""
   echo "==> Deploying always-on engineering rules..."
   bash "$REPO_DIR/scripts/install-agents-md.sh"
+fi
+
+# Agent CLI versions. Report only unless --update-agents: a fresh install should
+# not silently upgrade a CLI out from under the person running it, and an upgrade
+# can carry breaking changes. update.sh applies these automatically instead.
+echo ""
+echo "==> Agent CLI versions..."
+if [[ $UPDATE_AGENTS -eq 1 ]]; then
+  bash "$REPO_DIR/scripts/update-agents.sh" --apply || true
+else
+  bash "$REPO_DIR/scripts/update-agents.sh" || true
 fi
 
 # Print post-install hints when openspec is registered.

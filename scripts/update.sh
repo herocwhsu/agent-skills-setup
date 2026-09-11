@@ -8,6 +8,18 @@ source "$REPO_DIR/scripts/_lib.sh"
 
 SELECTION_FILE="$(skills_runtime_dir "$REPO_DIR")/agent-selection.txt"
 
+# update.sh means "bring this machine current", so agent CLI updates apply here
+# rather than only being reported. --no-update-agents skips them for an offline or
+# CI run; the git pull above already needs the network, so this adds no new
+# requirement in the normal case.
+UPDATE_AGENTS=1
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-update-agents) UPDATE_AGENTS=0; shift ;;
+    *) echo "Unknown argument: $1" >&2; exit 1 ;;
+  esac
+done
+
 echo "==> Pulling latest changes..."
 if ! git -C "$REPO_DIR" pull --ff-only; then
   echo ""
@@ -26,7 +38,15 @@ fi
 
 echo ""
 echo "==> Re-installing skills..."
-bash "$REPO_DIR/scripts/install.sh" ${AGENT_ARG:+--agent "$AGENT_ARG"}
+INSTALL_ARGS=()
+[[ -n "$AGENT_ARG" ]] && INSTALL_ARGS+=(--agent "$AGENT_ARG")
+# Applied here rather than in a second pass of our own: install.sh already has the
+# agent step, and calling update-agents.sh again afterwards enumerated every CLI
+# twice -- once reported, once applied -- with the first pass immediately stale.
+# An array, not ${VAR:+...}: UPDATE_AGENTS holds 0 or 1, and 0 is non-empty, so
+# :+ would expand the flag when it is off.
+[[ $UPDATE_AGENTS -eq 1 ]] && INSTALL_ARGS+=(--update-agents)
+bash "$REPO_DIR/scripts/install.sh" ${INSTALL_ARGS[@]+"${INSTALL_ARGS[@]}"}
 
 # A wired hook command embeds an absolute skills path. Reinstalling can move that
 # path, leaving the command pointing at nothing -- the hook then stops firing with
