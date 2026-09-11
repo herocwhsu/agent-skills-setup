@@ -79,6 +79,49 @@ python3 "$CHECK" "$tree" "$TMP/stale.json" >/dev/null 2>&1 \
   && check "a wired-but-unresolvable path is reported" 1 0 \
   || check "a wired-but-unresolvable path is reported" 1 1
 
+# --- checker: wiring left over from a DIFFERENT skills repo ----------------
+# The case the first draft missed. Switching skills repos repoints the skills
+# symlinks, so a surviving wired command can name a skill the newly-installed
+# repo does not carry. Keying the check off this repo's own hook.json files found
+# nothing to match against, so the stale wiring read as clean.
+norepo="$TMP/norepo"
+mkdir -p "$norepo/skills/other/thing"          # ships no hook.json at all
+fakehome="$TMP/fakehome/.claude/skills/utils"
+mkdir -p "$fakehome"
+cat > "$TMP/foreign.json" <<JSON
+{"hooks":{"UserPromptSubmit":[{"hooks":[{"command":"python3 $TMP/fakehome/.claude/skills/utils/gone/lib/p.py"}]}]}}
+JSON
+set +e
+python3 "$CHECK" "$norepo" "$TMP/foreign.json" >"$TMP/foreign.out" 2>&1; foreign_rc=$?
+set -e
+check "wiring for a skill no repo ships is flagged" 1 "$foreign_rc"
+if grep -q "another skills repo" "$TMP/foreign.out"; then
+  echo "OK: the finding names the cross-repo cause"
+else
+  echo "FAIL: finding does not explain the cross-repo cause"
+  sed 's/^/      /' "$TMP/foreign.out"
+  fails=$((fails + 1))
+fi
+
+# Out of scope, deliberately: a hook may run an interpreter flag, a binary on
+# PATH, or a project-local script. Existence-checking those reports breakage
+# that is not there, so only paths inside an agent skills tree are judged.
+cat > "$TMP/projecthook.json" <<JSON
+{"hooks":{"PostToolUse":[{"hooks":[{"command":"bash $TMP/nowhere/.claude/hooks/gofmt-fix.sh"}]}]}}
+JSON
+set +e
+python3 "$CHECK" "$norepo" "$TMP/projecthook.json" >/dev/null 2>&1; proj_rc=$?
+set -e
+check "a hook outside any skills dir is not judged" 0 "$proj_rc"
+
+cat > "$TMP/varhook.json" <<'JSON'
+{"hooks":{"PostToolUse":[{"hooks":[{"command":"bash $CLAUDE_PROJECT_DIR/.claude/skills/x/y.sh"}]}]}}
+JSON
+set +e
+python3 "$CHECK" "$norepo" "$TMP/varhook.json" >/dev/null 2>&1; var_rc=$?
+set -e
+check "an unexpanded variable is not judged" 0 "$var_rc"
+
 # --- guard: blocks with exit 2, and for the right reason -------------------
 badtree=$(make_tree guardbad "$bad_event")
 set +e

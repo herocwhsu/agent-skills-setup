@@ -14,9 +14,15 @@ Repo side (always checked)
   - a command's target file does not exist in the tree
 
 Machine side (checked only for settings files that exist)
-  - a hook IS wired but its embedded skills path no longer resolves. Absence is
-    never a failure: wiring is opt-in via install.sh --with-hook, so a hook the
-    user never asked for is correctly missing.
+  - a hook IS wired under an agent skills dir but its target no longer resolves.
+    Judged by the path alone, NOT by whether this repo ships a matching hook.json:
+    switching between skills repos repoints the skills symlinks, so the surviving
+    wired command can name a skill the newly-installed repo does not carry. Keying
+    the check off this repo's own hook.json files missed exactly that case -- the
+    repo ships none, so there was nothing to match against and the stale wiring
+    read as clean. Absence is still never a failure: wiring is opt-in via
+    install.sh --with-hook, so a hook the user never asked for is correctly
+    missing.
 
 Exit 0 clean, 1 on any failure. Findings go to stdout.
 """
@@ -113,8 +119,20 @@ def check_repo(repo_dir: Path) -> tuple[list[str], dict[str, str]]:
     return findings, shipped
 
 
+def _under_skills_dir(target: str) -> bool:
+    """Is this target inside an agent's skills tree?
+
+    Every agent skills dir ends in /skills (~/.claude/skills, ~/.kiro/skills,
+    ~/.gemini/antigravity-cli/skills, ~/.codex/skills), so one path-segment test
+    covers all of them without enumerating agents here. The scope matters: a hook
+    may legitimately run an interpreter flag, a binary on PATH or a project-local
+    script, and existence-checking those would report breakage that isn't there.
+    """
+    return "/skills/" in target
+
+
 def check_settings(settings_path: Path, shipped: dict[str, str]) -> list[str]:
-    """A wired hook whose path no longer resolves. Absence is not a failure."""
+    """A hook wired to a path that no longer resolves. Absence is not a failure."""
     findings: list[str] = []
     if not settings_path.is_file():
         return findings
@@ -127,15 +145,34 @@ def check_settings(settings_path: Path, shipped: dict[str, str]) -> list[str]:
         for entry in entries or []:
             for cmd in _commands(entry):
                 target = _target(cmd)
-                for suffix in shipped:
-                    if not target.endswith(suffix):
-                        continue
-                    if not Path(target).is_file():
-                        findings.append(
-                            f"{settings_path}: {event} is wired to a path that no longer "
-                            f"resolves, so the hook silently never fires: {target}\n"
-                            f"    fix: bash scripts/update.sh (refreshes wired hook paths)"
-                        )
+                if not target or "$" in target:
+                    # An unexpanded variable (e.g. $CLAUDE_PROJECT_DIR) resolves
+                    # at run time, so this check cannot judge it either way.
+                    continue
+                if not _under_skills_dir(target):
+                    continue
+                if Path(target).expanduser().is_file():
+                    continue
+
+                hook_src = next(
+                    (src for suffix, src in shipped.items() if target.endswith(suffix)),
+                    None,
+                )
+                if hook_src:
+                    fix = "bash scripts/update.sh (refreshes wired hook paths)"
+                    why = f"{hook_src} ships this hook, but the wired path is stale"
+                else:
+                    fix = (
+                        "unwire it: python3 scripts/_settings_merge.py --remove <hook.json> "
+                        f"{settings_path}\n         or install the skills repo that provides it"
+                    )
+                    why = "no hook.json in this repo provides it, so it may be left over from another skills repo"
+                findings.append(
+                    f"{settings_path}: {event} is wired to a path that no longer resolves, "
+                    f"so the hook silently never fires: {target}\n"
+                    f"    {why}\n"
+                    f"    fix: {fix}"
+                )
     return findings
 
 
