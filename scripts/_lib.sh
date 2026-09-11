@@ -818,6 +818,43 @@ wire_hook() {
 }
 
 # ---------------------------------------------------------------------------
+# rewire_hooks <repo_dir> <agent_name>
+#   Refresh already-wired hook commands whose embedded skills path has drifted.
+#   Adds nothing: a hook absent from settings.json means the user never passed
+#   --with-hook, and that stays true. Only a stale path is rewritten.
+#
+#   Exists because a wired command embeds an absolute path. Move or reinstall the
+#   skills tree and the command still parses but resolves to nothing, so the hook
+#   silently stops firing -- and update.sh, which refreshes the symlinks, had no
+#   step that noticed. Idempotent.
+# ---------------------------------------------------------------------------
+rewire_hooks() {
+  local repo_dir="$1" agent="${2:-claude}"
+  local settings skills_dir
+
+  case "$agent" in
+    gemini)      settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
+    claude|kiro) settings="$HOME/.claude/settings.json" ;;
+    *)           return 0 ;;
+  esac
+
+  [[ -f "$settings" ]] || return 0
+
+  skills_dir=$(agent_skills_dir "$agent")
+  [[ -n "$skills_dir" ]] || return 0
+
+  local hook_path tmp_hook
+  while IFS= read -r hook_path; do
+    [[ -n "$hook_path" ]] || continue
+    tmp_hook=$(mktemp /tmp/hook-XXXXXX)
+    sed "s|\${AGENT_SKILLS_DIR}|${skills_dir}|g" "$hook_path" > "$tmp_hook"
+    python3 "$repo_dir/scripts/_settings_merge.py" --rewire "$tmp_hook" "$settings" \
+      --skills-dir "$skills_dir"
+    rm -f "$tmp_hook"
+  done < <(find "$repo_dir/skills" -maxdepth 3 -name "hook.json" 2>/dev/null)
+}
+
+# ---------------------------------------------------------------------------
 # unwire_hook <skill_name> <repo_dir> <agent_name>
 #   Remove a skill's hook entry from the agent's settings.json. Idempotent.
 # ---------------------------------------------------------------------------

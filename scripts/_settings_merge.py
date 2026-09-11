@@ -4,9 +4,17 @@
 Usage:
     _settings_merge.py --merge  hook.json settings.json
     _settings_merge.py --remove hook.json settings.json
+    _settings_merge.py --rewire hook.json settings.json --skills-dir DIR
 
 Operates only on top-level "hooks.<EventName>" arrays. Preserves all other keys
 and other event names. Idempotent. Creates settings.json if missing on --merge.
+
+--rewire refreshes an entry that is *already* present, and adds nothing. A hook
+command embeds an absolute skills path, so moving the skills tree leaves the
+wired command pointing at a path that no longer resolves; the hook then fails
+silently because nothing re-runs the wiring. Rewire matches an existing entry by
+its skill-relative suffix, so a stale prefix is recognised and replaced. Absence
+means the user never opted in, and stays absence.
 """
 
 import argparse
@@ -60,6 +68,48 @@ def merge(hook: dict, settings: dict) -> dict:
     return settings
 
 
+def _suffix(command: str, skills_dir: str) -> str | None:
+    """The skill-relative tail of a hook command, e.g. /utils/polish-input/lib/polish.py.
+
+    This is the part that survives the skills tree moving, so it is what
+    identifies "the same hook" across a path change.
+    """
+    i = command.find(skills_dir)
+    if i == -1:
+        return None
+    return command[i + len(skills_dir):]
+
+
+def rewire(hook: dict, settings: dict, skills_dir: str) -> tuple[dict, list]:
+    """Replace already-present entries whose path drifted. Never adds."""
+    changed = []
+    if "hooks" not in settings:
+        return settings, changed
+    skills_dir = skills_dir.rstrip("/")
+    for event, entries in hook.get("hooks", {}).items():
+        existing = settings["hooks"].get(event)
+        if not existing:
+            continue
+        for entry in entries:
+            for fresh in sorted(_entry_commands(entry)):
+                suffix = _suffix(fresh, skills_dir)
+                if not suffix:
+                    continue
+                for slot in existing:
+                    for stale in sorted(_entry_commands(slot)):
+                        if stale == fresh or not stale.endswith(suffix):
+                            continue
+                        # Same hook, different prefix: refresh in place so the
+                        # surrounding matcher and any sibling hooks are kept.
+                        if slot.get("command") == stale:
+                            slot["command"] = fresh
+                        for inner in slot.get("hooks", []) or []:
+                            if inner.get("command") == stale:
+                                inner["command"] = fresh
+                        changed.append((event, stale, fresh))
+    return settings, changed
+
+
 def remove(hook: dict, settings: dict) -> dict:
     if "hooks" not in settings:
         return settings
@@ -82,18 +132,30 @@ def main() -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--merge", action="store_true")
     group.add_argument("--remove", action="store_true")
+    group.add_argument("--rewire", action="store_true")
     parser.add_argument("hook_path", type=Path)
     parser.add_argument("settings_path", type=Path)
+    parser.add_argument("--skills-dir", default="")
     args = parser.parse_args()
+
+    if args.rewire and not args.skills_dir:
+        print("error: --rewire requires --skills-dir", file=sys.stderr)
+        return 2
 
     hook = json.loads(args.hook_path.read_text())
 
-    if args.remove and not args.settings_path.exists():
+    if (args.remove or args.rewire) and not args.settings_path.exists():
         return 0
 
     settings = load_settings(args.settings_path)
     if args.merge:
         settings = merge(hook, settings)
+    elif args.rewire:
+        settings, changed = rewire(hook, settings, args.skills_dir)
+        if not changed:
+            return 0
+        for event, stale, fresh in changed:
+            print(f"  rewired {event}: {stale} -> {fresh}")
     else:
         settings = remove(hook, settings)
 
