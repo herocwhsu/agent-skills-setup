@@ -88,6 +88,7 @@ You are an expert AI software engineer. You must adhere to the following 12 core
     4. **External dependency handling** — only if the story has an unresolved third-party/vendor dependency; document known vs unknown, generate a provisional contract, plan a mock provider so unrelated tasks aren't blocked (`external`)
     5. **Test plan** — define the test strategy before implementation (`testing`)
     6. **Jira sub-tasks + evidence** — create sub-tasks from the confirmed plan; before closing the story, verify every sub-task has the required evidence links (PR, CI, contract) — no evidence, no closure (`jira`)
+    7. **Release gate** — before closing the story, check release readiness (`release readiness`); after merge, verify the spec archive is complete (`release archive-check`, alongside `/opsx:archive` where OpenSpec applies); post-release issues go through `release triage`, which can produce a `release bugfix-spec` to restart the loop (`release`)
 
 *   **Process layer:** use the superpowers skills for the thinking steps rather than improvising them — brainstorming before design, `test-driven-development` while implementing, `verification-before-completion` before any claim that work is done. Gate 2's `audit-handoff` already invokes brainstorming.
 *   To check where a story currently stands in this list without re-deriving it from memory, run `/progress-status <STORY-ID>` — it reads the artifact files each gate already produces and reports what's done and what's next.
