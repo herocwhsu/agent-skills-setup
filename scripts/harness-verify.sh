@@ -47,6 +47,15 @@ run_gate "types"       "$HOOKS/types-guard.sh"
 run_gate "tests"       "$HOOKS/tests-guard.sh"
 run_gate "skill paths" "$HOOKS/skill-paths-guard.sh"
 run_gate "cred backends" "$HOOKS/credential-backend-guard.sh"
+# Passes the real settings.json as well as the tree: a hook wired to a path that
+# no longer resolves is invisible to the Stop hook by design, and this is where a
+# person asks the question deliberately.
+run_gate "hook wiring" "$HOOKS/hook-wiring-guard.sh"
+if ! out=$(python3 "$REPO_DIR/scripts/hook-wiring-check.py" "$REPO_DIR" \
+           "$HOME/.claude/settings.json" 2>&1); then
+  echo "  WARNING: a wired hook path no longer resolves:" >&2
+  printf '%s\n' "$out" >&2
+fi
 run_gate "secret scan" "$HOOKS/secret-scan.sh"
 
 echo ""
