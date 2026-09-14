@@ -224,6 +224,77 @@ else
   ok "is_plugin_opt_in false for non-requested plugin"
 fi
 
+# --- @ref pinning: owner/repo@ref fetches archive/<ref>.zip, not HEAD ------
+URL_LOG="$TMP/urls.log"
+download_file() {
+  echo "$1" >> "$URL_LOG"
+  local url="$1" dest="$2"
+  local reponame
+  reponame=$(echo "$url" | cut -d/ -f5)
+  if [[ -f "$FIXDIR/$reponame.zip" ]]; then
+    cp "$FIXDIR/$reponame.zip" "$dest"
+  else
+    return 1
+  fi
+}
+
+# --- Test 17: github-skill with @ref fetches that ref, not HEAD ---
+: > "$URL_LOG"
+install_github_single_skill "acme/multi-skills@deadbeef1234" "skills/alpha" "$TARGET" >/dev/null 2>&1
+if grep -qx "https://github.com/acme/multi-skills/archive/deadbeef1234.zip" "$URL_LOG"; then
+  ok "github-skill @ref fetches archive/<ref>.zip"
+else
+  bad "github-skill @ref fetches archive/<ref>.zip" "got: $(cat "$URL_LOG")"
+fi
+
+# --- Test 18: github-skill without @ref still fetches HEAD (unchanged) ---
+: > "$URL_LOG"
+install_github_single_skill "acme/multi-skills" "skills/alpha" "$TARGET" >/dev/null 2>&1
+if grep -qx "https://github.com/acme/multi-skills/archive/HEAD.zip" "$URL_LOG"; then
+  ok "github-skill without @ref still fetches HEAD"
+else
+  bad "github-skill without @ref still fetches HEAD" "got: $(cat "$URL_LOG")"
+fi
+
+# --- Test 19: github (multi-skill installer) with @ref fetches that ref ---
+: > "$URL_LOG"
+install_github_skill "acme/multi-skills@deadbeef1234" "skills" "$TMP/target-pinned" >/dev/null 2>&1
+if grep -qx "https://github.com/acme/multi-skills/archive/deadbeef1234.zip" "$URL_LOG"; then
+  ok "github @ref fetches archive/<ref>.zip"
+else
+  bad "github @ref fetches archive/<ref>.zip" "got: $(cat "$URL_LOG")"
+fi
+
+# --- Test 20: @ref does not leak into the installed skill name ---
+if [[ -f "$TARGET/alpha/SKILL.md" && ! -e "$TARGET/alpha@deadbeef1234" ]]; then
+  ok "@ref pin is stripped from the installed skill name"
+else
+  bad "@ref pin is stripped from the installed skill name" "unexpected entries under $TARGET"
+fi
+
+# --- Test 21: validator accepts a pinned github/github-skill entry ---
+GOOD_PIN="$TMP/registry-good-pin.txt"
+cat > "$GOOD_PIN" <<'EOF'
+github        obra/superpowers@b36e0829c6d0140e93cfef2ca599b1b07d4a7797  skills
+github-skill  anthropics/skills@34040c9c568585f6929bedeaad110ad08f079624  skills/webapp-testing
+EOF
+if REGISTRY_FILE="$GOOD_PIN" bash "$SCRIPTS_DIR/validate-registry.sh" >/dev/null 2>&1; then
+  ok "validator accepts pinned github/github-skill entries"
+else
+  bad "validator accepts pinned github/github-skill entries" "expected exit 0"
+fi
+
+# --- Test 22: validator still rejects a pinned entry missing owner/repo shape ---
+BAD_PIN="$TMP/registry-bad-pin.txt"
+cat > "$BAD_PIN" <<'EOF'
+github-skill  no-slash-repo@deadbeef  skills/x
+EOF
+if REGISTRY_FILE="$BAD_PIN" bash "$SCRIPTS_DIR/validate-registry.sh" >/dev/null 2>&1; then
+  bad "validator rejects malformed pinned entry" "expected nonzero exit"
+else
+  ok "validator rejects malformed pinned entry"
+fi
+
 echo ""
 echo "Results: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

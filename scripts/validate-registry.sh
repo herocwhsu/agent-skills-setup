@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # validate-registry.sh — sanity-check registry.txt entries:
 #   local            must have skills/<name>/SKILL.md
-#   github-skill     must be <owner/repo> <skill-path> [name]
+#   github           must be <owner/repo>[@ref] <skills-subpath>
+#   github-skill     must be <owner/repo>[@ref] <skill-path> [name]
 #   plugin           must be <owner/repo> <plugin-name> [marketplace-name]
 #   plugin-optional  same shape as plugin
 # Usage: bash scripts/validate-registry.sh
@@ -26,12 +27,23 @@ while IFS=' ' read -r type id arg3 arg4; do
     # local-optional entries are intentionally absent on some hosts — skip validation
     local-optional) continue ;;
     github-skill)
-      if [[ "$id" != */* ]]; then
-        echo "  ERROR: github-skill entry '$id' must be <owner>/<repo>" >&2
+      # Strip an optional @ref pin before checking owner/repo shape.
+      if [[ "${id%@*}" != */* ]]; then
+        echo "  ERROR: github-skill entry '$id' must be <owner>/<repo>[@ref]" >&2
         errors=$((errors + 1))
       fi
       if [[ -z "$arg3" ]]; then
         echo "  ERROR: github-skill entry '$id' is missing the skill path (use \".\" for repo root)" >&2
+        errors=$((errors + 1))
+      fi
+      ;;
+    github)
+      if [[ "${id%@*}" != */* ]]; then
+        echo "  ERROR: github entry '$id' must be <owner>/<repo>[@ref]" >&2
+        errors=$((errors + 1))
+      fi
+      if [[ -z "$arg3" ]]; then
+        echo "  ERROR: github entry '$id' is missing the skills subpath" >&2
         errors=$((errors + 1))
       fi
       ;;

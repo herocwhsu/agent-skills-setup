@@ -294,15 +294,19 @@ install_npm_skill() {
   echo "  ✓ $pkg (npm package installed/updated)"
 }
 
-# install_github_skill <owner/repo> <skills-subpath> <target_dir>
+# install_github_skill <owner/repo[@ref]> <skills-subpath> <target_dir>
+#   [@ref] pins to a commit SHA, tag, or branch instead of the mutable default
+#   branch. Omit it to keep tracking HEAD (pre-existing behavior, unchanged).
 install_github_skill() {
-  local repo="$1" subpath="$2" target_dir="$3"
+  local repo_ref="$1" subpath="$2" target_dir="$3"
+  local repo="${repo_ref%@*}" ref="HEAD"
+  [[ "$repo_ref" == *@* ]] && ref="${repo_ref##*@}"
   local reponame="${repo##*/}"
   local zip extract branch_dir
   zip=$(mktemp /tmp/agent-skills-XXXXXX)
   extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
 
-  download_file "https://github.com/${repo}/archive/HEAD.zip" "$zip" || {
+  download_file "https://github.com/${repo}/archive/${ref}.zip" "$zip" || {
     rm -f "$zip"; rm -rf "$extract"; return 1
   }
   unzip -q "$zip" -d "$extract"
@@ -340,14 +344,18 @@ install_github_skill() {
   echo "  ✓ $repo ($count skills)"
 }
 
-# install_github_single_skill <owner/repo> <skill-path> <target_dir> [name]
+# install_github_single_skill <owner/repo[@ref]> <skill-path> <target_dir> [name]
 #   Install exactly one skill directory from a GitHub repo (vs.
 #   install_github_skill, which installs every dir under the subpath).
 #   <skill-path> is the skill dir inside the repo; "." means the repo root
 #   itself is the skill. [name] overrides the installed dir name; defaults
 #   to basename of <skill-path>, or the repo name when skill-path is ".".
+#   [@ref] on the repo pins to a commit SHA, tag, or branch instead of the
+#   mutable default branch. Omit it to keep tracking HEAD (unchanged).
 install_github_single_skill() {
-  local repo="$1" skill_path="$2" target_dir="$3" name="${4:-}"
+  local repo_ref="$1" skill_path="$2" target_dir="$3" name="${4:-}"
+  local repo="${repo_ref%@*}" ref="HEAD"
+  [[ "$repo_ref" == *@* ]] && ref="${repo_ref##*@}"
   local reponame="${repo##*/}"
 
   if [[ -z "$name" ]]; then
@@ -362,7 +370,7 @@ install_github_single_skill() {
   zip=$(mktemp /tmp/agent-skills-XXXXXX)
   extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
 
-  download_file "https://github.com/${repo}/archive/HEAD.zip" "$zip" || {
+  download_file "https://github.com/${repo}/archive/${ref}.zip" "$zip" || {
     rm -f "$zip"; rm -rf "$extract"; return 1
   }
   unzip -q "$zip" -d "$extract"
@@ -581,11 +589,13 @@ uninstall_npm_skill() {
   fi
 }
 
-# uninstall_github_skill <owner/repo> <skills-subpath> <target_dir>
+# uninstall_github_skill <owner/repo[@ref]> <skills-subpath> <target_dir>
 # Reads <runtime-dir>/installed.txt to know which skills to remove.
 # Falls back to network re-fetch only if installed.txt is missing.
 uninstall_github_skill() {
-  local repo="$1" subpath="$2" target_dir="$3"
+  local repo_ref="$1" subpath="$2" target_dir="$3"
+  local repo="${repo_ref%@*}" ref="HEAD"
+  [[ "$repo_ref" == *@* ]] && ref="${repo_ref##*@}"
   local list="$(skills_runtime_dir "${REPO_DIR:-}")/installed.txt"
 
   if [[ -f "$list" ]]; then
@@ -608,7 +618,7 @@ uninstall_github_skill() {
   zip=$(mktemp /tmp/agent-skills-XXXXXX)
   extract=$(mktemp -d /tmp/agent-skills-extract-XXXXXX)
 
-  download_file "https://github.com/${repo}/archive/HEAD.zip" "$zip" || {
+  download_file "https://github.com/${repo}/archive/${ref}.zip" "$zip" || {
     echo "  WARNING: could not fetch $repo; skipping uninstall." >&2
     rm -f "$zip"; rm -rf "$extract"; return 0
   }
@@ -631,10 +641,11 @@ uninstall_github_skill() {
   echo "  ✓ $repo ($count skills removed via fallback)"
 }
 
-# uninstall_github_single_skill <owner/repo> <skill-path> <target_dir> [name]
+# uninstall_github_single_skill <owner/repo[@ref]> <skill-path> <target_dir> [name]
 #   Removes the single skill by its resolved name — no network needed.
 uninstall_github_single_skill() {
-  local repo="$1" skill_path="$2" target_dir="$3" name="${4:-}"
+  local repo_ref="$1" skill_path="$2" target_dir="$3" name="${4:-}"
+  local repo="${repo_ref%@*}"
   local reponame="${repo##*/}"
   if [[ -z "$name" ]]; then
     if [[ "$skill_path" == "." ]]; then

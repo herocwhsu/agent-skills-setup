@@ -6,10 +6,14 @@
 #   local           <skill-name>      — skill in this repo under skills/<skill-name>/
 #   local-optional  <skill-name>      — like local, but silently skipped if dir is absent
 #   npm             <package-name>    — install via npm install -g
-#   github          <owner/repo> <skills-subpath>  — install EVERY dir under subpath as a skill
-#   github-skill    <owner/repo> <skill-path> [name]
+#   github          <owner/repo[@ref]> <skills-subpath>  — install EVERY dir under subpath as a skill
+#   github-skill    <owner/repo[@ref]> <skill-path> [name]
 #                                     — install exactly ONE skill dir; "." = repo root is the
 #                                       skill; [name] overrides the installed dir name
+#   [@ref] on github/github-skill pins to a commit SHA, tag, or branch instead
+#   of the mutable default branch (HEAD). Bumping a pin is a deliberate,
+#   reviewable registry.txt edit rather than something that happens on every
+#   install.sh/update.sh run. Omit @ref to keep tracking HEAD.
 #   plugin          <owner/repo> <plugin-name> [marketplace-name]
 #                                     — Claude Code plugin via `claude plugin` CLI (skipped for
 #                                       other agents); marketplace-name defaults to repo name
@@ -29,14 +33,17 @@
 #   plugin        anthropics/knowledge-work-plugins productivity
 #   plugin-optional anthropics/knowledge-work-plugins productivity
 
-github obra/superpowers skills
+# Pinned 2026-09-14 to the commit that was current at the time. Bump
+# deliberately (git ls-remote <repo> HEAD, review the diff, edit here) —
+# not something that should happen implicitly on every install.sh run.
+github obra/superpowers@b36e0829c6d0140e93cfef2ca599b1b07d4a7797 skills
 
 npm    @fission-ai/openspec
 
-# External skills
-github-skill  anthropics/skills  skills/webapp-testing
-github        mattjoyce/kanban-skill  skills
-github-skill  wrsmith108/linear-claude-skill  .  linear
+# External skills — pinned 2026-09-14, same policy as above
+github-skill  anthropics/skills@34040c9c568585f6929bedeaad110ad08f079624  skills/webapp-testing
+github        mattjoyce/kanban-skill@b86a6ec721c4ef4856117bf59b32dea9c780ac88  skills
+github-skill  wrsmith108/linear-claude-skill@d61cd9ad05f1863a421d891d9319ec2405904488  .  linear
 
 # Claude Code plugins (claude agent only; needs claude CLI)
 plugin  jarrodwatts/claude-hud  claude-hud

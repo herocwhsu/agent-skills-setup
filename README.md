@@ -378,11 +378,11 @@ skills/<group>/
 External sources go in `registry.txt` too:
 
 ```
-# every dir under the subpath becomes a skill
-github        obra/superpowers  skills
+# every dir under the subpath becomes a skill — pinned to a commit SHA
+github        obra/superpowers@b36e0829c6d0140e93cfef2ca599b1b07d4a7797  skills
 
-# exactly one skill out of a multi-skill repo
-github-skill  anthropics/skills  skills/webapp-testing
+# exactly one skill out of a multi-skill repo — also pinnable
+github-skill  anthropics/skills@34040c9c568585f6929bedeaad110ad08f079624  skills/webapp-testing
 
 # repo root IS the skill — optional last field renames it
 github-skill  wrsmith108/linear-claude-skill  .  linear
@@ -402,6 +402,17 @@ plugin-optional  anthropics/knowledge-work-plugins  product-management
 don't want). `plugin` entries run `claude plugin marketplace add` +
 `claude plugin install` and require the `claude` CLI — they are skipped with
 a notice for other agents or when the CLI is absent.
+
+**Pinning (`@ref`)** — `github` and `github-skill` entries fetch
+`archive/HEAD.zip` by default, so a plain `owner/repo` always tracks the
+upstream default branch and re-installing (`install.sh`/`update.sh`) silently
+picks up whatever landed there since. Append `@<ref>` to the repo
+(`owner/repo@<sha-or-tag-or-branch>`) to pin instead — the installer fetches
+`archive/<ref>.zip`. A commit SHA is the most reproducible choice. Bumping a
+pin is a deliberate `registry.txt` edit (check `git ls-remote <repo> HEAD`,
+review what changed, update the SHA) rather than something that happens on
+its own. Every external entry here ships pinned; omit `@ref` only if you
+want a repo to always track its default branch.
 
 **`plugin-optional`** is the same as `plugin`, but skipped by default —
 useful for plugins that add MCP servers with their own OAuth login (Jira,
