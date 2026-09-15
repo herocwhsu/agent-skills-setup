@@ -5,8 +5,19 @@ repo *ships* live in `agents/engineering-rules.md` and are installed into host
 files by `scripts/install-agents-md.sh` — editing that file changes every agent on
 the machine, not just work done here.
 
-Everything below cost a real incident. Nothing here restates what `ls`, `README.md`,
-or the code already tells you.
+Everything below the next two sections cost a real incident. The startup workflow
+and definition of done are the exception — added proactively, not from a specific
+failure, once `feature_list.json`/`progress.md` existed to route to.
+
+## Startup Workflow
+
+Before writing code:
+
+1. Read this file completely.
+2. Read `feature_list.json` for current feature status.
+3. Read `progress.md` for what's done, in progress, and next.
+4. Run `./init.sh` (delegates to `scripts/harness-verify.sh`) to confirm the repo
+   is in a clean, verifiable state before adding scope.
 
 ## Verify
 
@@ -17,6 +28,22 @@ bash scripts/run-tests.sh --fast   # tests only (skips RUN_INTEGRATION=1 cases)
 
 Run `harness-verify.sh` before claiming work is done. The same gates run as Stop
 hooks, so skipping it only defers the failure.
+
+## Definition of Done
+
+A change is done only when `./init.sh` passes — not when it looks right. If a gate
+is already failing for an unrelated reason, check `feature_list.json` for a
+tracked, pre-existing failure before assuming you broke it. Don't claim done
+until either it's fixed or you've stated explicitly that it's a known, unrelated
+gap.
+
+## End of Session
+
+Before ending a session:
+
+- Update `progress.md` with what's done, in progress, and next.
+- Update `feature_list.json` with new feature status and evidence.
+- The state of the repo — not chat history — is what the next session reads.
 
 ## Target shell is bash 3.2, not bash 5
 
@@ -81,7 +108,7 @@ result, so adding one would change a Stop hook as a side effect of a typing choi
 Use `ast.parse` rather than `py_compile` to syntax-check — `py_compile` litters
 `__pycache__` beside every file it touches.
 
-## Boundaries
+## Boundaries (scope)
 
 - Never point `init-repo.sh` at this repo; it overwrites `.claude/hooks/`.
 - Tests must redirect `HOME` to a temp dir. Several scripts write to `~/.claude`,

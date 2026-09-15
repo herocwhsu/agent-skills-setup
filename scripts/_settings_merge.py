@@ -82,7 +82,7 @@ def _suffix(command: str, skills_dir: str) -> str | None:
 
 def rewire(hook: dict, settings: dict, skills_dir: str) -> tuple[dict, list]:
     """Replace already-present entries whose path drifted. Never adds."""
-    changed = []
+    changed: list[tuple[str, str, str]] = []
     if "hooks" not in settings:
         return settings, changed
     skills_dir = skills_dir.rstrip("/")

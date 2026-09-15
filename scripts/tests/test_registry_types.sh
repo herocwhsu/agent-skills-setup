@@ -295,6 +295,46 @@ else
   ok "validator rejects malformed pinned entry"
 fi
 
+# --- @ref pinning on uninstall: the pin must not leak into the resolved name -
+# uninstall_github_single_skill derives its default name from skill-path (or
+# reponame for "."), both computed from repo_ref with @ref already stripped.
+# uninstall_github_skill's fallback path (installed.txt missing) strips @ref
+# the same way before matching the extracted "<reponame>-*" dir; if the ref
+# leaked through, that match would fail silently and nothing would be removed.
+
+# --- Test 23: uninstall_github_single_skill resolves name with an @ref pin ---
+# Uses skill_path "." deliberately: the resolved default name then comes from
+# reponame ("${repo##*/}"), which is only correct if repo_ref's @ref was
+# actually stripped first. A skill_path like "skills/alpha" would resolve to
+# "alpha" via basename() regardless of repo_ref, so it can't catch a broken
+# strip — this caught exactly that gap in an earlier draft of this test.
+mkdir -p "$TARGET/multi-skills"; echo "root skill" > "$TARGET/multi-skills/SKILL.md"
+uninstall_github_single_skill "acme/multi-skills@deadbeef1234" "." "$TARGET" >/dev/null
+if [[ ! -e "$TARGET/multi-skills" ]]; then
+  ok "uninstall_github_single_skill resolves name with @ref pin"
+else
+  bad "uninstall_github_single_skill resolves name with @ref pin" "multi-skills still present in $TARGET"
+fi
+
+# --- Test 24: uninstall_github_skill fallback resolves @ref for both the
+# fetch URL and the extracted-dir match, and actually removes the skills ---
+UNINSTALL_TARGET="$TMP/target-uninstall-pinned"
+mkdir -p "$UNINSTALL_TARGET/alpha" "$UNINSTALL_TARGET/beta"
+echo "alpha skill" > "$UNINSTALL_TARGET/alpha/SKILL.md"
+echo "beta skill"  > "$UNINSTALL_TARGET/beta/SKILL.md"
+FAKE_REPO_DIR="$TMP/fake-repo-no-installed-list"
+mkdir -p "$FAKE_REPO_DIR"
+echo "registry-types-test-$$" > "$FAKE_REPO_DIR/.skills-repo-id"
+: > "$URL_LOG"
+out=$(REPO_DIR="$FAKE_REPO_DIR" uninstall_github_skill "acme/multi-skills@deadbeef1234" "skills" "$UNINSTALL_TARGET" 2>&1)
+if grep -qx "https://github.com/acme/multi-skills/archive/deadbeef1234.zip" "$URL_LOG" \
+   && [[ ! -e "$UNINSTALL_TARGET/alpha" && ! -e "$UNINSTALL_TARGET/beta" ]]; then
+  ok "uninstall_github_skill fallback resolves @ref for fetch and dir match"
+else
+  bad "uninstall_github_skill fallback resolves @ref for fetch and dir match" \
+      "urls: $(cat "$URL_LOG"); out: $out; target: $(ls "$UNINSTALL_TARGET" 2>/dev/null)"
+fi
+
 echo ""
 echo "Results: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

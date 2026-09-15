@@ -1,0 +1,34 @@
+{
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "Pin external skill sources to a commit SHA",
+      "description": "github/github-skill registry entries fetched archive/HEAD.zip unconditionally, so every install.sh/update.sh run silently picked up whatever landed on the upstream default branch. Added optional owner/repo@ref pinning in scripts/_lib.sh; pinned superpowers, webapp-testing, kanban-skill, and linear to a specific commit in registry.txt.",
+      "status": "done",
+      "evidence": "commit 5b023f3 on main. scripts/run-tests.sh --fast: 52 passed, 0 failed, including scripts/tests/test_registry_types.sh (24 cases covering @ref parsing, HEAD fallback, and validator acceptance/rejection)."
+    },
+    {
+      "id": "feat-002",
+      "name": "Suppress Claude Code attribution trailers repo-wide",
+      "description": "Set attribution.commit and attribution.pr to empty strings in .claude/settings.json so commits and PR descriptions authored in this repo never carry a Co-Authored-By or Generated-with trailer, regardless of any session-level default.",
+      "status": "done",
+      "evidence": "commit 5b023f3 on main. jq -e '.attribution' .claude/settings.json returns {\"commit\": \"\", \"pr\": \"\"}."
+    },
+    {
+      "id": "feat-003",
+      "name": "Fix mypy type-annotation error in scripts/_settings_merge.py",
+      "description": "scripts/_settings_merge.py:85 — mypy: \"Need type annotation for 'changed'\". Pre-existing (introduced in b420ae3, well before this feature list existed); surfaced when init.sh (this harness's verification entrypoint) was run for the first time. Blocks the types-guard.sh Stop hook and scripts/harness-verify.sh from passing clean.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "Annotated `changed: list[tuple[str, str, str]] = []` (matches the 3-tuples appended at line 109). `python3 -m mypy --config-file mypy.ini .` -> Success: no issues found in 27 source files. `bash init.sh` -> all 7 gates (registry, types, tests, skill paths, cred backends, hook wiring, secret scan) pass."
+    },
+    {
+      "id": "feat-004",
+      "name": "Verification-gap exercise: 5 independently-checked cleanup tasks",
+      "description": "Dispatched 5 bounded cleanup tasks to isolated-worktree subagents and independently re-verified each claim. 2 produced real diffs (README @ref consistency fix; a corrected uninstall @ref test that a second-opinion review + mutation testing caught passing regardless of whether the feature it tested actually worked). Full writeup: docs/harness-creator/lecture-01/progress-detail.md.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "Both real diffs (README.md @ref fix; scripts/tests/test_registry_types.sh Test 23 rewritten, Test 24 added) merged into main. `bash scripts/run-tests.sh --fast` -> 52 passed, 0 failed."
+    }
+  ]
+}

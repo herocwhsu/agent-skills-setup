@@ -51,6 +51,7 @@ run_gate "cred backends" "$HOOKS/credential-backend-guard.sh"
 # no longer resolves is invisible to the Stop hook by design, and this is where a
 # person asks the question deliberately.
 run_gate "hook wiring" "$HOOKS/hook-wiring-guard.sh"
+run_gate "state layer" "$HOOKS/state-layer-guard.sh"
 if ! out=$(python3 "$REPO_DIR/scripts/hook-wiring-check.py" "$REPO_DIR" \
            "$HOME/.claude/settings.json" 2>&1); then
   echo "  WARNING: a wired hook path no longer resolves:" >&2

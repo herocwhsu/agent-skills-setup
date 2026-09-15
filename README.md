@@ -385,7 +385,7 @@ github        obra/superpowers@b36e0829c6d0140e93cfef2ca599b1b07d4a7797  skills
 github-skill  anthropics/skills@34040c9c568585f6929bedeaad110ad08f079624  skills/webapp-testing
 
 # repo root IS the skill — optional last field renames it
-github-skill  wrsmith108/linear-claude-skill  .  linear
+github-skill  wrsmith108/linear-claude-skill@d61cd9ad05f1863a421d891d9319ec2405904488  .  linear
 
 # Claude Code plugin — installed via the claude CLI, skipped for Kiro/Gemini/Codex
 plugin        anthropics/knowledge-work-plugins  productivity
