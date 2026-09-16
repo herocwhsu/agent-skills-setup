@@ -57,6 +57,10 @@ def _entry_commands(entry: dict) -> set:
 
 
 def merge(hook: dict, settings: dict) -> dict:
+    if "env" in hook and isinstance(hook["env"], dict):
+        env_settings = settings.setdefault("env", {})
+        for k, v in hook["env"].items():
+            env_settings[k] = v
     settings.setdefault("hooks", {})
     for event, entries in hook.get("hooks", {}).items():
         existing = settings["hooks"].setdefault(event, [])
@@ -66,6 +70,7 @@ def merge(hook: dict, settings: dict) -> dict:
                 existing.append(entry)
                 existing_cmds |= _entry_commands(entry)
     return settings
+
 
 
 def _suffix(command: str, skills_dir: str) -> str | None:
@@ -111,6 +116,11 @@ def rewire(hook: dict, settings: dict, skills_dir: str) -> tuple[dict, list]:
 
 
 def remove(hook: dict, settings: dict) -> dict:
+    if "env" in hook and isinstance(hook["env"], dict) and "env" in settings and isinstance(settings["env"], dict):
+        for k in hook["env"]:
+            settings["env"].pop(k, None)
+        if not settings["env"]:
+            del settings["env"]
     if "hooks" not in settings:
         return settings
     for event, entries in hook.get("hooks", {}).items():
@@ -125,6 +135,7 @@ def remove(hook: dict, settings: dict) -> dict:
     if not settings["hooks"]:
         del settings["hooks"]
     return settings
+
 
 
 def main() -> int:

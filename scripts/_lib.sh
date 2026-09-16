@@ -754,16 +754,6 @@ wire_hook() {
   local skill="$1" repo_dir="$2" agent="${3:-claude}"
   local hook_path settings
 
-  # polish-input is unsupported on gemini (Antigravity CLI). Its OAuth
-  # subscription token can only be spent through the agy agent loop, not a
-  # text-in/text-out endpoint: the public Generative Language API rejects the
-  # token (403 insufficient scope) and cloudcode-pa returns 403
-  # SUBSCRIPTION_REQUIRED (#3501, enterprise-license-gated). With no reachable
-  # low-latency backend the hook would only ever fail open, so skip wiring it.
-  if [[ "$skill" == "polish-input" && "$agent" == "gemini" ]]; then
-    echo "  polish-input unsupported on gemini (no reachable low-latency backend) — skipped" >&2
-    return 0
-  fi
 
   # Codex has no settings.json hook mechanism at all — it configures via
   # ~/.codex/config.toml, which has no equivalent of Claude Code's hook events.
@@ -796,9 +786,12 @@ wire_hook() {
   fi
 
   if [[ "$skill" == "polish-input" ]]; then
-    # Only non-gemini agents reach here (gemini+polish-input is skipped above),
-    # so the required SDK is always the Anthropic client.
+    # Gemini (Antigravity CLI) talks to google.generativeai; every other
+    # agent goes through the Anthropic client.
     local pkg="anthropic"
+    if [[ "$agent" == "gemini" ]]; then
+      pkg="google-generativeai"
+    fi
 
     echo "  Installing required SDK via pip..."
     local pip_cmd

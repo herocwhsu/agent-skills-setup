@@ -150,3 +150,19 @@ def test_remove_drops_wrapped_entry(tmp_path):
 
     entries = read_json(settings)["hooks"]["UserPromptSubmit"]
     assert entries == [{"command": "user-script.sh"}], entries
+
+
+def test_merge_and_remove_env_keys(tmp_path):
+    settings = tmp_path / "settings.json"
+    settings.write_text("{}")
+    hook = tmp_path / "hook.json"
+    write_json(hook, {"env": {"POLISH_REPLACE": "1"}, "hooks": {"UserPromptSubmit": [{"command": "polish.py"}]}})
+
+    run_helper("--merge", str(hook), str(settings))
+    data = read_json(settings)
+    assert data["env"]["POLISH_REPLACE"] == "1"
+
+    run_helper("--remove", str(hook), str(settings))
+    data = read_json(settings)
+    assert "env" not in data
+

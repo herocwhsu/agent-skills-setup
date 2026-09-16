@@ -195,3 +195,54 @@ def test_polish_bearer_token_passed_as_auth_token(monkeypatch):
     polish_engine.polish("hi", [_BearerProvider()])
     # The fake Client.__init__ receives **kwargs; we verify no crash and result flows.
     assert fake._last_messages is not None
+
+
+def test_read_antigravity_keychain_value_session_json_fallback(monkeypatch, tmp_path):
+    import subprocess
+    monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: subprocess.CompletedProcess(args, 1, stdout=""))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    session_file = tmp_path / ".gemini" / "antigravity-cli" / "session.json"
+    session_file.parent.mkdir(parents=True, exist_ok=True)
+    session_file.write_text("go-keyring-base64:fake-session-data")
+
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+
+    val = polish_engine._read_antigravity_keychain_value()
+    assert val == "go-keyring-base64:fake-session-data"
+
+
+def test_polish_gemini_uses_model_env_var(monkeypatch):
+    fake_genai = types.ModuleType("google.generativeai")
+    created_models = []
+
+    class _FakeGenerativeModel:
+        def __init__(self, model_name, system_instruction):
+            created_models.append((model_name, system_instruction))
+
+        def generate_content(self, text, request_options=None):
+            class _Resp:
+                text = "Polished gemini text"
+            return _Resp()
+
+    fake_genai.GenerativeModel = _FakeGenerativeModel
+    fake_genai.configure = lambda **kwargs: None
+    monkeypatch.setitem(sys.modules, "google.generativeai", fake_genai)
+    monkeypatch.setenv("POLISH_MODEL", "gemini-2.0-flash")
+
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+
+    class _FakeGeminiKeyProvider(polish_engine.AuthProvider):
+        name = "gemini-key"
+        backend = "gemini"
+        cred_type = "key"
+
+        def credential(self):
+            return "fake-gemini-key"
+
+    out = polish_engine.polish("i want add login", [_FakeGeminiKeyProvider()])
+    assert out == "Polished gemini text"
+    assert len(created_models) == 1
+    assert created_models[0][0] == "gemini-2.0-flash"
+

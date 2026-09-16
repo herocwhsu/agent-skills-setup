@@ -170,6 +170,16 @@ def _read_antigravity_keychain_value() -> str | None:
     except FileNotFoundError:
         pass
 
+    # Fallback for headless Linux where Secret Service DBus daemon is not available
+    session_file = Path(os.path.expanduser("~/.gemini/antigravity-cli/session.json"))
+    if session_file.exists():
+        try:
+            val = session_file.read_text().strip()
+            if val:
+                return val
+        except Exception:
+            pass
+
     return None
 
 
@@ -319,8 +329,9 @@ def _polish_gemini(text: str, cred: Any, cred_type: str) -> str | None:
         else:
             genai.configure(api_key=cred)
         timeout_ms = int(os.environ.get("POLISH_TIMEOUT_MS", str(DEFAULT_TIMEOUT_MS)))
+        model_name = os.environ.get("POLISH_MODEL", "gemini-1.5-flash")
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash", system_instruction=SYSTEM_PROMPT
+            model_name=model_name, system_instruction=SYSTEM_PROMPT
         )
         response = model.generate_content(text, request_options={"timeout": timeout_ms / 1000})
         try:

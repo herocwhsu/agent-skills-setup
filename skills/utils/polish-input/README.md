@@ -1,17 +1,17 @@
 # polish-input
 
-Auto-polish single-line English prompts as a learning side-channel for Claude Code.
-Uses Claude Haiku 4.5 via the Anthropic SDK.
+Auto-polish single-line English prompts as a learning side-channel for Claude Code, Kiro, and Antigravity CLI (`agy`).
+Uses Claude Haiku 4.5 via the Anthropic SDK, or Gemini session OAuth credentials.
 
 ## What it does
 
 ```
 you> i want add new feature for login
 [polish] I want to add a new feature for login.
-claude> Sure — let's start by looking at the auth code…
+agent> Sure — let's start by looking at the auth code…
 ```
 
-Claude receives the original prompt by default. The polish line is purely informational.
+The agent receives the original prompt by default. The polish line is purely informational.
 
 ## Install
 
@@ -22,11 +22,9 @@ bash scripts/install.sh --with-hook polish-input
 This:
 1. Installs the skill files (symlinks `skills/polish-input/` → `~/.<agent>/skills/polish-input/`).
 2. Installs the `anthropic` Python SDK via pip.
-3. Merges the `UserPromptSubmit` hook into the selected agent's settings (e.g. `~/.gemini/settings.json`).
+3. Merges the `UserPromptSubmit` hook into the selected agent's settings (e.g. `~/.gemini/antigravity-cli/settings.json`).
 
-The hook reads `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` from the
-environment the agent runs in. In Kiro mode these are already set to point
-at the Kiro gateway; no second API key is required.
+The hook resolves OAuth session tokens automatically from macOS Keychain (`security`), Linux Secret Service (`secret-tool`), or fallback session files, and also reads `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` if present in the environment.
 
 ## Configuration
 
