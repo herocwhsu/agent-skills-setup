@@ -8,6 +8,32 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FAST=0
 [[ "${1:-}" == "--fast" ]] && FAST=1
 
+# Prefer this repo's own venv (built from requirements-dev.txt) so pytest and
+# the third-party packages tests import (anthropic, google.generativeai, lxml)
+# resolve from a known, scanned manifest rather than whatever happens to be on
+# PATH. Falls back to bare python3 only when .venv was never set up at all —
+# a .venv directory that DOES exist must be the right interpreter or we fail
+# loud, rather than silently running tests against ambient tooling that may
+# not even have the packages under test installed.
+PYTHON="python3"
+VENV_DIR="$REPO_DIR/.venv"
+if [[ -d "$VENV_DIR" ]]; then
+  VENV_PY="$VENV_DIR/bin/python3"
+  if [[ ! -x "$VENV_PY" ]]; then
+    echo "ERROR: .venv exists but is missing python3. Rebuild: rm -rf .venv && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt" >&2
+    exit 1
+  fi
+  if [[ -f "$REPO_DIR/.python-version" ]]; then
+    pinned=$(tr -d '[:space:]' < "$REPO_DIR/.python-version")
+    actual=$("$VENV_PY" --version 2>&1 | awk '{print $2}')
+    if [[ "$actual" != "$pinned" ]]; then
+      echo "ERROR: .venv is Python $actual but .python-version pins $pinned — rebuild: rm -rf .venv && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt" >&2
+      exit 1
+    fi
+  fi
+  PYTHON="$VENV_PY"
+fi
+
 pass=0
 fail=0
 skip=0
@@ -29,7 +55,7 @@ run_bash() {
 run_python() {
   local f="$1"
   local out
-  if out=$(python3 -m pytest "$f" -q --tb=short 2>&1); then
+  if out=$("$PYTHON" -m pytest "$f" -q --tb=short 2>&1); then
     echo "  PASS  $f"
     pass=$((pass + 1))
   else

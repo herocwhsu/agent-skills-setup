@@ -7,14 +7,11 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 source "$REPO_DIR/scripts/_lib.sh"
 
 AGENT_ARG=""
-HOOK_SKILLS=()
 WITH_AGENTS_MD=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --agent)    AGENT_ARG="$2"; shift 2 ;;
     --agent=*)  AGENT_ARG="${1#*=}"; shift ;;
-    --with-hook)    HOOK_SKILLS+=("$2"); shift 2 ;;
-    --with-hook=*)  HOOK_SKILLS+=("${1#*=}"); shift ;;
     --with-agents-md) WITH_AGENTS_MD=1; shift ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
@@ -80,15 +77,13 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   done < "$REPO_DIR/registry.txt"
 done
 
-if [[ ${#HOOK_SKILLS[@]} -gt 0 ]]; then
-  echo ""
-  echo "==> Un-wiring hooks..."
-  for skill in "${HOOK_SKILLS[@]}"; do
-    for agent in "${SELECTED_AGENTS[@]}"; do
-      unwire_hook "$skill" "$REPO_DIR" "$agent"
-    done
-  done
-fi
+# polish-input's hook is always wired (see install.sh), so uninstall always
+# un-wires it too — there is no opt-in flag left to gate this on.
+echo ""
+echo "==> Un-wiring hooks..."
+for agent in "${SELECTED_AGENTS[@]}"; do
+  unwire_hook "polish-input" "$REPO_DIR" "$agent"
+done
 
 if [[ $WITH_AGENTS_MD -eq 1 ]]; then
   echo ""

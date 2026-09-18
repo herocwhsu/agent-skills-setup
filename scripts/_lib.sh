@@ -824,8 +824,9 @@ wire_hook() {
 # ---------------------------------------------------------------------------
 # rewire_hooks <repo_dir> <agent_name>
 #   Refresh already-wired hook commands whose embedded skills path has drifted.
-#   Adds nothing: a hook absent from settings.json means the user never passed
-#   --with-hook, and that stays true. Only a stale path is rewritten.
+#   Adds nothing: a hook absent from settings.json (e.g. an agent install.sh
+#   never wired it for, such as codex) stays absent. Only a stale path already
+#   present is rewritten.
 #
 #   Exists because a wired command embeds an absolute path. Move or reinstall the
 #   skills tree and the command still parses but resolves to nothing, so the hook

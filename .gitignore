@@ -14,3 +14,9 @@ apctest.output
 
 # SDD workflow scratch (briefs, reports, review diffs, ledger)
 .superpowers/
+
+# This repo's own dev-tooling venv (built from requirements-dev.txt).
+# Only types-guard.sh and run-tests.sh prefer it; everything else in the repo
+# is shipped code that must keep resolving python3 from the ambient PATH on
+# whatever host installs it.
+.venv/

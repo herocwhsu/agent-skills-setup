@@ -92,7 +92,7 @@ fi
 # --- whole-tree, not per-file ---
 # Invoking mypy per file re-reports errors that live in imported modules, so
 # `mypy a.py` shows b.py's errors too and counts them once per importer.
-grep -q 'xargs -0 mypy' "$HOOK" \
+grep -qE 'xargs -0 "\$MYPY"' "$HOOK" \
   && ok "invokes mypy once over all files" \
   || bad "invokes mypy once over all files" "per-file invocation triple-counts"
 

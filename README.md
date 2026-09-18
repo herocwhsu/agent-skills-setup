@@ -100,16 +100,16 @@ bash scripts/uninstall.sh --agent all
 ```
 
 Removes the skills this repo installed, driven from `registry.txt` — the
-same source `installed.txt` is built from.
+same source `installed.txt` is built from. This also un-wires the
+`polish-input` hook automatically (it is wired automatically on install too —
+see below).
 
-Hooks and the engineering-rules block are opt-in, and are left in place unless
-asked for:
+The engineering-rules block is opt-in, and is left in place unless asked for:
 
 ```bash
-bash scripts/uninstall.sh --with-hook polish-input --with-agents-md
+bash scripts/uninstall.sh --with-agents-md
 ```
 
-`--with-hook <skill>` unwires that skill's hook and is repeatable;
 `--with-agents-md` strips the rules block via `install-agents-md.sh --uninstall`.
 
 A symlink is removed only when it points into **this** repo's `skills/`. Links
@@ -483,8 +483,8 @@ bash scripts/install-agents-md.sh --uninstall # strip from all
 Or chain it onto the main installer with `--with-agents-md`:
 
 ```bash
-bash scripts/install.sh --with-hook polish-input --with-agents-md
-bash scripts/uninstall.sh --with-hook polish-input --with-agents-md
+bash scripts/install.sh --with-agents-md
+bash scripts/uninstall.sh --with-agents-md
 ```
 
 The `--with-agents-md` flag deploys to Claude, Antigravity, Codex, and Kiro simultaneously. The script is **idempotent**: re-running replaces the block in place, leaving other content in the host file untouched. Edit `agents/engineering-rules.md`, re-run, and all three tools pick up the change on next session.

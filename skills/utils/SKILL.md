@@ -28,7 +28,7 @@ Just edited a skill's SKILL.md/IMPL.md and want to check for regressions → /ut
 
 ## polish-input hook
 
-Installed via `bash scripts/install.sh --with-hook polish-input`. The hook is
+Wired automatically by `bash scripts/install.sh` (no separate flag). The hook is
 declared in `polish-input/hook.json`; the runtime command is now
 `python3 ${AGENT_SKILLS_DIR}/utils/polish-input/lib/polish.py` (path updated
 for the new group layout).

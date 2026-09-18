@@ -65,7 +65,9 @@ no_hooks='{"hooks":{}}'
 check "hook.json declaring no hooks is rejected" 1 "$(rc "$(make_tree empty "$no_hooks")")"
 
 # --- checker: machine-side wiring ------------------------------------------
-# Absence must never fail: wiring is opt-in through install.sh --with-hook.
+# Absence must never fail: this checker is generic over any skill's hook.json,
+# and a skill that ships one but is not installed on this host has nothing
+# wired — that is a normal, unwired state, not a defect.
 tree=$(make_tree wiring "$good_json")
 echo '{"model":"x"}' > "$TMP/unwired.json"
 python3 "$CHECK" "$tree" "$TMP/unwired.json" >/dev/null 2>&1 \

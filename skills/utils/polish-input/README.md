@@ -15,11 +15,10 @@ The agent receives the original prompt by default. The polish line is purely inf
 
 ## Install
 
-```bash
-bash scripts/install.sh --with-hook polish-input
-```
+Wired automatically by `bash scripts/install.sh` — no separate flag needed.
+Use `POLISH_DISABLE=1` (see below) to turn it off without uninstalling.
 
-This:
+Installing it does this:
 1. Installs the skill files (symlinks `skills/polish-input/` → `~/.<agent>/skills/polish-input/`).
 2. Installs the `anthropic` Python SDK via pip.
 3. Merges the `UserPromptSubmit` hook into the selected agent's settings (e.g. `~/.gemini/antigravity-cli/settings.json`).
@@ -52,12 +51,9 @@ The hook is silent when:
 
 ## Uninstall
 
-```bash
-bash scripts/uninstall.sh --with-hook polish-input
-```
-
-Removes the hook entry and unlinks the skill. The `anthropic` package is
-left in place; remove manually with `pip uninstall anthropic` if desired.
+`bash scripts/uninstall.sh` removes the hook entry and unlinks the skill
+along with everything else. The `anthropic` package is left in place;
+remove manually with `pip uninstall anthropic` if desired.
 
 ## Troubleshooting
 

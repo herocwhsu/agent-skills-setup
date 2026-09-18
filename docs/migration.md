@@ -19,7 +19,7 @@ Run `bash scripts/install.sh` after pulling to deploy the new layout.
 | `/confluence-tree-fetch <id>` | `/utils-confluence-tree-fetch <id>` | Self-hosted Server/DC migration only |
 | `/confluence-tree-upload <dir> --parent <id> --space <KEY>` | `/utils-confluence-tree-upload ...` | Same args |
 | `/confluence-link-rewrite-preview <dir> --parent <id>` | `/utils-confluence-link-rewrite-preview ...` | Same args |
-| `polish-input` (hook, no slash) | `polish-input` (hook, no slash) | Hook path updated to `${AGENT_SKILLS_DIR}/utils/polish-input/lib/polish.py`; re-wire with `bash scripts/install.sh --with-hook polish-input` |
+| `polish-input` (hook, no slash) | `polish-input` (hook, no slash) | Hook path updated to `${AGENT_SKILLS_DIR}/utils/polish-input/lib/polish.py`; re-wire with `bash scripts/install.sh` (wired automatically, no flag needed) |
 | `/kiro-gateway <sub>` | `/infra-kiro-gateway <sub>` | Subcommands unchanged: `init`, `update`, `rollback`, `status`, `setup-alias` |
 | `/host-optimization` | `/infra-host-optimization` | `--revert` flag unchanged |
 

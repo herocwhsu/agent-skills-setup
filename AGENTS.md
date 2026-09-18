@@ -102,8 +102,22 @@ errors that are all in `polish_engine.py`, which is how a 15-error baseline gets
 miscounted as 30.
 
 Neither config lives in `pyproject.toml`: osv-scanner treats that as a dependency
-manifest and `secret-scan.sh` special-cases this repo's "no package sources found"
-result, so adding one would change a Stop hook as a side effect of a typing choice.
+manifest, and adding one would change `secret-scan.sh`'s Stop-hook behavior as a
+side effect of a typing choice.
+
+`requirements-dev.txt` **is** a real, scanned manifest — it exists on purpose,
+generated via `.venv/bin/pip freeze` from this repo's own isolated dev venv (not
+the ambient/shared pyenv environment other projects on this machine also use).
+`secret-scan.sh`'s osv-scanner step now genuinely scans it and blocks (exit 2)
+if a real CVE turns up in a pinned version, same as a real gitleaks finding —
+this is a deliberate, accepted cost: a newly-published CVE against something in
+that file can block a session here until the pin is bumped. `.claude/hooks/types-guard.sh`
+and `scripts/run-tests.sh` prefer `.venv/bin/mypy` / `.venv/bin/python3 -m pytest`
+when the venv exists, falling back to bare `mypy`/`python3` otherwise — every
+other `python3` call site in this repo (installer scripts, credential helpers,
+hook templates shipped to other repos) intentionally still resolves from the
+ambient PATH, since that code runs on other people's machines, not just this
+repo's own dev loop.
 
 Use `ast.parse` rather than `py_compile` to syntax-check — `py_compile` litters
 `__pycache__` beside every file it touches.
@@ -114,6 +128,11 @@ Use `ast.parse` rather than `py_compile` to syntax-check — `py_compile` litter
 - Tests must redirect `HOME` to a temp dir. Several scripts write to `~/.claude`,
   `~/.codex`, `~/.gemini`, and `~/.kiro`.
 - Never write `AGENTS.override.md` — Codex prefers it over `AGENTS.md`, so it would
-  shadow whatever the user put there.
+  shadow whatever the user put there. Enforced: `.claude/settings.json` denies
+  `Write`/`Edit` on `AGENTS.override.md` under any user's home dir.
 - Ask before running `scripts/install-agents-md.sh` or `install.sh`: both write
-  outside the repo and change agent behavior for every project.
+  outside the repo and change agent behavior for every project. Advisory only —
+  a settings.json `ask` rule matching one invocation form (`bash scripts/x.sh`)
+  is trivially bypassed by any other (`./scripts/x.sh`, `sh scripts/x.sh`, an
+  absolute path), so this is not enforced and was deliberately not attempted as
+  a permission rule.

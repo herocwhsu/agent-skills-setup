@@ -7,7 +7,6 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 source "$REPO_DIR/scripts/_lib.sh"
 
 AGENT_ARG=""
-HOOK_SKILLS=()
 WITH_AGENTS_MD=0
 UPDATE_AGENTS=0
 PLUGIN_OPT_IN=()
@@ -17,10 +16,6 @@ while [[ $# -gt 0 ]]; do
       AGENT_ARG="$2"; shift 2 ;;
     --agent=*)
       AGENT_ARG="${1#*=}"; shift ;;
-    --with-hook)
-      HOOK_SKILLS+=("$2"); shift 2 ;;
-    --with-hook=*)
-      HOOK_SKILLS+=("${1#*=}"); shift ;;
     --with-plugin)
       PLUGIN_OPT_IN+=("$2"); shift 2 ;;
     --with-plugin=*)
@@ -145,15 +140,15 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   done < "$REPO_DIR/registry.txt"
 done
 
-if [[ ${#HOOK_SKILLS[@]} -gt 0 ]]; then
-  echo ""
-  echo "==> Wiring hooks..."
-  for skill in "${HOOK_SKILLS[@]}"; do
-    for agent in "${SELECTED_AGENTS[@]}"; do
-      wire_hook "$skill" "$REPO_DIR" "$agent"
-    done
-  done
-fi
+# polish-input is always wired, not opt-in: it ships as part of the `utils`
+# group installed above, so its hook should be live wherever the skill is.
+# wire_hook itself skips codex (no settings.json hook mechanism) and any
+# agent with no known settings path.
+echo ""
+echo "==> Wiring hooks..."
+for agent in "${SELECTED_AGENTS[@]}"; do
+  wire_hook "polish-input" "$REPO_DIR" "$agent"
+done
 
 if [[ $WITH_AGENTS_MD -eq 1 ]]; then
   echo ""

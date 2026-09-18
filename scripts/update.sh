@@ -50,8 +50,9 @@ bash "$REPO_DIR/scripts/install.sh" ${INSTALL_ARGS[@]+"${INSTALL_ARGS[@]}"}
 
 # A wired hook command embeds an absolute skills path. Reinstalling can move that
 # path, leaving the command pointing at nothing -- the hook then stops firing with
-# no error anywhere. Refresh what is already wired; opting in is still install.sh's
-# --with-hook, so a hook the user never wired stays unwired.
+# no error anywhere. Refresh what is already wired; a hook install.sh never wired
+# for a given agent (e.g. codex, which has no settings.json hook mechanism) stays
+# unwired.
 #
 # The selection file holds "all" or a comma-separated list, never a shell word
 # list, so it is expanded through select_agents rather than word-split. Re-read
