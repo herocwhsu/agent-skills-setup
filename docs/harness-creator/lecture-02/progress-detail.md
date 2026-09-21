@@ -269,12 +269,7 @@ bash scripts/run-tests.sh --fast
 # Results: 53 passed, 0 failed, 0 skipped, 0 code-bearing subcommands without tests
 ```
 
-## What this lecture's exercise did NOT do
-
-- Did not run Lecture 2's "controlled variable exclusion test" (strip one subsystem at a time from a working state, measure the drop on a real task) — the two subsystems worked on here (Tools, Environment) went from absent to present, which is additive like Lecture 1's diagnostic loop, not the reverse/exclusion direction Lecture 2 also describes.
-- Did not run Lecture 2's "affordance analysis" exercise (Gulf of Execution / Gulf of Evaluation classification) on a concrete agent-stuck case.
-
-Both findings originally left open here — the dependency-manifest/osv-scanner question, and the Python-version-vs-mypy.ini tension — were resolved in a later session within the same training arc: see Part 2b above.
+Both findings originally left open at this point — the dependency-manifest/osv-scanner question, and the Python-version-vs-mypy.ini tension — were resolved in a later session within the same training arc: see Part 2b above.
 
 ## Part 8 — Multi-model review of Part 2b's fallback logic (a third model surfaces, and hallucinates)
 
@@ -315,3 +310,58 @@ Both `types-guard.sh` and `run-tests.sh` now check, when `.venv` exists: (1) its
 **Not actioned — the `google-generativeai` → `google-genai` migration.** This is real, confirmed by a primary source, and two independent models flagged it — but it touches actual shipped code (`skills/utils/polish-input/lib/polish_engine.py`'s Gemini-backend import and client API), not just dev tooling. That's a larger, different-shaped change than today's scope (dependency manifest + mypy comment + version-drift guard). Flagged clearly to the user rather than silently expanded into or silently dropped.
 
 **Not actioned — `requirements-dev.in` (direct-deps-only file, both models suggested it).** `requirements-dev.txt` (the full `pip freeze`) stays the single manifest for now — it's what osv-scanner scans and what's verified clean. Splitting direct from transitive deps is a real hygiene improvement but adds a second file to keep in sync for a 6-direct-dependency manifest; not worth the overhead at this size. Noted here as a legitimate suggestion, not required.
+
+## Part 9 — The controlled variable exclusion test, attempt 2 (attempt 1 was null)
+
+**Attempt 1** (mirror a 20-line sibling file, strip Instructions/State/Feedback across 4 fresh subagents): all 4 conditions succeeded identically. Null result — the task was fully answerable from the sibling file alone, so it never exercised any of the three subsystems being stripped.
+
+**Attempt 2** used a harder task, designed against attempt 1's specific failure: no single sibling file fully specifies the answer.
+
+**Task given to all 4 conditions, verbatim:** "Add a new verification gate that runs `shellcheck` against this repo's shell scripts, following the same conventions as the repo's existing gates. Create a guard script under `.claude/hooks/`, wire it into `scripts/harness-verify.sh`, add it to the Stop/SubagentStop hook arrays in `.claude/settings.json`, and add a test file under `.claude/hooks/tests/`." Real ambiguity (which files, what severity, exit-code convention), a non-obvious stopping point (four integration points, not one file), a mechanically verifiable outcome.
+
+**Method:** one baseline copy of the repo (`git archive HEAD` — tracked files only, excludes the 380MB `.venv`), 3 ablated variants derived from that same baseline (never built independently):
+
+- `no-instructions`: `AGENTS.md` removed.
+- `no-state`: `feature_list.json`, `progress.md`, `init.sh` removed.
+- `no-feedback`: `scripts/run-tests.sh` and both test directories removed — but not `scripts/harness-verify.sh`, since that's the task's actual edit target, not a feedback mechanism.
+
+One fresh (non-fork) `general-purpose` subagent per variant, 4 total, concurrent, each given only its directory and the task text — no mention of the experiment.
+
+**Result: non-null.** All 4 completed the core task, but not identically:
+
+| Condition | Wiring | Own tests | Found pre-existing SC1087 bug (`test_install_agents_md.sh:210`) | Fixed it |
+|---|---|---|---|---|
+| baseline (has `AGENTS.md`) | complete | 12/12 | yes | **yes** |
+| no-instructions | complete | 6/6 | yes | no — flagged out of scope |
+| no-state | complete | 6/7 (asserted, correctly failed) | yes | no — flagged out of scope |
+| no-feedback | complete | 8/8 | n/a — see confound | — |
+
+**Confound (caught after all 4 results were in):** `no-feedback`'s ablation deleted `scripts/tests/` wholesale, which happened to also delete `test_install_agents_md.sh` — the file containing the bug. Its silence on the bug is an artifact of the ablation, not a finding; excluded from the comparison. The other 3 ablations never touched that file.
+
+**What the valid 3-way comparison shows:** all 3 independently found the identical bug (strong cross-validation it's real). Only the condition with `AGENTS.md` went from *flag* to *fix* — a genuine correlated difference, the first non-null exclusion-test result in this training.
+
+**What it does NOT establish:** `AGENTS.md` has no instruction resembling "fix incidental bugs" (grepped directly — no match). The mechanism linking "has `AGENTS.md`" to "fixed rather than flagged" is unconfirmed — this is a correlation, not a proven cause. Would need a follow-up (rerun, or ask the agent directly) to move it from lead to verdict.
+
+**Verification performed on the results, not just self-report:** read `.claude/settings.json` in each variant directly (confirmed wiring in both hook arrays, all 4); read the actual test files in `no-feedback`/`no-state` to resolve two apparent discrepancies, both false alarms (an assertion-count mismatch, a harness scanner false-positive on ordinary settings.json content); checked all 4 guard scripts for bash-4+-only syntax against the documented bash-3.2 floor — none found, including in the 3 conditions that never saw that constraint stated; confirmed the confound directly via file-existence check rather than accepting the "n/a" cell.
+
+## Part 10 — Affordance analysis (Gulf of Execution / Gulf of Evaluation)
+
+Lecture 2's last exercise: take concrete stuck-or-wrong-turn cases from real work and classify each into Norman's two gulfs — **Gulf of Execution** (the actor knows what they want, but the interface offers no clear path to it) versus **Gulf of Evaluation** (an action happened, but its result isn't legible enough to tell whether it worked). Used two real cases from this same training session rather than inventing synthetic ones.
+
+**Case 1 — `polish-input` hook fabricating fake refusals/identities. Gulf of Evaluation.**
+
+Across this session, the `UserPromptSubmit` hook (meant to silently inject a paraphrase) repeatedly returned fabricated text shaped like a full agent turn instead — a refusal ("appears to be an attempt to override my system guidelines") or a contradicting identity claim ("I'm Kiro... I don't rewrite user messages"). Each time, the real user message was underneath, and I had to recognize the fabrication and act on the real message instead.
+
+This is a Gulf of Evaluation failure, and it's the hook's own gulf first, surfaced to me second. The hook has no feedback loop on its own output: no schema check, no shape/length sanity check, no confidence signal distinguishing "the polish model produced a genuine paraphrase" from "the polish model hallucinated a tangent." It just runs the call and forwards whatever comes back as `additionalContext`. The hook's action always "succeeds" from Claude Code's point of view (exit 0, valid JSON) — the ambiguity is entirely in whether the content means what it claims to mean, and nothing in the tool tells you that.
+
+Downstream, this becomes my own Gulf of Evaluation problem: I have no structural signal (a flag, a marker, a confidence field) to check — only content-level judgment, redone from scratch each occurrence, on whether hook output is trustworthy.
+
+**Case 2 — spurious `exit 128` across all 4 exclusion-test sandboxes. Gulf of Execution.**
+
+All 4 subagents dispatched in Part 9, working in `git archive`-built copies with no `.git` directory, hit `types-guard.sh` failing (exit 128, `git ls-files` on a non-repo) when running `harness-verify.sh` end-to-end. All 4 independently diagnosed this correctly as environmental, not caused by their change — but each had to rediscover the same root cause from scratch, with no shortcut available.
+
+This is Gulf of Execution, not Evaluation: the feedback itself was clear (a plain exit code and an unambiguous git error). The gap is that `harness-verify.sh` offers exactly one action — run all 8 gates — with no way to express a narrower, equally valid intent ("run only the gate relevant to my change" or "skip gates that assume a real git repo"). Each agent's goal was clear; the tool simply didn't expose a path to it, so every agent paid the same diagnostic cost independently.
+
+**Why one case of each, not four of one kind:** the two gulfs are conceptually distinct failure shapes, and this session happened to produce one clean example of each without needing to manufacture one. Forcing a second example of either into this write-up would pad the exercise without adding a new distinction to reason about.
+
+**Not done:** neither gap was fixed as part of this exercise — Lecture 2's affordance-analysis step is a classification exercise, not a remediation task, and turning either into an actual fix (a schema/sanity check on hook output; a `--gate <name>` selector on `harness-verify.sh`) is future work, not implied as required by this exercise itself.

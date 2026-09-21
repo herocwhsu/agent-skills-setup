@@ -49,12 +49,33 @@ Closing out the `.venv`/manifest work (see [progress-detail.md](./progress-detai
 
 One claim did converge across both models and was worth taking seriously precisely because it wasn't accepted on their say-so either: `google-generativeai` is genuinely deprecated. Checked against PyPI's own project page directly rather than trust either model — confirmed: legacy status, "support ended permanently on November 30, 2025," successor is `google-genai`. **Not migrated this session** — it touches real shipped code (`polish_engine.py`'s Gemini backend), a different-shaped change than today's dev-tooling work, flagged clearly rather than silently expanded into or silently dropped.
 
+## The controlled variable exclusion test — attempt 2, non-null
+
+Lecture 2 also calls for stripping one subsystem at a time from a working harness and measuring the drop on a real task — the reverse direction from the additive Tools/Environment work above. A first attempt (mirror a 20-line sibling file) came back null: all 4 conditions (baseline, no-instructions, no-state, no-feedback) succeeded identically, because the task was fully answerable from the sibling file alone and never exercised any of the three subsystems being stripped.
+
+A second attempt used a harder task — add a whole new verification gate (shellcheck) across 4 real integration points (guard script, `harness-verify.sh` wiring, two hook arrays, a test file) — and got a real, non-null result: all 4 conditions completed the core task, but only the condition with `AGENTS.md` present (baseline) went from *finding* a genuine pre-existing bug to *fixing* it; the two conditions without it (no-instructions, no-state) found the identical bug independently and explicitly flagged it as out of scope instead. The fourth condition (no-feedback) turned out to have a confound — its ablation happened to delete the exact file the bug lived in — so it's excluded from this specific comparison.
+
+This correlation is real and independently cross-validated (3 separate sandboxes found the same bug on their own), but the causal mechanism isn't established — `AGENTS.md` contains no instruction resembling "fix incidental bugs you find," so this is a confirmed correlation, not a confirmed cause. Full method, the confound, and what was and wasn't verified: [progress-detail.md](./progress-detail.md#part-9--the-controlled-variable-exclusion-test-attempt-2-attempt-1-was-null).
+
+## Affordance analysis (Gulf of Execution / Gulf of Evaluation)
+
+Classified two real cases from this training session — no synthetic cases needed:
+
+- **`polish-input` hook fabricating fake refusals/identities → Gulf of Evaluation.** The hook has no feedback loop on its own output (no schema/shape check on the polish model's response before injecting it as context), so distinguishing genuine paraphrase from hallucinated tangent fell entirely on content-level judgment, redone from scratch each occurrence.
+- **Spurious `exit 128` in all 4 exclusion-test sandboxes (Part 9) → Gulf of Execution.** The error itself was unambiguous (`git ls-files` failing on a non-repo); the gap was that `harness-verify.sh` offers only one action (run all 8 gates) with no way to express "run just the gate relevant to my change" — so all 4 subagents paid the same diagnostic cost independently.
+
+Neither gap was fixed as part of this exercise — it's a classification exercise, not a remediation task. Full writeup: [progress-detail.md](./progress-detail.md#part-10--affordance-analysis-gulf-of-execution--gulf-of-evaluation).
+
 ## Outcome
 
 - Environment subsystem: reproducible pin in place, real isolated venv + scanned manifest built, version-drift/silent-fallback gap closed, `mypy.ini`/`python-version` tension resolved as a documentation staleness issue (not a real conflict).
 - Tools subsystem: one boundary now mechanically enforced (deny), one downgraded from a broken/misleading enforcement attempt to honest advisory-only documentation.
 - Every fix independently reviewed by at least one genuinely different model before being finalized, and every review claim was verified mechanically (glob fixtures, simulated version drift, `pip show`/`pipdeptree`, a direct PyPI check) rather than accepted as-is — including catching a third model's own hallucinations, not just a first model's gaps.
 - One real, confirmed finding (the `google-generativeai` deprecation) deliberately not acted on this session, flagged for a future one rather than silently dropped.
-- Full test suite green (53/53) throughout.
+- The exclusion-test exercise: null on the first attempt, non-null on the second — a real correlation between `AGENTS.md`'s presence and fixing (not just flagging) an incidentally-found bug, with the causal mechanism explicitly left as unconfirmed rather than overclaimed.
+- Affordance analysis (Gulf of Execution / Gulf of Evaluation): done, using two real cases from this session rather than synthetic ones — one of each gulf, classified and explained, not remediated.
+- Full test suite green (53/53) throughout the Tools/Environment work.
 
-Full step-by-step log, including the exact `codex-kiro`/`agy` transcript excerpts and the verification commands for each claim: [progress-detail.md](./progress-detail.md).
+**Lecture 2 is now fully closed**: both subsystems built (Tools, Environment), both remaining exercises run (exclusion test, affordance analysis). One real, confirmed, deliberately-unactioned finding remains open for a future session: the `google-generativeai` → `google-genai` migration (see Part 8).
+
+Full step-by-step log, including the exact `codex-kiro`/`agy` transcript excerpts, the exclusion-test method, and the verification commands for each claim: [progress-detail.md](./progress-detail.md).

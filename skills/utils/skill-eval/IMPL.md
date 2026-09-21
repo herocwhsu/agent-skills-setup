@@ -132,3 +132,4 @@ this is the first eval.
 | Treating this as continuous monitoring | It's a point-in-time regression check after an edit, not a dashboard. Use `llm-observability` for continuous tracing of production LLM call sites |
 | Grading with another LLM call | Don't — the whole point is these skills produce human-readable artifacts (markdown reports) meant for human review anyway. Adding an LLM grader is another thing that can be wrong |
 | Running against synthetic/invented test cases only | Prefer real past stories/investigations as test cases — they're free (already happened) and the "baseline" cost is already known from memory/session_search |
+| Using this to evaluate a repo-level change (a hook, a config, a script) rather than a skill's transcript | Use `utils/change-eval` instead — that scope has no mechanical markers to count, so a different model's critique (verified before trusting) is the right tool there, not here |

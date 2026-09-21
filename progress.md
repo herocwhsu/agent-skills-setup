@@ -2,14 +2,15 @@
 
 ## Current State
 
-**Last Updated:** 2026-09-18
+**Last Updated:** 2026-09-21
 **Active Feature:** none — all tracked features done, `./init.sh` passes clean.
-Lecture 2 (harness-creator training) is closed out: Tools (feat-006) and
-Environment (feat-005 + feat-007 + feat-008) subsystems both done. One real,
-confirmed finding remains deliberately unactioned: `google-generativeai` is
-deprecated (successor `google-genai`) — touches shipped code
-(`polish_engine.py`), out of scope for this session, see
-`docs/harness-creator/lecture-02/summary.md`.
+**Lecture 2 (harness-creator training) is now fully closed**: Tools
+(feat-006), Environment (feat-005 + feat-007 + feat-008), the exclusion-test
+exercise (feat-009, non-null on the second attempt), and the
+affordance-analysis exercise (feat-010) are all done. One real, confirmed
+finding remains deliberately unactioned: `google-generativeai` is deprecated
+(successor `google-genai`) — touches shipped code (`polish_engine.py`), out
+of scope for this session, see `docs/harness-creator/lecture-02/summary.md`.
 
 ## Status
 
@@ -56,6 +57,24 @@ deprecated (successor `google-genai`) — touches shipped code
 - [x] Added `init.sh` as the canonical startup/verification entrypoint (delegates
   to `scripts/harness-verify.sh` — no duplicated logic)
 - [x] Added `feature_list.json` and this `progress.md` as real state artifacts
+- [x] feat-009: ran Lecture 2's controlled variable exclusion test a second
+  time (attempt 1 — mirror a sibling file — came back null, task didn't
+  discriminate). Attempt 2 used a harder task (add a shellcheck gate across
+  4 real integration points) across baseline/no-instructions/no-state/
+  no-feedback conditions — non-null: only the condition with `AGENTS.md`
+  present fixed a pre-existing bug it found rather than just flagging it.
+  Caught and excluded a confound in the no-feedback condition (its ablation
+  deleted the exact file the bug lived in). Explicitly did not overclaim
+  causation — `AGENTS.md` has no "fix incidental bugs" instruction, so this
+  is a confirmed correlation, not a confirmed mechanism.
+- [x] feat-010: ran Lecture 2's affordance-analysis exercise (Gulf of
+  Execution / Gulf of Evaluation), classifying two real cases from this
+  session instead of inventing synthetic ones — the `polish-input` hook's
+  fabricated refusals/identities (Gulf of Evaluation: no feedback loop on
+  the hook's own output) and the feat-009 sandboxes' spurious exit-128
+  failures (Gulf of Execution: `harness-verify.sh` offers no way to run a
+  subset of gates). Neither gap fixed — classification only, per the
+  exercise's scope. **Lecture 2 is now fully closed.**
 
 ### What's In Progress
 
@@ -63,7 +82,9 @@ deprecated (successor `google-genai`) — touches shipped code
 
 ### What's Next
 
-- Nothing queued. Pick up the next unit of work fresh.
+- Nothing queued for Lecture 2 — it is fully closed. User's "do not move to
+  Lecture 3 until Lecture 2 is reviewed" condition is now satisfied; next
+  step is the user's call (start Lecture 3, or something else).
 
 ## Blockers / Risks
 
@@ -109,6 +130,27 @@ deprecated (successor `google-genai`) — touches shipped code
   integration code, a different-shaped change than this session's
   dev-tooling scope. Flagged in Blockers/Risks rather than silently
   expanded into or silently dropped.
+- **Redesigned the exclusion test rather than accepting the first null
+  result**: attempt 1 (mirror a sibling file) was fully answerable from the
+  sibling alone, so stripping Instructions/State/Feedback never got
+  exercised — a null result about the task, not about the subsystems.
+  Attempt 2 deliberately chose a task with real ambiguity, a non-obvious
+  stopping point, and a mechanically verifiable outcome (a new gate across
+  4 integration points) instead of a bigger or different-repo task — size
+  wasn't the problem, shortcut-ability was.
+- **Caught and excluded a confound rather than reporting all 4 conditions
+  as comparable**: the no-feedback variant's ablation (delete
+  `scripts/tests/` to remove Feedback) happened to also delete the file
+  containing the pre-existing bug the other 3 conditions found. Its silence
+  on that bug is an artifact of the ablation, not a finding, and it was
+  explicitly excluded from that comparison rather than silently averaged in.
+- **Recorded the exclusion-test result as a correlation, not a proven
+  cause**: `AGENTS.md`'s presence correlates with fixing (not just
+  flagging) an incidentally-found bug, cross-validated across 3 independent
+  sandboxes finding the identical bug — but `AGENTS.md` has no instruction
+  resembling "fix bugs you find along the way" (checked directly, no
+  match), so the causal mechanism is explicitly left unconfirmed rather
+  than overclaimed.
 
 Full training-exercise narrative (diagnostic-loop scores, the verification-gap
 measurement, the same-model-review lesson): `docs/harness-creator/lecture-01/`
@@ -147,6 +189,17 @@ and `docs/harness-creator/lecture-02/`.
   `docs/harness-creator/lecture-02/summary.md`,
   `docs/harness-creator/lecture-02/progress-detail.md` — feat-008
   (version-drift guard + multi-model review record)
+- `docs/harness-creator/lecture-02/summary.md`,
+  `docs/harness-creator/lecture-02/progress-detail.md`, `feature_list.json`,
+  this `progress.md` — feat-009 (exclusion-test attempt 2, non-null result,
+  confound recorded, correlation-vs-causation distinction made explicit).
+  No repo functionality changed by feat-009 itself — the shellcheck gates
+  built during the test lived only in the disposable `/tmp/exclusion-test-v2/`
+  variant directories, not in this repo.
+- `docs/harness-creator/lecture-02/summary.md`,
+  `docs/harness-creator/lecture-02/progress-detail.md`, `feature_list.json`,
+  this `progress.md` — feat-010 (affordance analysis, Lecture 2 closed out).
+  No repo functionality changed — classification exercise only.
 
 ## Evidence of Completion
 
@@ -185,6 +238,20 @@ and `docs/harness-creator/lecture-02/`.
       `pipdeptree --reverse -p httpx2` refuted `agy`'s typosquat claim;
       `WebFetch` on `pypi.org/project/google-generativeai/` confirmed the
       deprecation claim
+- [x] feat-009: 4 fresh (non-fork) subagents dispatched to isolated
+      `/tmp/exclusion-test-v2/` copies (git-archive'd tracked files only,
+      not the 380MB `.venv`); all 4 completed the shellcheck-gate task, but
+      only the `AGENTS.md`-present condition fixed rather than flagged a
+      pre-existing bug all 3 valid conditions found independently; read
+      `.claude/settings.json` directly in each variant to confirm wiring;
+      checked all 4 guard scripts for bash-4+-only syntax against the
+      documented bash-3.2 floor (none found, including in the 3 conditions
+      without `AGENTS.md`); caught the no-feedback confound via direct file
+      existence check rather than trusting the "not applicable" cell
+- [x] feat-010: both cases drawn from real events already in this session's
+      own record (the polish-input hook malfunctions, the feat-009 exit-128
+      failures) — not invented; each classified into exactly one gulf with
+      the specific mechanism named, not just labeled
 
 ## Notes for Next Session
 

@@ -16,6 +16,7 @@ Cross-cutting utilities. Independent of the Spec-Gated workflow.
 | `/utils-confluence-tree-upload <local-dir> --parent <id> --space <KEY>` | Reconcile titles, create stub pages under `<id>` in `<KEY>`, then upload content + attachments + diagrams. | `confluence-tree/IMPL.md` |
 | `/utils-confluence-link-rewrite-preview <local-dir> --parent <id>` | Dry-run: show how cross-tree links will rewrite given a destination parent. No network calls, no writes. | `confluence-tree/IMPL.md` |
 | `/utils-skill-eval <skill-name> <transcript-file>` | Mechanically scan a skill's transcript for `<PREFIX>_STATUS:` markers and tool-call counts to catch regressions after editing a skill. Narrows human review down to content-quality judgment only. | `skill-eval/IMPL.md` |
+| `/utils-change-eval <diff-or-path> [--task <description>]` | Get a different model's critical review of a repo-level change (hook, config, script), then mechanically verify each claim before acting — or, for a behavioral question, seed a real task under before/after states and compare. Not for evaluating a skill's own transcript; use `skill-eval` for that. | `change-eval/IMPL.md` |
 
 ## When to use which subcommand
 
@@ -24,6 +25,8 @@ Want polished prompts auto-shown after each turn → /utils-polish-input
 Need to migrate a Confluence Server/DC page tree to a new parent → /utils-confluence-tree-fetch + edit + upload
 Want to see how links would rewrite before actually uploading → /utils-confluence-link-rewrite-preview
 Just edited a skill's SKILL.md/IMPL.md and want to check for regressions → /utils-skill-eval
+Just edited a hook/config/script and want a second model's critical read → /utils-change-eval
+Need to know whether removing a harness component actually changes agent behavior → /utils-change-eval (Mode 2)
 ```
 
 ## polish-input hook
