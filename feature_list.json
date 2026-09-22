@@ -77,6 +77,14 @@
       "dependencies": [],
       "status": "done",
       "evidence": "Both cases drawn from this session's own real events (the polish-input hook malfunctions and the feat-009 exit-128 failures), not invented. Full classification writeup: docs/harness-creator/lecture-02/progress-detail.md Part 10, docs/harness-creator/lecture-02/summary.md."
+    },
+    {
+      "id": "feat-011",
+      "name": "Antigravity (agy) full skill compatibility and frontmatter normalization",
+      "description": "Audited all 15 skills and 46 sub-skills across the repository for complete Antigravity CLI (agy) compatibility. Normalized frontmatter across all 31 Format A IMPL.md sub-skills by adding standardized name and description fields alongside existing slash/subcommand metadata. Verified all top-level SKILL.md files comply with YAML frontmatter standards for progressive disclosure.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "All 15 SKILL.md and 46 IMPL.md files verified to contain valid name and description frontmatter. bash scripts/harness-verify.sh passed clean across all 8 gates (registry, types, tests, skill paths, cred backends, hook wiring, state layer, secret scan)."
     }
   ]
 }

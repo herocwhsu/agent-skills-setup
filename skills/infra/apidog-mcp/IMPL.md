@@ -1,4 +1,7 @@
 ---
+name: infra-apidog-mcp
+description: >-
+  Install, configure, verify, or remove the @lstpsche/apidog-mcp server across Claude, Kiro, and Gemini/Antigravity CLI.
 subcommand: apidog-mcp
 group: infra
 slash: /infra-apidog-mcp <subcommand>

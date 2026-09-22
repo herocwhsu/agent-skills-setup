@@ -1,4 +1,7 @@
 ---
+name: testing-regression
+description: >-
+  Generate regression tests for bugfixes or change requests to prevent regressions.
 subcommand: regression
 group: testing
 slash: /testing-regression <STORY-ID>

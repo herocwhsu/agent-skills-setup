@@ -1,4 +1,7 @@
 ---
+name: testing-write
+description: >-
+  Scaffold companion test tickets and RED test stubs in the test repository matching flow PRs.
 subcommand: write
 group: testing
 slash: /testing-write <STORY-ID>

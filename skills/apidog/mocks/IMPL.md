@@ -1,4 +1,7 @@
 ---
+name: apidog-mocks
+description: >-
+  Generate mock API responses for all scenarios to unblock frontend development and contract testing.
 subcommand: mocks
 group: apidog
 slash: /apidog-mocks <STORY-ID>

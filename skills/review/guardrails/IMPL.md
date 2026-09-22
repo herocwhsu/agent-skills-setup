@@ -1,4 +1,7 @@
 ---
+name: review-guardrails
+description: >-
+  Diff pull request implementation against approved OpenSpec proposals to detect missing requirements or drift.
 subcommand: guardrails
 group: review
 slash: /review-guardrails <STORY-ID> <pr-number>

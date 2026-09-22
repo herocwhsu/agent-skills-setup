@@ -1,4 +1,7 @@
 ---
+name: audit-spec
+description: >-
+  Audit raw spec and intake artifacts for conflicts, missing behaviors, and gaps before writing an OpenSpec proposal.
 subcommand: spec
 group: audit
 slash: /audit-spec <STORY-ID>

@@ -1,4 +1,7 @@
 ---
+name: release-triage
+description: >-
+  Classify post-release issues and formulate follow-up proposals or bugfix specs.
 subcommand: triage
 group: release
 slash: /release-triage <STORY-ID> "<issue description>"

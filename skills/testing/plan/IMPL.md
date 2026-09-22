@@ -1,4 +1,7 @@
 ---
+name: testing-plan
+description: >-
+  Generate comprehensive test plan covering unit, integration, API, regression, and QA criteria before implementation.
 subcommand: plan
 group: testing
 slash: /testing-plan <STORY-ID>

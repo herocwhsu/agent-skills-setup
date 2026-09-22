@@ -1,4 +1,7 @@
 ---
+name: sre-migration-draft
+description: >-
+  Draft the SRE data migration ticket body and environment-specific command execution flow.
 subcommand: draft
 group: sre-migration
 slash: /sre-migration-draft <STORY-ID>

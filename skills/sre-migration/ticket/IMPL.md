@@ -1,4 +1,7 @@
 ---
+name: sre-migration-ticket
+description: >-
+  File SRE Migration Execution issue in Jira from validated and linted draft.
 subcommand: ticket
 group: sre-migration
 slash: /sre-migration-ticket <STORY-ID>

@@ -1,4 +1,7 @@
 ---
+name: intake-spec-summary
+description: >-
+  Combine story.md, Confluence references, and Apidog links into an intake summary brief linking Jira and OpenSpec.
 subcommand: spec-summary
 group: intake
 slash: /intake-spec-summary <STORY-ID>

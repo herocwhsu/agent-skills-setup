@@ -1,4 +1,7 @@
 ---
+name: audit-handoff
+description: >-
+  Assemble upstream evidence, run brainstorming on remaining unknowns, and prepare handoff to OpenSpec proposal.
 subcommand: handoff
 group: audit
 slash: /audit-handoff <STORY-ID>

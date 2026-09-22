@@ -1,4 +1,7 @@
 ---
+name: sre-migration-scaffold
+description: >-
+  Generate skeleton for six-operation conforming SRE data correction tool with environment samples.
 subcommand: scaffold
 group: sre-migration
 slash: /sre-migration-scaffold <name>

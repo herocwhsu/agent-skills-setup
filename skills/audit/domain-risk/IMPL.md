@@ -1,4 +1,7 @@
 ---
+name: audit-domain-risk
+description: >-
+  Check story against domain-specific risks and constraints that generic spec audits miss.
 subcommand: domain-risk
 group: audit
 slash: /audit-domain-risk <STORY-ID>

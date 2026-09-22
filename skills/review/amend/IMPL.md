@@ -1,4 +1,7 @@
 ---
+name: review-amend
+description: >-
+  Record minor specification amendments (clarifications, field tweaks, edge cases) discovered during implementation.
 subcommand: amend
 group: review
 slash: /review-amend <STORY-ID> <slug>

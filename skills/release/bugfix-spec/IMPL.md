@@ -1,4 +1,7 @@
 ---
+name: release-bugfix-spec
+description: >-
+  Convert a production bug into a structured bugfix specification with regression test plan.
 subcommand: bugfix-spec
 group: release
 slash: /release-bugfix-spec <ORIGINAL-STORY-ID> <BUG-JIRA-ID>

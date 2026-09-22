@@ -1,4 +1,7 @@
 ---
+name: review-change-request
+description: >-
+  Capture major specification changes impacting API, DB, permissions, or scope during implementation.
 subcommand: change-request
 group: review
 slash: /review-change-request <STORY-ID> <slug>

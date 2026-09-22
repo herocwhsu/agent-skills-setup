@@ -1,4 +1,7 @@
 ---
+name: apidog-contract
+description: >-
+  Generate the API contract markdown from an OpenSpec proposal or story artifacts, then push to Apidog via MCP.
 subcommand: contract
 group: apidog
 slash: /apidog-contract <STORY-ID>

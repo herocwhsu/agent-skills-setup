@@ -1,4 +1,7 @@
 ---
+name: jira-evidence
+description: >-
+  Verify that every Jira sub-task on a story has all required evidence links before closure.
 subcommand: evidence
 group: jira
 slash: /jira-evidence <STORY-ID>

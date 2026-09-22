@@ -1,4 +1,7 @@
 ---
+name: repo-domain-notes
+description: >-
+  Search or update persistent domain notes and codebase lessons learned during story investigation.
 subcommand: domain-notes
 group: repo
 slash: /repo-domain-notes <query|add> [args]

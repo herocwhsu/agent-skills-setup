@@ -1,4 +1,7 @@
 ---
+name: apidog-testcases
+description: >-
+  Generate API test cases from contract and acceptance criteria covering positive, negative, boundary, and permission checks.
 subcommand: testcases
 group: apidog
 slash: /apidog-testcases <STORY-ID>

@@ -1,4 +1,7 @@
 ---
+name: external-deps
+description: >-
+  Document knowns and unknowns for unresolved external/vendor dependencies, create provisional contracts, and plan mock providers.
 subcommand: deps
 group: external
 slash: /external-deps <STORY-ID>

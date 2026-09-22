@@ -75,6 +75,11 @@ of scope for this session, see `docs/harness-creator/lecture-02/summary.md`.
   failures (Gulf of Execution: `harness-verify.sh` offers no way to run a
   subset of gates). Neither gap fixed — classification only, per the
   exercise's scope. **Lecture 2 is now fully closed.**
+- [x] feat-011: audited all 15 skills and 46 sub-skills for Antigravity (agy)
+  compatibility. Normalized frontmatter across all 31 Format A `IMPL.md` files
+  by adding `name` and `description` fields, ensuring progressive disclosure
+  works cleanly in agy while preserving Claude Code slash/subcommand metadata.
+  Ran full harness verification: all 8 gates pass clean.
 
 ### What's In Progress
 
@@ -82,9 +87,8 @@ of scope for this session, see `docs/harness-creator/lecture-02/summary.md`.
 
 ### What's Next
 
-- Nothing queued for Lecture 2 — it is fully closed. User's "do not move to
-  Lecture 3 until Lecture 2 is reviewed" condition is now satisfied; next
-  step is the user's call (start Lecture 3, or something else).
+- Ready for next tasks or Lecture 3.
+
 
 ## Blockers / Risks
 

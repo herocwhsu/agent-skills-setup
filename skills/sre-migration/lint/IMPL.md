@@ -1,4 +1,7 @@
 ---
+name: sre-migration-lint
+description: >-
+  Run pre-flight linting checks against drafted SRE migration tickets before filing.
 subcommand: lint
 group: sre-migration
 slash: /sre-migration-lint <STORY-ID>

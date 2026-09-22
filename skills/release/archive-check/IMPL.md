@@ -1,4 +1,7 @@
 ---
+name: release-archive-check
+description: >-
+  Verify that all OpenSpec change IDs linked to a story are archived and all required release evidence is present.
 subcommand: archive-check
 group: release
 slash: /release-archive-check <STORY-ID>

@@ -1,4 +1,7 @@
 ---
+name: utils-skill-eval
+description: >-
+  Mechanically scan skill transcripts for status markers and tool-call metrics to detect regressions.
 subcommand: skill-eval
 group: utils
 slash: /utils-skill-eval <skill-name> <transcript-file>

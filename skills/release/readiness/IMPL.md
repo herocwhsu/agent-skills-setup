@@ -1,4 +1,7 @@
 ---
+name: release-readiness
+description: >-
+  Verify all specification, test, Jira, and monitoring gates have passed before releasing a feature.
 subcommand: readiness
 group: release
 slash: /release-readiness <STORY-ID>

@@ -1,4 +1,7 @@
 ---
+name: progress-status
+description: >-
+  Inspect artifact files to check which workflow gates a story has passed and determine the recommended next step.
 subcommand: status
 group: progress
 slash: /progress-status <STORY-ID>

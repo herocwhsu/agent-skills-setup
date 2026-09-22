@@ -1,4 +1,7 @@
 ---
+name: testing-qa-check
+description: >-
+  Verify test coverage against acceptance criteria, API error responses, and permission rules prior to completion.
 subcommand: qa-check
 group: testing
 slash: /testing-qa-check <STORY-ID>

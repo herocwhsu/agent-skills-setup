@@ -1,4 +1,7 @@
 ---
+name: repo-context-scan
+description: >-
+  Scan affected codebase modules, existing APIs, DTOs, database schema, test patterns, and coding conventions.
 subcommand: context-scan
 group: repo
 slash: /repo-context-scan <STORY-ID>

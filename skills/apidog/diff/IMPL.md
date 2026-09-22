@@ -1,4 +1,7 @@
 ---
+name: apidog-diff
+description: >-
+  Compare the local contract markdown against the live Apidog project state to verify synchronization.
 subcommand: diff
 group: apidog
 slash: /apidog-diff <STORY-ID>

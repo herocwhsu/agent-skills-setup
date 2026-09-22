@@ -1,4 +1,7 @@
 ---
+name: utils-change-eval
+description: >-
+  Perform multi-model critical review of repo-level changes and mechanically verify assertions before adopting.
 subcommand: change-eval
 group: utils
 slash: /utils-change-eval <diff-or-path> [--task <description>]
