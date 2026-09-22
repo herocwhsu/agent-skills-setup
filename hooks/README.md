@@ -52,6 +52,7 @@ Run `bash .claude/hooks/check-tools.sh` to see what's installed on the current m
 common/
   secret-scan.sh      Stop — gitleaks + osv-scanner
   semgrep-guard.sh    Stop — SAST (customize --config flags for your stack)
+  pr-guard.sh         Stop — verify open PR CI checks to completion (blocks on failure)
   grype-guard.sh      Stop — CVE scan on filesystem / images (HIGH+ with fixes)
   sh-check.sh         PostToolUse *.sh — bash -n + shellcheck (error severity)
 
@@ -108,6 +109,7 @@ Then wire hooks into `.claude/settings.json`:
       { "hooks": [
         { "type": "command", "command": "bash .claude/hooks/py-guard.sh" },
         { "type": "command", "command": "bash .claude/hooks/semgrep-guard.sh" },
+        { "type": "command", "command": "bash .claude/hooks/pr-guard.sh" },
         { "type": "command", "command": "bash .claude/hooks/grype-guard.sh" },
         { "type": "command", "command": "bash .claude/hooks/secret-scan.sh" }
       ]}

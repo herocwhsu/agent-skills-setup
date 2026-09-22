@@ -14,10 +14,12 @@ echo "=== Semgrep SAST ==="
 # Edit --config flags to match your stack
 if ! semgrep scan \
     --config "p/secrets" \
-    --error --quiet \
+    --config "p/github-actions" \
+    --severity ERROR \
+    --error \
     --exclude "node_modules,__pycache__,.venv,dist,.git" \
-    "$REPO_ROOT" 2>/dev/null; then
-  echo "WARNING: semgrep found issues" >&2
+    "$REPO_ROOT"; then
+  echo "WARNING: semgrep found security issues" >&2
   WARN=1
 else
   echo "  OK  semgrep"
