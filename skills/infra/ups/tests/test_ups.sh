@@ -52,13 +52,13 @@ fi
 
 # ── shutdown.sh: double-run protection (lockfile logic) ──────────────────────
 LOCKFILE=/var/run/ups-shutdown.lock
-if sudo touch "$LOCKFILE" 2>/dev/null; then
-  if sudo bash "$SKILL_DIR/lib/shutdown.sh" test 2>&1 | grep -q "already in progress"; then
+if sudo -n touch "$LOCKFILE" 2>/dev/null; then
+  if sudo -n bash "$SKILL_DIR/lib/shutdown.sh" test 2>&1 | grep -q "already in progress"; then
     ok "shutdown.sh: double-run protection works"
   else
     fail "shutdown.sh: double-run protection not working"
   fi
-  sudo rm -f "$LOCKFILE"
+  sudo -n rm -f "$LOCKFILE"
 else
   echo "SKIP: double-run test (no write access to /var/run)"
 fi
