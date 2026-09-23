@@ -23,38 +23,15 @@ if [[ -z "$PR_NUMBER" ]]; then
 fi
 
 echo "=== PR CI Check Guard (PR #$PR_NUMBER) ==="
+echo "Watching CI checks for PR #$PR_NUMBER..."
 
-# Watch checks with timeout and fail-fast
-TIMEOUT=900 # 15 minutes
-INTERVAL=15
-ELAPSED=0
+if gh pr checks "$PR_NUMBER" --watch --fail-fast --interval 15; then
+  echo "  OK  all PR #$PR_NUMBER checks passed"
+  exit 0
+else
+  echo "" >&2
+  echo "❌ PR #$PR_NUMBER CI checks failed." >&2
+  echo "Please diagnose the failure, fix the code, repush, and verify before marking complete." >&2
+  exit 2
+fi
 
-while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
-  set +e
-  gh pr checks "$PR_NUMBER" --fail-fast > /tmp/gh_checks_$$ 2>&1
-  EXIT_CODE=$?
-  set -e
-  
-  if [ "$EXIT_CODE" -eq 0 ]; then
-    echo "  OK  all PR #$PR_NUMBER checks passed"
-    rm -f /tmp/gh_checks_$$
-    exit 0
-  elif [ "$EXIT_CODE" -eq 8 ]; then
-    # Pending
-    sleep $INTERVAL
-    ELAPSED=$(( ELAPSED + INTERVAL ))
-  else
-    # Failed or error
-    echo "" >&2
-    echo "❌ PR #$PR_NUMBER CI checks failed:" >&2
-    cat /tmp/gh_checks_$$ >&2
-    rm -f /tmp/gh_checks_$$
-    echo "" >&2
-    echo "Please diagnose the failure, fix the code, repush, and verify before marking complete." >&2
-    exit 2
-  fi
-done
-
-echo "❌ Timeout waiting for PR #$PR_NUMBER CI checks to complete." >&2
-rm -f /tmp/gh_checks_$$
-exit 2
