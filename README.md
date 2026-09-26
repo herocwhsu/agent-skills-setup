@@ -52,7 +52,7 @@ Restart your shell after setup.
 
 | What | Result |
 |---|---|
-| Statusline | [claude-hud](https://github.com/jarrodwatts/claude-hud) (context bar, active tools/agents, todos) when the plugin + Node/Bun are present; `--legacy-statusline` forces the PS1-style `user@host:cwd [ctx: Xk/Yk]` script |
+| Statusline | [claude-hud](https://github.com/jarrodwatts/claude-hud) (token counts & context bar, active tools/agents, todos) when the plugin + Node/Bun are present; `--legacy-statusline` forces the PS1-style `user@host:cwd [ctx: Xk/Yk]` script (configured for both Claude Code and Antigravity CLI) |
 | Push notifications | ntfy push on every Claude Code notification (needs ntfy server + token) |
 | Playwright MCP | Live browser debugging — read console errors, inspect DOM, capture screenshots |
 | Remote control | `remoteControlAtStartup: true` — control sessions from Claude mobile app |

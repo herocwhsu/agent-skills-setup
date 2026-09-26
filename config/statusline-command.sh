@@ -4,7 +4,17 @@
 
 input=$(cat)
 cwd=$(echo "$input" | jq -r '.cwd')
-used=$(echo "$input" | jq -r '.context_window.total_input_tokens // empty')
+used=$(echo "$input" | jq -r '
+  if ((.context_window.total_input_tokens // 0) > 0) then
+    .context_window.total_input_tokens
+  elif (.context_window.current_usage != null) then
+    ((.context_window.current_usage.input_tokens // 0) +
+     (.context_window.current_usage.cache_creation_input_tokens // 0) +
+     (.context_window.current_usage.cache_read_input_tokens // 0))
+  else
+    empty
+  end // empty
+')
 total=$(echo "$input" | jq -r '.context_window.context_window_size // empty')
 
 user_host="$(whoami)@$(hostname -s)"

@@ -17,6 +17,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG_DIR="$REPO_DIR/config"
 CLAUDE_DIR="$HOME/.claude"
+GEMINI_CLI_DIR="$HOME/.gemini/antigravity-cli"
 
 LEGACY_STATUSLINE=0
 while [[ $# -gt 0 ]]; do
@@ -37,8 +38,8 @@ if ! command -v jq &>/dev/null; then
   echo "ERROR: jq is required. Install it first (apt install jq / brew install jq)." >&2
   exit 1
 fi
-if ! command -v claude &>/dev/null; then
-  echo "ERROR: claude CLI not found. Install Claude Code first." >&2
+if ! command -v claude &>/dev/null && ! command -v agy &>/dev/null; then
+  echo "ERROR: neither claude nor agy CLI found. Install Claude Code or Antigravity first." >&2
   exit 1
 fi
 
@@ -82,9 +83,17 @@ if [[ $LEGACY_STATUSLINE -eq 0 ]]; then
 fi
 
 if [[ -z "$HUD_STATUSLINE_CMD" ]]; then
-  cp "$CONFIG_DIR/statusline-command.sh" "$CLAUDE_DIR/statusline-command.sh"
-  chmod +x "$CLAUDE_DIR/statusline-command.sh"
-  green "  ✓ $CLAUDE_DIR/statusline-command.sh (legacy PS1-style)"
+  if command -v claude &>/dev/null || [ -d "$CLAUDE_DIR" ]; then
+    cp "$CONFIG_DIR/statusline-command.sh" "$CLAUDE_DIR/statusline-command.sh"
+    chmod +x "$CLAUDE_DIR/statusline-command.sh"
+    green "  ✓ $CLAUDE_DIR/statusline-command.sh (legacy PS1-style)"
+  fi
+  if command -v agy &>/dev/null || [ -d "$GEMINI_CLI_DIR" ]; then
+    mkdir -p "$GEMINI_CLI_DIR"
+    cp "$CONFIG_DIR/statusline-command.sh" "$GEMINI_CLI_DIR/statusline-command.sh"
+    chmod +x "$GEMINI_CLI_DIR/statusline-command.sh"
+    green "  ✓ $GEMINI_CLI_DIR/statusline-command.sh (legacy PS1-style)"
+  fi
 fi
 
 # ── 2. notify.sh ──────────────────────────────────────────────────────────────
@@ -112,33 +121,80 @@ else
 fi
 
 # ── 3. Claude settings ─────────────────────────────────────────────────────────
-step "Patching ~/.claude/settings.json"
-SETTINGS="$CLAUDE_DIR/settings.json"
+if command -v claude &>/dev/null || [ -d "$CLAUDE_DIR" ]; then
+  step "Patching ~/.claude/settings.json"
+  SETTINGS="$CLAUDE_DIR/settings.json"
 
-if [ -f "$SETTINGS" ]; then
-  # Merge patch into existing settings (patch wins on conflicts)
-  MERGED=$(jq -s '.[0] * .[1]' "$SETTINGS" "$CONFIG_DIR/claude-settings-patch.json")
-  echo "$MERGED" > "$SETTINGS"
-  green "  ✓ merged into existing settings.json"
-else
-  cp "$CONFIG_DIR/claude-settings-patch.json" "$SETTINGS"
-  green "  ✓ created settings.json"
+  if [ -f "$SETTINGS" ]; then
+    # Merge patch into existing settings (patch wins on conflicts)
+    MERGED=$(jq -s '.[0] * .[1]' "$SETTINGS" "$CONFIG_DIR/claude-settings-patch.json")
+    echo "$MERGED" > "$SETTINGS"
+    green "  ✓ merged into existing settings.json"
+  else
+    cp "$CONFIG_DIR/claude-settings-patch.json" "$SETTINGS"
+    green "  ✓ created settings.json"
+  fi
+
+  # The patch points statusLine at the legacy script; override when using claude-hud
+  if [ -n "$HUD_STATUSLINE_CMD" ]; then
+    MERGED=$(jq --arg cmd "$HUD_STATUSLINE_CMD" '.statusLine = {type: "command", command: $cmd}' "$SETTINGS")
+    echo "$MERGED" > "$SETTINGS"
+    green "  ✓ statusLine → claude-hud"
+
+    # Configure claude-hud to show token usage alongside percentage
+    HUD_CFG="$CLAUDE_DIR/claude-hud.json"
+    if [ -f "$HUD_CFG" ]; then
+      MERGED=$(jq '.display = ((.display // {}) * {"contextValue": "both", "showSessionTokens": true})' "$HUD_CFG")
+      echo "$MERGED" > "$HUD_CFG"
+      green "  ✓ claude-hud token usage enabled in $HUD_CFG"
+    else
+      jq -n '{display: {contextValue: "both", showSessionTokens: true}}' > "$HUD_CFG"
+      green "  ✓ created $HUD_CFG (token usage enabled)"
+    fi
+  fi
 fi
 
-# The patch points statusLine at the legacy script; override when using claude-hud
-if [ -n "$HUD_STATUSLINE_CMD" ]; then
-  MERGED=$(jq --arg cmd "$HUD_STATUSLINE_CMD" '.statusLine = {type: "command", command: $cmd}' "$SETTINGS")
-  echo "$MERGED" > "$SETTINGS"
-  green "  ✓ statusLine → claude-hud"
+# ── Antigravity CLI settings ──────────────────────────────────────────────────
+if command -v agy &>/dev/null || [ -d "$GEMINI_CLI_DIR" ]; then
+  step "Patching ~/.gemini/antigravity-cli/settings.json"
+  mkdir -p "$GEMINI_CLI_DIR"
+  AGY_SETTINGS="$GEMINI_CLI_DIR/settings.json"
+  if [ -n "$HUD_STATUSLINE_CMD" ]; then
+    AGY_STATUS_CMD="$HUD_STATUSLINE_CMD"
+  else
+    AGY_STATUS_CMD="bash $GEMINI_CLI_DIR/statusline-command.sh"
+  fi
+  if [ -f "$AGY_SETTINGS" ]; then
+    MERGED=$(jq --arg cmd "$AGY_STATUS_CMD" '.statusLine = {type: "command", command: $cmd, enabled: true}' "$AGY_SETTINGS")
+    echo "$MERGED" > "$AGY_SETTINGS"
+    green "  ✓ statusLine merged into $AGY_SETTINGS"
+  else
+    jq -n --arg cmd "$AGY_STATUS_CMD" '{statusLine: {type: "command", command: $cmd, enabled: true}}' > "$AGY_SETTINGS"
+    green "  ✓ created $AGY_SETTINGS with statusLine"
+  fi
+
+  if [ -n "$HUD_STATUSLINE_CMD" ]; then
+    AGY_HUD_CFG="$GEMINI_CLI_DIR/claude-hud.json"
+    if [ -f "$AGY_HUD_CFG" ]; then
+      MERGED=$(jq '.display = ((.display // {}) * {"contextValue": "both", "showSessionTokens": true})' "$AGY_HUD_CFG")
+      echo "$MERGED" > "$AGY_HUD_CFG"
+      green "  ✓ claude-hud token usage enabled in $AGY_HUD_CFG"
+    else
+      jq -n '{display: {contextValue: "both", showSessionTokens: true}}' > "$AGY_HUD_CFG"
+      green "  ✓ created $AGY_HUD_CFG (token usage enabled)"
+    fi
+  fi
 fi
 
 # ── 4. Playwright MCP ─────────────────────────────────────────────────────────
-step "Registering Playwright MCP server"
-if claude mcp list 2>/dev/null | grep -q "playwright"; then
-  yellow "  ⚠ playwright MCP already registered — skipping"
-else
-  claude mcp add playwright --scope user -- npx @playwright/mcp@latest --headless
-  green "  ✓ playwright MCP registered (headless)"
+if command -v claude &>/dev/null; then
+  step "Registering Playwright MCP server"
+  if claude mcp list 2>/dev/null | grep -q "playwright"; then
+    yellow "  ⚠ playwright MCP already registered — skipping"
+  else
+    claude mcp add playwright --scope user -- npx @playwright/mcp@latest --headless
+    green "  ✓ playwright MCP registered (headless)"
+  fi
 fi
 
 # ── 5. tmux ───────────────────────────────────────────────────────────────────
@@ -167,16 +223,25 @@ green "  ✓ $TMUX_CONF (mouse on, vi-copy yank)"
 echo
 bold "Done. What was configured:"
 if [ -n "$HUD_STATUSLINE_CMD" ]; then
-  echo "  statusline                       — claude-hud (context bar, tools, agents, todos)"
+  echo "  statusline                       — claude-hud (token usage, context bar, tools, agents, todos)"
 else
-  echo "  ~/.claude/statusline-command.sh  — PS1-style statusline with context usage"
+  echo "  statusline-command.sh            — PS1-style statusline with context usage"
 fi
-echo "  ~/.claude/notify.sh              — ntfy push on Claude notifications"
-echo "  ~/.claude/settings.json          — hooks, remote control, statusline, theme"
-echo "  Playwright MCP                   — live browser debugging via claude mcp"
+if [ -f "$CLAUDE_DIR/notify.sh" ]; then
+  echo "  ~/.claude/notify.sh              — ntfy push on Claude notifications"
+fi
+if [ -f "$CLAUDE_DIR/settings.json" ]; then
+  echo "  ~/.claude/settings.json          — hooks, remote control, statusline, theme"
+fi
+if [ -d "$GEMINI_CLI_DIR" ] || command -v agy &>/dev/null; then
+  echo "  ~/.gemini/antigravity-cli/settings.json — statusline (context & usage)"
+fi
+if command -v claude &>/dev/null; then
+  echo "  Playwright MCP                   — live browser debugging via claude mcp"
+fi
 echo "  ~/.tmux.conf                     — mouse mode, vi-copy yank"
 echo
-echo "Restart Claude Code to apply all changes."
+echo "Restart Claude Code / Antigravity CLI to apply all changes."
 if [ -n "${NTFY_URL:-}" ]; then
   echo
   echo "To receive push notifications, subscribe to: $NTFY_URL"
