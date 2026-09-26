@@ -80,6 +80,9 @@ of scope for this session, see `docs/harness-creator/lecture-02/summary.md`.
   by adding `name` and `description` fields, ensuring progressive disclosure
   works cleanly in agy while preserving Claude Code slash/subcommand metadata.
   Ran full harness verification: all 8 gates pass clean.
+- [x] feat-012: `wire_hook`/`rewire_hooks` no longer map kiro to
+  `~/.claude/settings.json` (it double-wired polish-input into Claude Code).
+  `test_kiro_gateway.sh` not run — local Docker daemon hung, unrelated.
 
 ### What's In Progress
 

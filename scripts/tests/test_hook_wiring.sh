@@ -202,6 +202,35 @@ a=json.load(open('$TMP/e.json'))['hooks']['UserPromptSubmit']
 sib=any('tool.sh' in h.get('command','') for e in a for h in e.get('hooks',[]))
 print(len(a), 'yes' if sib else 'no')")"
 
+# --- kiro must not wire into Claude Code's settings.json -------------------
+# kiro used to share claude's settings path, so a kiro install merged a second
+# polish-input entry (pointing at ~/.kiro/skills) into ~/.claude/settings.json
+# and every Claude prompt was polished twice.
+kh="$TMP/kirohome"
+mkdir -p "$kh/bin"
+printf '#!/bin/sh\nexit 0\n' > "$kh/bin/pip3"; chmod +x "$kh/bin/pip3"
+(
+  export HOME="$kh" PATH="$kh/bin:$PATH"
+  # shellcheck source=scripts/_lib.sh
+  source "$REPO_DIR/scripts/_lib.sh"
+  wire_hook polish-input "$REPO_DIR" kiro
+) >/dev/null 2>&1 || true
+check "wire_hook kiro leaves ~/.claude/settings.json untouched" "no" \
+  "$([[ -f "$kh/.claude/settings.json" ]] && echo yes || echo no)"
+
+mkdir -p "$kh/.claude"
+cat > "$kh/.claude/settings.json" <<JSON
+{"hooks":{"UserPromptSubmit":[{"matcher":"","hooks":[{"type":"command","command":"python3 /old/.claude/skills/utils/polish-input/lib/polish.py"}]}]}}
+JSON
+before=$(cat "$kh/.claude/settings.json")
+(
+  export HOME="$kh"
+  source "$REPO_DIR/scripts/_lib.sh"
+  rewire_hooks "$REPO_DIR" kiro
+) >/dev/null 2>&1 || true
+check "rewire_hooks kiro does not repoint claude's hook at ~/.kiro" "$before" \
+  "$(cat "$kh/.claude/settings.json")"
+
 # --- update.sh must resolve the saved selection, not word-split it ---------
 # agent-selection.txt holds "all" or a comma list. Splitting it by hand passes
 # "all" to rewire_hooks, whose case statement returns 0 without doing anything.

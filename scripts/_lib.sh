@@ -764,6 +764,13 @@ wire_hook() {
     echo "  hooks unsupported on codex (no settings.json equivalent) — skipped" >&2
     return 0
   fi
+  # Kiro has no settings.json either (hooks live in its IDE hook files). It used
+  # to fall through to Claude's settings.json, which wired a second copy of the
+  # hook, pointing at ~/.kiro/skills, into every Claude Code prompt.
+  if [[ "$agent" == "kiro" ]]; then
+    echo "  hooks unsupported on kiro (no settings.json equivalent) — skipped" >&2
+    return 0
+  fi
 
   # Try flat path first (legacy), then search one level deep (group/subcommand layout).
   if [[ -f "$repo_dir/skills/$skill/hook.json" ]]; then
@@ -775,9 +782,9 @@ wire_hook() {
   fi
 
   case "$agent" in
-    gemini)      settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
-    claude|kiro) settings="$HOME/.claude/settings.json" ;;
-    *)           echo "  ERROR: no hook settings path known for agent '$agent'" >&2; return 1 ;;
+    gemini) settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
+    claude) settings="$HOME/.claude/settings.json" ;;
+    *)      echo "  ERROR: no hook settings path known for agent '$agent'" >&2; return 1 ;;
   esac
 
   if [[ -z "$hook_path" || ! -f "$hook_path" ]]; then
@@ -838,9 +845,9 @@ rewire_hooks() {
   local settings skills_dir
 
   case "$agent" in
-    gemini)      settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
-    claude|kiro) settings="$HOME/.claude/settings.json" ;;
-    *)           return 0 ;;
+    gemini) settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
+    claude) settings="$HOME/.claude/settings.json" ;;
+    *)      return 0 ;;
   esac
 
   [[ -f "$settings" ]] || return 0
@@ -877,6 +884,8 @@ unwire_hook() {
 
   case "$agent" in
     gemini)      settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
+    # kiro stays mapped here so uninstall removes entries older installs wired
+    # into Claude's settings.json; wire_hook no longer adds them.
     claude|kiro) settings="$HOME/.claude/settings.json" ;;
     *)           echo "  ERROR: no hook settings path known for agent '$agent'" >&2; return 1 ;;
   esac

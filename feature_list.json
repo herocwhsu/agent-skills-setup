@@ -85,6 +85,14 @@
       "dependencies": [],
       "status": "done",
       "evidence": "All 15 SKILL.md and 46 IMPL.md files verified to contain valid name and description frontmatter. bash scripts/harness-verify.sh passed clean across all 8 gates (registry, types, tests, skill paths, cred backends, hook wiring, state layer, secret scan)."
+    },
+    {
+      "id": "feat-012",
+      "name": "Stop wiring kiro hooks into Claude Code's settings.json",
+      "description": "wire_hook and rewire_hooks mapped kiro to ~/.claude/settings.json, so a kiro (or all-agent) install merged a second polish-input entry pointing at ~/.kiro/skills into Claude Code and every prompt was polished twice. Kiro is now skipped like codex; unwire_hook keeps the mapping so uninstall still removes legacy entries.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "Two new checks in scripts/tests/test_hook_wiring.sh failed before the fix and pass after. All 52 other test files and the 7 non-test gates pass. test_kiro_gateway.sh was not run: the local Docker daemon is hung (docker version times out), unrelated to this change."
     }
   ]
 }
