@@ -799,6 +799,12 @@ wire_hook() {
     echo "  hooks unsupported on kiro (no settings.json equivalent) — skipped" >&2
     return 0
   fi
+  # Antigravity CLI (gemini) does not support UserPromptSubmit in settings.json;
+  # prompt polishing on gemini is handled natively via global rules in GEMINI.md.
+  if [[ "$agent" == "gemini" ]]; then
+    echo "  hooks in settings.json unsupported on gemini (handled natively via GEMINI.md) — skipped" >&2
+    return 0
+  fi
 
   # Try flat path first (legacy), then search one level deep (group/subcommand layout).
   if [[ -f "$repo_dir/skills/$skill/hook.json" ]]; then

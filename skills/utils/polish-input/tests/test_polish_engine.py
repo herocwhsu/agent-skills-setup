@@ -246,3 +246,34 @@ def test_polish_gemini_uses_model_env_var(monkeypatch):
     assert len(created_models) == 1
     assert created_models[0][0] == "gemini-2.0-flash"
 
+
+def test_gemini_keychain_provider_macos_security(monkeypatch):
+    import subprocess
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+
+    def fake_run(args, **kwargs):
+        if args[:4] == ["security", "find-generic-password", "-s", "agent-skills-setup:gemini"]:
+            return subprocess.CompletedProcess(args, 0, stdout="test-gemini-key\n")
+        return subprocess.CompletedProcess(args, 1, stdout="")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    provider = polish_engine.GeminiKeychainProvider()
+    assert provider.credential() == "test-gemini-key"
+
+
+def test_anthropic_keychain_provider_macos_security(monkeypatch):
+    import subprocess
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+
+    def fake_run(args, **kwargs):
+        if args[:4] == ["security", "find-generic-password", "-s", "agent-skills-setup:anthropic"]:
+            return subprocess.CompletedProcess(args, 0, stdout="test-anthropic-key\n")
+        return subprocess.CompletedProcess(args, 1, stdout="")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    provider = polish_engine.AnthropicKeychainProvider()
+    assert provider.credential() == "test-anthropic-key"
+
+

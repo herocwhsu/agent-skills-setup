@@ -236,8 +236,72 @@ class GeminiKeyProvider(AuthProvider):
         return os.environ.get("GEMINI_API_KEY") or None
 
 
+class AnthropicKeychainProvider(AuthProvider):
+    """API key from this runtime's keychain (security, secret-tool, or credentials.json)."""
+
+    name = "anthropic-keychain"
+    backend = "anthropic"
+    cred_type = "key"
+
+    def credential(self) -> str | None:
+        try:
+            user = "default"
+            config_path = Path(os.path.expanduser(f"~/.{_KEYCHAIN_PREFIX}/config.sh"))
+            if config_path.exists():
+                for line in config_path.read_text().splitlines():
+                    if line.startswith("ANTHROPIC_USER="):
+                        user = line.split("=", 1)[1].strip("\"' ")
+                        break
+
+            svc = f"{_KEYCHAIN_PREFIX}:anthropic"
+            try:
+                result = subprocess.run(
+                    [
+                        "security",
+                        "find-generic-password",
+                        "-s",
+                        svc,
+                        "-a",
+                        user,
+                        "-w",
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    return result.stdout.strip()
+            except FileNotFoundError:
+                pass
+
+            try:
+                result = subprocess.run(
+                    [
+                        "secret-tool",
+                        "lookup",
+                        "service",
+                        svc,
+                        "username",
+                        user,
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    return result.stdout.strip()
+            except FileNotFoundError:
+                pass
+
+            fb = Path(os.path.expanduser(_FALLBACK_STORE))
+            if fb.exists():
+                data = json.loads(fb.read_text())
+                return data.get(f"{svc}:{user}") or None
+        except Exception:
+            pass
+        return None
+
+
 class GeminiKeychainProvider(AuthProvider):
-    """API key from this runtime's keychain (secret-tool or credentials.json)."""
+    """API key from this runtime's keychain (security, secret-tool, or credentials.json)."""
 
     name = "gemini-keychain"
     backend = "gemini"
@@ -252,6 +316,25 @@ class GeminiKeychainProvider(AuthProvider):
                     if line.startswith("GEMINI_USER="):
                         user = line.split("=", 1)[1].strip("\"' ")
                         break
+
+            try:
+                result = subprocess.run(
+                    [
+                        "security",
+                        "find-generic-password",
+                        "-s",
+                        _GEMINI_SVC,
+                        "-a",
+                        user,
+                        "-w",
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    return result.stdout.strip()
+            except FileNotFoundError:
+                pass
 
             try:
                 result = subprocess.run(

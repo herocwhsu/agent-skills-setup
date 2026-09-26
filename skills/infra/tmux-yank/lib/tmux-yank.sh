@@ -58,6 +58,15 @@ if [[ ! -f "$TMUX_CONF" ]]; then
     cat > "$TMUX_CONF" <<'EOF'
 set -g mouse on
 set -g mode-keys vi
+set -g history-limit 50000
+
+# Smooth mouse scrolling:
+# - If app requests mouse (e.g. Claude Code), pass mouse event directly
+# - If already in copy-mode, scroll copy-mode
+# - Otherwise (e.g. agy, shell), enter copy-mode automatically and scroll
+bind-key -T root WheelUpPane \
+  if-shell -F -t = "#{mouse_any_flag}" "send-keys -M" \
+  "if-shell -F -t = '#{pane_in_mode}' 'send-keys -M' 'copy-mode -e'"
 
 # OSC 52 disabled: pbcopy is the authoritative clipboard path on macOS.
 # Enabling set-clipboard causes OSC 52 to race with pbcopy and overwrite it.

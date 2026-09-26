@@ -67,16 +67,36 @@ def build_providers(agent: str) -> list:
     from polish_engine import (
         ClaudeSessionProvider,
         AnthropicKeyProvider,
+        AnthropicKeychainProvider,
         GeminiAntigravityProvider,
         GeminiKeyProvider,
         GeminiKeychainProvider,
     )
 
     if agent == "claude":
-        return [ClaudeSessionProvider(), AnthropicKeyProvider()]
+        return [
+            ClaudeSessionProvider(),
+            AnthropicKeyProvider(),
+            AnthropicKeychainProvider(),
+            GeminiKeyProvider(),
+            GeminiKeychainProvider(),
+        ]
     if agent == "gemini":
-        return [GeminiAntigravityProvider(), GeminiKeyProvider(), GeminiKeychainProvider()]
-    return []
+        return [
+            GeminiKeyProvider(),
+            GeminiKeychainProvider(),
+            AnthropicKeyProvider(),
+            AnthropicKeychainProvider(),
+            ClaudeSessionProvider(),
+            GeminiAntigravityProvider(),
+        ]
+    return [
+        ClaudeSessionProvider(),
+        AnthropicKeyProvider(),
+        AnthropicKeychainProvider(),
+        GeminiKeyProvider(),
+        GeminiKeychainProvider(),
+    ]
 
 
 # ---------------------------------------------------------------------------
