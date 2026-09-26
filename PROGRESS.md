@@ -3,17 +3,17 @@
 ## Current State
 
 **Last Updated:** 2026-09-26
-**Active Feature:** none — feat-014 (Lecture 3: Repository as System of Record) completed, `./init.sh` passes clean.
-**Lecture 3 (harness-creator training) is now fully closed**: Discoverability
-score raised from 60/100 (Grade C) to 100/100 (Grade A) via `repo-reader.ts`.
-Authored `docs/architecture.md`, upgraded directly to canonical uppercase
-`PROGRESS.md` (with backward compatibility in `state-layer-guard.sh`), and
-added PEP 621 `pyproject.toml` — eliminating fragile root symlinks. Documented
-all 3 Lecture 3 exercises (Fresh Session Test, Knowledge Visibility Gap at
-5.0%, and ACID Assessment) in `docs/harness-creator/lecture-03/`. One real,
-confirmed finding remains deliberately unactioned: `google-generativeai` is
-deprecated (successor `google-genai`) — touches shipped code
-(`polish_engine.py`), out of scope for this session.
+**Active Feature:** none — feat-015 (Lecture 4: Split Instructions Across Files) completed, `./init.sh` passes clean.
+**Lecture 4 (harness-creator training) is now fully closed**: Elevated root
+`AGENTS.md` to an explicit router (82 lines) with a dedicated `## Topic Docs`
+section routing to `docs/architecture.md`, `agents/engineering-rules.md`,
+`skills/README.md`, `docs/harness-creator/`, and `docs/migration.md`. Authored
+standalone simulation and diagnostic tool `docs/harness-creator/lecture-04/code/split_simulation.py`,
+revealing a 23.2% average SNR across 5 canonical developer tasks (76.8% noise
+under monolithic context), 67.7% context token savings via router+topic splitting,
+and mapped 'Lost in the Middle' position depth (30%-70% danger window), proving
+middle invariants must be backed by deterministic guard hooks. Documented full
+analysis in `docs/harness-creator/lecture-04/`.
 
 ## Status
 
@@ -97,6 +97,16 @@ deprecated (successor `google-genai`) — touches shipped code
   root symlinks. Completed and documented all 3 Lecture 3 exercises (Fresh Session
   Test, Knowledge Visibility Gap audit of 20 constraints at 5.0%, and ACID
   assessment) in `docs/harness-creator/lecture-03/`.
+- [x] feat-015: Lecture 4 (harness-creator training) completed. Elevated root
+  `AGENTS.md` to an explicit router (82 lines) with a dedicated `## Topic Docs`
+  routing section (`docs/architecture.md`, `agents/engineering-rules.md`,
+  `skills/README.md`, `docs/harness-creator/`, `docs/migration.md`). Created
+  standalone audit/simulation tool `docs/harness-creator/lecture-04/code/split_simulation.py`
+  demonstrating 23.2% average SNR across 5 canonical tasks (76.8% noise under
+  monolithic context), 67.7% context token savings via router+topic splitting,
+  and mapped 'Lost in the Middle' position depth (30%-70% danger window), confirming
+  middle invariants must be backed by deterministic guard hooks. Documented full
+  analysis in `docs/harness-creator/lecture-04/`.
 
 ### What's In Progress
 
@@ -104,7 +114,7 @@ deprecated (successor `google-genai`) — touches shipped code
 
 ### What's Next
 
-- Ready for next tasks or Lecture 4.
+- Ready for Lecture 5: Why Long-Running Tasks Lose Continuity.
 
 
 ## Blockers / Risks

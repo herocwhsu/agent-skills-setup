@@ -72,3 +72,11 @@ Shared scripts must be portable across macOS default `/bin/bash` (3.2) and Linux
   don't pass `--allow-non-main` to get around that.
 - Ask before running `scripts/install-agents-md.sh` (rewrites every agent's global rules file).
 
+## Topic Docs
+
+- **Architecture Guide** (`docs/architecture.md`) — System layers, invariants, and directory layout. Read before modifying subsystem boundaries.
+- **Global Engineering Rules** (`agents/engineering-rules.md`) — 12 core engineering rules, personal conventions, and spec-gated production workflow.
+- **Skills Catalog & Registry** (`skills/README.md`) — Subcommand specifications and integration contracts for individual agent skills.
+- **Harness Creator Training** (`docs/harness-creator/`) — Curriculum logs, diagnostic tools, and architectural analysis for the harness system.
+- **Migration & Host Portability** (`docs/migration.md`) — Upgrading host environments, pyenv interpreters, and multi-agent directory setups.
+

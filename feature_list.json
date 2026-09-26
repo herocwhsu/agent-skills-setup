@@ -109,6 +109,15 @@
       "dependencies": [],
       "status": "done",
       "evidence": "bun repo-reader.ts scored 100/100 (Grade A, all 8 criteria PASS, zero root symlinks). bash scripts/harness-verify.sh passed clean across all 8 gates (registry, types, tests, skill paths, cred backends, hook wiring, state layer, secret scan)."
+    },
+    {
+      "id": "feat-015",
+      "name": "Lecture 4 (harness-creator): Split Instructions Across Files & SNR Audit",
+      "description": "Advanced repository to Lecture 4 standards from learn-harness-engineering. Elevated root AGENTS.md to an explicit router file (82 lines) with a dedicated ## Topic Docs routing section (docs/architecture.md, agents/engineering-rules.md, skills/README.md, docs/harness-creator/, docs/migration.md). Created standalone audit/simulation tool docs/harness-creator/lecture-04/code/split_simulation.py demonstrating 23.2% average SNR across 5 canonical tasks (76.8% noise in monolithic context), 67.7% context token savings via router+topic splitting, and mapped 'Lost in the Middle' position depth (30%-70% danger window) confirming middle invariants must be backed by deterministic guard hooks. Documented full analysis under docs/harness-creator/lecture-04/.",
+      "dependencies": ["feat-014"],
+      "status": "done",
+      "evidence": "python3 docs/harness-creator/lecture-04/code/split_simulation.py passed clean (exit 0). bash scripts/run-tests.sh --fast passed 54/54. bash scripts/harness-verify.sh passed clean across all 8 gates (registry, types, tests, skill paths, cred backends, hook wiring, state layer, secret scan)."
     }
   ]
 }
+
