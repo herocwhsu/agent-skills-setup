@@ -67,8 +67,8 @@ Shared scripts must be portable across macOS default `/bin/bash` (3.2) and Linux
 
 - Never point `init-repo.sh` at this repo (it overwrites `.claude/hooks/`).
 - Tests must redirect `HOME` to a temporary directory (`~/.claude`, `~/.codex`, `~/.gemini` are touched).
-- `install.sh` is routine here — run it without asking, but pass the saved selection
-  (`--agent "$(cat ~/.agent-skills-setup/agent-selection.txt)"`): a narrower `--agent`
-  overwrites that file and narrows every later `update.sh`.
+- `install.sh` is routine here — run it without asking, with no `--agent` (it replays
+  the saved selection). It refuses to run from a worktree or non-default branch;
+  don't pass `--allow-non-main` to get around that.
 - Ask before running `scripts/install-agents-md.sh` (rewrites every agent's global rules file).
 

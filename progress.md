@@ -83,6 +83,9 @@ of scope for this session, see `docs/harness-creator/lecture-02/summary.md`.
 - [x] feat-012: `wire_hook`/`rewire_hooks` no longer map kiro to
   `~/.claude/settings.json` (it double-wired polish-input into Claude Code).
   `test_kiro_gateway.sh` not run — local Docker daemon hung, unrelated.
+- [x] feat-013: `install.sh` refuses to run from a worktree or non-default
+  branch (`--allow-non-main` overrides; CI uses it) and a bare re-run replays
+  the saved agent selection. Agents may now run it without asking.
 
 ### What's In Progress
 

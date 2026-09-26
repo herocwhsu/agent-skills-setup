@@ -9,6 +9,7 @@ source "$REPO_DIR/scripts/_lib.sh"
 AGENT_ARG=""
 WITH_AGENTS_MD=0
 UPDATE_AGENTS=0
+ALLOW_NON_MAIN=0
 PLUGIN_OPT_IN=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -24,17 +25,30 @@ while [[ $# -gt 0 ]]; do
       WITH_AGENTS_MD=1; shift ;;
     --update-agents)
       UPDATE_AGENTS=1; shift ;;
+    --allow-non-main)
+      ALLOW_NON_MAIN=1; shift ;;
     *)
       echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
 done
 
 require_supported_os || exit 1
-
-select_agents "$AGENT_ARG"
+if [[ $ALLOW_NON_MAIN -eq 0 ]]; then
+  require_main_checkout "$REPO_DIR" || exit 1
+fi
 
 # Save agent selection for update.sh to reuse
 SELECTION_FILE="$(skills_runtime_dir "$REPO_DIR")/agent-selection.txt"
+
+# A bare re-run replays the saved selection instead of prompting: the prompt's
+# default (claude) would silently narrow every later update.sh on a multi-agent host.
+if [[ -z "$AGENT_ARG" && -s "$SELECTION_FILE" ]]; then
+  AGENT_ARG=$(cat "$SELECTION_FILE")
+  echo "  using saved agent selection: $AGENT_ARG (pass --agent to change)"
+fi
+
+select_agents "$AGENT_ARG"
+
 mkdir -p "$(dirname "$SELECTION_FILE")"
 # Record every selected agent, not just the first, and compare against the
 # agent list itself rather than a literal. Both halves of this were wrong:

@@ -24,8 +24,10 @@ jobs:
       # skip (exit 0) if it's absent — a real install is required first, or the
       # test run gives false confidence. plugin registry entries are skipped
       # automatically (claude CLI isn't present on this runner).
+      # --allow-non-main: a PR checkout is a detached merge ref, and a throwaway
+      # runner has no other agents for a non-main install to mislead.
       - name: Install (claude agent)
-        run: bash scripts/install.sh --agent claude
+        run: bash scripts/install.sh --agent claude --allow-non-main
 
       - name: Run tests
         run: bash scripts/run-tests.sh --fast

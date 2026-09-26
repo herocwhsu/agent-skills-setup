@@ -174,6 +174,16 @@ The choice is written to `~/.agent-skills-setup/agent-selection.txt` and replaye
 by `update.sh`, so **it decides what future updates refresh** — the value is
 echoed at install time for that reason. It *replaces* the previous selection
 rather than adding to it, so a narrow re-run narrows all later updates.
+A bare `bash scripts/install.sh` replays the saved selection instead of prompting;
+the prompt only appears on a first install.
+
+### Install source guard
+
+Local skills are symlinked to the checkout `install.sh` runs from, so it refuses to
+run from a linked git worktree or from any branch other than the default (`main`):
+either would point every agent on the host at unmerged skill code, and deleting the
+worktree would dangle every link. Pass `--allow-non-main` to override (CI does,
+since a PR checkout is a detached merge ref). A copy with no `.git` is not checked.
 
 This mattered: the field previously held a single agent, so a claude+codex host
 refreshed only whichever was installed last and let the other go stale — 11
@@ -201,7 +211,7 @@ reporting each one. It is deliberately narrow: only broken links whose target is
 inside the repo, never a real directory or a link of your own.
 
 **CI:** `.github/workflows/test.yml` runs on every push/PR to `main` — installs
-(`scripts/install.sh --agent claude`, non-interactive) then runs
+(`scripts/install.sh --agent claude --allow-non-main`, non-interactive) then runs
 `scripts/run-tests.sh --fast` on a clean `ubuntu-latest` runner. No Renovate on this
 repo (no `renovate.json`); dependency-free bash scripts, nothing to bump.
 

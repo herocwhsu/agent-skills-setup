@@ -93,6 +93,14 @@
       "dependencies": [],
       "status": "done",
       "evidence": "Two new checks in scripts/tests/test_hook_wiring.sh failed before the fix and pass after. All 52 other test files and the 7 non-test gates pass. test_kiro_gateway.sh was not run: the local Docker daemon is hung (docker version times out), unrelated to this change."
+    },
+    {
+      "id": "feat-013",
+      "name": "install.sh source guard and saved-selection default",
+      "description": "install.sh symlinks local skills to the checkout it runs from, so a run from a linked worktree or non-default branch pointed every agent on the host at unmerged skill code. It now refuses both unless --allow-non-main is passed (CI passes it: PR checkouts are detached). A bare re-run replays the saved agent selection instead of prompting, so it can no longer narrow later update.sh runs. This lets agents run install.sh without asking (AGENTS.md updated).",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "scripts/tests/test_install_source_guard.sh (13 checks, offline sandbox installs into a temp HOME): 9 failed before the change, all pass after, under bash 3.2 and 5. All 53 test files and 7 non-test gates pass. test_kiro_gateway.sh not run: local Docker daemon hung, unrelated."
     }
   ]
 }

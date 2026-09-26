@@ -35,6 +35,34 @@ require_supported_os() {
   return 0
 }
 
+# require_main_checkout <repo_dir>
+#   install.sh symlinks local skills to wherever it runs from. Run from a linked
+#   worktree or a non-default branch, it points every agent on the host at
+#   unmerged skill code, and deleting that worktree later dangles every link.
+#   A copy with no .git (e.g. a release tarball) passes: there is no branch to judge.
+require_main_checkout() {
+  local repo_dir="$1" git_dir common_dir branch default
+  git_dir=$(git -C "$repo_dir" rev-parse --path-format=absolute --git-dir 2>/dev/null) || return 0
+  common_dir=$(git -C "$repo_dir" rev-parse --path-format=absolute --git-common-dir)
+  if [[ "$git_dir" != "$common_dir" ]]; then
+    echo "ERROR: $repo_dir is a linked git worktree." >&2
+    echo "       Installing from it would point every agent at this worktree's skills." >&2
+    echo "       Run install.sh from the main checkout, or pass --allow-non-main." >&2
+    return 1
+  fi
+  default=$(git -C "$repo_dir" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)
+  default="${default#origin/}"
+  default="${default:-main}"
+  branch=$(git -C "$repo_dir" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  if [[ "$branch" != "$default" ]]; then
+    echo "ERROR: $repo_dir is on '${branch:-detached HEAD}', not '$default'." >&2
+    echo "       Installing would point every agent at this branch's skills." >&2
+    echo "       Switch to $default, or pass --allow-non-main." >&2
+    return 1
+  fi
+  return 0
+}
+
 # Download a URL to a file; tries curl then wget
 # Usage: download_file <url> <dest>
 # ---------------------------------------------------------------------------
