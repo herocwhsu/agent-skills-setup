@@ -17,9 +17,11 @@ set -euo pipefail
 REPO_DIR="${STATE_LAYER_GUARD_REPO_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
 missing=()
-for f in feature_list.json progress.md init.sh; do
-  [[ -f "$REPO_DIR/$f" ]] || missing+=("$f")
-done
+[[ -f "$REPO_DIR/feature_list.json" ]] || missing+=("feature_list.json")
+if [[ ! -f "$REPO_DIR/PROGRESS.md" && ! -f "$REPO_DIR/progress.md" ]]; then
+  missing+=("PROGRESS.md")
+fi
+[[ -f "$REPO_DIR/init.sh" ]] || missing+=("init.sh")
 
 if [[ ${#missing[@]} -gt 0 ]]; then
   echo "Blocked: this repo's state layer is missing: ${missing[*]}" >&2

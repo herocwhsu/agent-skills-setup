@@ -11,6 +11,7 @@ Installs:
 - **Optional Claude Code plugins** (not installed by default — see below) — [productivity + product-management](https://github.com/anthropics/knowledge-work-plugins), which each add several MCP servers (Jira/Confluence/Slack/Asana/Linear/Notion/ClickUp/Monday, or Amplitude/Figma/Fireflies/Intercom/Pendo/Similarweb) that require their own OAuth login
 
 The story flow these skills implement is documented in [Spec-Gated Workflow](#spec-gated-workflow) below.
+For system design and operational boundaries, see [docs/architecture.md](docs/architecture.md). Current development status is tracked in [PROGRESS.md](PROGRESS.md).
 
 Supports: Kiro, Claude Code, Antigravity CLI, Codex CLI · macOS and Linux, x86_64 and arm64
 
@@ -199,8 +200,12 @@ weeks, in one case. A sibling bug compared the selection count against a literal
 | `scripts/install.sh` | macOS / Linux | Install superpowers + custom skills |
 | `scripts/uninstall.sh` | macOS / Linux | Remove installed skills |
 | `scripts/update.sh` | macOS / Linux | `git pull` + re-install |
+| `init.sh` | macOS / Linux | One-command harness startup & verification entrypoint |
+| `scripts/harness-verify.sh` | macOS / Linux | Run all 8 verification gates across registry, types, tests, and security |
 | `scripts/run-tests.sh` | macOS / Linux | Run all skill + script tests (`--fast` skips integration tests) |
+| `scripts/setup-host.sh` | macOS / Linux | Configure host environment (statusline HUD, push notifications, Playwright MCP, tmux) |
 | `scripts/setup-credentials.sh` | macOS / Linux | Store service credentials in keychain |
+| `scripts/install-agents-md.sh` | macOS / Linux | Inject canonical engineering rules into host agent configurations |
 | `scripts/init-repo.sh` | macOS / Linux | Scaffold `.claude/hooks/` in another repo from the hook templates |
 
 **Pruning.** Installing is otherwise purely additive, and both `uninstall.sh` and

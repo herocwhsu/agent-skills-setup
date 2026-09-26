@@ -7,7 +7,7 @@ the machine, not just work done here.
 
 Everything below the next two sections cost a real incident. The startup workflow
 and definition of done are the exception — added proactively, not from a specific
-failure, once `feature_list.json`/`progress.md` existed to route to.
+failure, once `feature_list.json`/`PROGRESS.md` existed to route to.
 
 ## Startup Workflow
 
@@ -15,7 +15,7 @@ Before writing code:
 
 1. Read this file completely.
 2. Read `feature_list.json` for current feature status.
-3. Read `progress.md` for what's done, in progress, and next.
+3. Read `PROGRESS.md` for what's done, in progress, and next.
 4. Run `./init.sh` (delegates to `scripts/harness-verify.sh`) to confirm the repo
    is in a clean, verifiable state before adding scope.
 
@@ -41,7 +41,7 @@ gap.
 
 Before ending a session:
 
-- Update `progress.md` with what's done, in progress, and next.
+- Update `PROGRESS.md` with what's done, in progress, and next.
 - Update `feature_list.json` with new feature status and evidence.
 - The state of the repo — not chat history — is what the next session reads.
 

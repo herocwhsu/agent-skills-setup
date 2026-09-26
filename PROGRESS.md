@@ -2,15 +2,18 @@
 
 ## Current State
 
-**Last Updated:** 2026-09-21
-**Active Feature:** none — all tracked features done, `./init.sh` passes clean.
-**Lecture 2 (harness-creator training) is now fully closed**: Tools
-(feat-006), Environment (feat-005 + feat-007 + feat-008), the exclusion-test
-exercise (feat-009, non-null on the second attempt), and the
-affordance-analysis exercise (feat-010) are all done. One real, confirmed
-finding remains deliberately unactioned: `google-generativeai` is deprecated
-(successor `google-genai`) — touches shipped code (`polish_engine.py`), out
-of scope for this session, see `docs/harness-creator/lecture-02/summary.md`.
+**Last Updated:** 2026-09-26
+**Active Feature:** none — feat-014 (Lecture 3: Repository as System of Record) completed, `./init.sh` passes clean.
+**Lecture 3 (harness-creator training) is now fully closed**: Discoverability
+score raised from 60/100 (Grade C) to 100/100 (Grade A) via `repo-reader.ts`.
+Authored `docs/architecture.md`, upgraded directly to canonical uppercase
+`PROGRESS.md` (with backward compatibility in `state-layer-guard.sh`), and
+added PEP 621 `pyproject.toml` — eliminating fragile root symlinks. Documented
+all 3 Lecture 3 exercises (Fresh Session Test, Knowledge Visibility Gap at
+5.0%, and ACID Assessment) in `docs/harness-creator/lecture-03/`. One real,
+confirmed finding remains deliberately unactioned: `google-generativeai` is
+deprecated (successor `google-genai`) — touches shipped code
+(`polish_engine.py`), out of scope for this session.
 
 ## Status
 
@@ -56,7 +59,7 @@ of scope for this session, see `docs/harness-creator/lecture-02/summary.md`.
   code, different scope)
 - [x] Added `init.sh` as the canonical startup/verification entrypoint (delegates
   to `scripts/harness-verify.sh` — no duplicated logic)
-- [x] Added `feature_list.json` and this `progress.md` as real state artifacts
+- [x] Added `feature_list.json` and this `PROGRESS.md` as real state artifacts
 - [x] feat-009: ran Lecture 2's controlled variable exclusion test a second
   time (attempt 1 — mirror a sibling file — came back null, task didn't
   discriminate). Attempt 2 used a harder task (add a shellcheck gate across
@@ -86,6 +89,14 @@ of scope for this session, see `docs/harness-creator/lecture-02/summary.md`.
 - [x] feat-013: `install.sh` refuses to run from a worktree or non-default
   branch (`--allow-non-main` overrides; CI uses it) and a bare re-run replays
   the saved agent selection. Agents may now run it without asking.
+- [x] feat-014: Lecture 3 (harness-creator training) completed. Raised discoverability
+  score on `repo-reader.ts` from 60/100 (Grade C) to 100/100 (Grade A) by authoring
+  canonical `docs/architecture.md`, upgrading directly to canonical uppercase
+  `PROGRESS.md` (with `state-layer-guard.sh` and tests supporting both canonical and
+  legacy names), and adding standard PEP 621 `pyproject.toml` manifest — with zero
+  root symlinks. Completed and documented all 3 Lecture 3 exercises (Fresh Session
+  Test, Knowledge Visibility Gap audit of 20 constraints at 5.0%, and ACID
+  assessment) in `docs/harness-creator/lecture-03/`.
 
 ### What's In Progress
 
@@ -93,7 +104,7 @@ of scope for this session, see `docs/harness-creator/lecture-02/summary.md`.
 
 ### What's Next
 
-- Ready for next tasks or Lecture 3.
+- Ready for next tasks or Lecture 4.
 
 
 ## Blockers / Risks
@@ -171,7 +182,7 @@ and `docs/harness-creator/lecture-02/`.
 - `registry.txt`, `scripts/_lib.sh`, `scripts/validate-registry.sh`,
   `scripts/tests/test_registry_types.sh`, `README.md`, `.claude/settings.json`
   — feat-001 and feat-002 (see commit 5b023f3)
-- `init.sh`, `feature_list.json`, `progress.md` — added as this repo's state
+- `init.sh`, `feature_list.json`, `PROGRESS.md` — added as this repo's state
   layer (previously missing; a fresh session had no way to see what was done,
   in progress, or next without asking someone who remembered)
 - `scripts/_settings_merge.py` — feat-003, one-line type annotation fix
@@ -201,26 +212,32 @@ and `docs/harness-creator/lecture-02/`.
   (version-drift guard + multi-model review record)
 - `docs/harness-creator/lecture-02/summary.md`,
   `docs/harness-creator/lecture-02/progress-detail.md`, `feature_list.json`,
-  this `progress.md` — feat-009 (exclusion-test attempt 2, non-null result,
+  this `PROGRESS.md` — feat-009 (exclusion-test attempt 2, non-null result,
   confound recorded, correlation-vs-causation distinction made explicit).
   No repo functionality changed by feat-009 itself — the shellcheck gates
   built during the test lived only in the disposable `/tmp/exclusion-test-v2/`
   variant directories, not in this repo.
 - `docs/harness-creator/lecture-02/summary.md`,
   `docs/harness-creator/lecture-02/progress-detail.md`, `feature_list.json`,
-  this `progress.md` — feat-010 (affordance analysis, Lecture 2 closed out).
+  this `PROGRESS.md` — feat-010 (affordance analysis, Lecture 2 closed out).
   No repo functionality changed — classification exercise only.
+- `docs/architecture.md`, `pyproject.toml`, `docs/harness-creator/lecture-03/`,
+  `PROGRESS.md` (renamed from `progress.md`), `.claude/hooks/state-layer-guard.sh`,
+  `.claude/hooks/tests/test_state_layer_guard.sh`, `AGENTS.md`, `feature_list.json`
+  — feat-014 (Lecture 3: Repository as System of Record, discoverability Grade A
+  100/100, direct canonical uppercase upgrade, dual-agent empirical Fresh Session
+  test via Claude Code and blind subagent).
 
 ## Evidence of Completion
 
 - [x] Tests pass: `bash scripts/run-tests.sh --fast` → 53 passed, 0 failed
 - [x] Type check clean: `python3 -m mypy --config-file mypy.ini .` → Success:
       no issues found in 27 source files
-- [x] `./init.sh` → all 7 gates pass (registry, types, tests, skill paths,
-      cred backends, hook wiring, secret scan)
+- [x] `./init.sh` → all 8 gates pass (registry, types, tests, skill paths,
+      cred backends, hook wiring, state layer, secret scan)
 - [x] Registry validates: `bash scripts/validate-registry.sh` → clean
 - [x] Independently verified by a second agent (`kiro-cli`, no shared context):
-      given only `AGENTS.md` + `feature_list.json` + `progress.md`, correctly
+      given only `AGENTS.md` + `feature_list.json` + `PROGRESS.md`, correctly
       reconstructed feature status, the exact blocking file/line, and next
       steps
 - [x] feat-004's test fix independently confirmed by a genuinely different

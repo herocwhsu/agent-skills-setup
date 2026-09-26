@@ -101,6 +101,14 @@
       "dependencies": [],
       "status": "done",
       "evidence": "scripts/tests/test_install_source_guard.sh (13 checks, offline sandbox installs into a temp HOME): 9 failed before the change, all pass after, under bash 3.2 and 5. All 53 test files and 7 non-test gates pass. test_kiro_gateway.sh not run: local Docker daemon hung, unrelated."
+    },
+    {
+      "id": "feat-014",
+      "name": "Lecture 3 (harness-creator): Repository as System of Record & Discoverability Grade A",
+      "description": "Advanced repository to Lecture 3 standards from learn-harness-engineering. Brought repo-reader.ts discoverability score from 60/100 (Grade C) to 100/100 (Grade A) by authoring docs/architecture.md, upgrading directly to canonical uppercase PROGRESS.md (with state-layer-guard.sh and test_state_layer_guard.sh updated with backward-compatibility fallback), and adding standard PEP 621 pyproject.toml manifest — eliminating fragile root symlinks. Documented Lecture 3 exercises (Fresh Session Test, Knowledge Visibility Gap audit of 20 constraints at 5.0%, and ACID assessment) under docs/harness-creator/lecture-03/.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "bun repo-reader.ts scored 100/100 (Grade A, all 8 criteria PASS, zero root symlinks). bash scripts/harness-verify.sh passed clean across all 8 gates (registry, types, tests, skill paths, cred backends, hook wiring, state layer, secret scan)."
     }
   ]
 }

@@ -27,7 +27,7 @@ fixture_complete() {
   local d="$TMP/$1"
   mkdir -p "$d"
   echo '{"features": []}' > "$d/feature_list.json"
-  echo '# progress' > "$d/progress.md"
+  echo '# progress' > "$d/PROGRESS.md"
   echo '#!/usr/bin/env bash' > "$d/init.sh"
   echo "$d"
 }
@@ -41,6 +41,14 @@ set +e; out=$(run_hook "$d"); status=$?; set -e
   && ok "complete state layer passes" \
   || bad "complete state layer passes" "exit $status, out: $out"
 
+# --- 1b. legacy lowercase progress.md also passes -------------------------
+d=$(fixture_complete legacy-lowercase)
+mv "$d/PROGRESS.md" "$d/progress.md"
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 0 ]] \
+  && ok "legacy lowercase progress.md passes" \
+  || bad "legacy lowercase progress.md passes" "exit $status, out: $out"
+
 # --- 2. feature_list.json missing: blocks with exit 2 ----------------------
 d=$(fixture_complete missing-feature-list)
 rm "$d/feature_list.json"
@@ -52,13 +60,13 @@ grep -q 'feature_list.json' <<<"$out" \
   && ok "message names the missing file" \
   || bad "message names the missing file" "out: $out"
 
-# --- 3. progress.md missing: blocks with exit 2 -----------------------------
+# --- 3. PROGRESS.md missing: blocks with exit 2 -----------------------------
 d=$(fixture_complete missing-progress)
-rm "$d/progress.md"
+rm "$d/PROGRESS.md"
 set +e; out=$(run_hook "$d"); status=$?; set -e
 [[ $status -eq 2 ]] \
-  && ok "missing progress.md blocks with exit 2" \
-  || bad "missing progress.md blocks with exit 2" "exit $status, out: $out"
+  && ok "missing PROGRESS.md blocks with exit 2" \
+  || bad "missing PROGRESS.md blocks with exit 2" "exit $status, out: $out"
 
 # --- 4. init.sh missing: blocks with exit 2 --------------------------------
 d=$(fixture_complete missing-init)
@@ -75,7 +83,7 @@ set +e; out=$(run_hook "$d"); status=$?; set -e
 [[ $status -eq 2 ]] \
   && ok "all three missing blocks with exit 2" \
   || bad "all three missing blocks with exit 2" "exit $status, out: $out"
-for f in feature_list.json progress.md init.sh; do
+for f in feature_list.json PROGRESS.md init.sh; do
   grep -q "$f" <<<"$out" \
     && ok "message names $f among the missing" \
     || bad "message names $f among the missing" "out: $out"
