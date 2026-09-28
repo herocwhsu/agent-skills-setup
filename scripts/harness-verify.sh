@@ -22,17 +22,25 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 HOOKS="${HARNESS_HOOKS_DIR:-$REPO_DIR/.claude/hooks}"
 
 FAILED=""
+SKIPPED=""
 run_gate() {
   local label="$1" script="$2"
   shift 2
   if [[ ! -x "$script" && ! -f "$script" ]]; then
     echo "  SKIP  $label (missing $script)"
+    SKIPPED="$SKIPPED $label"
     return 0
   fi
   local out status
   out=$(bash "$script" "$@" 2>&1)
   status=$?
-  if [[ $status -eq 0 ]]; then
+  # A gate whose tool is absent exits 0 and says SKIP. Reporting that as OK made
+  # "all gates passed" true on a machine where mypy never ran.
+  if [[ $status -eq 0 ]] && grep -qE '^[[:space:]]*SKIP[[:space:]]' <<<"$out"; then
+    echo "  SKIP  $label"
+    grep -E '^[[:space:]]*SKIP[[:space:]]' <<<"$out" | sed 's/^[[:space:]]*SKIP[[:space:]]*/        /'
+    SKIPPED="$SKIPPED $label"
+  elif [[ $status -eq 0 ]]; then
     echo "  OK    $label"
   else
     echo "  FAIL  $label (exit $status)"
@@ -63,7 +71,12 @@ run_gate "secret scan" "$HOOKS/secret-scan.sh"
 echo ""
 if [[ -n "$FAILED" ]]; then
   echo "FAILED:$FAILED"
+  [[ -n "$SKIPPED" ]] && echo "SKIPPED:$SKIPPED"
   exit 1
+fi
+if [[ -n "$SKIPPED" ]]; then
+  echo "Passed, but SKIPPED:$SKIPPED (those gates checked nothing)."
+  exit 0
 fi
 echo "All gates passed."
 exit 0

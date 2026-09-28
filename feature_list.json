@@ -131,8 +131,8 @@
       "name": "harness-verify prints OK for a gate that skipped",
       "description": "types-guard.sh exits 0 with 'SKIP mypy not installed' when there is no .venv and no mypy, and harness-verify.sh reports that as 'OK types'. On 2026-09-28 the 'all 8 gates pass' evidence for feat-015 was produced this way. Needs harness-verify to distinguish SKIP from OK (or the gate to fail when .venv is absent).",
       "dependencies": [],
-      "status": "todo",
-      "evidence": "Observed: bash .claude/hooks/types-guard.sh -> '  SKIP  mypy not installed ...', exit 0, with no .venv present; harness-verify.sh printed 'OK    types' in the same state."
+      "status": "done",
+      "evidence": "Fixed in harness-verify.sh: a gate that exits 0 but prints a SKIP line is reported as SKIP with its reason, and the summary says 'Passed, but SKIPPED: ...' instead of 'All gates passed.' (exit stays 0, matching a missing gate script). test_harness_verify.sh: 3 new cases failed first, then 16/16 under /bin/bash 3.2 and bash 5. Reproduced for real by moving .venv aside: types AND secret scan both reported SKIP. The second was previously unknown: gitleaks and osv-scanner were not installed, so every 'OK secret scan' this session scanned nothing. Installed both via brew; real scans clean; harness-verify 9/9 with no skips."
     },
     {
       "id": "feat-018",

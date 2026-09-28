@@ -24,6 +24,10 @@ stub_gates() {
   printf '#!/usr/bin/env bash\necho "a test failed loudly"\nexit %s\n' "$2" > "$d/tests-guard.sh"
   printf '#!/usr/bin/env bash\necho "scanning"\nexit %s\n'          "$3" > "$d/secret-scan.sh"
   printf '#!/usr/bin/env bash\necho "typing"\nexit %s\n'       "${4:-0}" > "$d/types-guard.sh"
+  # Every other gate passes, so a missing script is never mistaken for a skip.
+  for g in skill-paths-guard bash-compat-guard credential-backend-guard hook-wiring-guard state-layer-guard; do
+    printf '#!/usr/bin/env bash\nexit 0\n' > "$d/$g.sh"
+  done
   echo "$d"
 }
 
@@ -83,6 +87,25 @@ if [[ $code -eq 0 ]] && grep -qE 'SKIP +secret scan' <<<"$out"; then
 else
   bad "missing gate script skips" "exit $code, out: $out"
 fi
+
+# --- a gate that exits 0 but says SKIP is not reported OK ---
+# types-guard.sh exits 0 with "SKIP mypy not installed"; printing that as OK
+# made "all gates pass" true on a machine that type-checked nothing.
+d=$(stub_gates 0 0 0)
+printf '#!/usr/bin/env bash\necho "  SKIP  mypy not installed"\nexit 0\n' > "$d/types-guard.sh"
+code=0; out=$(run_hv "$d") || code=$?
+grep -qE 'OK +types' <<<"$out" \
+  && bad "self-skipping gate is not reported OK" "out: $out" \
+  || ok "self-skipping gate is not reported OK"
+grep -qE 'SKIP +types' <<<"$out" && grep -q 'mypy not installed' <<<"$out" \
+  && ok "self-skipping gate is reported SKIP with its reason" \
+  || bad "self-skipping gate is reported SKIP with its reason" "out: $out"
+grep -q 'SKIPPED: types' <<<"$out" && ! grep -q '^All gates passed\.$' <<<"$out" \
+  && ok "summary names skipped gates instead of claiming all passed" \
+  || bad "summary names skipped gates instead of claiming all passed" "out: $out"
+[[ $code -eq 0 ]] \
+  && ok "a skip alone still exits 0 (same as a missing gate script)" \
+  || bad "a skip alone still exits 0" "got $code"
 
 # --- exit 1, not 2: this is a CLI, not a hook ---
 d=$(stub_gates 0 1 0)

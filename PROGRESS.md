@@ -116,14 +116,16 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
   only (147 → 86 lines). Guarded by `scripts/tests/test_engineering_rules_scope.sh`.
   **Pending:** re-run `scripts/install-agents-md.sh` (needs approval) so the hosts pick it up.
 
+- [x] feat-017: `harness-verify.sh` now reports a self-skipping gate as `SKIP` and names it
+  in the summary. That exposed `secret scan` as a second silent skip (gitleaks and
+  osv-scanner were missing); both are now installed and the real scans are clean.
+
 ### What's In Progress
 
 - Nothing active.
 
 ### What's Next
 
-- feat-017 (todo): `harness-verify.sh` prints `OK` for a gate that skipped. `types`
-  did this when `.venv` was missing.
 - Optional follow-up experiment: repeat exercise 3 at ~10k tokens without the
   "read in full" instruction (design in `position-experiment.md` §13).
 - Lecture 5: Why Long-Running Tasks Lose Continuity.
