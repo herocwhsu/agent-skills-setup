@@ -27,67 +27,74 @@ Lecture 4 establishes the **Instruction Architecture** solution:
 
 ## 2. Empirical Findings from `agent-skills-setup`
 
-Using our standalone diagnostic simulation script ([`docs/harness-creator/lecture-04/code/split_simulation.py`](file:///Users/phoenix/projects/agent-skills-setup/docs/harness-creator/lecture-04/code/split_simulation.py)), we audited this repository's instruction layers:
-- **Root Router (`AGENTS.md`):** 82 lines, ~960 tokens.
-- **Global Injected Rules (`agents/engineering-rules.md`):** 147 lines, ~2,765 tokens.
-- **Baseline Injected Context:** 229 lines, ~3,725 tokens.
-- **Topic Docs (`docs/architecture.md`, `skills/README.md`):** 200 lines, ~3,159 tokens.
-- **Hypothetical Monolithic File:** 429 lines, ~6,884 tokens.
+Measured with [`code/split_simulation.py`](code/split_simulation.py) at three points. Numbers
+in the rest of this section are from the latest run (after feat-018); rerun the script
+for live values.
+
+| Layer | First pass (feat-015) | After fixes (feat-016) | After rules split (feat-018) |
+|:---|:---:|:---:|:---:|
+| `AGENTS.md` (repo router) | 82 lines / ~960 tok | 96 / ~1,264 | 96 / ~1,264 |
+| `agents/engineering-rules.md` (global, every host, every task) | 147 / ~2,765 | 147 / ~2,765 | **86 / ~1,800** |
+| Always-loaded total | 229 / ~3,725 | 243 / ~4,029 | **182 / ~3,064** |
+| Average task SNR | 23.2% | 22.9% | **30.2%** |
+| Average savings vs. one monolithic file | 67.7% (miscounted) | 26.6% | **30.8%** |
+
+feat-016 added about 300 tokens of rule metadata to `AGENTS.md`. feat-018 moved the
+production gate procedure out of the global file into the `spec-workflow` skill (§3.4).
 
 ### 2.1 Signal-to-Noise Ratio (SNR) Across 5 Canonical Tasks
 
-We analyzed 5 representative software engineering tasks against the baseline injected instructions:
+| Task Name | Signal Lines | Total Loaded Lines | Line SNR | Token SNR |
+|:---|:---:|:---:|:---:|:---:|
+| Task 1: Python Skill Bugfix | 69 | 182 | 37.9% | 41.5% |
+| Task 2: New Skill Implementation | 79 | 182 | 43.4% | 47.8% |
+| Task 3: Shell Hook / Guard Modification | 75 | 182 | 41.2% | 45.9% |
+| Task 4: Fast Verification Run | 28 | 182 | 15.4% | 8.0% |
+| Task 5: Documentation / Training Update | 26 | 182 | 14.3% | 7.5% |
+| **AVERAGE** | — | **182** | **30.4%** | **30.2%** |
 
-| Task Name | Signal Lines | Total Loaded Lines | Line SNR | Token SNR | Noise % |
-|:---|:---:|:---:|:---:|:---:|:---:|
-| **Task 1: Python Skill Bugfix** | 67 | 229 | 29.3% | 32.8% | 67.2% |
-| **Task 2: New Skill Implementation** | 75 | 229 | 32.8% | 36.4% | 63.6% |
-| **Task 3: Shell Hook / Guard Modification** | 71 | 229 | 31.0% | 34.3% | 65.7% |
-| **Task 4: Fast Verification Run** | 28 | 229 | 12.2% | 6.6% | 93.4% |
-| **Task 5: Documentation / Training Update** | 26 | 229 | 11.4% | 6.2% | 93.8% |
-| **AVERAGE** | **53.4** | **229** | **23.3%** | **23.2%** | **76.8%** |
-
-> **Key Finding:** Even in our compact baseline, **76.8% of loaded instructions are noise** for any individual task. For routine verification or documentation tasks, over 93% of the instruction tokens are irrelevant overhead.
+> **Key Finding:** About 70% of always-loaded instruction tokens are still noise for any
+> single task. What remains is mostly Rules 1–12 and personal conventions, which are
+> short and general and belong in every session. The "signal" labels per task are
+> hand-chosen in `TASKS`, so treat these as relative, not absolute.
 
 ### 2.2 Monolithic vs Split Routing Context Savings
 
-Re-measured 2026-09-28 after the metadata and guard changes. The split side now also
-pays for `agents/engineering-rules.md`, which is installed into every host file and so
-is loaded on every task. The first pass left it out, which inflated savings to 67.7%.
+Split context = both always-loaded files + only the topic docs a task needs. The first
+pass left `engineering-rules.md` off this side, which inflated savings to 67.7%.
 
-| Task Name | Monolithic Context (Tokens) | Split Context (Tokens) | Context Window Saved |
+| Task Name | Monolithic (Tokens) | Split (Tokens) | Saved |
 |:---|:---:|:---:|:---:|
-| Task 1: Python Skill Bugfix | 7,229 | 5,141 | **28.9%** |
-| Task 2: New Skill Implementation | 7,229 | 5,141 | **28.9%** |
-| Task 3: Shell Hook / Guard Modification | 7,229 | 6,117 | **15.4%** |
-| Task 4: Fast Verification Run | 7,229 | 4,029 | **44.3%** |
-| Task 5: Documentation / Training Update | 7,229 | 6,117 | **15.4%** |
-| **AVERAGE SAVINGS** | **7,229** | — | **26.6%** |
-
-> **Result:** Splitting saves about a quarter of instruction context per task. Most of
-> what remains is the global rules file, which this repo ships to every agent and cannot
-> split per task.
+| Task 1: Python Skill Bugfix | 6,297 | 4,209 | **33.2%** |
+| Task 2: New Skill Implementation | 6,297 | 4,209 | **33.2%** |
+| Task 3: Shell Hook / Guard Modification | 6,297 | 5,152 | **18.2%** |
+| Task 4: Fast Verification Run | 6,297 | 3,064 | **51.3%** |
+| Task 5: Documentation / Training Update | 6,297 | 5,152 | **18.2%** |
+| **AVERAGE SAVINGS** | **6,297** | — | **30.8%** |
 
 ### 2.3 Rule Position vs Enforcement
 
-The script now looks up each rule's line from its heading and resolves the enforcing
-file on disk (`MISSING` if absent), instead of hard-coded line numbers and a
-name-based guess. Zones: top <25%, middle 25–75%, bottom >75%.
+The script looks up each rule's line from its heading and resolves the enforcing file
+on disk (`MISSING` if absent). Zones: top <25%, middle 25–75%, bottom >75%. Shortening
+the global file moved its rules: Rule 5 is now in the middle, and the personal
+conventions and Part IV are at the bottom.
 
 | Constraint | File | Line | Depth | Zone | Enforced by |
 |:---|:---|:---:|:---:|:---:|:---|
-| Rule 12: Fail Loud | `engineering-rules.md` | 46 | 31% | Middle | prompt only |
-| Commit Style | `engineering-rules.md` | 53 | 36% | Middle | prompt only |
-| Subagent Verification | `engineering-rules.md` | 71 | 48% | Middle | `commit-evidence.sh` |
-| Prompt Polish | `engineering-rules.md` | 75 | 51% | Middle | prompt only |
-| Spec-Gated Workflow | `engineering-rules.md` | 87 | 59% | Middle | prompt only |
+| Rule 5: Judgment Calls | `engineering-rules.md` | 25 | 29% | Middle | prompt only |
+| Rule 12: Fail Loud | `engineering-rules.md` | 46 | 54% | Middle | prompt only |
+| Commit Style | `engineering-rules.md` | 53 | 62% | Middle | prompt only |
+| Subagent Verification | `engineering-rules.md` | 71 | 83% | Bottom | `commit-evidence.sh` |
+| Prompt Polish | `engineering-rules.md` | 75 | 87% | Bottom | prompt only |
+| Part IV: Workflow Triggers | `engineering-rules.md` | 83 | 97% | Bottom | routes to `skills/spec-workflow/SKILL.md` |
 | Verify / Definition of Done | `AGENTS.md` | 25 / 35 | 26–37% | Middle | `harness-verify.sh` |
-| Shell Portability (bash 3.2) | `AGENTS.md` | 51 | 53% | Middle | `bash-compat-guard.sh` (new) |
+| Shell Portability (bash 3.2) | `AGENTS.md` | 51 | 53% | Middle | `bash-compat-guard.sh` |
 | Skills Symlinks | `AGENTS.md` | 57 | 59% | Middle | `registry-guard.sh` (registry half only) |
 | Hook Conventions | `AGENTS.md` | 63 | 66% | Middle | `*-guard.sh` ratchet in `test_harness_verify.sh` |
 | Boundaries | `AGENTS.md` | 77 | 80% | Bottom | prompt only |
 
-(Run the script for the live table; line numbers above are as of this commit.)
+Exercise 3 (§2.4) found no position effect at this file size, so the middle-zone,
+prompt-only rules above are recorded, not treated as defects.
 
 ### 2.4 Does position matter here? (Exercise 3)
 
@@ -140,5 +147,13 @@ design has known ceiling effects, and the next experiment repeats it at ~10k tok
 ## 5. Verification
 
 - `bash .claude/hooks/tests/test_bash_compat_guard.sh`: 15/15 under `/bin/bash` 3.2.57 and bash 5.3.
-- `.venv` rebuilt from `requirements-dev.txt`; `types-guard.sh` now runs real mypy (clean).
-- `bash scripts/harness-verify.sh`: all 9 gates pass (adds `bash compat`).
+- `bash scripts/tests/test_engineering_rules_scope.sh`: 0/6 before the rules split, 6/6 after.
+- `.venv` rebuilt from `requirements-dev.txt`; `types-guard.sh` runs real mypy (clean).
+- `bash scripts/run-tests.sh --fast`: 56 passed. `bash scripts/harness-verify.sh`: 9/9 gates.
+- `spec-workflow` symlinked into Claude Code, Codex, Antigravity, and Kiro skill dirs by `install.sh`.
+
+## 6. Status
+
+Lecture 4 is closed. Open items live outside the lecture: `scripts/install-agents-md.sh`
+has not been re-run, so host rule files still carry the old Part IV (needs approval),
+and feat-017 (`harness-verify` prints `OK` for a skipped gate) is still open.
