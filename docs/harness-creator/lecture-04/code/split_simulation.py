@@ -268,7 +268,7 @@ def run_audit() -> None:
         ("Personal: Commit Style", eng_rules, "Commit style", None),
         ("Personal: Subagent Verification", eng_rules, "Subagent verification", ".claude/hooks/commit-evidence.sh"),
         ("Personal: Prompt Polish", eng_rules, "Prompt polish", None),
-        ("Spec-Gated Workflow Gate 1-7", eng_rules, "Production Spec-Gated Workflow", None),
+        ("Part IV: Workflow Triggers", eng_rules, "Part IV", "skills/spec-workflow/SKILL.md"),
         ("AGENTS: Verify Gate", agents_md, "Verify", "scripts/harness-verify.sh"),
         ("AGENTS: Definition of Done", agents_md, "Definition of Done", "scripts/harness-verify.sh"),
         ("AGENTS: Shell Portability (bash 3.2)", agents_md, "Shell Portability", ".claude/hooks/bash-compat-guard.sh"),

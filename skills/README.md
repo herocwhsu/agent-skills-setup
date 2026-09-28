@@ -5,7 +5,7 @@ Custom agent skills managed by this repo. Each group follows the
 Gemini, and Codex.
 
 Skills are **two-level**: a group owns `SKILL.md` (the entry point the agent reads),
-and each subcommand under it owns an `IMPL.md` recipe. There are currently 14 groups
+and each subcommand under it owns an `IMPL.md` recipe. There are currently 16 groups
 and 41 subcommands.
 
 ```
@@ -26,6 +26,7 @@ itself is documented in [Spec-Gated Workflow](../README.md#spec-gated-workflow).
 
 | Group | Subcommands | What it does |
 |---|---|---|
+| [spec-workflow](spec-workflow/SKILL.md) | — | The gate order and the rules between gates; loaded on demand for production work |
 | [intake](intake/SKILL.md) | `jira-story` `web-page` `spec-summary` | Bring outside specs into `./docs/stories/<JIRA-ID>-<slug>/` |
 | [audit](audit/SKILL.md) | `spec` `domain-risk` `handoff` | Audit the spec for gaps and domain risk, then hand off to `/opsx:propose` |
 | [repo](repo/SKILL.md) | `context-scan` `domain-notes` | Read the target codebase before writing a proposal |

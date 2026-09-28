@@ -111,6 +111,11 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
   `split_simulation.py` fixed; `AGENTS.md` rule metadata; exercise 3 run and recorded in
   `docs/harness-creator/lecture-04/position-experiment.md`.
 
+- [x] feat-018: split the global rules. The production gate procedure (old Part IV) is now
+  the required `spec-workflow` skill, and `engineering-rules.md` keeps host-neutral triggers
+  only (147 → 86 lines). Guarded by `scripts/tests/test_engineering_rules_scope.sh`.
+  **Pending:** re-run `scripts/install-agents-md.sh` (needs approval) so the hosts pick it up.
+
 ### What's In Progress
 
 - Nothing active.

@@ -5,7 +5,7 @@ One-command setup for [Agent Skills](https://agentskills.io) across multiple AI 
 Installs:
 - **[superpowers](https://github.com/obra/superpowers)** — brainstorming, TDD, systematic debugging, code review, and more
 - **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** — spec governance via `/opsx:propose`, `/opsx:apply`, `/opsx:archive` (npm package, auto-installed)
-- **Custom group skills** — 15 groups ([index](skills/README.md)): ten for the [Spec-Gated Workflow](#spec-gated-workflow) (`intake` `audit` `repo` `external` `apidog` `testing` `jira` `review` `release` `progress`) and five standalone (`infra` `utils` `sre-migration` `ai-stack` `experiment-iteration`)
+- **Custom group skills** — 16 groups ([index](skills/README.md)): eleven for the [Spec-Gated Workflow](#spec-gated-workflow) (`spec-workflow` `intake` `audit` `repo` `external` `apidog` `testing` `jira` `review` `release` `progress`) and five standalone (`infra` `utils` `sre-migration` `ai-stack` `experiment-iteration`)
 - **External skills** — [webapp-testing](https://github.com/anthropics/skills) (Playwright-driven frontend verification), [kanban-ai](https://github.com/mattjoyce/kanban-skill) (file-based markdown kanban), [linear](https://github.com/wrsmith108/linear-claude-skill) (Linear issues/projects via MCP/SDK/GraphQL)
 - **Claude Code plugins** (claude agent only) — [claude-hud](https://github.com/jarrodwatts/claude-hud) (statusline HUD), [trailofbits](https://github.com/trailofbits/skills) `differential-review` / `property-based-testing` / `static-analysis` (browse the other ~37 via `/plugin menu`)
 - **Optional Claude Code plugins** (not installed by default — see below) — [productivity + product-management](https://github.com/anthropics/knowledge-work-plugins), which each add several MCP servers (Jira/Confluence/Slack/Asana/Linear/Notion/ClickUp/Monday, or Amplitude/Figma/Fireflies/Intercom/Pendo/Similarweb) that require their own OAuth login
@@ -269,7 +269,7 @@ All entries are namespaced `agent-skills-setup:<service>` to avoid collisions wi
 
 ## Spec-Gated Workflow
 
-Every feature follows this gate sequence. No gate can be skipped silently — see the Production Spec-Gated Workflow policy (Part IV) in your CLAUDE.md. The default flow keeps every artifact under `./docs/stories/<JIRA-ID>-<slug>/` and needs no OpenSpec; the OpenSpec gates (`/opsx:propose`, review guardrails, `/opsx:archive`) are a nested addendum that applies only in repos that have an `openspec/` directory.
+Every feature follows this gate sequence. No gate can be skipped silently — see the `spec-workflow` skill, which the global rules (Part IV) route production work to. The default flow keeps every artifact under `./docs/stories/<JIRA-ID>-<slug>/` and needs no OpenSpec; the OpenSpec gates (`/opsx:propose`, review guardrails, `/opsx:archive`) are a nested addendum that applies only in repos that have an `openspec/` directory.
 
 ```mermaid
 flowchart TD

@@ -68,6 +68,7 @@ local  progress
 local  release
 local  repo
 local  review
+local  spec-workflow
 local  sre-migration
 local  testing
 local  utils

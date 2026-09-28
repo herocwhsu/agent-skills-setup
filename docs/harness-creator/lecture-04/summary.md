@@ -112,9 +112,13 @@ design has known ceiling effects, and the next experiment repeats it at ~10k tok
    these constructs under bash 5.
 3. **`split_simulation.py` corrected**: counts always-loaded rules on the split side,
    finds line numbers by heading, and checks that enforcing files exist.
-4. **Relocation not done, on purpose**: `AGENTS.md`'s own sections are 3–8 lines each.
-   The 77% noise comes from the global rules file, and splitting that means changing
-   `scripts/install-agents-md.sh` output for every agent. That is a separate decision.
+4. **Relocation, done where the noise was**: `AGENTS.md`'s own sections are 3–8 lines
+   each, so they stay. The noise was in the global rules file. Part IV's production gate
+   procedure (Jira/OpenSpec, Claude-only slash commands and paths) moved verbatim into the
+   new required `spec-workflow` skill. The global file keeps two host-neutral trigger
+   lines. `engineering-rules.md` went from 147 to 86 lines, always-loaded context from 243
+   to 182 lines, and average SNR from 22.9% to 30.2%.
+   `scripts/tests/test_engineering_rules_scope.sh` keeps the global file host-general.
 
 ---
 
