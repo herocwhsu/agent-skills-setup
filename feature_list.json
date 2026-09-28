@@ -117,6 +117,22 @@
       "dependencies": ["feat-014"],
       "status": "done",
       "evidence": "python3 docs/harness-creator/lecture-04/code/split_simulation.py passed clean (exit 0). bash scripts/run-tests.sh --fast passed 54/54. bash scripts/harness-verify.sh passed clean across all 8 gates (registry, types, tests, skill paths, cred backends, hook wiring, state layer, secret scan)."
+    },
+    {
+      "id": "feat-016",
+      "name": "Lecture 4 completion: bash 3.2 guard, corrected SNR audit, rule metadata, exercise 3",
+      "description": "Review of feat-015 found it overclaimed. Its guards did not enforce what it said, its savings figure left the always-loaded engineering-rules.md off the split side (67.7% -> 26.6%), and exercise 3 was never run. Added .claude/hooks/bash-compat-guard.sh (mapfile/readarray, declare|local|typeset -A, ;& / ;;& in command position across every *.sh), wired into harness-verify.sh and Stop/SubagentStop. Fixed split_simulation.py (heading-based line lookup, enforcing files resolved on disk). Added a Source/Applies/Expires line per AGENTS.md incident section (sources restored from ee34b0a) and Load-when conditions on Topic Docs; AGENTS.md is 96 lines. Ran exercise 3: made-up rule at 15%/57%/98% depth, 5 Haiku 4.5 runs each, 15/15 compliance, a null result at this size (ceiling effects recorded). Corrections table in docs/harness-creator/lecture-04/summary.md section 4.",
+      "dependencies": ["feat-015"],
+      "status": "done",
+      "evidence": "bash .claude/hooks/tests/test_bash_compat_guard.sh -> 15 passed under /bin/bash 3.2.57 and bash 5.3. Experiment scored from files (sed -n 2p, each script run under /bin/bash 3.2, guard pointed at each sandbox): top 5/5, middle 5/5, bottom 5/5, 0 invalid. .venv rebuilt from requirements-dev.txt so types-guard ran real mypy (clean). bash scripts/harness-verify.sh -> 9/9 gates pass."
+    },
+    {
+      "id": "feat-017",
+      "name": "harness-verify prints OK for a gate that skipped",
+      "description": "types-guard.sh exits 0 with 'SKIP mypy not installed' when there is no .venv and no mypy, and harness-verify.sh reports that as 'OK types'. On 2026-09-28 the 'all 8 gates pass' evidence for feat-015 was produced this way. Needs harness-verify to distinguish SKIP from OK (or the gate to fail when .venv is absent).",
+      "dependencies": [],
+      "status": "todo",
+      "evidence": "Observed: bash .claude/hooks/types-guard.sh -> '  SKIP  mypy not installed ...', exit 0, with no .venv present; harness-verify.sh printed 'OK    types' in the same state."
     }
   ]
 }

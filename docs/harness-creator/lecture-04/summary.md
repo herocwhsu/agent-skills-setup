@@ -51,64 +51,90 @@ We analyzed 5 representative software engineering tasks against the baseline inj
 
 ### 2.2 Monolithic vs Split Routing Context Savings
 
-Comparing a single monolithic instruction file against the split router + on-demand topic doc architecture:
+Re-measured 2026-09-28 after the metadata and guard changes. The split side now also
+pays for `agents/engineering-rules.md`, which is installed into every host file and so
+is loaded on every task. The first pass left it out, which inflated savings to 67.7%.
 
 | Task Name | Monolithic Context (Tokens) | Split Context (Tokens) | Context Window Saved |
 |:---|:---:|:---:|:---:|
-| Task 1: Python Skill Bugfix | 6,884 | 2,072 | **69.9%** |
-| Task 2: New Skill Implementation | 6,884 | 2,072 | **69.9%** |
-| Task 3: Shell Hook / Guard Modification | 6,884 | 3,007 | **56.3%** |
-| Task 4: Fast Verification Run | 6,884 | 960 | **86.1%** |
-| Task 5: Documentation / Training Update | 6,884 | 3,007 | **56.3%** |
-| **AVERAGE SAVINGS** | **6,884** | **2,224** | **67.7%** |
+| Task 1: Python Skill Bugfix | 7,229 | 5,141 | **28.9%** |
+| Task 2: New Skill Implementation | 7,229 | 5,141 | **28.9%** |
+| Task 3: Shell Hook / Guard Modification | 7,229 | 6,117 | **15.4%** |
+| Task 4: Fast Verification Run | 7,229 | 4,029 | **44.3%** |
+| Task 5: Documentation / Training Update | 7,229 | 6,117 | **15.4%** |
+| **AVERAGE SAVINGS** | **7,229** | — | **26.6%** |
 
-> **Result:** The progressive disclosure architecture reduces upfront context expenditure by **67.7% on average** (and up to **86.1%** for lightweight tasks), preserving thousands of tokens of budget for actual code understanding, diffing, and test output.
+> **Result:** Splitting saves about a quarter of instruction context per task. Most of
+> what remains is the global rules file, which this repo ships to every agent and cannot
+> split per task.
 
-### 2.3 "Lost in the Middle" Vulnerability Scan
+### 2.3 Rule Position vs Enforcement
 
-Mapping repository constraints to their normalized file depth reveals the danger zone:
+The script now looks up each rule's line from its heading and resolves the enforcing
+file on disk (`MISSING` if absent), instead of hard-coded line numbers and a
+name-based guess. Zones: top <25%, middle 25–75%, bottom >75%.
 
-| Constraint Name | File | Line | Depth | Attention Zone | Safety Mechanism |
+| Constraint | File | Line | Depth | Zone | Enforced by |
 |:---|:---|:---:|:---:|:---:|:---|
-| Rule 1: Think Before Coding | `engineering-rules.md` | 9 | 6.1% | Primacy (Top) | Model prompt |
-| Rule 3: Surgical Changes | `engineering-rules.md` | 15 | 10.2% | Primacy (Top) | Model prompt |
-| Rule 5: Judgment Calls | `engineering-rules.md` | 25 | 17.0% | Primacy (Top) | Model prompt |
-| **Rule 12: Fail Loud** | `engineering-rules.md` | 46 | 31.3% | **DANGER (Middle)** | Model prompt |
-| **Personal: Commit Style** | `engineering-rules.md` | 53 | 36.1% | **DANGER (Middle)** | `commit_evidence.sh` |
-| **Personal: Prompt Polish** | `engineering-rules.md` | 75 | 51.0% | **DANGER (Middle)** | Model prompt |
-| **Spec-Gated Workflow Gate 1-7**| `engineering-rules.md` | 89 | 60.5% | **DANGER (Middle)** | Model prompt |
-| **AGENTS: Verify Gate** | `AGENTS.md` | 22 | 26.8% | **DANGER (Middle)** | `harness-verify.sh` |
-| **AGENTS: Definition of Done** | `AGENTS.md` | 32 | 39.0% | **DANGER (Middle)** | `harness-verify.sh` |
-| **AGENTS: Shell Portability (macOS bash 3.2)** | `AGENTS.md` | 48 | 58.5% | **DANGER (Middle)** | `precommit_sh_check.sh` |
-| **AGENTS: Skills Symlinks** | `AGENTS.md` | 52 | 63.4% | **DANGER (Middle)** | `skill_paths_guard.sh` |
-| AGENTS: Hook Conventions (Exit 2) | `AGENTS.md` | 56 | 68.3% | Recency (Near Bottom)| `test_hook_wiring.sh` |
-| AGENTS: Boundaries (Never write override) | `AGENTS.md` | 66 | 80.5% | Recency (Bottom) | `.claude/settings.json` deny |
+| Rule 12: Fail Loud | `engineering-rules.md` | 46 | 31% | Middle | prompt only |
+| Commit Style | `engineering-rules.md` | 53 | 36% | Middle | prompt only |
+| Subagent Verification | `engineering-rules.md` | 71 | 48% | Middle | `commit-evidence.sh` |
+| Prompt Polish | `engineering-rules.md` | 75 | 51% | Middle | prompt only |
+| Spec-Gated Workflow | `engineering-rules.md` | 87 | 59% | Middle | prompt only |
+| Verify / Definition of Done | `AGENTS.md` | 25 / 35 | 26–37% | Middle | `harness-verify.sh` |
+| Shell Portability (bash 3.2) | `AGENTS.md` | 51 | 53% | Middle | `bash-compat-guard.sh` (new) |
+| Skills Symlinks | `AGENTS.md` | 57 | 59% | Middle | `registry-guard.sh` (registry half only) |
+| Hook Conventions | `AGENTS.md` | 63 | 66% | Middle | `*-guard.sh` ratchet in `test_harness_verify.sh` |
+| Boundaries | `AGENTS.md` | 77 | 80% | Bottom | prompt only |
 
-> **Architectural Law:** Invariants residing in the 30%–70% depth window **cannot rely on prompt compliance alone**. In this harness, `Shell Portability`, `Skills Symlinks`, `Verify Gate`, and `Boundaries` are safeguarded by deterministic bash guard hooks, test suites, and permission deny rules.
+(Run the script for the live table; line numbers above are as of this commit.)
 
----
+### 2.4 Does position matter here? (Exercise 3)
 
-## 3. Remediations & Improvements Applied
-
-1. **Root Router Elevation ([`AGENTS.md`](file:///Users/phoenix/projects/agent-skills-setup/AGENTS.md)):**
-   - Transformed `AGENTS.md` into an explicit routing engine by adding a `## Topic Docs` section pointing to:
-     - [`docs/architecture.md`](file:///Users/phoenix/projects/agent-skills-setup/docs/architecture.md) — System layers, invariants, and directory layout.
-     - [`agents/engineering-rules.md`](file:///Users/phoenix/projects/agent-skills-setup/agents/engineering-rules.md) — 12 core engineering rules, personal conventions, and spec-gated workflow.
-     - [`skills/README.md`](file:///Users/phoenix/projects/agent-skills-setup/skills/README.md) — Subcommand specifications and integration contracts.
-     - [`docs/harness-creator/`](file:///Users/phoenix/projects/agent-skills-setup/docs/harness-creator/) — Harness engineering curriculum logs, diagnostics, and exercises.
-     - [`docs/migration.md`](file:///Users/phoenix/projects/agent-skills-setup/docs/migration.md) — Host environments, pyenv interpreters, and multi-agent directory setups.
-   - Kept total file length at 82 lines (well within the 50–200 line limit).
-
-2. **Automated SNR & Context Audit Tool ([`docs/harness-creator/lecture-04/code/split_simulation.py`](file:///Users/phoenix/projects/agent-skills-setup/docs/harness-creator/lecture-04/code/split_simulation.py)):**
-   - Authored an executable simulation tool that parses markdown headers, calculates token and line footprints, measures task SNR across customizable task profiles, and quantifies position depth for middle-loss analysis.
-
-3. **Instruction Lifecycle Tracking:**
-   - Formalized instruction metadata requirements: each rule must define its **Source** (incident origin), **Applicability Condition** (when active), and **Expiry / Automation Path** (how it converts to a mechanical check).
+Measured, not assumed: [`position-experiment.md`](position-experiment.md). A made-up
+rule placed at 15% / 57% / 98% depth of `AGENTS.md` was followed in **15/15** Haiku 4.5
+runs (5/5 at each position). At ~100 lines, position made no measurable difference; the
+design has known ceiling effects, and the next experiment repeats it at ~10k tokens.
 
 ---
 
-## 4. Verification
+## 3. Remediations Applied
 
-- `docs/harness-creator/lecture-04/code/split_simulation.py`: Executed cleanly, outputting full SNR and context reduction metrics.
-- `bash scripts/run-tests.sh --fast`: **54 passed, 0 failed, 0 skipped**.
-- `bash scripts/harness-verify.sh`: All 8 gates passed cleanly (`registry`, `types`, `tests`, `skill paths`, `cred backends`, `hook wiring`, `state layer`, `secret scan`).
+1. **Router `AGENTS.md`** (96 lines): `## Topic Docs` now gives each doc a *Load when*
+   condition, and each incident section carries a one-line *Source / Applies / Expires*
+   record. The sources were restored from the original incident text in `ee34b0a`, which
+   `303e7f3` had trimmed away.
+2. **`bash-compat-guard.sh` (new)**: blocks `mapfile`/`readarray`,
+   `declare|local|typeset -A` and `;&`/`;;&` in any `*.sh`, in command position only.
+   Wired into `harness-verify.sh` and Stop/SubagentStop; 15-case fixture test passes
+   under both `/bin/bash` 3.2 and bash 5. Previously the Shell Portability rule had no
+   repo-wide check: `precommit-sh-check.sh` runs `bash -n` + shellcheck, and both accept
+   these constructs under bash 5.
+3. **`split_simulation.py` corrected**: counts always-loaded rules on the split side,
+   finds line numbers by heading, and checks that enforcing files exist.
+4. **Relocation not done, on purpose**: `AGENTS.md`'s own sections are 3–8 lines each.
+   The 77% noise comes from the global rules file, and splitting that means changing
+   `scripts/install-agents-md.sh` output for every agent. That is a separate decision.
+
+---
+
+## 4. Corrections to the First Pass (2026-09-26 → 2026-09-28)
+
+| First-pass claim | Actual |
+|:---|:---|
+| 67.7% average savings (86.1% max) | 26.6% (44.3% max): the always-loaded rules file was omitted from the split side |
+| `precommit_sh_check.sh` enforces bash 3.2 | It checks syntax only; nothing enforced bash 3.2 until `bash-compat-guard.sh` |
+| `skill_paths_guard.sh` enforces symlinks | It checks undefined path variables in skill recipes; nothing checks symlinks |
+| `commit_evidence.sh` enforces commit style | It surfaces new commits for verification; commit style is prompt-only |
+| Hook file names | Real names use hyphens: `precommit-sh-check.sh`, `skill-paths-guard.sh`, `commit-evidence.sh` |
+| Instruction lifecycle "formalized" | No file carried it; now in `AGENTS.md` |
+| Middle-zone rules "mathematically vulnerable" | Not supported at this size: 15/15 compliance in exercise 3 |
+| All 8 gates passed | True, but the `types` gate had silently skipped (no `.venv`, mypy absent) and still printed `OK` |
+
+---
+
+## 5. Verification
+
+- `bash .claude/hooks/tests/test_bash_compat_guard.sh`: 15/15 under `/bin/bash` 3.2.57 and bash 5.3.
+- `.venv` rebuilt from `requirements-dev.txt`; `types-guard.sh` now runs real mypy (clean).
+- `bash scripts/harness-verify.sh`: all 9 gates pass (adds `bash compat`).

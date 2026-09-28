@@ -2,18 +2,17 @@
 
 ## Current State
 
-**Last Updated:** 2026-09-26
-**Active Feature:** none — feat-015 (Lecture 4: Split Instructions Across Files) completed, `./init.sh` passes clean.
-**Lecture 4 (harness-creator training) is now fully closed**: Elevated root
-`AGENTS.md` to an explicit router (82 lines) with a dedicated `## Topic Docs`
-section routing to `docs/architecture.md`, `agents/engineering-rules.md`,
-`skills/README.md`, `docs/harness-creator/`, and `docs/migration.md`. Authored
-standalone simulation and diagnostic tool `docs/harness-creator/lecture-04/code/split_simulation.py`,
-revealing a 23.2% average SNR across 5 canonical developer tasks (76.8% noise
-under monolithic context), 67.7% context token savings via router+topic splitting,
-and mapped 'Lost in the Middle' position depth (30%-70% danger window), proving
-middle invariants must be backed by deterministic guard hooks. Documented full
-analysis in `docs/harness-creator/lecture-04/`.
+**Last Updated:** 2026-09-28
+**Active Feature:** none. feat-016 closed out Lecture 4; `./init.sh` passes all 9 gates.
+**Lecture 4 is closed.** Exercises 1 (SNR audit) and 3 (position test) were run. Two parts were not:
+exercise 1's relocation step was skipped on purpose, since the noise is in the global rules file
+(summary §3.4), and exercise 2's before/after success-rate comparison has no baseline, because
+`AGENTS.md` was already under 100 lines before this lecture. feat-015's first pass overclaimed,
+and feat-016 corrected it: it added `bash-compat-guard.sh` (Shell Portability had no
+repo-wide check), fixed `split_simulation.py` (real savings 26.6%, not 67.7%), added
+Source/Applies/Expires metadata and Load-when conditions to `AGENTS.md` (96 lines), and ran
+exercise 3: 15/15 compliance at top/middle/bottom, a null result at this size. Corrections
+table: `docs/harness-creator/lecture-04/summary.md` §4.
 
 ## Status
 
@@ -106,7 +105,11 @@ analysis in `docs/harness-creator/lecture-04/`.
   monolithic context), 67.7% context token savings via router+topic splitting,
   and mapped 'Lost in the Middle' position depth (30%-70% danger window), confirming
   middle invariants must be backed by deterministic guard hooks. Documented full
-  analysis in `docs/harness-creator/lecture-04/`.
+  analysis in `docs/harness-creator/lecture-04/`. *(Overclaimed; corrected by feat-016.)*
+- [x] feat-016: Lecture 4 completion. New `bash-compat-guard.sh` (wired into
+  `harness-verify.sh` + Stop/SubagentStop, 15-case test green under `/bin/bash` 3.2);
+  `split_simulation.py` fixed; `AGENTS.md` rule metadata; exercise 3 run and recorded in
+  `docs/harness-creator/lecture-04/position-experiment.md`.
 
 ### What's In Progress
 
@@ -114,7 +117,11 @@ analysis in `docs/harness-creator/lecture-04/`.
 
 ### What's Next
 
-- Ready for Lecture 5: Why Long-Running Tasks Lose Continuity.
+- feat-017 (todo): `harness-verify.sh` prints `OK` for a gate that skipped. `types`
+  did this when `.venv` was missing.
+- Optional follow-up experiment: repeat exercise 3 at ~10k tokens without the
+  "read in full" instruction (design in `position-experiment.md` §13).
+- Lecture 5: Why Long-Running Tasks Lose Continuity.
 
 
 ## Blockers / Risks

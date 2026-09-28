@@ -46,6 +46,7 @@ run_gate "registry"    "$HOOKS/registry-guard.sh"
 run_gate "types"       "$HOOKS/types-guard.sh"
 run_gate "tests"       "$HOOKS/tests-guard.sh"
 run_gate "skill paths" "$HOOKS/skill-paths-guard.sh"
+run_gate "bash compat" "$HOOKS/bash-compat-guard.sh"
 run_gate "cred backends" "$HOOKS/credential-backend-guard.sh"
 # Passes the real settings.json as well as the tree: a hook wired to a path that
 # no longer resolves is invisible to the Stop hook by design, and this is where a

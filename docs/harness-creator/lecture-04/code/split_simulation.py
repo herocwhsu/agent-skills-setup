@@ -93,6 +93,15 @@ def parse_markdown_sections(file_path: Path) -> List[Section]:
     return sections
 
 
+
+def find_heading_line(file_path: Path, heading: str) -> int:
+    """1-based line of the first markdown heading containing `heading`; fails loud if absent."""
+    for idx, line in enumerate(file_path.read_text(encoding="utf-8").splitlines(), 1):
+        if line.startswith("#") and heading in line:
+            return idx
+    sys.exit(f"heading {heading!r} not found in {file_path} -- update critical_rules")
+
+
 TASKS = [
     TaskProfile(
         name="Task 1: Python Skill Bugfix",
@@ -146,7 +155,7 @@ TASKS = [
         needed_topic_docs=[],
     ),
     TaskProfile(
-        name="Task 5: Documentation / Curriculum Update",
+        name="Task 5: Documentation / Training Update",
         description="Update training lecture notes or architecture docs",
         target_sections=[
             "Startup Workflow",
@@ -231,10 +240,10 @@ def run_audit() -> None:
     }
 
     for task, sig_lines, sig_tokens, l_snr, t_snr in snr_results:
-        # In split architecture, agent reads Root Router (AGENTS.md) + only the needed topic docs
-        router_tokens = sum(s.estimated_tokens for s in sec_agents)
-        needed_topic_tokens = sum(topic_map.get(doc, 0) for doc in task.needed_topic_docs)
-        split_tokens = router_tokens + needed_topic_tokens
+        # Split architecture: Root Router (AGENTS.md) + the always-injected global rules
+        # (engineering-rules.md is installed into every host file, so it is never optional)
+        # + only the topic docs this task needs.
+        split_tokens = total_entry_tokens + sum(topic_map.get(doc, 0) for doc in task.needed_topic_docs)
 
         savings = ((total_mono_tokens - split_tokens) / total_mono_tokens) * 100
         savings_list.append(savings)
@@ -247,28 +256,33 @@ def run_audit() -> None:
 
     print("\n[4] 'Lost in the Middle' Position Risk Analysis:")
     print("-" * 80)
-    print("  According to Liu et al. (2023), rules in the 30%-70% depth window suffer severe recall drop.")
+    print("  According to Liu et al. (2023), recall drops for content in the middle of long contexts (25%-75% depth here).")
 
-    critical_rules = [
-        ("Rule 1: Think Before Coding", eng_rules, 9),
-        ("Rule 3: Surgical Changes", eng_rules, 15),
-        ("Rule 5: Judgment Calls", eng_rules, 25),
-        ("Rule 12: Fail Loud", eng_rules, 46),
-        ("Personal: Commit Style", eng_rules, 53),
-        ("Personal: Prompt Polish", eng_rules, 75),
-        ("Spec-Gated Workflow Gate 1-7", eng_rules, 89),
-        ("AGENTS: Verify Gate", agents_md, 22),
-        ("AGENTS: Definition of Done", agents_md, 32),
-        ("AGENTS: Shell Portability (macOS bash 3.2)", agents_md, 48),
-        ("AGENTS: Skills Symlinks", agents_md, 52),
-        ("AGENTS: Hook Conventions (Exit 2)", agents_md, 56),
-        ("AGENTS: Boundaries (Never write override)", agents_md, 66),
+    # (name, file, heading text, enforcing file relative to repo root or None).
+    # Line numbers are looked up by heading so edits to the files cannot make them stale.
+    critical_rules: List[Tuple[str, Path, str, str | None]] = [
+        ("Rule 1: Think Before Coding", eng_rules, "Rule 1 —", None),
+        ("Rule 3: Surgical Changes", eng_rules, "Rule 3 —", None),
+        ("Rule 5: Judgment Calls", eng_rules, "Rule 5 —", None),
+        ("Rule 12: Fail Loud", eng_rules, "Rule 12 —", None),
+        ("Personal: Commit Style", eng_rules, "Commit style", None),
+        ("Personal: Subagent Verification", eng_rules, "Subagent verification", ".claude/hooks/commit-evidence.sh"),
+        ("Personal: Prompt Polish", eng_rules, "Prompt polish", None),
+        ("Spec-Gated Workflow Gate 1-7", eng_rules, "Production Spec-Gated Workflow", None),
+        ("AGENTS: Verify Gate", agents_md, "Verify", "scripts/harness-verify.sh"),
+        ("AGENTS: Definition of Done", agents_md, "Definition of Done", "scripts/harness-verify.sh"),
+        ("AGENTS: Shell Portability (bash 3.2)", agents_md, "Shell Portability", ".claude/hooks/bash-compat-guard.sh"),
+        ("AGENTS: Skills Symlinks", agents_md, "Skills symlinks", ".claude/hooks/registry-guard.sh"),
+        ("AGENTS: Hook Conventions (guard wiring)", agents_md, "Hook Conventions", "scripts/tests/test_harness_verify.sh"),
+        ("AGENTS: Boundaries", agents_md, "Boundaries", None),
     ]
 
-    print(f"  | {'Constraint Name':<38} | {'File':<18} | {'Line':<5} | {'Depth':<7} | {'Zone':<12} | {'Safety Mech':<15} |")
-    print("  |" + "-" * 40 + "|" + "-" * 20 + "|" + "-" * 7 + "|" + "-" * 9 + "|" + "-" * 14 + "|" + "-" * 17 + "|")
+    print(f"  | {'Constraint Name':<38} | {'File':<20} | {'Line':<5} | {'Depth':<7} | {'Zone':<16} | {'Enforced by':<36} |")
+    print("  |" + "-" * 40 + "|" + "-" * 22 + "|" + "-" * 7 + "|" + "-" * 9 + "|" + "-" * 18 + "|" + "-" * 38 + "|")
 
-    for name, file_p, line_no in critical_rules:
+    unguarded_middle = []
+    for name, file_p, heading, mech_path in critical_rules:
+        line_no = find_heading_line(file_p, heading)
         total_lines = len(file_p.read_text(encoding="utf-8").splitlines())
         depth = line_no / total_lines
         if depth < 0.25:
@@ -278,28 +292,20 @@ def run_audit() -> None:
         else:
             zone = "DANGER (Middle)"
 
-        # Safety mechanism check
-        if "Hook" in name or "Exit 2" in name:
-            mech = "test_hook_wiring"
-        elif "Shell Portability" in name:
-            mech = "precommit_sh_check"
-        elif "Boundaries" in name:
-            mech = "settings.json deny"
-        elif "Verify" in name or "Done" in name:
-            mech = "harness-verify.sh"
-        elif "Symlinks" in name:
-            mech = "skill_paths_guard"
-        elif "Commit Style" in name:
-            mech = "commit_evidence.sh"
-        elif "Prompt Polish" in name:
-            mech = "Model instruction"
+        if mech_path is None:
+            mech = "prompt only"
+        elif (REPO_ROOT / mech_path).exists():
+            mech = mech_path
         else:
-            mech = "Model instruction"
+            mech = f"MISSING {mech_path}"
+        if zone == "DANGER (Middle)" and not (REPO_ROOT / (mech_path or "")).is_file():
+            unguarded_middle.append(name)
 
-        print(f"  | {name:<38} | {file_p.name:<18} | {line_no:<5} | {depth * 100:>5.1f}% | {zone:<12} | {mech:<15} |")
+        print(f"  | {name:<38} | {file_p.name:<20} | {line_no:<5} | {depth * 100:>5.1f}% | {zone:<16} | {mech:<36} |")
     print("-" * 80)
-    print("  Key Takeaway: Rules residing in the 'DANGER (Middle)' zone MUST be backed by automated hooks;")
-    print("  text instructions alone in the middle of long files are mathematically vulnerable to model neglect.")
+    print(f"  Middle-zone rules with no mechanical check: {', '.join(unguarded_middle) or 'none'}")
+    print("  Caveat: Liu et al. measured contexts of thousands of tokens; whether position matters in a")
+    print("  ~1k-token AGENTS.md is an empirical question -- see lecture-04/position-experiment.md.")
     print("=" * 80)
 
 

@@ -272,3 +272,21 @@ All changes in this lecture were verified against the full repository harness:
    #   OK    secret scan
    # All gates passed.
    ```
+
+---
+
+## Part 10: Corrections and Completion (2026-09-28)
+
+A review of this log against the repo found several claims above wrong. The log is
+kept as written, and the corrections are listed here and in `summary.md` §4:
+
+- The context savings in Part 5 (67.7% avg, 86.1% max) left the always-loaded
+  `agents/engineering-rules.md` off the split side. Corrected: 26.6% avg, 44.3% max.
+- The guards named in Parts 3 and 6 (`precommit_sh_check.sh`, `skill_paths_guard.sh`,
+  `commit_evidence.sh`) do not enforce the rules attributed to them. Shell
+  Portability had no repo-wide check. Fixed by `.claude/hooks/bash-compat-guard.sh`.
+- The Part 7 lifecycle table existed only in this log. It now lives in
+  `AGENTS.md` as a one-line *Source / Applies / Expires* record per section.
+- Exercise 3 (Lost in the Middle) had not been run. It now has been: 15/15 compliance
+  across top/middle/bottom, a null result at this file size. See
+  `position-experiment.md`.

@@ -51,6 +51,7 @@ flowchart TD
   - `types-guard.sh`: Whole-repo `mypy` type validation against `.python-version` (3.14.7). Fails loud on version drift or broken `.venv`.
   - `tests-guard.sh`: Delegates to `scripts/run-tests.sh` to run the full test suite.
   - `skill-paths-guard.sh`: Validates YAML frontmatter, directory linkages, and cross-references.
+  - `bash-compat-guard.sh`: Blocks Bash 4+ constructs (`mapfile`/`readarray`, `declare -A`, `;&`) in any `*.sh`; `bash -n` and shellcheck accept them under Bash 5.
   - `credential-backend-guard.sh`: Validates credential helper configurations and scripts.
   - `hook-wiring-guard.sh`: Asserts that configured hooks in `.claude/settings.json` accurately match actual files.
   - `state-layer-guard.sh`: Ensures repository state artifacts (`init.sh`, `feature_list.json`, `PROGRESS.md`) exist and parse.

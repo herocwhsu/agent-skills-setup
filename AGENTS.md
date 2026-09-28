@@ -9,6 +9,9 @@ Everything below the next two sections cost a real incident. The startup workflo
 and definition of done are the exception — added proactively, not from a specific
 failure, once `feature_list.json`/`PROGRESS.md` existed to route to.
 
+Each incident section carries one metadata line: what caused it, when it applies,
+and what would let it be deleted.
+
 ## Startup Workflow
 
 Before writing code:
@@ -47,23 +50,33 @@ Before ending a session:
 
 ## Shell Portability
 
+*Source:* `init-repo.sh` shipped `;&` for months and aborted on every macOS run while CI (bash 5) stayed green. *Applies:* any `*.sh` edit. *Expires:* already enforced by `bash-compat-guard.sh`; delete if the floor moves to bash 5.
+
 Shared scripts must be portable across macOS default `/bin/bash` (3.2) and Linux (Bash 5+). Avoid Bash 4+ features (`;&`, `mapfile`, `declare -A`) or use standard POSIX `sh`.
 
 ## Skills symlinks
 
+*Source:* `install_skill` uses `ln -sfn`, so a renamed group dir broke every installed agent. *Applies:* renaming/moving `skills/<group>`. *Expires:* when installs copy instead of symlink (`registry-guard.sh` covers only the registry half).
+
 `skills/<group>` are symlinked into live agent dirs (`~/.claude/skills/`). Renaming or moving skill directories requires running `scripts/install.sh` and updating `registry.txt` in the same commit.
 
 ## Hook Conventions
+
+*Source:* `hooks/common/sh-check.sh` exited 1 with `|| true`, so every repo scaffolded from it got a gate that blocked nothing. *Applies:* adding or editing a hook. *Expires:* wiring is enforced by the `*-guard.sh` ratchet in `test_harness_verify.sh`; exit 2 only by each hook's own test.
 
 - **Exit code 2**: Stop hooks must exit 2 to block the agent and surface failure details.
 - **`-guard.sh` suffix**: Reserved for whole-repo pass/fail validators wired into `scripts/harness-verify.sh`.
 
 ## Python Tooling
 
+*Source:* per-file mypy re-reports imported modules' errors (3× the real count); `ruff check` had 74 pre-existing findings. *Applies:* Python edits. *Expires:* wire `ruff check` once its findings reach 0.
+
 - **Types**: Run `mypy` over the whole repo via `.venv/bin/mypy .` (never per single file).
 - **Format**: `ruff.toml` configures `ruff format` only (`ruff check` is unwired).
 
 ## Boundaries (scope)
+
+*Source:* `init-repo.sh` overwrote `.claude/hooks/`; tests wrote into real `~/.claude`. *Applies:* running scripts or tests. *Expires:* prompt-only — none of these is mechanically enforced.
 
 - Never point `init-repo.sh` at this repo (it overwrites `.claude/hooks/`).
 - Tests must redirect `HOME` to a temporary directory (`~/.claude`, `~/.codex`, `~/.gemini` are touched).
@@ -74,9 +87,10 @@ Shared scripts must be portable across macOS default `/bin/bash` (3.2) and Linux
 
 ## Topic Docs
 
-- **Architecture Guide** (`docs/architecture.md`) — System layers, invariants, and directory layout. Read before modifying subsystem boundaries.
-- **Global Engineering Rules** (`agents/engineering-rules.md`) — 12 core engineering rules, personal conventions, and spec-gated production workflow.
-- **Skills Catalog & Registry** (`skills/README.md`) — Subcommand specifications and integration contracts for individual agent skills.
-- **Harness Creator Training** (`docs/harness-creator/`) — Curriculum logs, diagnostic tools, and architectural analysis for the harness system.
-- **Migration & Host Portability** (`docs/migration.md`) — Upgrading host environments, pyenv interpreters, and multi-agent directory setups.
+Load a topic doc only when its condition matches the task.
 
+- **`docs/architecture.md`** — layers, invariants, directory layout. *Load when:* changing a subsystem boundary, hook, or gate.
+- **`agents/engineering-rules.md`** — the shipped rules. *Load when:* editing them (changes every agent on the machine).
+- **`skills/README.md`** — subcommand specs and integration contracts. *Load when:* adding or changing a skill.
+- **`docs/harness-creator/`** — lecture logs and diagnostic tools. *Load when:* doing harness training work.
+- **`docs/migration.md`** — host upgrades, pyenv, multi-agent dirs. *Load when:* changing interpreters or agent install paths.
