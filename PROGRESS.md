@@ -114,7 +114,7 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
 - [x] feat-018: split the global rules. The production gate procedure (old Part IV) is now
   the required `spec-workflow` skill, and `engineering-rules.md` keeps host-neutral triggers
   only (147 → 86 lines). Guarded by `scripts/tests/test_engineering_rules_scope.sh`.
-  **Pending:** re-run `scripts/install-agents-md.sh` (needs approval) so the hosts pick it up.
+  Deployed to all four hosts via `scripts/install-agents-md.sh`.
 
 - [x] feat-017: `harness-verify.sh` now reports a self-skipping gate as `SKIP` and names it
   in the summary. That exposed `secret scan` as a second silent skip (gitleaks and
