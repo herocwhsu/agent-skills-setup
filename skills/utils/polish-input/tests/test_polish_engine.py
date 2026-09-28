@@ -197,54 +197,117 @@ def test_polish_bearer_token_passed_as_auth_token(monkeypatch):
     assert fake._last_messages is not None
 
 
-def test_read_antigravity_keychain_value_session_json_fallback(monkeypatch, tmp_path):
-    import subprocess
-    monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: subprocess.CompletedProcess(args, 1, stdout=""))
-    monkeypatch.setenv("HOME", str(tmp_path))
-    session_file = tmp_path / ".gemini" / "antigravity-cli" / "session.json"
-    session_file.parent.mkdir(parents=True, exist_ok=True)
-    session_file.write_text("go-keyring-base64:fake-session-data")
+def _install_fake_genai(monkeypatch, response_text="Polished gemini text"):
+    """Stub `google.genai` (the google-genai SDK) and record what the engine sends."""
+    calls: dict = {}
 
-    sys.modules.pop("polish_engine", None)
-    import polish_engine
+    class _Models:
+        def generate_content(self, *, model, contents, config=None):
+            calls["model"] = model
+            calls["contents"] = contents
+            calls["config"] = config
 
-    val = polish_engine._read_antigravity_keychain_value()
-    assert val == "go-keyring-base64:fake-session-data"
-
-
-def test_polish_gemini_uses_model_env_var(monkeypatch):
-    fake_genai = types.ModuleType("google.generativeai")
-    created_models = []
-
-    class _FakeGenerativeModel:
-        def __init__(self, model_name, system_instruction):
-            created_models.append((model_name, system_instruction))
-
-        def generate_content(self, text, request_options=None):
             class _Resp:
-                text = "Polished gemini text"
+                text = response_text
             return _Resp()
 
-    fake_genai.GenerativeModel = _FakeGenerativeModel
-    fake_genai.configure = lambda **kwargs: None
-    monkeypatch.setitem(sys.modules, "google.generativeai", fake_genai)
-    monkeypatch.setenv("POLISH_MODEL", "gemini-2.0-flash")
+    class _Client:
+        def __init__(self, *, api_key=None, http_options=None):
+            calls["api_key"] = api_key
+            calls["http_options"] = http_options
+            self.models = _Models()
 
-    sys.modules.pop("polish_engine", None)
-    import polish_engine
+    class _Cfg:
+        def __init__(self, **kw):
+            self.__dict__.update(kw)
 
-    class _FakeGeminiKeyProvider(polish_engine.AuthProvider):
+    genai = types.ModuleType("google.genai")
+    genai.Client = _Client
+    genai_types = types.ModuleType("google.genai.types")
+    genai_types.GenerateContentConfig = _Cfg
+    genai_types.HttpOptions = _Cfg
+    genai.types = genai_types
+    google = types.ModuleType("google")
+    google.genai = genai
+    monkeypatch.setitem(sys.modules, "google", google)
+    monkeypatch.setitem(sys.modules, "google.genai", genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", genai_types)
+    return calls
+
+
+def _gemini_key_provider(polish_engine, key="fake-gemini-key"):
+    class _P(polish_engine.AuthProvider):
         name = "gemini-key"
         backend = "gemini"
         cred_type = "key"
 
         def credential(self):
-            return "fake-gemini-key"
+            return key
 
-    out = polish_engine.polish("i want add login", [_FakeGeminiKeyProvider()])
+    return _P()
+
+
+def test_polish_gemini_uses_google_genai_client(monkeypatch):
+    calls = _install_fake_genai(monkeypatch)
+    monkeypatch.setenv("POLISH_MODEL", "gemini-2.0-flash")
+    monkeypatch.setenv("POLISH_TIMEOUT_MS", "4000")
+
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+
+    out = polish_engine.polish("i want add login", [_gemini_key_provider(polish_engine)])
     assert out == "Polished gemini text"
-    assert len(created_models) == 1
-    assert created_models[0][0] == "gemini-2.0-flash"
+    assert calls["api_key"] == "fake-gemini-key"
+    assert calls["model"] == "gemini-2.0-flash"
+    assert calls["contents"] == "i want add login"
+    assert calls["config"].system_instruction == polish_engine.SYSTEM_PROMPT
+    # google-genai takes milliseconds; google-generativeai took seconds.
+    assert calls["http_options"].timeout == 4000
+
+
+def test_gemini_without_api_key_logs_hint(monkeypatch):
+    _install_fake_genai(monkeypatch)
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+
+    class _NoKey(polish_engine.AuthProvider):
+        name = "gemini-key"
+        backend = "gemini"
+        cred_type = "key"
+
+        def credential(self):
+            return None
+
+    assert polish_engine.polish("hi", [_NoKey()]) is None
+    log = (polish_engine._state_dir() / "debug.log").read_text()
+    assert "GEMINI_API_KEY" in log
+
+
+def test_gemini_hint_not_logged_when_another_backend_succeeds(monkeypatch):
+    _install_fake_genai(monkeypatch)
+    _install_fake_anthropic(monkeypatch, response_text="Polished by claude")
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+
+    class _NoKey(polish_engine.AuthProvider):
+        name = "gemini-key"
+        backend = "gemini"
+        cred_type = "key"
+
+        def credential(self):
+            return None
+
+    class _Anthropic(polish_engine.AuthProvider):
+        name = "anthropic-key"
+        backend = "anthropic"
+        cred_type = "key"
+
+        def credential(self):
+            return "sk-fake"
+
+    assert polish_engine.polish("hi", [_NoKey(), _Anthropic()]) == "Polished by claude"
+    log_path = polish_engine._state_dir() / "debug.log"
+    assert not log_path.exists() or "GEMINI_API_KEY" not in log_path.read_text()
 
 
 def test_gemini_keychain_provider_macos_security(monkeypatch):

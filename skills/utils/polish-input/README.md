@@ -1,7 +1,7 @@
 # polish-input
 
 Auto-polish single-line English prompts as a learning side-channel for Claude Code, Kiro, and Antigravity CLI (`agy`).
-Uses Claude Haiku 4.5 via the Anthropic SDK, or Gemini session OAuth credentials.
+Uses Claude Haiku 4.5 via the Anthropic SDK, or Gemini via the `google-genai` SDK with an API key.
 
 ## What it does
 
@@ -23,7 +23,7 @@ Installing it does this:
 2. Installs the `anthropic` Python SDK via pip.
 3. Merges the `UserPromptSubmit` hook into the selected agent's settings (e.g. `~/.gemini/antigravity-cli/settings.json`).
 
-The hook resolves OAuth session tokens automatically from macOS Keychain (`security`), Linux Secret Service (`secret-tool`), or fallback session files, and also reads `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` if present in the environment.
+The hook resolves Claude session tokens and stored API keys automatically from macOS Keychain (`security`), Linux Secret Service (`secret-tool`), or fallback session files, and also reads `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` if present in the environment. Gemini needs an API key: `google-genai` does not accept the Antigravity OAuth session for the Gemini API.
 
 ## Configuration
 
@@ -35,7 +35,7 @@ All env vars are optional.
 | `POLISH_REPLACE` | unset | If `1`, send the polished text to the agent instead of the original. |
 | `POLISH_DISPLAY` | `line` | `line` / `diff` / `box`. |
 | `POLISH_DEBUG` | unset | If `1`, log diagnostics to `~/.agent-skills-setup/state/polish-input/debug.log`. |
-| `POLISH_MODEL` | `claude-haiku-4-5` | Override the polish model. |
+| `POLISH_MODEL` | `claude-haiku-4-5` (Gemini: `gemini-3.5-flash-lite`) | Override the polish model. |
 | `POLISH_TIMEOUT_MS` | `3000` | API timeout in milliseconds. |
 
 Set them in your agent's settings file (e.g. `~/.gemini/settings.json`) under `env`, or in your shell rc.

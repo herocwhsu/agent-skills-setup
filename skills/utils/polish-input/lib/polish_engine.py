@@ -8,7 +8,6 @@ the detected agent context (see polish.py).
 
 from __future__ import annotations
 
-import base64
 import datetime
 import hashlib
 import json
@@ -135,94 +134,6 @@ class AnthropicKeyProvider(AuthProvider):
 
     def credential(self) -> str | None:
         return os.environ.get("ANTHROPIC_API_KEY") or None
-
-
-def _read_antigravity_keychain_value() -> str | None:
-    """Read the raw Antigravity CLI session blob from the OS keyring.
-
-    Antigravity CLI (agy) replaced the legacy Gemini CLI and stores its
-    Google OAuth session via a Go keyring library under
-    service="gemini", account="antigravity" — macOS Keychain or Linux
-    Secret Service depending on platform. The stored value is prefixed
-    "go-keyring-base64:" followed by base64-encoded JSON:
-    {"auth_method": ..., "token": {"access_token", "refresh_token",
-    "token_type", "expiry"}}.
-    """
-    try:
-        r = subprocess.run(
-            ["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", "-w"],
-            capture_output=True,
-            text=True,
-        )
-        if r.returncode == 0 and r.stdout.strip():
-            return r.stdout.strip()
-    except FileNotFoundError:
-        pass
-
-    try:
-        r = subprocess.run(
-            ["secret-tool", "lookup", "service", "gemini", "username", "antigravity"],
-            capture_output=True,
-            text=True,
-        )
-        if r.returncode == 0 and r.stdout.strip():
-            return r.stdout.strip()
-    except FileNotFoundError:
-        pass
-
-    # Fallback for headless Linux where Secret Service DBus daemon is not available
-    session_file = Path(os.path.expanduser("~/.gemini/antigravity-cli/session.json"))
-    if session_file.exists():
-        try:
-            val = session_file.read_text().strip()
-            if val:
-                return val
-        except Exception:
-            pass
-
-    return None
-
-
-class GeminiAntigravityProvider(AuthProvider):
-    """OAuth credentials from the active Antigravity CLI (agy) session.
-
-    Only the raw access_token is used — Antigravity's OAuth client_id is
-    not something we can reliably assume, so we don't attempt a refresh.
-    An expired token is treated as "no credential" (falls through to the
-    next provider) rather than risking a failed refresh call.
-    """
-
-    name = "gemini-antigravity"
-    backend = "gemini"
-    cred_type = "oauth"
-
-    def credential(self) -> Any:
-        raw = _read_antigravity_keychain_value()
-        if not raw:
-            return None
-        try:
-            import google.oauth2.credentials
-
-            payload = raw
-            prefix = "go-keyring-base64:"
-            if payload.startswith(prefix):
-                payload = payload[len(prefix) :]
-            decoded = base64.b64decode(payload + "=" * (-len(payload) % 4))
-            data = json.loads(decoded)
-            token = data.get("token", {})
-            access_token = token.get("access_token")
-            if not access_token:
-                return None
-            expiry = token.get("expiry")
-            if expiry:
-                exp_dt = datetime.datetime.fromisoformat(expiry)
-                if exp_dt.tzinfo is None:
-                    exp_dt = exp_dt.replace(tzinfo=datetime.timezone.utc)
-                if datetime.datetime.now(datetime.timezone.utc) >= exp_dt:
-                    return None
-            return google.oauth2.credentials.Credentials(token=access_token)
-        except Exception:
-            return None
 
 
 class GeminiKeyProvider(AuthProvider):
@@ -400,27 +311,22 @@ def _polish_anthropic(text: str, cred: str, cred_type: str) -> str | None:
         return None
 
 
-def _polish_gemini(text: str, cred: Any, cred_type: str) -> str | None:
+def _polish_gemini(text: str, cred: str) -> str | None:
     try:
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types
     except ImportError as e:
-        write_engine_error_hint_once(f"google-generativeai SDK not importable: {e}")
+        write_engine_error_hint_once(f"google-genai SDK not importable: {e}")
         return None
     try:
-        if cred_type == "oauth":
-            genai.configure(credentials=cred)
-        else:
-            genai.configure(api_key=cred)
         timeout_ms = int(os.environ.get("POLISH_TIMEOUT_MS", str(DEFAULT_TIMEOUT_MS)))
-        model_name = os.environ.get("POLISH_MODEL", "gemini-1.5-flash")
-        model = genai.GenerativeModel(
-            model_name=model_name, system_instruction=SYSTEM_PROMPT
+        client = genai.Client(api_key=cred, http_options=types.HttpOptions(timeout=timeout_ms))
+        response = client.models.generate_content(
+            model=os.environ.get("POLISH_MODEL", "gemini-3.5-flash-lite"),
+            contents=text,
+            config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
         )
-        response = model.generate_content(text, request_options={"timeout": timeout_ms / 1000})
-        try:
-            return response.text.strip() if response.text else None
-        except (ValueError, AttributeError):
-            return None
+        return response.text.strip() if response.text else None
     except Exception as e:
         write_engine_error_hint_once(f"Gemini API call failed: {e}")
         return None
@@ -433,16 +339,24 @@ def _polish_gemini(text: str, cred: Any, cred_type: str) -> str | None:
 
 def polish(text: str, providers: list[AuthProvider]) -> str | None:
     """Try each provider in order; return first successful rewrite, else None."""
+    gemini_without_key = False
     for p in providers:
         cred = p.credential()
         if cred is None:
+            gemini_without_key = gemini_without_key or p.backend == "gemini"
             continue
         if p.backend == "anthropic":
             result = _polish_anthropic(text, cred, p.cred_type)
         elif p.backend == "gemini":
-            result = _polish_gemini(text, cred, p.cred_type)
+            result = _polish_gemini(text, cred)
         else:
             continue
         if result is not None:
             return result
+    if gemini_without_key:
+        # google-genai accepts only an API key for the Gemini API; OAuth sessions
+        # (e.g. Antigravity's) work only in Vertex AI mode.
+        write_engine_error_hint_once(
+            "no Gemini API key: set GEMINI_API_KEY or store one as agent-skills-setup:gemini"
+        )
     return None

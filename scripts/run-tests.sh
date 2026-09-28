@@ -9,7 +9,7 @@ FAST=0
 [[ "${1:-}" == "--fast" ]] && FAST=1
 
 # Prefer this repo's own venv (built from requirements-dev.txt) so pytest and
-# the third-party packages tests import (anthropic, google.generativeai, lxml)
+# the third-party packages tests import (anthropic, google.genai, lxml)
 # resolve from a known, scanned manifest rather than whatever happens to be on
 # PATH. Falls back to bare python3 only when .venv was never set up at all —
 # a .venv directory that DOES exist must be the right interpreter or we fail

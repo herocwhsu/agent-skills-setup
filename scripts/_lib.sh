@@ -827,11 +827,11 @@ wire_hook() {
   fi
 
   if [[ "$skill" == "polish-input" ]]; then
-    # Gemini (Antigravity CLI) talks to google.generativeai; every other
+    # Gemini (Antigravity CLI) talks to google-genai; every other
     # agent goes through the Anthropic client.
     local pkg="anthropic"
     if [[ "$agent" == "gemini" ]]; then
-      pkg="google-generativeai"
+      pkg="google-genai"
     fi
 
     echo "  Installing required SDK via pip..."

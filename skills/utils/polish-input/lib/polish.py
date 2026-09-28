@@ -68,7 +68,6 @@ def build_providers(agent: str) -> list:
         ClaudeSessionProvider,
         AnthropicKeyProvider,
         AnthropicKeychainProvider,
-        GeminiAntigravityProvider,
         GeminiKeyProvider,
         GeminiKeychainProvider,
     )
@@ -88,7 +87,6 @@ def build_providers(agent: str) -> list:
             AnthropicKeyProvider(),
             AnthropicKeychainProvider(),
             ClaudeSessionProvider(),
-            GeminiAntigravityProvider(),
         ]
     return [
         ClaudeSessionProvider(),

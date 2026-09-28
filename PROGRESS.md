@@ -120,6 +120,11 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
   in the summary. That exposed `secret scan` as a second silent skip (gitleaks and
   osv-scanner were missing); both are now installed and the real scans are clean.
 
+- [x] feat-019: polish-input's Gemini backend moved to `google-genai` (API key only). The
+  Antigravity OAuth path was removed: it already failed with a 403 scope error, and
+  `google-genai` can't use OAuth for the Gemini API. Default model `gemini-1.5-flash`
+  (retired) → `gemini-3.5-flash-lite`. Not live-tested: no Gemini key on this machine.
+
 ### What's In Progress
 
 - Nothing active.
@@ -133,13 +138,10 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
 
 ## Blockers / Risks
 
-- **`google-generativeai` (pinned in `requirements-dev.txt`, used by
-  `skills/utils/polish-input/lib/polish_engine.py`'s Gemini backend) is
-  deprecated** — confirmed via PyPI directly: legacy status, support ended
-  2025-11-30, successor is `google-genai`. Not a blocker (still installs and
-  works; osv-scanner reports no CVE against it), but a real migration is
-  owed eventually. Not done this session — touches shipped code, a
-  different-shaped change than this session's dev-tooling scope.
+- **`_lib.sh` pip step fails on Homebrew Python (PEP 668)**: the polish-input SDK install
+  (`pip3 install anthropic|google-genai`) is refused as an externally managed environment.
+  Pre-existing; found during feat-019. Needs a venv or `pipx`-style install, not
+  `--break-system-packages`.
 
 ## Decisions Made
 
@@ -169,7 +171,7 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
   two confident, false claims from `agy` itself, reinforcing that a third
   model is one more source to verify, not one more source to trust by
   default.
-- **`google-generativeai` deprecation confirmed but not migrated**: real,
+- **`google-generativeai` deprecation confirmed but not migrated** (migrated later in feat-019): real,
   checked against PyPI directly, not just claimed by either review model —
   but migrating it means touching `polish_engine.py`'s actual Gemini
   integration code, a different-shaped change than this session's
