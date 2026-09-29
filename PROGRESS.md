@@ -131,6 +131,13 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
   found (an independent subagent review plus mutation runs showed hangar's and the template's
   tests had blind spots, now closed): gitleaks `--source .` in all three `secret-scan` copies, and atelier's `py-guard` and
   `ts-guard` gating on the merge-base (they skipped committed and new files).
+- [x] feat-021: registered `pip google-genai>=2.25.0` in `registry.txt` with validator coverage;
+  bumped `obra/superpowers` pin to `8ca22dba` (15 skills installed);
+  added `install_statusline` in `_lib.sh` and wired into `install.sh` so statusline is configured
+  automatically for supported agents (`claude`, `gemini`) if absent; installed `google-genai` in
+  `.venv` and pyenv global python; deployed rules to all hosts; applied agent CLI updates
+  (`hermes` updated to `ef201323`, `claude`/`codex`/`agy` already current); verified `./init.sh`
+  clean across all 9 gates.
 
 ### What's In Progress
 

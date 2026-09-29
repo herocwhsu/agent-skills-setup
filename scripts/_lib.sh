@@ -901,6 +901,68 @@ rewire_hooks() {
 }
 
 # ---------------------------------------------------------------------------
+# install_statusline <agent_name> <repo_dir>
+#   Ensure the agent has a statusline configured. If settings.json already has
+#   statusLine configured (e.g. claude-hud or custom command), leave it intact.
+#   Otherwise, install config/statusline-command.sh and enable it.
+# ---------------------------------------------------------------------------
+install_statusline() {
+  local agent="$1" repo_dir="$2"
+  local settings status_script status_cmd
+
+  case "$agent" in
+    gemini)
+      local dir="$HOME/.gemini/antigravity-cli"
+      settings="$dir/settings.json"
+      status_script="$dir/statusline-command.sh"
+      status_cmd="bash $status_script"
+      ;;
+    claude)
+      local dir="$HOME/.claude"
+      settings="$dir/settings.json"
+      status_script="$dir/statusline-command.sh"
+      status_cmd="bash $status_script"
+      ;;
+    *) return 0 ;;
+  esac
+
+  # If settings.json already has statusLine configured, keep existing configuration
+  if [[ -f "$settings" ]] && grep -q '"statusLine"' "$settings" 2>/dev/null; then
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$status_script")"
+  cp "$repo_dir/config/statusline-command.sh" "$status_script"
+  chmod +x "$status_script"
+
+  mkdir -p "$(dirname "$settings")"
+  if [[ ! -f "$settings" ]]; then
+    printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s",\n    "enabled": true\n  }\n}\n' "$status_cmd" > "$settings"
+  elif command -v jq &>/dev/null; then
+    local merged
+    merged=$(jq --arg cmd "$status_cmd" '.statusLine = {type: "command", command: $cmd, enabled: true}' "$settings" 2>/dev/null)
+    if [[ -n "$merged" ]]; then
+      echo "$merged" > "$settings"
+    fi
+  elif command -v python3 &>/dev/null; then
+    python3 -c "
+import json, sys
+p = sys.argv[1]
+cmd = sys.argv[2]
+try:
+    with open(p, 'r') as f:
+        d = json.load(f)
+except Exception:
+    d = {}
+d['statusLine'] = {'type': 'command', 'command': cmd, 'enabled': True}
+with open(p, 'w') as f:
+    json.dump(d, f, indent=2)
+" "$settings" "$status_cmd" 2>/dev/null || true
+  fi
+  echo "  ✓ configured statusline for $agent"
+}
+
+# ---------------------------------------------------------------------------
 # unwire_hook <skill_name> <repo_dir> <agent_name>
 #   Remove a skill's hook entry from the agent's settings.json. Idempotent.
 # ---------------------------------------------------------------------------

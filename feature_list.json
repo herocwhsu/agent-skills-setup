@@ -157,6 +157,14 @@
       "dependencies": [],
       "status": "in-progress",
       "evidence": "This repo: ./init.sh 9/9 gates; scripts/run-tests.sh --fast 57 passed, 0 failed; template test (17 cases): gate, merge-base, exit-code, placeholder and gitleaks-argument mutations all killed. hangar scratch: ./init.sh exit 0 (validate.sh + 30 hook tests, merge-base and hook mutations killed), exit 1 with PROGRESS.md missing and with test-hooks.sh forced to fail. atelier scratch: ./init.sh exit 0, exit 1 on bad feature_list.json and on a broken overlay; scripts/test-hooks.sh 29 cases, hook mutations all killed, and the old py-guard/ts-guard fail 4 of the new cases. pre-commit run --all-files passes in both scratch repos. Fresh-session test (5 questions) answered correctly from the files in both. Canary: Claude Code reads AGENTS.md alone and via @AGENTS.md; agy, kiro-cli, gemini untestable (not logged in). Real repos: hangar and atelier ./init.sh exit 0 on harness/l1-l4, pre-commit run --all-files clean in both. In-progress until the user reviews and merges those branches."
+    },
+    {
+      "id": "feat-021",
+      "name": "Register pip google-genai dependency, bump superpowers, wire statusline in install.sh, and update host agents",
+      "description": "Registered pip google-genai>=2.25.0 in registry.txt and added pip/npm validation to validate-registry.sh so install.sh installs runtime SDK automatically. Bumped obra/superpowers to 8ca22dba. Added install_statusline in _lib.sh and wired into install.sh to automatically ensure statusline is configured for supported agents (claude, gemini) without overwriting existing configurations. Deployed updated rules with prompt polish side-channel to all agents, configured statusline on host, and updated agent CLIs.",
+      "dependencies": ["feat-019"],
+      "status": "done",
+      "evidence": "registry.txt now includes pip google-genai>=2.25.0 and superpowers@8ca22dba; validate-registry.sh passes (26/26 registry tests pass). install_statusline safely configures statusline for claude and gemini if absent. Installed google-genai in .venv and pyenv global python; mypy clean across 28 files; install-agents-md.sh deployed to all 4 host files; update-agents.sh applied; ./init.sh passes all 9 gates clean."
     }
   ]
 }

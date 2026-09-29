@@ -36,9 +36,10 @@
 # Pinned 2026-09-14 to the commit that was current at the time. Bump
 # deliberately (git ls-remote <repo> HEAD, review the diff, edit here) —
 # not something that should happen implicitly on every install.sh run.
-github obra/superpowers@b36e0829c6d0140e93cfef2ca599b1b07d4a7797 skills
+github obra/superpowers@8ca22dba9a94f28898bbce59f2537ff4d87c747d skills
 
 npm    @fission-ai/openspec
+pip    google-genai>=2.25.0
 
 # External skills — pinned 2026-09-14, same policy as above
 github-skill  anthropics/skills@34040c9c568585f6929bedeaad110ad08f079624  skills/webapp-testing

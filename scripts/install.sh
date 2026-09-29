@@ -164,6 +164,12 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   wire_hook "polish-input" "$REPO_DIR" "$agent"
 done
 
+echo ""
+echo "==> Configuring statusline for supported agents..."
+for agent in "${SELECTED_AGENTS[@]}"; do
+  install_statusline "$agent" "$REPO_DIR"
+done
+
 if [[ $WITH_AGENTS_MD -eq 1 ]]; then
   echo ""
   echo "==> Deploying always-on engineering rules..."

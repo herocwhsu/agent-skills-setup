@@ -57,6 +57,12 @@ while IFS=' ' read -r type id arg3 arg4; do
         errors=$((errors + 1))
       fi
       ;;
+    pip|npm)
+      if [[ -z "$id" ]]; then
+        echo "  ERROR: $type entry is missing the package name" >&2
+        errors=$((errors + 1))
+      fi
+      ;;
   esac
 done < "$REGISTRY"
 
