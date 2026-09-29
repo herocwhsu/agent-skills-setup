@@ -1,0 +1,50 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "run_shell_command|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/precommit-sh-check.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "file_edit|Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/sh-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/py-check.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/stop-verify.sh"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/stop-verify.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

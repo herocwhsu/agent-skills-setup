@@ -56,6 +56,84 @@ def _entry_commands(entry: dict) -> set:
     return cmds
 
 
+AGY_EVENTS = {"PreInvocation", "PostInvocation", "PreToolUse", "PostToolUse", "Stop"}
+CLAUDE_CODEX_EVENTS = {
+    "PreToolUse",
+    "PostToolUse",
+    "UserPromptSubmit",
+    "Notification",
+    "Stop",
+    "SubagentStop",
+    "SessionStart",
+    "SessionEnd",
+    "PreCompact",
+}
+
+
+def merge_gemini(hook: dict, settings: dict, hook_name: str) -> dict:
+    if not hook_name:
+        return settings
+    for event, entries in hook.get("hooks", {}).items():
+        if event not in AGY_EVENTS:
+            continue
+        spec = settings.setdefault(hook_name, {})
+        existing = spec.setdefault(event, [])
+        existing_cmds = set().union(*(_entry_commands(h) for h in existing)) if existing else set()
+        for entry in entries:
+            if not _entry_commands(entry) & existing_cmds:
+                existing.append(entry)
+                existing_cmds |= _entry_commands(entry)
+    return settings
+
+
+def remove_gemini(hook: dict, settings: dict, hook_name: str) -> dict:
+    if not hook_name or hook_name not in settings:
+        return settings
+    spec = settings[hook_name]
+    for event, entries in hook.get("hooks", {}).items():
+        if event not in spec:
+            continue
+        cmds_to_drop = set().union(*(_entry_commands(e) for e in entries)) if entries else set()
+        spec[event] = [
+            h for h in spec[event] if not (_entry_commands(h) & cmds_to_drop)
+        ]
+        if not spec[event]:
+            del spec[event]
+    if not spec:
+        del settings[hook_name]
+    return settings
+
+
+def rewire_gemini(hook: dict, settings: dict, skills_dir: str, hook_name: str) -> tuple[dict, list[tuple[str, str, str]]]:
+    changed: list[tuple[str, str, str]] = []
+    skills_dir = skills_dir.rstrip("/")
+    for hname, spec in list(settings.items()):
+        if hook_name and hname != hook_name:
+            continue
+        if not isinstance(spec, dict):
+            continue
+        for event, entries in hook.get("hooks", {}).items():
+            if event not in spec:
+                continue
+            existing = spec[event]
+            for entry in entries:
+                for fresh in sorted(_entry_commands(entry)):
+                    suffix = _suffix(fresh, skills_dir)
+                    if not suffix:
+                        continue
+                    for slot in existing:
+                        for stale in sorted(_entry_commands(slot)):
+                            if stale == fresh or not stale.endswith(suffix):
+                                continue
+                            if slot.get("command") == stale:
+                                slot["command"] = fresh
+                            for inner in slot.get("hooks", []) or []:
+                                if inner.get("command") == stale:
+                                    inner["command"] = fresh
+                            changed.append((event, stale, fresh))
+    return settings, changed
+
+
 def merge(hook: dict, settings: dict) -> dict:
     if "env" in hook and isinstance(hook["env"], dict):
         env_settings = settings.setdefault("env", {})
@@ -63,6 +141,8 @@ def merge(hook: dict, settings: dict) -> dict:
             env_settings[k] = v
     settings.setdefault("hooks", {})
     for event, entries in hook.get("hooks", {}).items():
+        if event not in CLAUDE_CODEX_EVENTS:
+            continue
         existing = settings["hooks"].setdefault(event, [])
         existing_cmds = set().union(*(_entry_commands(h) for h in existing)) if existing else set()
         for entry in entries:
@@ -147,6 +227,8 @@ def main() -> int:
     parser.add_argument("hook_path", type=Path)
     parser.add_argument("settings_path", type=Path)
     parser.add_argument("--skills-dir", default="")
+    parser.add_argument("--agent", default="")
+    parser.add_argument("--hook-name", default="")
     args = parser.parse_args()
 
     if args.rewire and not args.skills_dir:
@@ -159,16 +241,31 @@ def main() -> int:
         return 0
 
     settings = load_settings(args.settings_path)
-    if args.merge:
-        settings = merge(hook, settings)
-    elif args.rewire:
-        settings, changed = rewire(hook, settings, args.skills_dir)
-        if not changed:
-            return 0
-        for event, stale, fresh in changed:
-            print(f"  rewired {event}: {stale} -> {fresh}")
+    is_gemini = args.agent == "gemini" or (not args.agent and ".gemini" in str(args.settings_path))
+    hook_name = args.hook_name or args.hook_path.parent.name
+
+    if is_gemini:
+        if args.merge:
+            settings = merge_gemini(hook, settings, hook_name)
+        elif args.rewire:
+            settings, changed = rewire_gemini(hook, settings, args.skills_dir, hook_name)
+            if not changed:
+                return 0
+            for event, stale, fresh in changed:
+                print(f"  rewired {event}: {stale} -> {fresh}")
+        else:
+            settings = remove_gemini(hook, settings, hook_name)
     else:
-        settings = remove(hook, settings)
+        if args.merge:
+            settings = merge(hook, settings)
+        elif args.rewire:
+            settings, changed = rewire(hook, settings, args.skills_dir)
+            if not changed:
+                return 0
+            for event, stale, fresh in changed:
+                print(f"  rewired {event}: {stale} -> {fresh}")
+        else:
+            settings = remove(hook, settings)
 
     save_settings(args.settings_path, settings)
     return 0

@@ -121,7 +121,7 @@ agent_skills_dir() {
     kiro)    echo "$HOME/.kiro/skills" ;;
     claude)  echo "$HOME/.claude/skills" ;;
     gemini)  echo "$HOME/.gemini/antigravity-cli/skills" ;;
-    codex)   echo "$HOME/.codex/skills" ;;
+    codex)   echo "${CODEX_HOME:-$HOME/.codex}/skills" ;;
     *)       echo "" ;;
   esac
 }
@@ -783,26 +783,11 @@ wire_hook() {
   local hook_path settings
 
 
-  # Codex has no settings.json hook mechanism at all — it configures via
-  # ~/.codex/config.toml, which has no equivalent of Claude Code's hook events.
-  # Skipped explicitly rather than falling through: the case below defaults
-  # unknown agents to Claude's settings.json, so without this a codex target
-  # would silently install its hooks into Claude Code's config instead.
-  if [[ "$agent" == "codex" ]]; then
-    echo "  hooks unsupported on codex (no settings.json equivalent) — skipped" >&2
-    return 0
-  fi
   # Kiro has no settings.json either (hooks live in its IDE hook files). It used
   # to fall through to Claude's settings.json, which wired a second copy of the
   # hook, pointing at ~/.kiro/skills, into every Claude Code prompt.
   if [[ "$agent" == "kiro" ]]; then
     echo "  hooks unsupported on kiro (no settings.json equivalent) — skipped" >&2
-    return 0
-  fi
-  # Antigravity CLI (gemini) does not support UserPromptSubmit in settings.json;
-  # prompt polishing on gemini is handled natively via global rules in GEMINI.md.
-  if [[ "$agent" == "gemini" ]]; then
-    echo "  hooks in settings.json unsupported on gemini (handled natively via GEMINI.md) — skipped" >&2
     return 0
   fi
 
@@ -816,8 +801,9 @@ wire_hook() {
   fi
 
   case "$agent" in
-    gemini) settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
+    gemini) settings="${GEMINI_CONFIG_DIR:-$HOME/.gemini/config}/hooks.json" ;;
     claude) settings="$HOME/.claude/settings.json" ;;
+    codex)  settings="${CODEX_HOME:-$HOME/.codex}/hooks.json" ;;
     *)      echo "  ERROR: no hook settings path known for agent '$agent'" >&2; return 1 ;;
   esac
 
@@ -857,8 +843,26 @@ wire_hook() {
   local tmp_hook
   tmp_hook=$(mktemp /tmp/hook-XXXXXX)
   sed "s|\${AGENT_SKILLS_DIR}|${skills_dir}|g" "$hook_path" > "$tmp_hook"
-  python3 "$repo_dir/scripts/_settings_merge.py" --merge "$tmp_hook" "$settings"
+  python3 "$repo_dir/scripts/_settings_merge.py" --merge "$tmp_hook" "$settings" --agent "$agent" --hook-name "$skill"
   rm -f "$tmp_hook"
+
+  # Clean up obsolete hooks entry from ~/.gemini/antigravity-cli/settings.json if present
+  if [[ "$agent" == "gemini" && -f "$HOME/.gemini/antigravity-cli/settings.json" ]]; then
+    python3 -c "
+import json, sys
+p = sys.argv[1]
+try:
+    with open(p) as f:
+        d = json.load(f)
+    if 'hooks' in d:
+        del d['hooks']
+        with open(p, 'w') as f:
+            json.dump(d, f, indent=2)
+except Exception:
+    pass
+" "$HOME/.gemini/antigravity-cli/settings.json" 2>/dev/null || true
+  fi
+
   echo "  Hook wired."
 }
 
@@ -879,8 +883,9 @@ rewire_hooks() {
   local settings skills_dir
 
   case "$agent" in
-    gemini) settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
+    gemini) settings="${GEMINI_CONFIG_DIR:-$HOME/.gemini/config}/hooks.json" ;;
     claude) settings="$HOME/.claude/settings.json" ;;
+    codex)  settings="${CODEX_HOME:-$HOME/.codex}/hooks.json" ;;
     *)      return 0 ;;
   esac
 
@@ -892,10 +897,12 @@ rewire_hooks() {
   local hook_path tmp_hook
   while IFS= read -r hook_path; do
     [[ -n "$hook_path" ]] || continue
+    local hname
+    hname=$(basename "$(dirname "$hook_path")")
     tmp_hook=$(mktemp /tmp/hook-XXXXXX)
     sed "s|\${AGENT_SKILLS_DIR}|${skills_dir}|g" "$hook_path" > "$tmp_hook"
     python3 "$repo_dir/scripts/_settings_merge.py" --rewire "$tmp_hook" "$settings" \
-      --skills-dir "$skills_dir"
+      --skills-dir "$skills_dir" --agent "$agent" --hook-name "$hname"
     rm -f "$tmp_hook"
   done < <(find "$repo_dir/skills" -maxdepth 3 -name "hook.json" 2>/dev/null)
 }
@@ -979,7 +986,8 @@ unwire_hook() {
   fi
 
   case "$agent" in
-    gemini)      settings="$HOME/.gemini/antigravity-cli/settings.json" ;;
+    gemini)      settings="${GEMINI_CONFIG_DIR:-$HOME/.gemini/config}/hooks.json" ;;
+    codex)       settings="${CODEX_HOME:-$HOME/.codex}/hooks.json" ;;
     # kiro stays mapped here so uninstall removes entries older installs wired
     # into Claude's settings.json; wire_hook no longer adds them.
     claude|kiro) settings="$HOME/.claude/settings.json" ;;
@@ -1001,6 +1009,6 @@ unwire_hook() {
   local tmp_hook
   tmp_hook=$(mktemp /tmp/hook-XXXXXX)
   sed "s|\${AGENT_SKILLS_DIR}|${skills_dir}|g" "$hook_path" > "$tmp_hook"
-  python3 "$repo_dir/scripts/_settings_merge.py" --remove "$tmp_hook" "$settings"
+  python3 "$repo_dir/scripts/_settings_merge.py" --remove "$tmp_hook" "$settings" --agent "$agent" --hook-name "$skill"
   rm -f "$tmp_hook"
 }

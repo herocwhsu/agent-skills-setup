@@ -231,6 +231,151 @@ before=$(cat "$kh/.claude/settings.json")
 check "rewire_hooks kiro does not repoint claude's hook at ~/.kiro" "$before" \
   "$(cat "$kh/.claude/settings.json")"
 
+# --- codex hook wiring, rewiring, and unwiring ----------------------------
+cdx="$TMP/codexhome"
+mkdir -p "$cdx/bin"
+printf '#!/bin/sh\nexit 0\n' > "$cdx/bin/pip3"; chmod +x "$cdx/bin/pip3"
+(
+  export HOME="$cdx" PATH="$cdx/bin:$PATH"
+  source "$REPO_DIR/scripts/_lib.sh"
+  wire_hook polish-input "$REPO_DIR" codex
+) >/dev/null 2>&1 || true
+
+check "wire_hook codex creates ~/.codex/hooks.json" "yes" \
+  "$([[ -f "$cdx/.codex/hooks.json" ]] && echo yes || echo no)"
+
+check "wire_hook codex leaves ~/.claude/settings.json untouched" "no" \
+  "$([[ -f "$cdx/.claude/settings.json" ]] && echo yes || echo no)"
+
+check "wire_hook codex wires UserPromptSubmit" "yes" \
+  "$(python3 -c "
+import json
+d = json.load(open('$cdx/.codex/hooks.json'))
+cmd = d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command']
+print('yes' if '.codex/skills/utils/polish-input/lib/polish.py' in cmd else 'no')
+")"
+
+(
+  export HOME="$cdx"
+  source "$REPO_DIR/scripts/_lib.sh"
+  python3 -c "
+import json
+p = '$cdx/.codex/hooks.json'
+d = json.load(open(p))
+d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'] = 'python3 /old/path/.codex/skills/utils/polish-input/lib/polish.py'
+json.dump(d, open(p, 'w'))
+"
+  rewire_hooks "$REPO_DIR" codex
+) >/dev/null 2>&1 || true
+
+check "rewire_hooks codex refreshes drifted skills path" "yes" \
+  "$(python3 -c "
+import json
+d = json.load(open('$cdx/.codex/hooks.json'))
+cmd = d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command']
+print('yes' if '$cdx/.codex/skills' in cmd else 'no')
+")"
+
+(
+  export HOME="$cdx"
+  source "$REPO_DIR/scripts/_lib.sh"
+  unwire_hook polish-input "$REPO_DIR" codex
+) >/dev/null 2>&1 || true
+
+check "unwire_hook codex removes the hook" "0" \
+  "$(python3 -c "
+import json
+d = json.load(open('$cdx/.codex/hooks.json'))
+print(len(d.get('hooks', {}).get('UserPromptSubmit', [])))
+")"
+
+alt_cdx="$TMP/alt-codex"
+(
+  export HOME="$cdx" CODEX_HOME="$alt_cdx" PATH="$cdx/bin:$PATH"
+  source "$REPO_DIR/scripts/_lib.sh"
+  wire_hook polish-input "$REPO_DIR" codex
+) >/dev/null 2>&1 || true
+
+check "wire_hook codex honours CODEX_HOME" "yes" \
+  "$([[ -f "$alt_cdx/hooks.json" ]] && echo yes || echo no)"
+
+# --- gemini hook wiring, rewiring, and unwiring ---------------------------
+gm="$TMP/geminihome"
+mkdir -p "$gm/bin"
+printf '#!/bin/sh\nexit 0\n' > "$gm/bin/pip3"; chmod +x "$gm/bin/pip3"
+mkdir -p "$gm/.gemini/antigravity-cli"
+cat > "$gm/.gemini/antigravity-cli/settings.json" <<JSON
+{"colorScheme":"dark","hooks":{"UserPromptSubmit":[{"hooks":[{"command":"python3 old.py"}]}]}}
+JSON
+
+(
+  export HOME="$gm" PATH="$gm/bin:$PATH"
+  source "$REPO_DIR/scripts/_lib.sh"
+  wire_hook polish-input "$REPO_DIR" gemini
+) >/dev/null 2>&1 || true
+
+check "wire_hook gemini creates ~/.gemini/config/hooks.json" "yes" \
+  "$([[ -f "$gm/.gemini/config/hooks.json" ]] && echo yes || echo no)"
+
+check "wire_hook gemini cleans up obsolete hooks in antigravity-cli/settings.json" "no" \
+  "$(python3 -c "
+import json
+d = json.load(open('$gm/.gemini/antigravity-cli/settings.json'))
+print('yes' if 'hooks' in d else 'no')
+")"
+
+check "wire_hook gemini wires PreInvocation under polish-input" "yes" \
+  "$(python3 -c "
+import json
+d = json.load(open('$gm/.gemini/config/hooks.json'))
+cmd = d['polish-input']['PreInvocation'][0]['command']
+print('yes' if '.gemini/antigravity-cli/skills/utils/polish-input/lib/polish.py' in cmd else 'no')
+")"
+
+(
+  export HOME="$gm"
+  source "$REPO_DIR/scripts/_lib.sh"
+  python3 -c "
+import json
+p = '$gm/.gemini/config/hooks.json'
+d = json.load(open(p))
+d['polish-input']['PreInvocation'][0]['command'] = 'python3 /old/path/.gemini/antigravity-cli/skills/utils/polish-input/lib/polish.py'
+json.dump(d, open(p, 'w'))
+"
+  rewire_hooks "$REPO_DIR" gemini
+) >/dev/null 2>&1 || true
+
+check "rewire_hooks gemini refreshes drifted skills path" "yes" \
+  "$(python3 -c "
+import json
+d = json.load(open('$gm/.gemini/config/hooks.json'))
+cmd = d['polish-input']['PreInvocation'][0]['command']
+print('yes' if '$gm/.gemini/antigravity-cli/skills' in cmd else 'no')
+")"
+
+(
+  export HOME="$gm"
+  source "$REPO_DIR/scripts/_lib.sh"
+  unwire_hook polish-input "$REPO_DIR" gemini
+) >/dev/null 2>&1 || true
+
+check "unwire_hook gemini removes the hook" "0" \
+  "$(python3 -c "
+import json
+d = json.load(open('$gm/.gemini/config/hooks.json'))
+print(len(d.get('polish-input', {}).get('PreInvocation', [])))
+")"
+
+alt_gm="$TMP/alt-gemini"
+(
+  export HOME="$gm" GEMINI_CONFIG_DIR="$alt_gm" PATH="$gm/bin:$PATH"
+  source "$REPO_DIR/scripts/_lib.sh"
+  wire_hook polish-input "$REPO_DIR" gemini
+) >/dev/null 2>&1 || true
+
+check "wire_hook gemini honours GEMINI_CONFIG_DIR" "yes" \
+  "$([[ -f "$alt_gm/hooks.json" ]] && echo yes || echo no)"
+
 # --- update.sh must resolve the saved selection, not word-split it ---------
 # agent-selection.txt holds "all" or a comma list. Splitting it by hand passes
 # "all" to rewire_hooks, whose case statement returns 0 without doing anything.

@@ -3,14 +3,24 @@
 set -euo pipefail
 
 input=$(cat)
+
+is_agy=0
+if printf '%s' "$input" | python3 -c "import json, sys; d=json.load(sys.stdin); sys.exit(0 if 'toolCall' in d or 'conversationId' in d else 1)" 2>/dev/null; then
+  is_agy=1
+fi
+
 file=$(echo "$input" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
-i=d.get('tool_input',{})
-print(i.get('path') or i.get('file_path') or '')
+i=d.get('tool_input',{}) or {}
+a=d.get('toolCall',{}).get('args',{}) or {}
+print(i.get('path') or i.get('file_path') or i.get('target_file') or a.get('TargetFile') or a.get('AbsolutePath') or '')
 " 2>/dev/null)
 
-[[ -z "$file" || "$file" != *.sh || ! -f "$file" ]] && exit 0
+if [[ -z "$file" || "$file" != *.sh || ! -f "$file" ]]; then
+  [[ "$is_agy" -eq 1 ]] && echo "{}"
+  exit 0
+fi
 
 if ! err=$(bash -n "$file" 2>&1); then
   echo "ERROR: bash syntax error in $file" >&2
@@ -30,4 +40,5 @@ if command -v shellcheck &>/dev/null; then
     exit 2
   fi
 fi
+[[ "$is_agy" -eq 1 ]] && echo "{}"
 exit 0

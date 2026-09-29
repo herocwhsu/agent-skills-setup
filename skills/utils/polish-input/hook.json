@@ -10,6 +10,12 @@
           }
         ]
       }
+    ],
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python3 ${AGENT_SKILLS_DIR}/utils/polish-input/lib/polish.py"
+      }
     ]
   }
 }

@@ -47,6 +47,8 @@ KNOWN_EVENTS = {
     "SessionStart",
     "SessionEnd",
     "PreCompact",
+    "PreInvocation",
+    "PostInvocation",
 }
 
 
@@ -141,7 +143,18 @@ def check_settings(settings_path: Path, shipped: dict[str, str]) -> list[str]:
     except (OSError, json.JSONDecodeError) as e:
         return [f"{settings_path}: unreadable ({e})"]
 
-    for event, entries in (data.get("hooks") or {}).items():
+    events_map: dict[str, list] = {}
+    if isinstance(data.get("hooks"), dict):
+        events_map = data["hooks"]
+    else:
+        # AGY format: {"<hook_name>": {"PreInvocation": [...]}}
+        for _, spec in data.items():
+            if isinstance(spec, dict):
+                for ev, entries in spec.items():
+                    if ev in KNOWN_EVENTS and isinstance(entries, list):
+                        events_map.setdefault(ev, []).extend(entries)
+
+    for event, entries in events_map.items():
         for entry in entries or []:
             for cmd in _commands(entry):
                 target = _target(cmd)

@@ -139,6 +139,18 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
   (`hermes` updated to `ef201323`, `claude`/`codex`/`agy` already current); verified `./init.sh`
   clean across all 9 gates.
 
+- [x] feat-022: added native Codex CLI hook wiring support and corrected outdated documentation.
+  Updated `scripts/_lib.sh` (`wire_hook`, `rewire_hooks`, `unwire_hook`) and `agent_skills_dir`
+  to support Codex targeting `${CODEX_HOME:-$HOME/.codex}/hooks.json` via `_settings_merge.py`.
+  Updated `skills/utils/polish-input/lib/polish.py`'s `detect_agent()` to recognize `/.codex/`.
+  Updated `scripts/harness-verify.sh`, `scripts/install.sh`, `scripts/update.sh`, and `README.md`.
+  Added unit tests in `skills/utils/polish-input/tests/test_polish.py` and integration tests in
+  `scripts/tests/test_hook_wiring.sh` (wire, rewire, unwire, CODEX_HOME override). `./init.sh`
+  passes all 9 gates clean.
+
+- [x] feat-023: migrated AGY prompt polishing from system prompt rule in `GEMINI.md` to native `PreInvocation` lifecycle hook in `~/.gemini/config/hooks.json` (eliminating 8-15s response latency from reasoning models). Updated `polish.py` with transcript parser and `PreInvocation` protocol, `hook.json` with `PreInvocation`, `_settings_merge.py` to support AGY hooks format, and `_lib.sh` to wire `~/.gemini/config/hooks.json`. Removed prompt polish rule from `agents/engineering-rules.md` and `split_simulation.py`.
+- [x] feat-024: multi-agent workspace hook support (AGY and Codex CLI) with cross-agent payload handling. Configured repository-level lifecycle hooks for AGY (`.agents/hooks.json`) and Codex CLI (`.codex/hooks.json`), mirroring Claude Code (`.claude/settings.json`). Updated `precommit-sh-check.sh` to support both Claude/Codex (`tool_input.command`) and AGY (`toolCall.args.CommandLine`) payloads, returning `{"decision": "allow"|"deny"}` for AGY and exit 0/2 for Claude/Codex. Updated `sh-check.sh` and `py-check.sh` to recognize AGY `TargetFile` and `AbsolutePath` arguments. Implemented `.claude/hooks/stop-verify.sh` as universal Stop hook wrapper running `harness-verify.sh` across all agent formats. Added unit and integration tests across all modified and new hooks (57 tests passing). Live verified under AGY engine.
+
 ### What's In Progress
 
 - feat-020: applied on branch `harness/l1-l4` in the real `~/projects/hangar` (3 commits, from
@@ -323,6 +335,11 @@ and `docs/harness-creator/lecture-02/`.
       own record (the polish-input hook malfunctions, the feat-009 exit-128
       failures) — not invented; each classified into exactly one gulf with
       the specific mechanism named, not just labeled
+- [x] feat-023: `pytest skills/utils/polish-input/tests/test_polish.py` → 29 passed
+      (4 new AGY PreInvocation tests); `bash scripts/tests/test_hook_wiring.sh` →
+      37 checks passed (7 new Gemini hook wiring assertions); `python3 docs/harness-creator/lecture-04/code/split_simulation.py` →
+      clean; `bash scripts/run-tests.sh --fast` → 56 passed, 0 failed; `./init.sh` →
+      all 9 gates passed clean.
 
 ## Notes for Next Session
 

@@ -158,7 +158,7 @@ When prompted, choose one or more:
 | 1 | Kiro | `~/.kiro/skills/` | ✓ | Also installs prompts to `~/.kiro/prompts/` |
 | 2 | Claude Code | `~/.claude/skills/` | ✓ | |
 | 3 | Antigravity CLI | `~/.gemini/antigravity-cli/skills/` | ✓ | |
-| 4 | Codex CLI | `~/.codex/skills/` | ✓ | Skills only — no hook support (`~/.codex/config.toml` has no `settings.json` equivalent) |
+| 4 | Codex CLI | `~/.codex/skills/` | ✓ | Also wires hooks to `~/.codex/hooks.json` |
 | 5 | All | all of the above | — | |
 
 ### Choosing agents

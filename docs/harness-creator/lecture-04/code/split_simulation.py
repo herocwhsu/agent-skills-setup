@@ -267,7 +267,6 @@ def run_audit() -> None:
         ("Rule 12: Fail Loud", eng_rules, "Rule 12 —", None),
         ("Personal: Commit Style", eng_rules, "Commit style", None),
         ("Personal: Subagent Verification", eng_rules, "Subagent verification", ".claude/hooks/commit-evidence.sh"),
-        ("Personal: Prompt Polish", eng_rules, "Prompt polish", None),
         ("Part IV: Workflow Triggers", eng_rules, "Part IV", "skills/spec-workflow/SKILL.md"),
         ("AGENTS: Verify Gate", agents_md, "Verify", "scripts/harness-verify.sh"),
         ("AGENTS: Definition of Done", agents_md, "Definition of Done", "scripts/harness-verify.sh"),

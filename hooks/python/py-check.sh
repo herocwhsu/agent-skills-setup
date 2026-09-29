@@ -14,6 +14,11 @@ set -euo pipefail
 
 input=$(cat)
 
+is_agy=0
+if printf '%s' "$input" | python3 -c "import json, sys; d=json.load(sys.stdin); sys.exit(0 if 'toolCall' in d or 'conversationId' in d else 1)" 2>/dev/null; then
+  is_agy=1
+fi
+
 # Fail open on unparseable stdin rather than blocking the edit.
 file=$(printf '%s' "$input" | python3 -c "
 import json, sys
@@ -22,10 +27,14 @@ try:
 except Exception:
     sys.exit(0)
 i = d.get('tool_input', {}) or {}
-print(i.get('file_path') or i.get('path') or '')
+args = d.get('toolCall', {}).get('args', {}) or {}
+print(i.get('file_path') or i.get('path') or i.get('target_file') or args.get('TargetFile') or args.get('AbsolutePath') or '')
 " 2>/dev/null)
 
-[[ -z "$file" || "$file" != *.py || ! -f "$file" ]] && exit 0
+if [[ -z "$file" || "$file" != *.py || ! -f "$file" ]]; then
+  [[ "$is_agy" -eq 1 ]] && echo "{}"
+  exit 0
+fi
 
 if ! out=$(python3 -c "
 import ast, sys
@@ -43,4 +52,5 @@ except SyntaxError as e:
   exit 2
 fi
 
+[[ "$is_agy" -eq 1 ]] && echo "{}"
 exit 0

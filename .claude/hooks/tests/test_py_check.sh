@@ -72,6 +72,28 @@ path_key_case() {
 }
 path_key_case
 
+# The hook accepts AGY `TargetFile` via `toolCall.args`.
+agy_target_file_case() {
+  local tmp; tmp=$(mktemp -d); local code=0
+  printf 'def f(:\n' > "$tmp/m.py"
+  printf '%s' "$tmp/m.py" \
+    | python3 -c 'import json,sys; print(json.dumps({"toolCall":{"name":"write_to_file","args":{"TargetFile":sys.stdin.read()}}}))' \
+    | bash "$HOOK" >/dev/null 2>&1 || code=$?
+  if [[ "$code" -eq 2 ]]; then echo "PASS: AGY TargetFile key is honored"; PASS=$((PASS+1))
+  else echo "FAIL: AGY TargetFile key is honored (expected 2, got $code)"; FAIL=$((FAIL+1)); fi
+
+  # AGY clean file returns exit 0 with {}
+  printf 'def f():\n    return 1\n' > "$tmp/clean.py"
+  local out
+  out=$(printf '%s' "$tmp/clean.py" \
+    | python3 -c 'import json,sys; print(json.dumps({"toolCall":{"name":"write_to_file","args":{"TargetFile":sys.stdin.read()}}}))' \
+    | bash "$HOOK" 2>/dev/null)
+  if [[ "$out" == "{}" ]]; then echo "PASS: AGY clean file outputs {}"; PASS=$((PASS+1))
+  else echo "FAIL: AGY clean file outputs {} (got: $out)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmp"
+}
+agy_target_file_case
+
 # Regression: the hook must not write __pycache__ beside the checked file.
 # This is why it uses ast.parse rather than py_compile — a hook firing on
 # every edit must not litter the tree.
@@ -117,6 +139,38 @@ assert any('py-check.sh' in json.dumps(x) and 'Edit' in x.get('matcher','') for 
   fi
 }
 settings_case
+
+agents_case() {
+  local hooks_file
+  hooks_file="$(cd "$(dirname "$0")/../../.." && pwd)/.agents/hooks.json"
+  if [[ -f "$hooks_file" ]] && python3 -c "
+import json
+d = json.load(open('$hooks_file'))
+h = d.get('syntax-check', {}).get('PostToolUse', [])
+assert any('py-check.sh' in json.dumps(x) for x in h)
+" 2>/dev/null; then
+    echo "PASS: .agents/hooks.json registers the PostToolUse py hook"; PASS=$((PASS+1))
+  else
+    echo "FAIL: .agents/hooks.json registers the PostToolUse py hook"; FAIL=$((FAIL+1))
+  fi
+}
+agents_case
+
+codex_case() {
+  local hooks_file
+  hooks_file="$(cd "$(dirname "$0")/../../.." && pwd)/.codex/hooks.json"
+  if [[ -f "$hooks_file" ]] && python3 -c "
+import json
+d = json.load(open('$hooks_file'))
+h = d['hooks']['PostToolUse']
+assert any('py-check.sh' in json.dumps(x) for x in h)
+" 2>/dev/null; then
+    echo "PASS: .codex/hooks.json registers the PostToolUse py hook"; PASS=$((PASS+1))
+  else
+    echo "FAIL: .codex/hooks.json registers the PostToolUse py hook"; FAIL=$((FAIL+1))
+  fi
+}
+codex_case
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

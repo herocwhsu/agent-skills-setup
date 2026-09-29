@@ -21,6 +21,7 @@ import datetime
 import difflib
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -56,7 +57,7 @@ _MIGRATED = False
 def detect_agent() -> str:
     """Identify the calling agent from sys.argv[0] (the literal hook command path)."""
     path = sys.argv[0]
-    for segment, name in [("/.claude/", "claude"), ("/.gemini/", "gemini")]:
+    for segment, name in [("/.claude/", "claude"), ("/.gemini/", "gemini"), ("/.codex/", "codex")]:
         if segment in path:
             return name
     return "unknown"
@@ -226,7 +227,7 @@ def _emit_polish_line(corrected: str, original: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _parse_hook_payload(raw: str) -> dict | None:
+def _parse_hook_payload(raw: str) -> tuple[str, dict] | None:
     stripped = raw.lstrip()
     if not stripped.startswith("{"):
         return None
@@ -236,11 +237,11 @@ def _parse_hook_payload(raw: str) -> dict | None:
         return None
     if not isinstance(payload, dict):
         return None
-    if payload.get("hook_event_name") != "UserPromptSubmit":
-        return None
-    if not isinstance(payload.get("prompt"), str):
-        return None
-    return payload
+    if payload.get("hook_event_name") == "UserPromptSubmit" and isinstance(payload.get("prompt"), str):
+        return ("user_prompt_submit", payload)
+    if "invocationNum" in payload or "transcriptPath" in payload:
+        return ("agy_pre_invocation", payload)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -310,6 +311,78 @@ def _run_hook_protocol(payload: dict, providers: list) -> int:
     return 0
 
 
+def _extract_prompt_from_transcript(transcript_path: str) -> str | None:
+    path = Path(transcript_path).expanduser()
+    if not path.is_file():
+        return None
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                step = json.loads(line)
+            except Exception:
+                continue
+            if step.get("source") == "USER_EXPLICIT" and step.get("type") == "USER_INPUT":
+                content = step.get("content", "")
+                if "<USER_REQUEST>" in content:
+                    m = re.search(r"<USER_REQUEST>(.*?)</USER_REQUEST>", content, re.DOTALL)
+                    if m:
+                        return m.group(1).strip()
+                return content.strip()
+    except Exception as e:
+        _debug_log("transcript-read-failed", str(e))
+    return None
+
+
+def _run_agy_pre_invocation(payload: dict, providers: list) -> int:
+    invocation_num = payload.get("invocationNum", 1)
+    if invocation_num != 1:
+        # AGY invokes PreInvocation before every step in a turn.
+        # Only polish on the initial model invocation of the turn.
+        sys.stdout.write(json.dumps({}))
+        return 0
+
+    transcript_path = payload.get("transcriptPath")
+    if not transcript_path:
+        sys.stdout.write(json.dumps({}))
+        return 0
+
+    prompt = _extract_prompt_from_transcript(transcript_path)
+    if not prompt:
+        sys.stdout.write(json.dumps({}))
+        return 0
+
+    corrected, reason = _polish_text(prompt, providers)
+    if corrected is None:
+        _debug_log(reason.split(":", 1)[0], reason.split(":", 1)[1] if ":" in reason else "")
+        sys.stdout.write(json.dumps({}))
+        return 0
+
+    _debug_log("polished", corrected)
+
+    style = os.environ.get("POLISH_DISPLAY", "line")
+    formatter = _FORMATTERS.get(style, _format_line)
+    formatted = formatter(corrected, prompt)
+    sys.stderr.write(formatted)
+    sys.stderr.flush()
+
+    response: dict = {}
+    if os.environ.get("POLISH_REPLACE") == "1":
+        response = {
+            "injectSteps": [
+                {
+                    "ephemeralMessage": f"User's prompt polished to: {corrected}"
+                }
+            ]
+        }
+    sys.stdout.write(json.dumps(response))
+    return 0
+
+
 def _run_legacy_text(text: str, providers: list) -> int:
     corrected, reason = _polish_text(text, providers)
     if corrected is None:
@@ -331,9 +404,13 @@ def main() -> int:
     providers = build_providers(detect_agent())
     raw = sys.stdin.read()
 
-    payload = _parse_hook_payload(raw)
-    if payload is not None:
-        return _run_hook_protocol(payload, providers)
+    parsed = _parse_hook_payload(raw)
+    if parsed is not None:
+        mode, payload = parsed
+        if mode == "user_prompt_submit":
+            return _run_hook_protocol(payload, providers)
+        elif mode == "agy_pre_invocation":
+            return _run_agy_pre_invocation(payload, providers)
 
     text = raw[:-1] if raw.endswith("\n") else raw
     return _run_legacy_text(text, providers)

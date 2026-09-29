@@ -62,7 +62,8 @@ run_gate "cred backends" "$HOOKS/credential-backend-guard.sh"
 run_gate "hook wiring" "$HOOKS/hook-wiring-guard.sh"
 run_gate "state layer" "$HOOKS/state-layer-guard.sh"
 if ! out=$(python3 "$REPO_DIR/scripts/hook-wiring-check.py" "$REPO_DIR" \
-           "$HOME/.claude/settings.json" 2>&1); then
+           "$HOME/.claude/settings.json" "${CODEX_HOME:-$HOME/.codex}/hooks.json" \
+           "${GEMINI_CONFIG_DIR:-$HOME/.gemini/config}/hooks.json" 2>&1); then
   echo "  WARNING: a wired hook path no longer resolves:" >&2
   printf '%s\n' "$out" >&2
 fi

@@ -51,7 +51,7 @@ bash "$REPO_DIR/scripts/install.sh" ${INSTALL_ARGS[@]+"${INSTALL_ARGS[@]}"}
 # A wired hook command embeds an absolute skills path. Reinstalling can move that
 # path, leaving the command pointing at nothing -- the hook then stops firing with
 # no error anywhere. Refresh what is already wired; a hook install.sh never wired
-# for a given agent (e.g. codex, which has no settings.json hook mechanism) stays
+# for a given agent (e.g. kiro, which has no settings.json hook mechanism) stays
 # unwired.
 #
 # The selection file holds "all" or a comma-separated list, never a shell word

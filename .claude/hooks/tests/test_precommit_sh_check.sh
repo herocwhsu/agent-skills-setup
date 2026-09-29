@@ -44,6 +44,42 @@ if command -v shellcheck >/dev/null 2>&1; then
   run_case "shellcheck error blocks" 2 'git commit -m x' $'#!/usr/bin/env bash\necho "$(\n'
 fi
 
+# AGY PreToolUse: returns exit 0 with JSON decision on stdout
+run_agy_case() {
+  local name="$1" expected_decision="$2" cmd="$3" content="${4-}"
+  local tmp; tmp=$(mktemp -d)
+  local out=""
+  ( cd "$tmp"
+    git init -q
+    git config user.email t@t; git config user.name t
+    if [[ -n "$content" ]]; then
+      printf '%s' "$content" > script.sh
+      git add script.sh
+    fi
+    printf '{"toolCall":{"name":"run_command","args":{"CommandLine":%s}}}' \
+      "$(printf '%s' "$cmd" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" \
+      | bash "$HOOK" 2>/dev/null
+  ) > "$tmp/out" || true
+  out=$(cat "$tmp/out")
+  if python3 -c "
+import json, sys
+d = json.loads(sys.argv[1]) if sys.argv[1].strip() else {}
+exp = sys.argv[2]
+if exp == 'deny':
+    assert d.get('decision') == 'deny', f'expected deny, got {d}'
+elif exp == 'allow':
+    assert d.get('decision') in ('allow', None), f'expected allow, got {d}'
+" "$out" "$expected_decision" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (unexpected AGY output: $out)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmp"
+}
+
+run_agy_case "AGY syntax error denies" "deny" 'git commit -m x' $'#!/usr/bin/env bash\nif then fi\n'
+run_agy_case "AGY clean staged allows" "allow" 'git commit -m x' $'#!/usr/bin/env bash\necho ok\n'
+
 settings_valid_test() {
   local name="$1"
   local settings
@@ -56,6 +92,32 @@ settings_valid_test() {
   fi
 }
 settings_valid_test "settings.json registers the PreToolUse hook"
+
+agents_valid_test() {
+  local name="$1"
+  local hooks_file
+  hooks_file="$(cd "$(dirname "$0")/../../.." && pwd)/.agents/hooks.json"
+  if [[ -f "$hooks_file" ]] \
+     && python3 -c "import json,sys; d=json.load(open('$hooks_file')); assert 'precommit-sh-check' in d" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (.agents/hooks.json missing or precommit-sh-check not registered)"; FAIL=$((FAIL+1))
+  fi
+}
+agents_valid_test ".agents/hooks.json registers the PreToolUse hook"
+
+codex_valid_test() {
+  local name="$1"
+  local hooks_file
+  hooks_file="$(cd "$(dirname "$0")/../../.." && pwd)/.codex/hooks.json"
+  if [[ -f "$hooks_file" ]] \
+     && python3 -c "import json,sys; d=json.load(open('$hooks_file')); h=d['hooks']['PreToolUse']; assert any('precommit-sh-check.sh' in json.dumps(x) for x in h)" 2>/dev/null; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (.codex/hooks.json missing or precommit-sh-check not registered)"; FAIL=$((FAIL+1))
+  fi
+}
+codex_valid_test ".codex/hooks.json registers the PreToolUse hook"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

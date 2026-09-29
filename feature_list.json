@@ -165,6 +165,30 @@
       "dependencies": ["feat-019"],
       "status": "done",
       "evidence": "registry.txt now includes pip google-genai>=2.25.0 and superpowers@8ca22dba; validate-registry.sh passes (26/26 registry tests pass). install_statusline safely configures statusline for claude and gemini if absent. Installed google-genai in .venv and pyenv global python; mypy clean across 28 files; install-agents-md.sh deployed to all 4 host files; update-agents.sh applied; ./init.sh passes all 9 gates clean."
+    },
+    {
+      "id": "feat-022",
+      "name": "Add native Codex CLI hook wiring support and correct outdated documentation",
+      "description": "Modern Codex CLI (v0.150+) supports native lifecycle hooks (UserPromptSubmit, PreToolUse, etc.). Removed outdated claim that Codex has no hook support. Updated scripts/_lib.sh (wire_hook, rewire_hooks, unwire_hook) and agent_skills_dir to support Codex targeting ${CODEX_HOME:-$HOME/.codex}/hooks.json using _settings_merge.py. Updated polish.py detect_agent() to recognize /.codex/. Added codex hooks.json check in harness-verify.sh and updated install.sh, update.sh, and README.md. Added unit tests in test_polish.py and test_hook_wiring.sh.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "bash scripts/tests/test_hook_wiring.sh -> all checks passed including 6 new codex hook wiring/rewiring/unwiring assertions. pytest skills/utils/polish-input/tests/test_polish.py -> 25 passed including new test_detect_agent_supports_codex_claude_gemini. bash scripts/run-tests.sh --fast -> 56 passed, 0 failed. ./init.sh (scripts/harness-verify.sh) -> all 9 gates passed clean."
+    },
+    {
+      "id": "feat-023",
+      "name": "Migrate AGY prompt polish to native PreInvocation hook and remove prompt rule from engineering rules",
+      "description": "Prompt polishing via system prompt rule in GEMINI.md caused 8-15s response latency on reasoning models (Gemini Flash Thinking / Claude Thinking) because thinking tokens and tool executions occur before response text generation. Replaced the system prompt rule with AGY's native PreInvocation lifecycle hook (~/.gemini/config/hooks.json). Updated skills/utils/polish-input/lib/polish.py to parse AGY PreInvocation payloads, extract prompt from transcript.jsonl, output immediate feedback to stderr, and return JSON. Added PreInvocation to hook.json, updated scripts/_settings_merge.py to support AGY hooks format, updated scripts/_lib.sh (wire_hook, rewire_hooks, unwire_hook), updated hook-wiring-check.py and harness-verify.sh. Removed Prompt polish rule from agents/engineering-rules.md and split_simulation.py.",
+      "dependencies": ["feat-022"],
+      "status": "done",
+      "evidence": "pytest skills/utils/polish-input/tests/test_polish.py -> 29 passed (4 new AGY PreInvocation tests). bash scripts/tests/test_hook_wiring.sh -> 37 checks passed (7 new Gemini hook wiring/rewiring/unwiring assertions). python3 docs/harness-creator/lecture-04/code/split_simulation.py -> passed. bash scripts/run-tests.sh --fast -> 56 passed, 0 failed. ./init.sh -> all 9 gates passed clean."
+    },
+    {
+      "id": "feat-024",
+      "name": "Multi-agent workspace hook support (AGY and Codex CLI) with cross-agent payload handling",
+      "description": "Configured repository-level lifecycle hooks for AGY (.agents/hooks.json) and Codex CLI (.codex/hooks.json), mirroring Claude Code (.claude/settings.json). Updated precommit-sh-check.sh to support both Claude/Codex (tool_input.command) and AGY (toolCall.args.CommandLine) payloads, returning {\"decision\": \"allow\"|\"deny\"} for AGY and exit 0/2 for Claude/Codex. Updated sh-check.sh and py-check.sh (in .claude/hooks/ and templates in hooks/) to recognize AGY TargetFile and AbsolutePath arguments. Implemented .claude/hooks/stop-verify.sh as universal Stop hook wrapper running harness-verify across all agent formats. Added unit and integration tests across all modified and new hooks.",
+      "dependencies": ["feat-023"],
+      "status": "done",
+      "evidence": "bash .claude/hooks/tests/test_precommit_sh_check.sh -> 14 passed. bash .claude/hooks/tests/test_sh_check.sh -> 16 passed. bash .claude/hooks/tests/test_py_check.sh -> 18 passed. bash .claude/hooks/tests/test_stop_verify.sh -> 6 passed. bash scripts/run-tests.sh --fast -> 57 passed, 0 failed. ./init.sh -> all 9 gates passed clean. Live AGY execution confirmed PreToolUse, PostToolUse, and Stop hook triggering and enforcement."
     }
   ]
 }

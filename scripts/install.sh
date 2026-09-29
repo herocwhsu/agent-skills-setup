@@ -156,8 +156,8 @@ done
 
 # polish-input is always wired, not opt-in: it ships as part of the `utils`
 # group installed above, so its hook should be live wherever the skill is.
-# wire_hook itself skips codex (no settings.json hook mechanism) and any
-# agent with no known settings path.
+# wire_hook wires hooks into ~/.claude/settings.json or ~/.codex/hooks.json,
+# skipping agents without supported settings paths (such as kiro or gemini).
 echo ""
 echo "==> Wiring hooks..."
 for agent in "${SELECTED_AGENTS[@]}"; do

@@ -308,3 +308,74 @@ def test_hook_protocol_ignores_unknown_event_name():
     assert code == 0
     # Legacy mode echoes the raw input back to stdout when skipped.
     assert out == payload
+
+
+def test_detect_agent_supports_codex_claude_gemini(monkeypatch):
+    sys.path.insert(0, str(POLISH.parent))
+    from polish import detect_agent
+
+    monkeypatch.setattr(sys, "argv", ["/Users/t/.claude/skills/utils/polish-input/lib/polish.py"])
+    assert detect_agent() == "claude"
+
+    monkeypatch.setattr(sys, "argv", ["/Users/t/.gemini/antigravity-cli/skills/utils/polish-input/lib/polish.py"])
+    assert detect_agent() == "gemini"
+
+    monkeypatch.setattr(sys, "argv", ["/Users/t/.codex/skills/utils/polish-input/lib/polish.py"])
+    assert detect_agent() == "codex"
+
+    monkeypatch.setattr(sys, "argv", ["/usr/local/bin/polish.py"])
+    assert detect_agent() == "unknown"
+
+
+def test_agy_pre_invocation_skips_when_invocation_num_greater_than_1():
+    payload = json.dumps({"invocationNum": 2, "transcriptPath": "/nonexistent"})
+    out, err, code = run_polish(payload)
+    assert code == 0
+    assert out == "{}"
+    assert err == ""
+
+
+def test_agy_pre_invocation_parses_transcript_and_polishes(tmp_path):
+    transcript = tmp_path / "transcript.jsonl"
+    entry = {
+        "step_index": 1,
+        "source": "USER_EXPLICIT",
+        "type": "USER_INPUT",
+        "content": "<USER_REQUEST>\ni want add login\n</USER_REQUEST>",
+    }
+    transcript.write_text(json.dumps(entry) + "\n")
+    fake = _fake_response({"i want add login": "I want to add a login."})
+    payload = json.dumps({"invocationNum": 1, "transcriptPath": str(transcript)})
+    out, err, code = run_polish(payload, env_overrides=fake)
+    assert code == 0
+    assert out == "{}"
+    assert "[polish]" in err
+    assert "I want to add a login." in err
+
+
+def test_agy_pre_invocation_replace_mode_injects_step(tmp_path):
+    transcript = tmp_path / "transcript.jsonl"
+    entry = {
+        "step_index": 1,
+        "source": "USER_EXPLICIT",
+        "type": "USER_INPUT",
+        "content": "i want add login",
+    }
+    transcript.write_text(json.dumps(entry) + "\n")
+    fake = _fake_response({"i want add login": "I want to add a login."})
+    overrides = {**fake, "POLISH_REPLACE": "1"}
+    payload = json.dumps({"invocationNum": 1, "transcriptPath": str(transcript)})
+    out, _, code = run_polish(payload, env_overrides=overrides)
+    assert code == 0
+    resp = json.loads(out)
+    assert "injectSteps" in resp
+    assert "I want to add a login." in resp["injectSteps"][0]["ephemeralMessage"]
+
+
+def test_agy_pre_invocation_missing_transcript_falls_through():
+    payload = json.dumps({"invocationNum": 1, "transcriptPath": "/tmp/definitely_missing_transcript.jsonl"})
+    out, err, code = run_polish(payload)
+    assert code == 0
+    assert out == "{}"
+    assert err == ""
+

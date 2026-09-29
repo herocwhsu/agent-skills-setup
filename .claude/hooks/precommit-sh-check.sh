@@ -16,7 +16,11 @@ decision=$(printf '%s' "$input" | python3 -c "
 import json, shlex, sys
 try:
     d = json.load(sys.stdin)
-    cmd = d.get('tool_input', {}).get('command', '')
+    cmd = (
+        d.get('tool_input', {}).get('command')
+        or d.get('toolCall', {}).get('args', {}).get('CommandLine')
+        or ''
+    )
     toks = shlex.split(cmd)
 except Exception:
     sys.exit(0)  # unparseable -> skip (fail open)
@@ -43,17 +47,31 @@ while i < len(toks):
     i += 1
 " 2>/dev/null)
 
-[[ "$decision" == "GATE" ]] || exit 0
+is_agy=0
+if printf '%s' "$input" | python3 -c "import json, sys; d=json.load(sys.stdin); sys.exit(0 if 'toolCall' in d or 'conversationId' in d else 1)" 2>/dev/null; then
+  is_agy=1
+fi
+
+if [[ "$decision" != "GATE" ]]; then
+  [[ "$is_agy" -eq 1 ]] && echo '{"decision": "allow"}'
+  exit 0
+fi
 
 # Must be in a git repo.
-git rev-parse --git-dir >/dev/null 2>&1 || exit 0
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  [[ "$is_agy" -eq 1 ]] && echo '{"decision": "allow"}'
+  exit 0
+fi
 
 # Portable (bash 3.2 / macOS /bin/bash has no `mapfile`).
 staged=()
 while IFS= read -r f; do
   [[ -n "$f" ]] && staged+=("$f")
 done < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.sh$' || true)
-[[ ${#staged[@]} -eq 0 ]] && exit 0
+if [[ ${#staged[@]} -eq 0 ]]; then
+  [[ "$is_agy" -eq 1 ]] && echo '{"decision": "allow"}'
+  exit 0
+fi
 
 have_shellcheck=0
 command -v shellcheck >/dev/null 2>&1 && have_shellcheck=1
@@ -74,11 +92,18 @@ for f in "${staged[@]}"; do
 done
 
 if [[ "$fail" -eq 1 ]]; then
-  {
-    echo "Blocked: staged shell scripts have errors (fix before committing):"
-    printf '%s' "$msgs"
-    [[ "$have_shellcheck" -eq 0 ]] && echo "  (shellcheck not installed — only syntax checked)"
-  } >&2
-  exit 2
+  msg="Blocked: staged shell scripts have errors (fix before committing):"$'\n'"$msgs"
+  if [[ "$have_shellcheck" -eq 0 ]]; then
+    msg+="  (shellcheck not installed — only syntax checked)"$'\n'
+  fi
+  if [[ "$is_agy" -eq 1 ]]; then
+    python3 -c "import json, sys; print(json.dumps({'decision': 'deny', 'reason': sys.argv[1]}))" "$msg"
+    exit 0
+  else
+    printf '%s' "$msg" >&2
+    exit 2
+  fi
 fi
+
+[[ "$is_agy" -eq 1 ]] && echo '{"decision": "allow"}'
 exit 0
