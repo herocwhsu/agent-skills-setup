@@ -237,10 +237,19 @@ def _parse_hook_payload(raw: str) -> tuple[str, dict] | None:
         return None
     if not isinstance(payload, dict):
         return None
-    if payload.get("hook_event_name") == "UserPromptSubmit" and isinstance(payload.get("prompt"), str):
-        return ("user_prompt_submit", payload)
+
+    hook_event = payload.get("hook_event_name") or payload.get("hookEventName")
+    if hook_event:
+        if hook_event == "UserPromptSubmit" and isinstance(payload.get("prompt"), str):
+            return ("user_prompt_submit", payload)
+        return None
+
     if "invocationNum" in payload or "transcriptPath" in payload:
         return ("agy_pre_invocation", payload)
+
+    if isinstance(payload.get("prompt"), str) and "toolCall" not in payload:
+        return ("user_prompt_submit", payload)
+
     return None
 
 
@@ -316,8 +325,21 @@ def _extract_prompt_from_transcript(transcript_path: str) -> str | None:
     if not path.is_file():
         return None
     try:
-        with path.open("r", encoding="utf-8", errors="replace") as f:
-            lines = f.readlines()
+        # Squeeze I/O: read only the tail (64KB) of the transcript to avoid loading
+        # multi-megabyte session histories into memory on every invocation.
+        max_bytes = 65536
+        with path.open("rb") as bf:
+            bf.seek(0, os.SEEK_END)
+            size = bf.tell()
+            if size > max_bytes:
+                bf.seek(size - max_bytes)
+                # discard partial line
+                bf.readline()
+            else:
+                bf.seek(0)
+            raw_bytes = bf.read()
+        lines = raw_bytes.decode("utf-8", errors="replace").splitlines()
+
         for line in reversed(lines):
             line = line.strip()
             if not line:
@@ -327,7 +349,7 @@ def _extract_prompt_from_transcript(transcript_path: str) -> str | None:
             except Exception:
                 continue
             if step.get("source") == "USER_EXPLICIT" and step.get("type") == "USER_INPUT":
-                content = step.get("content", "")
+                content = step.get("content") or ""
                 if "<USER_REQUEST>" in content:
                     m = re.search(r"<USER_REQUEST>(.*?)</USER_REQUEST>", content, re.DOTALL)
                     if m:

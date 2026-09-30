@@ -1,21 +1,29 @@
 #!/usr/bin/env bash
-# Claude Code statusLine — mirrors bash PS1 (green user@host, blue cwd)
+# Claude Code / AGY statusLine — mirrors bash PS1 (green user@host, blue cwd)
 # Context usage right-aligned: [ctx: Xk/Yk]
 
 input=$(cat)
-cwd=$(echo "$input" | jq -r '.cwd')
-used=$(echo "$input" | jq -r '
-  if ((.context_window.total_input_tokens // 0) > 0) then
-    .context_window.total_input_tokens
-  elif (.context_window.current_usage != null) then
-    ((.context_window.current_usage.input_tokens // 0) +
-     (.context_window.current_usage.cache_creation_input_tokens // 0) +
-     (.context_window.current_usage.cache_read_input_tokens // 0))
-  else
-    empty
-  end // empty
-')
-total=$(echo "$input" | jq -r '.context_window.context_window_size // empty')
+
+# Parse all fields in one single jq pass to ensure < 25ms execution time
+IFS=$'\t' read -r cwd used total < <(
+  printf '%s' "$input" | jq -r '
+    [
+      (.cwd // ""),
+      (
+        if ((.context_window.total_input_tokens // 0) > 0) then
+          .context_window.total_input_tokens
+        elif (.context_window.current_usage != null) then
+          ((.context_window.current_usage.input_tokens // 0) +
+           (.context_window.current_usage.cache_creation_input_tokens // 0) +
+           (.context_window.current_usage.cache_read_input_tokens // 0))
+        else
+          ""
+        end
+      ),
+      (.context_window.context_window_size // "")
+    ] | @tsv
+  ' 2>/dev/null || true
+)
 
 user_host="$(whoami)@$(hostname -s)"
 left_visible="${user_host}:${cwd}"

@@ -241,7 +241,7 @@ def main() -> int:
         return 0
 
     settings = load_settings(args.settings_path)
-    is_gemini = args.agent == "gemini" or (not args.agent and ".gemini" in str(args.settings_path))
+    is_gemini = args.agent == "gemini" or (not args.agent and any(k in str(args.settings_path) for k in (".gemini", ".agents")))
     hook_name = args.hook_name or args.hook_path.parent.name
 
     if is_gemini:

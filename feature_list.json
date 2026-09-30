@@ -189,6 +189,14 @@
       "dependencies": ["feat-023"],
       "status": "done",
       "evidence": "bash .claude/hooks/tests/test_precommit_sh_check.sh -> 14 passed. bash .claude/hooks/tests/test_sh_check.sh -> 16 passed. bash .claude/hooks/tests/test_py_check.sh -> 18 passed. bash .claude/hooks/tests/test_stop_verify.sh -> 6 passed. bash scripts/run-tests.sh --fast -> 57 passed, 0 failed. ./init.sh -> all 9 gates passed clean. Live AGY execution confirmed PreToolUse, PostToolUse, and Stop hook triggering and enforcement."
+    },
+    {
+      "id": "feat-025",
+      "name": "AGY statusline timeout resolution and polish-input streaming squeeze",
+      "description": "Resolved recurring AGY statusLine timeout errors (killed signal) by optimizing statusline-command.sh into a single jq pass (reducing runtime from ~250ms to ~21ms) and updating AGY settings to use statusline-command.sh. Squeezed polish-input hook memory and I/O consumption by seeking to the tail 64KB of transcript.jsonl instead of loading entire multi-megabyte files into memory. Hardened hook payload parsing to support camelCase and generic prompt payloads, gracefully handled null content in transcript steps, and updated standalone _settings_merge.py to detect .agents paths.",
+      "dependencies": ["feat-024"],
+      "status": "done",
+      "evidence": "Commits e4c1f5a and 93f517c on main. pytest skills/utils/polish-input/tests/test_polish.py -> 32 passed (including large transcript tail-read, null content handling, and payload variations). bash scripts/run-tests.sh --fast -> 57 passed, 0 failed. ./init.sh -> all 9 gates passed clean. Live AGY statusline renders cleanly without timeout errors."
     }
   ]
 }

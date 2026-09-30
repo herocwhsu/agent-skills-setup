@@ -150,6 +150,7 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
 
 - [x] feat-023: migrated AGY prompt polishing from system prompt rule in `GEMINI.md` to native `PreInvocation` lifecycle hook in `~/.gemini/config/hooks.json` (eliminating 8-15s response latency from reasoning models). Updated `polish.py` with transcript parser and `PreInvocation` protocol, `hook.json` with `PreInvocation`, `_settings_merge.py` to support AGY hooks format, and `_lib.sh` to wire `~/.gemini/config/hooks.json`. Removed prompt polish rule from `agents/engineering-rules.md` and `split_simulation.py`.
 - [x] feat-024: multi-agent workspace hook support (AGY and Codex CLI) with cross-agent payload handling. Configured repository-level lifecycle hooks for AGY (`.agents/hooks.json`) and Codex CLI (`.codex/hooks.json`), mirroring Claude Code (`.claude/settings.json`). Updated `precommit-sh-check.sh` to support both Claude/Codex (`tool_input.command`) and AGY (`toolCall.args.CommandLine`) payloads, returning `{"decision": "allow"|"deny"}` for AGY and exit 0/2 for Claude/Codex. Updated `sh-check.sh` and `py-check.sh` to recognize AGY `TargetFile` and `AbsolutePath` arguments. Implemented `.claude/hooks/stop-verify.sh` as universal Stop hook wrapper running `harness-verify.sh` across all agent formats. Added unit and integration tests across all modified and new hooks (57 tests passing). Live verified under AGY engine.
+- [x] feat-025: AGY statusline timeout resolution and polish-input streaming squeeze. Resolved recurring AGY statusLine timeout errors (killed signal) by optimizing `statusline-command.sh` into a single `jq` stream (`[ .cwd, .tokens, .size ] | @tsv`), dropping execution time from ~250ms to ~21ms, and configuring AGY settings to use `statusline-command.sh`. Squeezed `polish-input` memory/IO consumption by seeking to the tail 64KB of `transcript.jsonl` rather than reading multi-megabyte files into memory. Hardened payload parsing for camelCase / generic prompt dicts, handled null content steps gracefully, and supported `.agents` path detection in standalone `_settings_merge.py`. All 32 polish tests passing. Live verified without errors.
 
 ### What's In Progress
 
@@ -340,6 +341,16 @@ and `docs/harness-creator/lecture-02/`.
       37 checks passed (7 new Gemini hook wiring assertions); `python3 docs/harness-creator/lecture-04/code/split_simulation.py` →
       clean; `bash scripts/run-tests.sh --fast` → 56 passed, 0 failed; `./init.sh` →
       all 9 gates passed clean.
+- [x] feat-024: `bash .claude/hooks/tests/test_precommit_sh_check.sh` → 14 passed;
+      `bash .claude/hooks/tests/test_sh_check.sh` → 16 passed;
+      `bash .claude/hooks/tests/test_py_check.sh` → 18 passed;
+      `bash .claude/hooks/tests/test_stop_verify.sh` → 6 passed;
+      `bash scripts/run-tests.sh --fast` → 57 passed, 0 failed; `./init.sh` →
+      all 9 gates passed clean. Live AGY execution confirmed PreToolUse, PostToolUse, and Stop hook triggering.
+- [x] feat-025: commits `e4c1f5a` and `93f517c` on `main`;
+      `pytest skills/utils/polish-input/tests/test_polish.py` → 32 passed (including tail seek and payload variations);
+      `bash scripts/run-tests.sh --fast` → 57 passed, 0 failed; `./init.sh` → all 9 gates passed clean;
+      statusline execution reduced from ~250ms to ~21ms with zero recurring errors.
 
 ## Notes for Next Session
 

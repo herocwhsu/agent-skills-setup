@@ -379,3 +379,60 @@ def test_agy_pre_invocation_missing_transcript_falls_through():
     assert out == "{}"
     assert err == ""
 
+
+def test_agy_pre_invocation_large_transcript_tail_read(tmp_path):
+    transcript = tmp_path / "large_transcript.jsonl"
+    # Write > 70KB of older steps to exceed the 64KB tail window
+    dummy_entry = json.dumps({"step_index": 0, "source": "SYSTEM", "type": "INFO", "content": "x" * 200}) + "\n"
+    with transcript.open("w", encoding="utf-8") as f:
+        for _ in range(400):  # ~80KB
+            f.write(dummy_entry)
+        latest_entry = json.dumps({
+            "step_index": 401,
+            "source": "USER_EXPLICIT",
+            "type": "USER_INPUT",
+            "content": "<USER_REQUEST>\ni want add login\n</USER_REQUEST>",
+        }) + "\n"
+        f.write(latest_entry)
+
+    fake = _fake_response({"i want add login": "I want to add a login."})
+    payload = json.dumps({"invocationNum": 1, "transcriptPath": str(transcript)})
+    out, err, code = run_polish(payload, env_overrides=fake)
+    assert code == 0
+    assert out == "{}"
+    assert "[polish] I want to add a login." in err
+
+
+def test_agy_pre_invocation_null_content_in_transcript(tmp_path):
+    transcript = tmp_path / "null_content.jsonl"
+    null_entry = json.dumps({"step_index": 1, "source": "USER_EXPLICIT", "type": "USER_INPUT", "content": None}) + "\n"
+    transcript.write_text(null_entry)
+
+    payload = json.dumps({"invocationNum": 1, "transcriptPath": str(transcript)})
+    out, err, code = run_polish(payload)
+    assert code == 0
+    assert out == "{}"
+    assert err == ""
+
+
+def test_parse_hook_payload_variations():
+    sys.path.insert(0, str(POLISH.parent))
+    from polish import _parse_hook_payload
+
+    # Claude snake_case
+    res = _parse_hook_payload('{"hook_event_name": "UserPromptSubmit", "prompt": "hi"}')
+    assert res is not None and res[0] == "user_prompt_submit"
+
+    # CamelCase
+    res = _parse_hook_payload('{"hookEventName": "UserPromptSubmit", "prompt": "hi"}')
+    assert res is not None and res[0] == "user_prompt_submit"
+
+    # Generic prompt dict
+    res = _parse_hook_payload('{"prompt": "hi"}')
+    assert res is not None and res[0] == "user_prompt_submit"
+
+    # Non-prompt payload should not be user_prompt_submit
+    res = _parse_hook_payload('{"toolCall": "bash"}')
+    assert res is None
+
+
