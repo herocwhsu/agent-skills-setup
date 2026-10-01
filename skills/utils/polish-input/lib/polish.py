@@ -141,7 +141,9 @@ def _state_dir() -> Path:
 
 
 def _debug_log(event: str, detail: str = "") -> None:
-    if os.environ.get("POLISH_DEBUG") != "1":
+    # Rejections always log: a quiet hook must still leave a trace of a model
+    # that replied instead of rewriting.
+    if os.environ.get("POLISH_DEBUG") != "1" and event != "rejected":
         return
     ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     line = f"[{ts}] {event}: {detail}\n" if detail else f"[{ts}] {event}\n"
@@ -291,7 +293,26 @@ def _polish_text(text: str, providers: list) -> tuple[str | None, str]:
 
     if corrected is None or corrected == text:
         return None, "no-change"
+    why = _reply_reason(text, corrected)
+    if why is not None:
+        return None, f"rejected:{why}: {corrected!r}"
     return corrected, "polished"
+
+
+def _words(s: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", s.lower().replace("'", "").replace("\u2019", "")))
+
+
+def _reply_reason(original: str, corrected: str) -> str | None:
+    """Why `corrected` looks like a reply to `original` rather than a rewrite."""
+    if "\n" in corrected:
+        return "multi-line"
+    if len(corrected) > 2 * len(original) + 30:
+        return "too-long"
+    src = _words(original)
+    if len(src) >= 3 and len(src & _words(corrected)) / len(src) < 0.5:
+        return "low-overlap"
+    return None
 
 
 def _run_hook_protocol(payload: dict, providers: list) -> int:

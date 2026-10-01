@@ -259,7 +259,7 @@ def test_polish_gemini_uses_google_genai_client(monkeypatch):
     assert out == "Polished gemini text"
     assert calls["api_key"] == "fake-gemini-key"
     assert calls["model"] == "gemini-2.0-flash"
-    assert calls["contents"] == "i want add login"
+    assert calls["contents"] == "<text>i want add login</text>"
     assert calls["config"].system_instruction == polish_engine.SYSTEM_PROMPT
     # google-genai takes milliseconds; google-generativeai took seconds.
     assert calls["http_options"].timeout == 4000
@@ -340,3 +340,14 @@ def test_anthropic_keychain_provider_macos_security(monkeypatch):
     assert provider.credential() == "test-anthropic-key"
 
 
+
+
+def test_polish_wraps_input_as_data_and_strips_tags(monkeypatch):
+    # Under claude-kiro the gateway adds its own system prompt, and a bare "yes"
+    # was answered as chat. Wrapping marks the message as text to rewrite.
+    import polish_engine
+
+    fake = _install_fake_anthropic(monkeypatch, response_text="<text>I want to add a login.</text>")
+    result = polish_engine.polish("i want add login", [_fake_provider()])
+    assert result == "I want to add a login."
+    assert fake._last_messages.last_call["messages"][0]["content"] == "<text>i want add login</text>"

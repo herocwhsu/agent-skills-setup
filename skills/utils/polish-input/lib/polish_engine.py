@@ -12,6 +12,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -36,12 +37,23 @@ _FALLBACK_STORE = f"~/.{_KEYCHAIN_PREFIX}/credentials.json"
 from typing import Any
 
 SYSTEM_PROMPT = (
-    "Rewrite the user's message as natural, native-sounding English. "
-    "Preserve technical terms, code, file paths, URLs, command-line flags, "
-    "and the original meaning exactly. Do not answer the message. Do not "
-    "add commentary. Output only the rewritten text. If the input is "
-    "already fluent, return it unchanged."
+    "You are a copy editor, not an assistant. The user turn contains one message "
+    "inside <text> tags. Rewrite only that message as natural English, keeping its "
+    "meaning, person, and technical terms, code, file paths, URLs and command-line "
+    "flags exactly. Never reply to it, answer it, or comment on it. Output only the "
+    "rewritten message, with no tags. If it is already fluent, output it unchanged."
 )
+
+
+# Behind a gateway that adds its own system prompt (claude-kiro), a bare "yes"
+# was answered as chat. The tags mark the message as text to rewrite.
+def _wrap(text: str) -> str:
+    return f"<text>{text}</text>"
+
+
+def _unwrap(text: str) -> str:
+    m = re.fullmatch(r"\s*<text>(.*)</text>\s*", text, re.DOTALL)
+    return (m.group(1) if m else text).strip()
 
 DEFAULT_MODEL = "claude-haiku-4-5"
 DEFAULT_TIMEOUT_MS = 3000
@@ -299,12 +311,11 @@ def _polish_anthropic(text: str, cred: str, cred_type: str) -> str | None:
             system=[
                 {"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}
             ],
-            messages=[{"role": "user", "content": text}],
+            messages=[{"role": "user", "content": _wrap(text)}],
         )
         for block in resp.content:
             if getattr(block, "type", None) == "text":
-                text = getattr(block, "text", "")
-                return text.strip()
+                return _unwrap(getattr(block, "text", ""))
         return None
     except Exception as e:
         write_engine_error_hint_once(f"Anthropic API call failed: {e}")
@@ -323,10 +334,10 @@ def _polish_gemini(text: str, cred: str) -> str | None:
         client = genai.Client(api_key=cred, http_options=types.HttpOptions(timeout=timeout_ms))
         response = client.models.generate_content(
             model=os.environ.get("POLISH_MODEL", "gemini-3.5-flash-lite"),
-            contents=text,
+            contents=_wrap(text),
             config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
         )
-        return response.text.strip() if response.text else None
+        return _unwrap(response.text) if response.text else None
     except Exception as e:
         write_engine_error_hint_once(f"Gemini API call failed: {e}")
         return None

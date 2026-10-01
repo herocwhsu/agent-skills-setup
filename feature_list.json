@@ -213,6 +213,14 @@
       "dependencies": ["feat-026"],
       "status": "done",
       "evidence": "Commit 6c431bf. test_kiro_gateway.sh -> 40 passed (4 new codex tests failed on the old code first). Live codex-kiro via interactive zsh -> provider kiro, answered, ~/.codex rules loaded. ./init.sh -> all gates passed."
+    },
+    {
+      "id": "feat-028",
+      "name": "polish-input rewrites instead of replying behind the kiro gateway",
+      "description": "Under claude-kiro the hook polishes through the kiro gateway, whose system prompt made the model answer short prompts as chat. The engine wraps the prompt in <text> tags with a copy-editor system prompt and unwraps the reply. polish.py drops multi-line, too-long or low-overlap outputs and always logs them as rejected.",
+      "dependencies": ["feat-027"],
+      "status": "done",
+      "evidence": "pytest skills/utils/polish-input/tests -> 59 passed (9 new cases from real 2026-10-01 outputs failed first). Live hook through the gateway: 'yes' silent, today's failing prompts now rewritten with meaning kept. ./init.sh -> all gates passed."
     }
   ]
 }

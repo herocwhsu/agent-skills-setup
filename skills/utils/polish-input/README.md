@@ -1,7 +1,11 @@
 # polish-input
 
 Auto-polish single-line English prompts as a learning side-channel for Claude Code, Codex CLI, and Antigravity CLI (`agy`). Kiro has no hook mechanism, so it is skipped.
-Uses Claude Haiku 4.5 via the Anthropic SDK, or Gemini via the `google-genai` SDK with an API key.
+Polishes with Claude Haiku 4.5 (`anthropic` SDK), using your Claude Code login or an Anthropic API key.
+Gemini 3.5 Flash Lite (`google-genai` SDK) is an optional extra route, tried first on Antigravity, and only
+runs if `GEMINI_API_KEY` is set. A Gemini subscription is not needed: Antigravity's own `[polish]` line
+comes from its rules file. Under `claude-kiro` the hook inherits `ANTHROPIC_BASE_URL`, so it polishes
+through the kiro gateway.
 
 ## What it does
 
@@ -39,11 +43,25 @@ All env vars are optional.
 | `POLISH_DISABLE` | unset | If `1`, hook is a no-op. Instant escape hatch. |
 | `POLISH_REPLACE` | unset | If `1`, send the polished text to the agent instead of the original. |
 | `POLISH_DISPLAY` | `line` | `line` / `diff` / `box`. |
-| `POLISH_DEBUG` | unset | If `1`, log diagnostics to `~/.agent-skills-setup/state/polish-input/debug.log`. |
+| `POLISH_DEBUG` | unset | If `1`, log every outcome to `~/.agent-skills-setup/state/polish-input/debug.log`. Rejections and engine errors are logged even when unset. |
 | `POLISH_MODEL` | `claude-haiku-4-5` (Gemini: `gemini-3.5-flash-lite`) | Override the polish model. |
 | `POLISH_TIMEOUT_MS` | `3000` | API timeout in milliseconds. |
 
 Set them in your shell rc, or for Claude Code under `env` in `~/.claude/settings.json`.
+
+## Reading the log
+
+A quiet hook is not a silent failure. Each prompt leaves one line in `debug.log`:
+
+| Line | Meaning |
+|---|---|
+| `polished: …` | Rewrote the prompt and showed it |
+| `no-change` / `skip: …` | Nothing to fix |
+| `rejected: <reason>: '…'` | The model replied instead of rewriting; the hook hid it. Reason is `multi-line`, `too-long` or `low-overlap` |
+| `engine-error: …` | No SDK or credentials |
+| no line at all | The hook did not run |
+
+Only `rejected` and `engine-error` are written without `POLISH_DEBUG=1`.
 
 ## Skip rules
 

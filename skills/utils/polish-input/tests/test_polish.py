@@ -436,3 +436,61 @@ def test_parse_hook_payload_variations():
     assert res is None
 
 
+
+
+# ---------- Reply guard: drop outputs that answer the prompt instead of rewriting it ----------
+
+# Real outputs logged on 2026-10-01, when the hook ran under claude-kiro and the
+# gateway's own system prompt made the model reply instead of rewrite.
+REAL_REPLIES = {
+    "use codex-kiro only not codex directly": "I can't discuss that.",
+    "yes": (
+        "I appreciate you sharing those instructions, but I need to clarify my actual role here.\n\n"
+        "I'm Kiro, an AI-powered development environment built to help you write code."
+    ),
+    "just delete ~/.codex-kiro-archive-20261001.tar.gz": (
+        "I need to confirm this action before proceeding.\n\nDeleting "
+        "~/.codex-kiro-archive-20261001.tar.gz is a destructive operation that's hard to reverse. "
+        "Want me to go ahead and delete it?"
+    ),
+}
+
+
+@pytest.mark.parametrize("prompt", sorted(REAL_REPLIES))
+def test_reply_instead_of_rewrite_is_dropped(prompt):
+    out, err, code = run_polish(prompt, env_overrides=_fake_response(REAL_REPLIES))
+    assert code == 0
+    assert out == prompt
+    assert err == ""
+
+
+@pytest.mark.parametrize("prompt", sorted(REAL_REPLIES))
+def test_hook_reply_instead_of_rewrite_emits_nothing(prompt):
+    out, err, code = run_polish(_hook_payload(prompt), env_overrides=_fake_response(REAL_REPLIES))
+    assert code == 0
+    assert out == ""
+    assert err == ""
+
+
+def test_rejection_is_logged_without_debug(tmp_path):
+    state_dir = tmp_path / "state"
+    overrides = {**_fake_response(REAL_REPLIES), "POLISH_STATE_DIR": str(state_dir)}
+    run_polish("use codex-kiro only not codex directly", env_overrides=overrides)
+    body = (state_dir / "debug.log").read_text()
+    assert "rejected:" in body
+    assert "I can't discuss that." in body
+
+
+@pytest.mark.parametrize(
+    "prompt, fixed",
+    [
+        ("i cant find file", "I can't find the file."),
+        ("fix bug pls", "Please fix the bug."),
+        ("i want add login", "I want to add a login."),
+    ],
+)
+def test_real_rewrites_still_pass_the_guard(prompt, fixed):
+    out, err, code = run_polish(prompt, env_overrides=_fake_response({prompt: fixed}))
+    assert code == 0
+    assert out == prompt
+    assert f"[polish] {fixed}" in err
