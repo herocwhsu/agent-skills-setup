@@ -32,8 +32,8 @@ bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh <subcommand>
 | `rollback` | Revert to the previous SHA-tagged image. Swaps current ↔ previous in state. |
 | `status` | Show build path, current image tag, container state, current/previous SHA. |
 | `setup-alias` | Add `KIRO_PROXY_KEY` + `claude-kiro` alias to shell rc file. |
-| `setup-codex` | Write `~/.codex-kiro/config.toml` (isolated `CODEX_HOME`) + `codex-kiro` alias. Checks for `codex` binary. Idempotent. |
-| `remove-codex` | Remove the `codex-kiro` alias and the `~/.codex-kiro` dir. |
+| `setup-codex` | Add the `codex-kiro` alias: plain `codex` on `~/.codex`, gateway passed as `-c` overrides. Writes no Codex config. Checks for `codex` binary. Idempotent. |
+| `remove-codex` | Remove the `codex-kiro` alias. Never deletes a Codex home. |
 
 ## State file
 

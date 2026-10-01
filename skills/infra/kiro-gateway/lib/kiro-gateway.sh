@@ -422,23 +422,11 @@ health_probe() {
 }
 
 cmd_status() {
-  # Both halves must be present to work. Reporting "configured" off the
-  # provider alone hid a host whose profile file was missing entirely.
-  # if/then, not `grep ... && x=1`: the latter returns non-zero when grep
-  # misses and aborts the script under set -e.
-  local has_provider=0 has_profile=0
-  if grep -Fq "[model_providers.kiro]" "$HOME/.codex-kiro/config.toml" 2>/dev/null; then
-    has_provider=1
-  fi
-  if grep -Fq 'model_provider = "kiro"' "$HOME/.codex-kiro/kiro.config.toml" 2>/dev/null; then
-    has_profile=1
-  fi
-  if [[ "$has_provider" == "1" && "$has_profile" == "1" ]]; then
-    echo "Codex:      configured (~/.codex-kiro)"
-  elif [[ "$has_provider" == "1" ]]; then
-    echo "Codex:      INCOMPLETE - provider set, kiro.config.toml missing (run setup-codex)"
-  elif [[ "$has_profile" == "1" ]]; then
-    echo "Codex:      INCOMPLETE - profile set, config.toml provider missing (run setup-codex)"
+  local codex_rc; codex_rc=$(rc_file_path)
+  if grep -q "alias codex-kiro=.*model_provider=kiro" "$codex_rc" 2>/dev/null; then
+    echo "Codex:      configured (codex-kiro alias in $codex_rc, uses ~/.codex)"
+  elif grep -q "alias codex-kiro=" "$codex_rc" 2>/dev/null; then
+    echo "Codex:      OUTDATED - codex-kiro still uses ~/.codex-kiro (run setup-codex)"
   else
     echo "Codex:      not configured"
   fi
@@ -538,62 +526,26 @@ cmd_setup_alias() {
   echo "Reconciled claude-kiro/hermes-kiro in $rc. Activate: source $rc"
 }
 
+# Like claude-kiro: plain codex on the normal ~/.codex home, with the gateway
+# passed as -c overrides. A separate CODEX_HOME hid every rule, hook and skill
+# installed into ~/.codex.
 cmd_setup_codex() {
-  local codex_home="$HOME/.codex-kiro"
-  local config_file="$codex_home/config.toml"
-  local profile_file="$codex_home/kiro.config.toml"
   local rc; rc=$(rc_file_path)
   local read_cmd; read_cmd=$(store_proxy_key)
-  mkdir -p "$codex_home"
-  # Two files, two independent guards. `codex --help` documents --profile as
-  # "Layer $CODEX_HOME/<name>.config.toml on top of the base user config", so
-  # the provider lives in config.toml and the model in kiro.config.toml.
-  # The old single heredoc wrote both tables together, so it is not what split
-  # them -- Codex 0.149.1 most likely migrated the profile out itself (its
-  # binary carries a "`.config.toml` instead" string). The guard's real fault is
-  # that it could not *repair* the result: the marker it tests stayed present,
-  # so setup-codex skipped the write while status still reported "configured".
-  if ! grep -Fq "[model_providers.kiro]" "$config_file" 2>/dev/null; then
-    cat > "$config_file" <<'EOF'
-[model_providers.kiro]
-name = "Kiro Gateway"
-base_url = "http://localhost:7788/v1"
-env_key = "KIRO_PROXY_KEY"
-wire_api = "responses"
-EOF
-    echo "Wrote $config_file"
-  fi
-
-  # Never overwrite an existing profile: this file is where a model is pinned,
-  # and rewriting it would silently revert a deliberate choice.
-  if ! grep -Fq 'model_provider = "kiro"' "$profile_file" 2>/dev/null; then
-    cat > "$profile_file" <<'EOF'
-model = "claude-opus-4.8"
-model_provider = "kiro"
-EOF
-    echo "Wrote $profile_file"
-  else
-    echo "Kept $profile_file (existing model choice preserved)"
-  fi
-
-  # A [profiles.kiro] table in config.toml is the pre-V2 layout this script used
-  # to write. Report it rather than deleting it -- whether 0.149.x still honours
-  # it is not something this script can determine.
-  if grep -Fq "[profiles.kiro]" "$config_file" 2>/dev/null; then
-    echo "Note: $config_file still has a legacy [profiles.kiro] table; --profile now reads $profile_file." >&2
-  fi
   write_managed_line "$rc" "codex-kiro" \
-    "alias codex-kiro='CODEX_HOME=\"\$HOME/.codex-kiro\" KIRO_PROXY_KEY=${read_cmd} codex --profile kiro'"
+    "alias codex-kiro='KIRO_PROXY_KEY=${read_cmd} codex -c model_provider=kiro -c model_providers.kiro.name=Kiro -c model_providers.kiro.base_url=http://localhost:7788/v1 -c model_providers.kiro.env_key=KIRO_PROXY_KEY -c model_providers.kiro.wire_api=responses -c model=claude-opus-4.8'"
+  if [[ -d "$HOME/.codex-kiro" ]]; then
+    echo "Note: $HOME/.codex-kiro is no longer used; codex-kiro now runs on ~/.codex. Remove it once its session history is not needed." >&2
+  fi
   command -v codex &>/dev/null || echo "Note: codex not found. Install: npm i -g @openai/codex"
   echo "Reconciled codex-kiro in $rc. Activate: source $rc"
 }
 
+# Never deletes a codex home: codex-kiro shares ~/.codex with plain codex.
 cmd_remove_codex() {
-  local codex_home="$HOME/.codex-kiro"
   local rc; rc=$(rc_file_path)
   remove_managed_line "$rc" "codex-kiro"
   echo "Removed codex-kiro from $rc"
-  if [[ -d "$codex_home" ]]; then rm -rf "$codex_home"; echo "Removed $codex_home"; fi
 }
 
 cmd_rollback() {

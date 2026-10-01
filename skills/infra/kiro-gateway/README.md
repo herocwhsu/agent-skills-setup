@@ -59,11 +59,12 @@ On Linux, `secret-tool` is used instead of `security`. On headless Linux, the ke
 
 ## The codex-kiro alias
 
-`codex-kiro` launches OpenAI's Codex CLI against the gateway using an isolated
-config home so it never collides with anything already in `~/.codex`:
+`codex-kiro` works like `claude-kiro`: it runs plain Codex on the normal
+`~/.codex` home and sends every request to the gateway. The rules, hooks and
+skills installed into `~/.codex` apply to it unchanged.
 
 ```bash
-alias codex-kiro='CODEX_HOME="$HOME/.codex-kiro" KIRO_PROXY_KEY=$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null) codex --profile kiro'
+alias codex-kiro='KIRO_PROXY_KEY=$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null) codex -c model_provider=kiro -c model_providers.kiro.name=Kiro -c model_providers.kiro.base_url=http://localhost:7788/v1 -c model_providers.kiro.env_key=KIRO_PROXY_KEY -c model_providers.kiro.wire_api=responses -c model=claude-opus-4.8'
 ```
 
 Set it up with:
@@ -73,42 +74,24 @@ bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh setup-codex
 source ~/.zshrc
 ```
 
-This writes **two** files. `codex --help` documents `--profile <name>` as
-"Layer `$CODEX_HOME/<name>.config.toml` on top of the base user config", so the
-provider and the model live in separate files.
+`setup-codex` writes only this alias. The provider lives in `-c` overrides, so
+no Codex config file is touched and plain `codex` keeps its own settings.
+Override the model per run: `codex-kiro -m claude-sonnet-4.6`.
 
-`~/.codex-kiro/config.toml` — the base config, provider only:
-
-```toml
-[model_providers.kiro]
-name = "Kiro Gateway"
-base_url = "http://localhost:7788/v1"
-env_key = "KIRO_PROXY_KEY"
-wire_api = "responses"
-```
-
-`~/.codex-kiro/kiro.config.toml` — layered on top by `--profile kiro`:
-
-```toml
-model = "claude-opus-4.8"
-model_provider = "kiro"
-```
-
-A `[profiles.kiro]` table inside `config.toml` is the pre-V2 layout this script
-used to write; `setup-codex` reports one if it finds it but does not delete it.
-`setup-codex` never overwrites an existing `kiro.config.toml`, since that is
-where a model is pinned. `status` prints `INCOMPLETE` when one file is present
-without the other — a provider with no profile is not a working setup, and
-reporting it as configured hid exactly that state on this host.
+Earlier versions used a separate `CODEX_HOME` (`~/.codex-kiro`). That hid
+everything installed into `~/.codex`, so it is gone. `setup-codex` notes a
+leftover `~/.codex-kiro` but never deletes it, since it holds that setup's
+session history.
 
 `wire_api = "responses"` is required as of Feb 2026 — OpenAI removed
 `chat/completions` support from the Codex CLI entirely (it now hard-errors with
 "wire_api = \"chat\" is no longer supported"). The gateway added `/v1/responses`
 support to match; verify with `curl -s $GATEWAY_URL/openapi.json | grep -o '"/v1/[^"]*"'`
-if this ever flips again. Override the model per run: `codex-kiro -m claude-sonnet-4.6`.
+if this ever flips again.
 
-If `codex` isn't installed, `setup-codex` still writes the config and prints
-`npm i -g @openai/codex`. Remove everything with `remove-codex`.
+If `codex` isn't installed, `setup-codex` still writes the alias and prints
+`npm i -g @openai/codex`. `remove-codex` removes the alias only; it never
+deletes a Codex home, because `codex-kiro` shares `~/.codex` with plain `codex`.
 
 Smoke test once installed:
 

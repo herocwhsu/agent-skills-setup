@@ -114,102 +114,73 @@ EOF
 }
 setup_alias_preserves_key_test "setup-alias preserves an existing proxy key (no clobber)"
 
-# setup-codex: provider in config.toml, model in kiro.config.toml
-setup_codex_config_test() {
-  local name="$1"
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  make_mock_bin "$tmpdir"
-  touch "$tmpdir/.zshrc"
-  local cfg="$tmpdir/.codex-kiro/config.toml"
-  local prof="$tmpdir/.codex-kiro/kiro.config.toml"
-  PATH="$tmpdir/bin:$PATH" \
+# codex-kiro works like claude-kiro: plain codex on the normal ~/.codex home,
+# with the kiro provider passed as -c overrides. A separate CODEX_HOME hid the
+# rules, hooks and skills installed into ~/.codex.
+run_setup_codex() {
+  local tmpdir="$1"; shift
+  PATH="${CODEX_TEST_PATH:-$tmpdir/bin:$PATH}" \
     KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
     SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
-    bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
-  # --profile layers $CODEX_HOME/<name>.config.toml over config.toml, so the
-  # model belongs in kiro.config.toml and must NOT be left in config.toml.
-  if [[ -f "$cfg" && -f "$prof" ]] \
-     && grep -Fq "[model_providers.kiro]" "$cfg" \
-     && grep -Fq 'wire_api = "responses"' "$cfg" \
-     && grep -Fq 'model = "claude-opus-4.8"' "$prof" \
-     && grep -Fq 'model_provider = "kiro"' "$prof" \
-     && ! grep -Fq "[profiles.kiro]" "$cfg"; then
-    echo "PASS: $name"; PASS=$((PASS+1))
-  else
-    echo "FAIL: $name (expected provider in $cfg and model in $prof)"; FAIL=$((FAIL+1))
-  fi
-  rm -rf "$tmpdir"
+    bash "$SCRIPT" setup-codex 2>&1 || true
 }
-setup_codex_config_test "setup-codex splits provider and profile files"
 
-# setup-codex: appends the codex-kiro alias
+# setup-codex: alias routes plain codex through the gateway
 setup_codex_alias_test() {
-  local name="$1"
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  make_mock_bin "$tmpdir"
-  local rc="$tmpdir/.zshrc"
-  touch "$rc"
-  PATH="$tmpdir/bin:$PATH" \
-    KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
-    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
-    bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
-  if grep -Fq "alias codex-kiro" "$rc" && grep -Fq "CODEX_HOME" "$rc"; then
+  local name="$1" tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; local rc="$tmpdir/.zshrc"; touch "$rc"
+  run_setup_codex "$tmpdir" >/dev/null
+  local line; line=$(grep "alias codex-kiro=" "$rc" || true)
+  if [[ "$line" == *"codex -c model_provider=kiro"* \
+     && "$line" == *"model_providers.kiro.base_url=http://localhost:7788/v1"* \
+     && "$line" == *"model_providers.kiro.env_key=KIRO_PROXY_KEY"* \
+     && "$line" == *"model_providers.kiro.wire_api=responses"* \
+     && "$line" != *"CODEX_HOME"* && "$line" != *"--profile"* ]]; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
-    echo "FAIL: $name (alias not written to rc)"; FAIL=$((FAIL+1))
+    echo "FAIL: $name (alias: $line)"; FAIL=$((FAIL+1))
   fi
   rm -rf "$tmpdir"
 }
-setup_codex_alias_test "setup-codex appends codex-kiro alias"
+setup_codex_alias_test "setup-codex writes a codex-kiro alias on the default codex home"
 
-# setup-codex: idempotent — no duplicate config block or alias
-setup_codex_idempotent_test() {
-  local name="$1"
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  make_mock_bin "$tmpdir"
-  local rc="$tmpdir/.zshrc"
-  touch "$rc"
-  local out
-  for _ in 1 2; do
-    out=$(PATH="$tmpdir/bin:$PATH" \
-      KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
-      SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
-      bash "$SCRIPT" setup-codex 2>&1 || true)
-  done
-  local prov_count alias_count
-  prov_count=$(grep -cF "[model_providers.kiro]" "$tmpdir/.codex-kiro/config.toml")
-  alias_count=$(grep -cF "alias codex-kiro" "$rc")
-  local model_count
-  # `|| echo 0`: the file is absent on a regression, and a bare $(grep -c) on a
-  # missing file exits 2, which aborts this whole runner under set -e -- turning
-  # a clean FAIL into a truncated suite that hides every later test.
-  model_count=$(grep -cF 'model_provider = "kiro"' "$tmpdir/.codex-kiro/kiro.config.toml" 2>/dev/null || echo 0)
-  if [[ "$prov_count" -eq 1 && "$alias_count" -eq 1 && "$model_count" -eq 1 ]]; then
+# setup-codex: writes no codex home at all
+setup_codex_no_home_test() {
+  local name="$1" tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; touch "$tmpdir/.zshrc"
+  run_setup_codex "$tmpdir" >/dev/null
+  if [[ ! -e "$tmpdir/.codex-kiro" && ! -e "$tmpdir/.codex" ]]; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
-    echo "FAIL: $name (prov=$prov_count alias=$alias_count model=$model_count out=$out)"; FAIL=$((FAIL+1))
+    echo "FAIL: $name ($(ls -a "$tmpdir" | tr '\n' ' '))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+setup_codex_no_home_test "setup-codex creates neither ~/.codex-kiro nor ~/.codex"
+
+# setup-codex: idempotent, one alias line after two runs
+setup_codex_idempotent_test() {
+  local name="$1" tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; local rc="$tmpdir/.zshrc"; touch "$rc"
+  run_setup_codex "$tmpdir" >/dev/null
+  run_setup_codex "$tmpdir" >/dev/null
+  local n; n=$(grep -cF "alias codex-kiro" "$rc" || true)
+  if [[ "$n" -eq 1 ]]; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (alias count=$n)"; FAIL=$((FAIL+1))
   fi
   rm -rf "$tmpdir"
 }
 setup_codex_idempotent_test "setup-codex is idempotent"
 
-# setup-codex: missing codex binary still writes config + prints install hint
+# setup-codex: missing codex binary still writes the alias + prints install hint
 setup_codex_missing_binary_test() {
-  local name="$1"
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  make_mock_bin "$tmpdir"
-  touch "$tmpdir/.zshrc"
+  local name="$1" tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; local rc="$tmpdir/.zshrc"; touch "$rc"
   # PATH has ONLY the mock bin dir + coreutils; codex is absent by construction
-  local out
-  out=$(PATH="$tmpdir/bin:/usr/bin:/bin" \
-    KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
-    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
-    bash "$SCRIPT" setup-codex 2>&1 || true)
-  if [[ -f "$tmpdir/.codex-kiro/config.toml" ]] && echo "$out" | grep -q "npm i -g @openai/codex"; then
+  local out; out=$(CODEX_TEST_PATH="$tmpdir/bin:/usr/bin:/bin" run_setup_codex "$tmpdir")
+  if grep -Fq "alias codex-kiro" "$rc" && echo "$out" | grep -q "npm i -g @openai/codex"; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
     echo "FAIL: $name (out=$out)"; FAIL=$((FAIL+1))
@@ -218,70 +189,59 @@ setup_codex_missing_binary_test() {
 }
 setup_codex_missing_binary_test "setup-codex handles missing codex binary"
 
-# remove-codex: strips alias and deletes the config dir
+# setup-codex: points out a leftover ~/.codex-kiro from the old layout
+setup_codex_legacy_note_test() {
+  local name="$1" tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; touch "$tmpdir/.zshrc"; mkdir -p "$tmpdir/.codex-kiro"
+  local out; out=$(run_setup_codex "$tmpdir")
+  if echo "$out" | grep -q "\.codex-kiro is no longer used" && [[ -d "$tmpdir/.codex-kiro" ]]; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (out=$out)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+setup_codex_legacy_note_test "setup-codex reports a leftover ~/.codex-kiro without deleting it"
+
+# remove-codex: strips the alias and never deletes a codex home
 remove_codex_test() {
-  local name="$1"
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  make_mock_bin "$tmpdir"
-  local rc="$tmpdir/.zshrc"
-  touch "$rc"
-  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
-    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="test-key" \
-    bash "$SCRIPT" setup-codex >/dev/null 2>&1 || true
+  local name="$1" tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; local rc="$tmpdir/.zshrc"; touch "$rc"
+  mkdir -p "$tmpdir/.codex" "$tmpdir/.codex-kiro"
+  echo 'model = "keep-me"' > "$tmpdir/.codex/config.toml"
+  run_setup_codex "$tmpdir" >/dev/null
   PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" \
     SHELL="/bin/zsh" HOME="$tmpdir" \
     bash "$SCRIPT" remove-codex >/dev/null 2>&1 || true
-  if ! grep -Fq "codex-kiro" "$rc" && [[ ! -d "$tmpdir/.codex-kiro" ]]; then
+  if ! grep -Fq "codex-kiro" "$rc" \
+     && [[ "$(cat "$tmpdir/.codex/config.toml")" == 'model = "keep-me"' && -d "$tmpdir/.codex-kiro" ]]; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
-    echo "FAIL: $name (alias or dir still present)"; FAIL=$((FAIL+1))
+    echo "FAIL: $name (alias left, or a codex home was touched)"; FAIL=$((FAIL+1))
   fi
   rm -rf "$tmpdir"
 }
-remove_codex_test "remove-codex strips alias and deletes dir"
+remove_codex_test "remove-codex strips the alias and leaves codex homes alone"
 
-# status: reports codex configured after setup, independent of docker/state
+# status: configured is decided by the alias, not by files in a codex home
 status_codex_configured_test() {
-  local name="$1"
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  mkdir -p "$tmpdir/.codex-kiro"
-  printf '[model_providers.kiro]\n' > "$tmpdir/.codex-kiro/config.toml"
-  printf 'model_provider = "kiro"\n' > "$tmpdir/.codex-kiro/kiro.config.toml"
-  local out
-  out=$(KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" HOME="$tmpdir" \
+  local name="$1" tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; touch "$tmpdir/.zshrc"
+  local before after
+  before=$(KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" SHELL="/bin/zsh" HOME="$tmpdir" \
     bash "$SCRIPT" status 2>&1 || true)
-  if echo "$out" | grep -q "Codex:      configured"; then
+  run_setup_codex "$tmpdir" >/dev/null
+  after=$(KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" SHELL="/bin/zsh" HOME="$tmpdir" \
+    bash "$SCRIPT" status 2>&1 || true)
+  if echo "$before" | grep -q "Codex:      not configured" \
+     && echo "$after" | grep -q "Codex:      configured"; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
-    echo "FAIL: $name (out=$out)"; FAIL=$((FAIL+1))
+    echo "FAIL: $name (before=$before after=$after)"; FAIL=$((FAIL+1))
   fi
   rm -rf "$tmpdir"
 }
-status_codex_configured_test "status reports codex configured"
-
-# status: provider present but kiro.config.toml missing is INCOMPLETE, not
-# "configured". This is the exact live-host state the old single-marker check
-# reported as healthy, so it stays a test rather than a comment.
-status_codex_incomplete_test() {
-  local name="$1"
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  mkdir -p "$tmpdir/.codex-kiro"
-  printf '[model_providers.kiro]\n' > "$tmpdir/.codex-kiro/config.toml"
-  local out
-  out=$(KIRO_GATEWAY_STATE_FILE="$tmpdir/kiro-gateway.state" HOME="$tmpdir" \
-    bash "$SCRIPT" status 2>&1 || true)
-  if echo "$out" | grep -q "Codex:      INCOMPLETE" \
-     && ! echo "$out" | grep -q "Codex:      configured"; then
-    echo "PASS: $name"; PASS=$((PASS+1))
-  else
-    echo "FAIL: $name (out=$out)"; FAIL=$((FAIL+1))
-  fi
-  rm -rf "$tmpdir"
-}
-status_codex_incomplete_test "status flags codex provider without profile"
+status_codex_configured_test "status reports codex configured from the alias"
 
 # patch: tracked fix patch exists and targets the role field
 patch_exists_test() {
