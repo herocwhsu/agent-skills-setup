@@ -1,20 +1,66 @@
 #!/usr/bin/env bash
-# k8s/checkov-guard.sh — Stop hook: Checkov IaC misconfiguration scan
-# Copy to .claude/hooks/checkov-guard.sh in your repo
+# checkov-guard.sh — Stop hook: IaC misconfiguration scan on K8s manifests
+# Shared with the sibling repo — only the "repo config" block below may differ.
 set -euo pipefail
-command -v checkov &>/dev/null || { echo "  SKIP  checkov not installed (brew install checkov)"; exit 0; }
+command -v checkov &>/dev/null || { echo "  SKIP  checkov not installed"; exit 0; }
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# --- repo config --------------------------------------------------------------
+SCAN_DIR="$REPO_ROOT"                       # directory checkov scans
+BASELINE="$REPO_ROOT/.checkov.baseline"
+RELEVANT_RE='^.*\.ya?ml$'                         # a turn touching none of these skips the scan
+# -------------------------------------------------------------------------------
+
+# Turn scope. A turn that changed nothing in scope has nothing to scan; sweeping
+# the tree anyway cost seconds and a blocked turn on every read-only turn
+# (measured 2026-08-25, when eight consecutive turns were blocked by findings
+# none of them caused). Compared against the merge-base with upstream, NOT HEAD:
+# gating on uncommitted changes alone lets a session commit a broken tree, stop,
+# and skip every check -- pre-commit covers formatting and shellcheck, not
+# kustomize, checkov, semgrep or gitleaks. No upstream (fresh or local-only
+# branch) falls back to HEAD, the best signal available there.
+changed_paths() {
+  local re="$1" base
+  base=$(git -C "$REPO_ROOT" merge-base '@{upstream}' HEAD 2>/dev/null || echo HEAD)
+  {
+    git -C "$REPO_ROOT" diff --name-only "$base" 2>/dev/null || true
+    git -C "$REPO_ROOT" ls-files --others --exclude-standard 2>/dev/null || true
+  } | grep -E "$re" | sort -u || true
+}
+
+if [[ -z "$(changed_paths "$RELEVANT_RE")" ]]; then
+  echo "  SKIP  turn changed nothing in scope"
+  exit 0
+fi
+
+
 WARN=0
 
 echo "=== Checkov IaC scan ==="
-# Skip checks: CKV_K8S_8/9/10 = liveness/readiness probes (optional), 28 = seccomp
-if ! checkov -d "$REPO_ROOT" \
+# The committed baseline holds pre-existing findings so only NEW
+# misconfigurations fail the hook. Regenerate with --create-baseline after
+# deliberately fixing baseline items.
+BASELINE_ARGS=()
+[[ -f "$BASELINE" ]] && BASELINE_ARGS=(--baseline "$BASELINE")
+# Captured and re-emitted on STDERR: only stderr reaches the model on exit 2,
+# so 2>/dev/null discarded all 122 lines of file:line detail and left the loop
+# "WARNING: checkov found IaC misconfigurations" six times on identical context.
+if ! CK_OUT=$(checkov -d "$SCAN_DIR" \
     --framework kubernetes \
     --quiet --compact \
     --skip-check CKV_K8S_8,CKV_K8S_9,CKV_K8S_10,CKV_K8S_28 \
-    2>/dev/null; then
-  echo "WARNING: checkov found IaC misconfigurations" >&2
+    "${BASELINE_ARGS[@]}" \
+    2>&1); then
+  echo "checkov findings:" >&2
+  # A grep matching nothing exits 1, and under `set -euo pipefail` that aborts
+  # the hook mid-failure-path: exit 1 instead of 2, so the turn is NOT blocked
+  # and the detail is lost -- the same "gate leaves its job to the net" failure
+  # this repo has hit three times. Guarded, with a raw-tail fallback so a
+  # failure that is not a findings list (bad flag, crash) still reports.
+  if ! printf '%s\n' "$CK_OUT" | grep -B1 -A2 'FAILED for resource' | head -40 >&2; then
+    printf '%s\n' "$CK_OUT" | tail -20 >&2
+  fi
   WARN=1
 else
   echo "  OK  checkov"

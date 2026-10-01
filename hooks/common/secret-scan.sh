@@ -1,54 +1,77 @@
 #!/usr/bin/env bash
-# common/secret-scan.sh — Stop hook: gitleaks + osv-scanner
-# Copy to .claude/hooks/secret-scan.sh in your repo
+# secret-scan.sh — Stop hook: gitleaks secret scan (+ osv-scanner where npm lockfiles exist)
+# Shared with the sibling repo — only the "repo config" block below may differ.
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-WARN=0
 
-# `--source .` (not an absolute path) matters: gitleaks bakes --source into
-# each finding's fingerprint, so an absolute path produces a fingerprint
-# like /Users/you/repo/file:rule:line that can never match a .gitleaksignore
-# entry committed as file:rule:line (portable across every contributor's
-# checkout). cd first so --source . and osv-scanner's default ignore-path
-# lookup both resolve relative to the repo root regardless of caller's cwd.
-cd "$REPO_ROOT"
+# --- repo config --------------------------------------------------------------
+OSV_NPM_SCAN_DIR="$REPO_ROOT"   # dir to search for package-lock.json; empty = skip osv scan
+RELEVANT_RE='.'   # any change at all: a credential can land in any file
+# -------------------------------------------------------------------------------
+
+# Turn scope. A turn that changed nothing in scope has nothing to scan; sweeping
+# the tree anyway cost seconds and a blocked turn on every read-only turn
+# (measured 2026-08-25, when eight consecutive turns were blocked by findings
+# none of them caused). Compared against the merge-base with upstream, NOT HEAD:
+# gating on uncommitted changes alone lets a session commit a broken tree, stop,
+# and skip every check -- pre-commit covers formatting and shellcheck, not
+# kustomize, checkov, semgrep or gitleaks. No upstream (fresh or local-only
+# branch) falls back to HEAD, the best signal available there.
+changed_paths() {
+  local re="$1" base
+  base=$(git -C "$REPO_ROOT" merge-base '@{upstream}' HEAD 2>/dev/null || echo HEAD)
+  {
+    git -C "$REPO_ROOT" diff --name-only "$base" 2>/dev/null || true
+    git -C "$REPO_ROOT" ls-files --others --exclude-standard 2>/dev/null || true
+  } | grep -E "$re" | sort -u || true
+}
+
+if [[ -z "$(changed_paths "$RELEVANT_RE")" ]]; then
+  echo "  SKIP  turn changed nothing in scope"
+  exit 0
+fi
+
+
+WARN=0
 
 echo "=== Gitleaks secret scan ==="
 if command -v gitleaks &>/dev/null; then
-  # No -q/--quiet flag exists in gitleaks v8 — passing one is a hard CLI
-  # error (exit 1), which this loop used to misreport as "leaks found."
-  if ! gitleaks detect --source . --no-git --redact 2>/dev/null; then
+  # NB: gitleaks 8.x has no -q flag (an invalid flag exits 1 and read as a
+  # permanent false "secrets found"); quiet via --no-banner + log-level.
+  if ! out=$(gitleaks detect --source "$REPO_ROOT" --no-git --redact --no-banner --log-level error 2>&1); then
     echo "WARNING: gitleaks found potential secrets — review before committing" >&2
+    echo "$out" | head -30 >&2
     WARN=1
   else
     echo "  OK  gitleaks"
   fi
 else
-  echo "  SKIP  gitleaks not installed (brew install gitleaks)"
+  echo "  SKIP  gitleaks not installed"
 fi
 
-echo ""
-echo "=== OSV dependency scan ==="
-if command -v osv-scanner &>/dev/null; then
-  # osv-scanner v2 restructured its CLI into subcommands ("scan source ...")
-  # and dropped -q in favor of --verbosity; the old `scan --recursive ... -q`
-  # invocation just printed usage and exited 0 without scanning anything.
-  osv_out=$(osv-scanner scan source --recursive . --verbosity error 2>&1) && osv_status=0 || osv_status=$?
-  if [[ $osv_status -eq 0 ]]; then
-    echo "  OK  osv-scanner"
-  elif [[ "$osv_out" == *"No package sources found"* ]]; then
-    # Not a failure — this repo has no lockfile/manifest osv-scanner
-    # recognizes (no package.json, requirements.txt, etc). It exits non-zero
-    # for "nothing to scan" the same as it would for real findings, so without
-    # this check a repo like this one would warn on every single run forever.
-    echo "  OK  osv-scanner (no scannable dependency manifests found)"
+if [[ -n "$OSV_NPM_SCAN_DIR" ]]; then
+  echo ""
+  echo "=== OSV dependency scan ==="
+  if command -v osv-scanner &>/dev/null; then
+    # osv-scanner v2 syntax; no -q flag. Scoped to npm lockfiles only: on
+    # requirements.txt osv RESOLVES transitive deps at their minimum versions
+    # and reports phantom ancient CVEs — pip-audit in py-guard owns Python.
+    LOCKFILES=()
+    while IFS= read -r lf; do LOCKFILES+=(-L "$lf"); done \
+      < <(find "$OSV_NPM_SCAN_DIR" -maxdepth 2 -name package-lock.json 2>/dev/null)
+    if [[ ${#LOCKFILES[@]} -eq 0 ]]; then
+      echo "  SKIP  no npm lockfiles found"
+    elif ! out=$(osv-scanner scan source "${LOCKFILES[@]}" 2>&1); then
+      echo "WARNING: osv-scanner found vulnerable dependencies" >&2
+      echo "$out" | tail -30 >&2
+      WARN=1
+    else
+      echo "  OK  osv-scanner"
+    fi
   else
-    echo "WARNING: osv-scanner found vulnerable dependencies" >&2
-    WARN=1
+    echo "  SKIP  osv-scanner not installed"
   fi
-else
-  echo "  SKIP  osv-scanner not installed (brew install osv-scanner)"
 fi
 
 [[ $WARN -eq 0 ]] && exit 0 || exit 2
