@@ -30,7 +30,7 @@
 
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 SOURCE="$REPO_DIR/agents/engineering-rules.md"
 BEGIN_MARK="<!-- BEGIN agent-skills-setup:engineering-rules -->"
 END_MARK="<!-- END agent-skills-setup:engineering-rules -->"
@@ -75,10 +75,11 @@ done
 #   - else: create file containing only the marked block
 write_block() {
   local target="$1"
+  local src="${2:-$SOURCE}"
   mkdir -p "$(dirname "$target")"
 
   if [[ -f "$target" ]] && grep -qF "$BEGIN_MARK" "$target"; then
-    python3 - "$target" "$SOURCE" "$BEGIN_MARK" "$END_MARK" <<'PY'
+    python3 - "$target" "$src" "$BEGIN_MARK" "$END_MARK" <<'PY'
 import sys, pathlib
 target, src, begin, end = sys.argv[1:]
 text = pathlib.Path(target).read_text()
@@ -99,7 +100,7 @@ PY
       echo
     fi
     echo "$BEGIN_MARK"
-    cat "$SOURCE"
+    cat "$src"
     echo "$END_MARK"
   } > "$target.tmp"
   mv "$target.tmp" "$target"
@@ -133,18 +134,30 @@ PY
 }
 
 run() {
-  local label="$1" target="$2"
+  local label="$1" target="$2" src="${3:-$SOURCE}"
   echo "$label → $target"
   if [[ "$ACTION" == "install" ]]; then
-    write_block "$target"
+    write_block "$target" "$src"
   else
     strip_block "$target"
   fi
 }
 
-[[ $WANT_CLAUDE -eq 1 ]] && run "Claude Code" "$HOME/.claude/CLAUDE.md"
-[[ $WANT_GEMINI -eq 1 ]] && run "Antigravity CLI" "$HOME/.gemini/GEMINI.md"
-[[ $WANT_CODEX  -eq 1 ]] && run "Codex CLI"   "$CODEX_DIR/AGENTS.md"
+[[ $WANT_CLAUDE -eq 1 ]] && run "Claude Code" "$HOME/.claude/CLAUDE.md" "$SOURCE"
+if [[ $WANT_GEMINI -eq 1 ]]; then
+  AGY_SOURCE="$REPO_DIR/agents/antigravity-rules.md"
+  if [[ "$ACTION" == "install" && -f "$AGY_SOURCE" ]]; then
+    TMP_RULES="$(mktemp "${TMPDIR:-/tmp}/rules-agy-XXXXXX")"
+    cat "$SOURCE" > "$TMP_RULES"
+    printf "\n\n" >> "$TMP_RULES"
+    cat "$AGY_SOURCE" >> "$TMP_RULES"
+    run "Antigravity CLI" "$HOME/.gemini/GEMINI.md" "$TMP_RULES"
+    rm -f "$TMP_RULES"
+  else
+    run "Antigravity CLI" "$HOME/.gemini/GEMINI.md" "$SOURCE"
+  fi
+fi
+[[ $WANT_CODEX  -eq 1 ]] && run "Codex CLI"   "$CODEX_DIR/AGENTS.md" "$SOURCE"
 
 # Kiro uses steering files instead of a KIRO.md host file.
 # Deploy as ~/.kiro/steering/engineering-rules.md (plain copy, no marked block).

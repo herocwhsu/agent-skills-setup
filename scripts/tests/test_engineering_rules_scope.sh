@@ -43,6 +43,14 @@ grep -q 'Production Spec-Gated Workflow' "$RULES" \
   && bad "gate procedure lives in the skill, not the global file" "still in $RULES" \
   || ok "gate procedure lives in the skill, not the global file"
 
+grep -q 'Prompt polish' "$RULES" \
+  && bad "prompt polish is host-specific (AGY only), must not be in global engineering-rules.md" "found in $RULES" \
+  || ok "prompt polish absent from global engineering-rules.md (Claude/Codex/others clean)"
+
+[[ -f "$REPO_DIR/agents/antigravity-rules.md" ]] && grep -q 'Prompt polish' "$REPO_DIR/agents/antigravity-rules.md" \
+  && ok "antigravity-rules.md exists and contains AGY prompt polish rule" \
+  || bad "antigravity-rules.md exists and contains AGY prompt polish rule" "missing or incomplete"
+
 echo ""
 echo "test_engineering_rules_scope: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

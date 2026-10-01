@@ -207,7 +207,7 @@ for agent in $(grep -oE '^AGENTS=\(.*\)' "$LIB" | tr -d '"' | sed 's/^AGENTS=(//
   # Alternation-tolerant: an arm may list aliases (`--antigravity|--gemini)`) after
   # a rename. Still anchored at line start so a usage line in the header comment
   # cannot satisfy the ratchet.
-  grep -qE "^[[:space:]]*(--[a-z-]+\|)*--$agent[|)]" "$INSTALLER" \
+  grep -qE "^[[:space:]]*(--[a-z-]+\|)*--${agent}[|)]" "$INSTALLER" \
     || missing="$missing --$agent"
   # Whitespace-tolerant: the run() calls are column-aligned, so the guard
   # reads `$WANT_CODEX  -eq 1` with two spaces.
@@ -218,6 +218,20 @@ if [[ -z "$missing" ]]; then
   ok "every agent in AGENTS has a rules target"
 else
   fail "every agent in AGENTS has a rules target" "absent:$missing"
+fi
+
+# --- Test 15: prompt polish rule is installed ONLY for AGY, never Claude/Codex/Kiro ---
+echo "Prompt polish rule for AGY only" > "$TMPDIR/agents/antigravity-rules.md"
+rm -f "$TMPDIR/.claude/CLAUDE.md" "$TMPDIR/.gemini/GEMINI.md" "$CODEX_TARGET" "$TMPDIR/.kiro/steering/engineering-rules.md"
+run_script >/dev/null
+
+if grep -qF "Prompt polish rule for AGY only" "$TMPDIR/.gemini/GEMINI.md" \
+  && ! grep -qF "Prompt polish" "$TMPDIR/.claude/CLAUDE.md" \
+  && ! grep -qF "Prompt polish" "$CODEX_TARGET" \
+  && ! grep -qF "Prompt polish" "$TMPDIR/.kiro/steering/engineering-rules.md"; then
+  ok "prompt polish rule installed ONLY for AGY, not Claude/Codex/Kiro"
+else
+  fail "prompt polish rule installed ONLY for AGY" "leakage into other agents or missing from AGY"
 fi
 
 echo ""
