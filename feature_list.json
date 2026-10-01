@@ -205,6 +205,14 @@
       "dependencies": ["feat-025"],
       "status": "done",
       "evidence": "bash scripts/tests/test_statusline_command.sh -> 8 passed (old script fails: 3.1s with stdin open). bash scripts/tests/test_install_agents_md.sh -> 17 passed. Live AGY session renders the statusline with no 'signal: killed' in the new log. After install-agents-md.sh, [polish] appears only in ~/.gemini/GEMINI.md. ./init.sh -> all gates passed."
+    },
+    {
+      "id": "feat-027",
+      "name": "codex-kiro runs on ~/.codex like claude-kiro",
+      "description": "The codex-kiro alias now runs plain codex on the normal ~/.codex home with the kiro gateway passed as -c overrides, instead of a separate CODEX_HOME (~/.codex-kiro) that hid the rules, hooks and skills installed into ~/.codex. setup-codex writes only the alias; remove-codex never deletes a Codex home; status reads the alias. ~/.codex-kiro archived and removed.",
+      "dependencies": ["feat-026"],
+      "status": "done",
+      "evidence": "Commit 6c431bf. test_kiro_gateway.sh -> 40 passed (4 new codex tests failed on the old code first). Live codex-kiro via interactive zsh -> provider kiro, answered, ~/.codex rules loaded. ./init.sh -> all gates passed."
     }
   ]
 }
