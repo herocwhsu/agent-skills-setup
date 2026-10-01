@@ -384,7 +384,7 @@ render_env_file() {
 health_probe() {
   command -v curl &>/dev/null || { echo "curl not found — skipping health probe." >&2; return 0; }
   local key; key="$(read_proxy_key)" || true
-  local body='{"model":"claude-sonnet-4-20250514","max_tokens":16,"messages":[{"role":"user","content":"ping"},{"role":"system","content":"be terse"}]}'
+  local body='{"model":"claude-haiku-4-5","max_tokens":16,"messages":[{"role":"user","content":"ping"},{"role":"system","content":"be terse"}]}'
   # Poll: the app has a blocking startup (token refresh, account init) and does
   # not bind its port for several seconds after `docker run -d` returns. Retry
   # while the connection is refused (HTTP 000), but fail FAST on any real HTTP
