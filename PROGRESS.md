@@ -128,12 +128,14 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
 - [x] feat-020: refreshed the five shared hook templates from hangar and atelier (turn-scope
   gating, stderr and exit 2), added `scripts/tests/test_shared_hook_templates.sh` (10 cases, each
   killed by a mutation) and `docs/harness-adoption.md`. Built a custom L1–L4 set for hangar
-  and atelier in scratch clones, one commit each on branch `harness/l1-l4`.
+  and atelier in scratch clones on branch `harness/l1-l4`, then fixed what review of that work
+  found: gitleaks `--source .` in all three `secret-scan` copies, and atelier's `py-guard` and
+  `ts-guard` gating on the merge-base (they skipped committed and new files).
 
 ### What's In Progress
 
-- feat-020 review: `~/projects/harness-patches/{hangar,atelier}-l1-l4.patch` (one commit each,
-  `git apply --check` clean against the real repos). Not applied; apply with `git am`.
+- feat-020 review: `~/projects/harness-patches/{hangar,atelier}-l1-l4.patch` (2 and 3 commits, applied with
+  `git am` to a fresh clone of the real repos without conflict). Not applied to the real repos.
 
 ### What's Next
 

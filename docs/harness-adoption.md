@@ -54,12 +54,12 @@ worked, and a different model's confident claims in Lecture 2 were false twice.
 Finish with the fresh-session test: a session with no context should answer what the
 repo is, how it is laid out, how to run it, how to verify it and where work stands.
 
-## Known gaps in the shared hooks
+## Things the shared hooks learned late
 
-- The old `secret-scan` template ran gitleaks as `cd "$REPO_ROOT"; --source .` so
-  fingerprints match a committed `.gitleaksignore`. The shared version passes an
-  absolute `--source`. A repo that adds `.gitleaksignore` needs that change, applied
-  to every copy at once.
-- atelier's `py-guard.sh` and `ts-guard.sh` gate on `git diff HEAD`, not the
-  merge-base, so a commit-then-stop session skips them. They also join two file lists
-  with `+=` and no newline. Neither was changed here.
+- `secret-scan` runs gitleaks as `cd "$REPO_ROOT"; --source .`. An absolute
+  `--source` is baked into each finding's fingerprint and can never match a committed
+  `.gitleaksignore` entry. Fixed in all three copies together, with a test.
+- A turn-scoped hook must measure against the merge-base, and count untracked files.
+  atelier's `py-guard` and `ts-guard` used `git diff HEAD`, which skipped both a
+  commit-then-stop session and a brand-new file; four test cases failed on the old
+  code before the fix.
