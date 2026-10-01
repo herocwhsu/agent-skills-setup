@@ -135,6 +135,8 @@ setup_codex_alias_test() {
      && "$line" == *"model_providers.kiro.base_url=http://localhost:7788/v1"* \
      && "$line" == *"model_providers.kiro.env_key=KIRO_PROXY_KEY"* \
      && "$line" == *"model_providers.kiro.wire_api=responses"* \
+     && "$line" == *"-c model=gpt-5.6-sol -c model_reasoning_effort=medium"* \
+     && "$line" != *"claude-"* \
      && "$line" != *"CODEX_HOME"* && "$line" != *"--profile"* ]]; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else

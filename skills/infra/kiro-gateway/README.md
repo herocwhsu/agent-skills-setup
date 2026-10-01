@@ -64,7 +64,7 @@ On Linux, `secret-tool` is used instead of `security`. On headless Linux, the ke
 skills installed into `~/.codex` apply to it unchanged.
 
 ```bash
-alias codex-kiro='KIRO_PROXY_KEY=$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null) codex -c model_provider=kiro -c model_providers.kiro.name=Kiro -c model_providers.kiro.base_url=http://localhost:7788/v1 -c model_providers.kiro.env_key=KIRO_PROXY_KEY -c model_providers.kiro.wire_api=responses -c model=claude-opus-4.8'
+alias codex-kiro='KIRO_PROXY_KEY=$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null) codex -c model_provider=kiro -c model_providers.kiro.name=Kiro -c model_providers.kiro.base_url=http://localhost:7788/v1 -c model_providers.kiro.env_key=KIRO_PROXY_KEY -c model_providers.kiro.wire_api=responses -c model=gpt-5.6-sol -c model_reasoning_effort=medium'
 ```
 
 Set it up with:
@@ -76,7 +76,8 @@ source ~/.zshrc
 
 `setup-codex` writes only this alias. The provider lives in `-c` overrides, so
 no Codex config file is touched and plain `codex` keeps its own settings.
-Override the model per run: `codex-kiro -m claude-sonnet-4.6`.
+The default is `gpt-5.6-sol` at medium reasoning, a Codex-native model.
+Override it per run: `codex-kiro -m <model>`.
 
 Earlier versions used a separate `CODEX_HOME` (`~/.codex-kiro`). That hid
 everything installed into `~/.codex`, so it is gone. `setup-codex` notes a

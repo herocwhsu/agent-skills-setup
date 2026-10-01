@@ -533,7 +533,7 @@ cmd_setup_codex() {
   local rc; rc=$(rc_file_path)
   local read_cmd; read_cmd=$(store_proxy_key)
   write_managed_line "$rc" "codex-kiro" \
-    "alias codex-kiro='KIRO_PROXY_KEY=${read_cmd} codex -c model_provider=kiro -c model_providers.kiro.name=Kiro -c model_providers.kiro.base_url=http://localhost:7788/v1 -c model_providers.kiro.env_key=KIRO_PROXY_KEY -c model_providers.kiro.wire_api=responses -c model=claude-opus-4.8'"
+    "alias codex-kiro='KIRO_PROXY_KEY=${read_cmd} codex -c model_provider=kiro -c model_providers.kiro.name=Kiro -c model_providers.kiro.base_url=http://localhost:7788/v1 -c model_providers.kiro.env_key=KIRO_PROXY_KEY -c model_providers.kiro.wire_api=responses -c model=gpt-5.6-sol -c model_reasoning_effort=medium'"
   if [[ -d "$HOME/.codex-kiro" ]]; then
     echo "Note: $HOME/.codex-kiro is no longer used; codex-kiro now runs on ~/.codex. Remove it once its session history is not needed." >&2
   fi

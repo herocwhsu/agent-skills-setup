@@ -209,7 +209,7 @@
     {
       "id": "feat-027",
       "name": "codex-kiro runs on ~/.codex like claude-kiro",
-      "description": "The codex-kiro alias now runs plain codex on the normal ~/.codex home with the kiro gateway passed as -c overrides, instead of a separate CODEX_HOME (~/.codex-kiro) that hid the rules, hooks and skills installed into ~/.codex. setup-codex writes only the alias; remove-codex never deletes a Codex home; status reads the alias. ~/.codex-kiro archived and removed.",
+      "description": "The codex-kiro alias now runs plain codex on the normal ~/.codex home with the kiro gateway passed as -c overrides, instead of a separate CODEX_HOME (~/.codex-kiro) that hid the rules, hooks and skills installed into ~/.codex. setup-codex writes only the alias; remove-codex never deletes a Codex home; status reads the alias. ~/.codex-kiro removed. Default model gpt-5.6-sol at medium reasoning.",
       "dependencies": ["feat-026"],
       "status": "done",
       "evidence": "Commit 6c431bf. test_kiro_gateway.sh -> 40 passed (4 new codex tests failed on the old code first). Live codex-kiro via interactive zsh -> provider kiro, answered, ~/.codex rules loaded. ./init.sh -> all gates passed."
