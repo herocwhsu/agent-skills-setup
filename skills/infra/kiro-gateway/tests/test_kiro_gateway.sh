@@ -854,6 +854,22 @@ managed_update_test() {
 }
 managed_update_test "managed block updates in place, preserves surrounding lines"
 
+# Kiro rejects claude-sonnet-5-5 (Claude Code's default Sonnet ID); claude-sonnet-5 is the one it serves
+alias_pins_sonnet_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; local rc="$tmpdir/.zshrc"; touch "$rc"
+  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="k" \
+    bash "$SCRIPT" setup-alias >/dev/null 2>&1 || true
+  if grep "alias claude-kiro=" "$rc" | grep -q "ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5 "; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name ($(grep 'alias claude-kiro=' "$rc"))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+alias_pins_sonnet_test "claude-kiro alias maps Sonnet to the Kiro-served claude-sonnet-5"
+
 # remove-codex: drops only codex line; if block empties, whole block removed
 remove_codex_empties_block_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
