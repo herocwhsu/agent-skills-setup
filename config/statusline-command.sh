@@ -2,7 +2,29 @@
 # Claude Code / AGY statusLine — mirrors bash PS1 (green user@host, blue cwd)
 # Context usage right-aligned: [ctx: Xk/Yk]
 
-input=$(cat)
+# Antigravity CLI never closes stdin, so `cat` (or jq) would block until the host
+# kills the command. Stop reading once the top-level JSON object closes.
+if command -v perl &>/dev/null; then
+  input=$(perl -e '
+    my $buf = "";
+    $SIG{ALRM} = sub { print $buf; exit };
+    alarm 1;
+    my ($depth, $in_str, $esc, $started) = (0, 0, 0, 0);
+    while (sysread(STDIN, my $c, 1)) {
+      $buf .= $c;
+      if ($in_str) {
+        if ($esc) { $esc = 0 } elsif ($c eq "\\") { $esc = 1 } elsif ($c eq "\"") { $in_str = 0 }
+        next;
+      }
+      if ($c eq "\"") { $in_str = 1 }
+      elsif ($c eq "{") { $depth++; $started = 1 }
+      elsif ($c eq "}") { $depth--; last if $started && $depth == 0 }
+    }
+    print $buf;
+  ')
+else
+  input=$(cat)
+fi
 
 # Parse all fields in one single jq pass to ensure < 25ms execution time
 IFS=$'\t' read -r cwd used total < <(

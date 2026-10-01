@@ -197,6 +197,14 @@
       "dependencies": ["feat-024"],
       "status": "done",
       "evidence": "Commits e4c1f5a and 93f517c on main. pytest skills/utils/polish-input/tests/test_polish.py -> 32 passed (including large transcript tail-read, null content handling, and payload variations). bash scripts/run-tests.sh --fast -> 57 passed, 0 failed. ./init.sh -> all 9 gates passed clean. Live AGY statusline renders cleanly without timeout errors."
+    },
+    {
+      "id": "feat-026",
+      "name": "AGY-only prompt polish rule and AGY statusline stdin fix",
+      "description": "Moved the prompt polish rule out of the shared engineering rules into agents/antigravity-rules.md, appended only to the Gemini/AGY block by install-agents-md.sh. Fixed the blank AGY statusline: AGY never closes the statusline command's stdin, so statusline-command.sh now stops reading once the top-level JSON object closes. install_statusline keeps the object-form statusLine for AGY and refreshes the installed script copy when settings already point at it.",
+      "dependencies": ["feat-025"],
+      "status": "done",
+      "evidence": "bash scripts/tests/test_statusline_command.sh -> 8 passed (old script fails: 3.1s with stdin open). bash scripts/tests/test_install_agents_md.sh -> 17 passed. Live AGY session renders the statusline with no 'signal: killed' in the new log. After install-agents-md.sh, [polish] appears only in ~/.gemini/GEMINI.md. ./init.sh -> all gates passed."
     }
   ]
 }

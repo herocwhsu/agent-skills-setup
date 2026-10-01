@@ -933,8 +933,14 @@ install_statusline() {
     *) return 0 ;;
   esac
 
-  # If settings.json already has statusLine configured, keep existing configuration
+  # If settings.json already has statusLine configured, keep existing configuration.
+  # When it points at our own script, still refresh the copy so fixes reach it.
   if [[ -f "$settings" ]] && grep -q '"statusLine"' "$settings" 2>/dev/null; then
+    if grep -qF "$status_script" "$settings" 2>/dev/null; then
+      cp "$repo_dir/config/statusline-command.sh" "$status_script"
+      chmod +x "$status_script"
+      echo "  ✓ refreshed statusline script for $agent"
+    fi
     return 0
   fi
 
