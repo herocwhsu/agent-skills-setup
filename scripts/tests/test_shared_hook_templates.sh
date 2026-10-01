@@ -67,21 +67,41 @@ done
 
 printf 'if then fi\n' > "$DIRTY/bad.sh"
 printf '#!/usr/bin/env bash\necho ok\n' > "$DIRTY/good.sh"
-[[ "$(edit_hook common/sh-check.sh "$DIRTY" "$DIRTY/bad.sh")" == 2 ]] \
-  && ok "sh-check blocks a syntax error with exit 2" \
-  || bad "sh-check blocks a syntax error with exit 2" "did not exit 2"
-[[ "$(edit_hook common/sh-check.sh "$DIRTY" "$DIRTY/good.sh")" == 0 ]] \
-  && ok "sh-check allows a clean script" \
-  || bad "sh-check allows a clean script" "did not exit 0"
+if [[ "$(edit_hook common/sh-check.sh "$DIRTY" "$DIRTY/bad.sh")" == 2 ]]; then
+  ok "sh-check blocks a syntax error with exit 2"
+else
+  bad "sh-check blocks a syntax error with exit 2" "did not exit 2"
+fi
+if [[ "$(edit_hook common/sh-check.sh "$DIRTY" "$DIRTY/good.sh")" == 0 ]]; then
+  ok "sh-check allows a clean script"
+else
+  bad "sh-check allows a clean script" "did not exit 0"
+fi
 
 printf 'host: 10.1.2.3\n' > "$DIRTY/ip.yaml"
 printf 'host: <DB_HOST>\n' > "$DIRTY/ok.yaml"
-[[ "$(edit_hook k8s/placeholder-guard.sh "$DIRTY" "$DIRTY/ip.yaml")" == 2 ]] \
-  && ok "placeholder-guard blocks an added hardcoded IP" \
-  || bad "placeholder-guard blocks an added hardcoded IP" "did not exit 2"
-[[ "$(edit_hook k8s/placeholder-guard.sh "$DIRTY" "$DIRTY/ok.yaml")" == 0 ]] \
-  && ok "placeholder-guard allows a placeholder" \
-  || bad "placeholder-guard allows a placeholder" "did not exit 0"
+if [[ "$(edit_hook k8s/placeholder-guard.sh "$DIRTY" "$DIRTY/ip.yaml")" == 2 ]]; then
+  ok "placeholder-guard blocks an added hardcoded IP"
+else
+  bad "placeholder-guard blocks an added hardcoded IP" "did not exit 2"
+fi
+if [[ "$(edit_hook k8s/placeholder-guard.sh "$DIRTY" "$DIRTY/ok.yaml")" == 0 ]]; then
+  ok "placeholder-guard allows a placeholder"
+else
+  bad "placeholder-guard allows a placeholder" "did not exit 0"
+fi
+
+LOGSTUB="$TMPDIR/logstub"; mkdir -p "$LOGSTUB"
+# shellcheck disable=SC2016  # the stub's own $* and $(pwd) must stay unexpanded
+printf '#!/usr/bin/env bash\necho "ARGS: $*" > "%s/args"\necho "CWD: $(pwd -P)" >> "%s/args"\nexit 0\n' "$LOGSTUB" "$LOGSTUB" > "$LOGSTUB/gitleaks"
+chmod +x "$LOGSTUB/gitleaks"
+( cd "$DIRTY" && printf '{}' | PATH="$LOGSTUB:$PATH" bash "$HOOKS_SRC/common/secret-scan.sh" ) >/dev/null 2>&1
+if grep -q -- '--source \.' "$LOGSTUB/args" 2>/dev/null \
+   && grep -q "CWD: $(cd "$DIRTY" && pwd -P)\$" "$LOGSTUB/args"; then
+  ok "secret-scan runs gitleaks as --source . from the repo root"
+else
+  bad "secret-scan runs gitleaks as --source . from the repo root" "got: $(tr '\n' ' ' < "$LOGSTUB/args" 2>/dev/null)"
+fi
 
 echo ""
 echo "$pass passed, $fail failed"

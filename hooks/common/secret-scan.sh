@@ -39,7 +39,10 @@ echo "=== Gitleaks secret scan ==="
 if command -v gitleaks &>/dev/null; then
   # NB: gitleaks 8.x has no -q flag (an invalid flag exits 1 and read as a
   # permanent false "secrets found"); quiet via --no-banner + log-level.
-  if ! out=$(gitleaks detect --source "$REPO_ROOT" --no-git --redact --no-banner --log-level error 2>&1); then
+  # `--source .` from the repo root, not an absolute path: gitleaks bakes --source
+  # into each finding's fingerprint, so an absolute one can never match a
+  # .gitleaksignore entry committed as file:rule:line.
+  if ! out=$(cd "$REPO_ROOT" && gitleaks detect --source . --no-git --redact --no-banner --log-level error 2>&1); then
     echo "WARNING: gitleaks found potential secrets — review before committing" >&2
     echo "$out" | head -30 >&2
     WARN=1
