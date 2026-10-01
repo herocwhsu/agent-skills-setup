@@ -2,8 +2,8 @@
 
 ## Current State
 
-**Last Updated:** 2026-09-28
-**Active Feature:** none. feat-016 closed out Lecture 4; `./init.sh` passes all 9 gates.
+**Last Updated:** 2026-10-01
+**Active Feature:** feat-020 (L1–L4 harness for hangar and atelier), prepared in scratch clones, awaiting review. `./init.sh` passes all 9 gates.
 **Lecture 4 is closed.** Exercises 1 (SNR audit) and 3 (position test) were run. Two parts were not:
 exercise 1's relocation step was skipped on purpose, since the noise is in the global rules file
 (summary §3.4), and exercise 2's before/after success-rate comparison has no baseline, because
@@ -125,12 +125,20 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
   `google-genai` can't use OAuth for the Gemini API. Default model `gemini-1.5-flash`
   (retired) → `gemini-3.5-flash-lite`. Not live-tested: no Gemini key on this machine.
 
+- [x] feat-020: refreshed the five shared hook templates from hangar and atelier (turn-scope
+  gating, stderr and exit 2), added `scripts/tests/test_shared_hook_templates.sh` (10 cases, each
+  killed by a mutation) and `docs/harness-adoption.md`. Built a custom L1–L4 set for hangar
+  and atelier in scratch clones, one commit each on branch `harness/l1-l4`.
+
 ### What's In Progress
 
-- Nothing active.
+- feat-020 review: `~/projects/harness-patches/{hangar,atelier}-l1-l4.patch` (one commit each,
+  `git apply --check` clean against the real repos). Not applied; apply with `git am`.
 
 ### What's Next
 
+- Apply or reject the hangar and atelier branches after review, then run the fresh-session
+  test again on the real repos.
 - Optional follow-up experiment: repeat exercise 3 at ~10k tokens without the
   "read in full" instruction (design in `position-experiment.md` §13).
 - Lecture 5: Why Long-Running Tasks Lose Continuity.

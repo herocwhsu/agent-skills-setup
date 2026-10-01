@@ -149,6 +149,14 @@
       "dependencies": ["feat-008"],
       "status": "done",
       "evidence": "New tests failed first (2/3), then polish-input 40 passed. mypy clean; gitleaks + osv-scanner clean on the new manifest; harness-verify 9/9; run-tests --fast 56 passed. NOT verified live: no Gemini API key on this machine. Pre-existing installer gap: Homebrew python3 refuses global pip (PEP 668), so _lib.sh's pip step for polish-input fails here; ambient python still has only the old SDK. Not forced with --break-system-packages."
+    },
+    {
+      "id": "feat-020",
+      "name": "Custom L1–L4 harness for hangar and atelier; refresh shared hook templates",
+      "description": "hangar and atelier already had hooks that were ahead of hooks/ (turn-scope gating, stderr and exit 2), so the work went the other way: promoted their five shared hooks into hooks/common and hooks/k8s with neutral config blocks, then added AGENTS.md router, init.sh, PROGRESS.md and docs/hooks.md to both, plus feature_list.json and a mutation-checked scripts/test-hooks.sh (wired into CI) to atelier. Not applied to the real repos: auto-merge and agent push behaviour untouched, per user decision. Known gap: the old secret-scan template's gitleaks --source . fingerprint fix is not in the shared version; recorded in docs/harness-adoption.md.",
+      "dependencies": [],
+      "status": "in-progress",
+      "evidence": "This repo: ./init.sh 9/9 gates; scripts/run-tests.sh --fast 57 passed, 0 failed; template test mutated 6 ways, all killed. hangar scratch (d170383): ./init.sh exit 0 (validate.sh + 13 hook tests), exit 1 with PROGRESS.md missing and with test-hooks.sh forced to fail. atelier scratch: ./init.sh exit 0, exit 1 on bad feature_list.json and on a broken overlay; scripts/test-hooks.sh 20 cases, 8 hook mutations all killed. Fresh-session test (5 questions) answered correctly from the files in both. Canary: Claude Code reads AGENTS.md alone and via @AGENTS.md; agy, kiro-cli, gemini untestable (not logged in). In-progress until the user reviews the scratch clones."
     }
   ]
 }
