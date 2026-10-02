@@ -35,10 +35,13 @@ for tool in curl wget npm claude pip pip3 codex kiro-cli hermes agy; do
 done
 
 # make_repo <name> — a git repo holding the current working tree, committed on main.
+# .mypy_cache is excluded because the types-guard Stop hook runs mypy in parallel
+# with this test; copying a cache whose sqlite -wal/-shm files appear and vanish
+# makes rsync exit 24 and fails the test at random.
 make_repo() {
   local d="$TMP/$1"
   mkdir -p "$d"
-  rsync -a --exclude .git "$REPO_DIR/" "$d/"
+  rsync -a --exclude .git --exclude .mypy_cache "$REPO_DIR/" "$d/"
   git -C "$d" init -q -b main
   git -C "$d" -c user.name=t -c user.email=t@t add -A
   git -C "$d" -c user.name=t -c user.email=t@t commit -qm init
@@ -83,7 +86,7 @@ check "refusal names the worktree cause" yes \
 # A release tarball has no .git at all; there is no branch to judge.
 plain="$TMP/plain"
 mkdir -p "$plain"
-rsync -a --exclude .git "$REPO_DIR/" "$plain/"
+rsync -a --exclude .git --exclude .mypy_cache "$REPO_DIR/" "$plain/"
 check "installs from a non-git copy" 0 "$(run_install "$plain" "$TMP/h6" --agent claude)"
 
 # --- saved selection is the default when --agent is omitted ---------------
