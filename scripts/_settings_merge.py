@@ -56,6 +56,29 @@ def _entry_commands(entry: dict) -> set:
     return cmds
 
 
+def _dedupe(entries: list, cmds: set) -> list[str]:
+    """Drop repeat copies of an entry that runs only the given commands.
+
+    A stale-path entry rewired next to a current one becomes an identical
+    second entry, and the hook then runs twice. Returns the commands whose
+    copies were removed. Entries for any other hook are never touched.
+    """
+    seen: list[set] = []
+    kept: list = []
+    removed: list[str] = []
+    for e in entries:
+        ec = _entry_commands(e)
+        ours = bool(ec) and ec <= cmds
+        if ours and ec in seen:
+            removed.extend(sorted(ec))
+            continue
+        if ours:
+            seen.append(ec)
+        kept.append(e)
+    entries[:] = kept
+    return removed
+
+
 AGY_EVENTS = {"PreInvocation", "PostInvocation", "PreToolUse", "PostToolUse", "Stop"}
 CLAUDE_CODEX_EVENTS = {
     "PreToolUse",
@@ -83,6 +106,7 @@ def merge_gemini(hook: dict, settings: dict, hook_name: str) -> dict:
             if not _entry_commands(entry) & existing_cmds:
                 existing.append(entry)
                 existing_cmds |= _entry_commands(entry)
+        _dedupe(existing, set().union(*(_entry_commands(e) for e in entries)) if entries else set())
     return settings
 
 
@@ -131,6 +155,9 @@ def rewire_gemini(hook: dict, settings: dict, skills_dir: str, hook_name: str) -
                                 if inner.get("command") == stale:
                                     inner["command"] = fresh
                             changed.append((event, stale, fresh))
+            fresh_cmds = set().union(*(_entry_commands(e) for e in entries)) if entries else set()
+            for cmd in _dedupe(existing, fresh_cmds):
+                changed.append((event, cmd, "(duplicate removed)"))
     return settings, changed
 
 
@@ -149,6 +176,7 @@ def merge(hook: dict, settings: dict) -> dict:
             if not _entry_commands(entry) & existing_cmds:
                 existing.append(entry)
                 existing_cmds |= _entry_commands(entry)
+        _dedupe(existing, set().union(*(_entry_commands(e) for e in entries)) if entries else set())
     return settings
 
 
@@ -192,6 +220,9 @@ def rewire(hook: dict, settings: dict, skills_dir: str) -> tuple[dict, list]:
                             if inner.get("command") == stale:
                                 inner["command"] = fresh
                         changed.append((event, stale, fresh))
+        fresh_cmds = set().union(*(_entry_commands(e) for e in entries)) if entries else set()
+        for cmd in _dedupe(existing, fresh_cmds):
+            changed.append((event, cmd, "(duplicate removed)"))
     return settings, changed
 
 

@@ -166,3 +166,67 @@ def test_merge_and_remove_env_keys(tmp_path):
     data = read_json(settings)
     assert "env" not in data
 
+
+
+def _wrapped(cmd: str) -> dict:
+    return {"matcher": "", "hooks": [{"type": "command", "command": cmd}]}
+
+
+def test_rewire_collapses_stale_copy_into_existing_fresh_entry(tmp_path):
+    # A stale-path entry next to the current one used to be rewritten into an
+    # identical second entry, so the hook ran twice (seen live in
+    # ~/.claude/settings.json, 2026-10-02).
+    skills = tmp_path / "skills"
+    fresh = f"python3 {skills}/utils/p/lib/p.py"
+    stale = "python3 /old/gone/skills/utils/p/lib/p.py"
+    hook = tmp_path / "hook.json"
+    write_json(hook, {"hooks": {"UserPromptSubmit": [_wrapped(fresh)]}})
+    settings = tmp_path / "settings.json"
+    write_json(settings, {"hooks": {"UserPromptSubmit": [_wrapped(fresh), _wrapped(stale)]}})
+
+    result = run_helper("--rewire", str(hook), str(settings), "--skills-dir", str(skills))
+    assert result.returncode == 0, result.stderr
+
+    assert read_json(settings)["hooks"]["UserPromptSubmit"] == [_wrapped(fresh)]
+
+
+def test_merge_collapses_existing_duplicate_of_its_own_hook(tmp_path):
+    hook = tmp_path / "hook.json"
+    write_json(hook, {"hooks": {"UserPromptSubmit": [_wrapped("polish.py")]}})
+    settings = tmp_path / "settings.json"
+    write_json(settings, {"hooks": {"UserPromptSubmit": [_wrapped("polish.py"), _wrapped("polish.py")]}})
+
+    result = run_helper("--merge", str(hook), str(settings))
+    assert result.returncode == 0, result.stderr
+
+    assert read_json(settings)["hooks"]["UserPromptSubmit"] == [_wrapped("polish.py")]
+
+
+def test_dedupe_leaves_other_hooks_duplicates_alone(tmp_path):
+    hook = tmp_path / "hook.json"
+    write_json(hook, {"hooks": {"UserPromptSubmit": [_wrapped("polish.py")]}})
+    settings = tmp_path / "settings.json"
+    user = [_wrapped("user.sh"), _wrapped("user.sh")]
+    write_json(settings, {"hooks": {"UserPromptSubmit": [*user, _wrapped("polish.py")]}})
+
+    result = run_helper("--merge", str(hook), str(settings))
+    assert result.returncode == 0, result.stderr
+
+    assert read_json(settings)["hooks"]["UserPromptSubmit"] == [*user, _wrapped("polish.py")]
+
+
+def test_gemini_rewire_collapses_duplicate(tmp_path):
+    skills = tmp_path / "skills"
+    fresh = f"python3 {skills}/utils/p/lib/p.py"
+    stale = "python3 /old/gone/skills/utils/p/lib/p.py"
+    hook = tmp_path / "hook.json"
+    write_json(hook, {"hooks": {"PreInvocation": [{"type": "command", "command": fresh}]}})
+    settings = tmp_path / "hooks.json"
+    write_json(settings, {"p": {"PreInvocation": [
+        {"type": "command", "command": fresh}, {"type": "command", "command": stale}]}})
+
+    result = run_helper("--rewire", str(hook), str(settings), "--skills-dir", str(skills),
+                        "--agent", "gemini", "--hook-name", "p")
+    assert result.returncode == 0, result.stderr
+
+    assert read_json(settings)["p"]["PreInvocation"] == [{"type": "command", "command": fresh}]
