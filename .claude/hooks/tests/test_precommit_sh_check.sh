@@ -39,6 +39,14 @@ run_case "dry-run text in message still blocks" 2 'git commit -m "fix --dry-run 
 run_case "help text in message still blocks"    2 'git commit -m "document --help output"' $'#!/usr/bin/env bash\nif then fi\n'
 run_case "commit word in echo does not block"   0 'echo "please git commit later"' $'#!/usr/bin/env bash\nif then fi\n'
 
+# Regression: a commit chained after another git command must still be gated.
+# The classifier used to stop at the first `git` token, so `git add x && git
+# commit` was never checked (found live under AGY, 2026-10-02).
+run_case "chained add && commit blocks"         2 'git add script.sh && git commit -m x' $'#!/usr/bin/env bash\nif then fi\n'
+run_case "unspaced ; chained commit blocks"     2 'git status;git commit -m x' $'#!/usr/bin/env bash\nif then fi\n'
+run_case "--help in a later command still blocks" 2 'git commit -m x && git log --help' $'#!/usr/bin/env bash\nif then fi\n'
+run_case "chained non-commit git allows"        0 'git add script.sh && git status' $'#!/usr/bin/env bash\nif then fi\n'
+
 if command -v shellcheck >/dev/null 2>&1; then
   # SC2086-class issues are warnings; use an error-level construct.
   run_case "shellcheck error blocks" 2 'git commit -m x' $'#!/usr/bin/env bash\necho "$(\n'
@@ -79,6 +87,7 @@ elif exp == 'allow':
 
 run_agy_case "AGY syntax error denies" "deny" 'git commit -m x' $'#!/usr/bin/env bash\nif then fi\n'
 run_agy_case "AGY clean staged allows" "allow" 'git commit -m x' $'#!/usr/bin/env bash\necho ok\n'
+run_agy_case "AGY chained add && commit denies" "deny" 'git add script.sh && git commit -m "test: broken"' $'#!/usr/bin/env bash\nif then fi\n'
 
 settings_valid_test() {
   local name="$1"

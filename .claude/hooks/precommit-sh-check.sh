@@ -21,30 +21,44 @@ try:
         or d.get('toolCall', {}).get('args', {}).get('CommandLine')
         or ''
     )
-    toks = shlex.split(cmd)
+    lex = shlex.shlex(cmd, posix=True, punctuation_chars=True)
+    lex.whitespace_split = True
+    toks = list(lex)
 except Exception:
     sys.exit(0)  # unparseable -> skip (fail open)
 
-# Find a 'git' token, then its first non-option token = the subcommand.
-# Consume git global options that take a value (-C <path>, -c <kv>).
-i = 0
-while i < len(toks):
-    if toks[i] == 'git':
+# Split on shell control operators (&&, ||, ;, |, &, parens) so a commit
+# chained after another command -- 'git add x && git commit' -- is still
+# seen; the old scan stopped at the first git token. punctuation_chars keeps
+# operators inside a quoted -m message as part of that one token.
+segs, cur = [], []
+for t in toks:
+    if t and all(c in '();<>|&' for c in t):
+        segs.append(cur); cur = []
+    else:
+        cur.append(t)
+segs.append(cur)
+
+# In each segment, every 'git' token's first non-option token is the
+# subcommand. Consume git global options that take a value (-C, -c).
+for seg in segs:
+    for i, t in enumerate(seg):
+        if t != 'git':
+            continue
         j = i + 1
-        while j < len(toks):
-            t = toks[j]
-            if t in ('-C', '-c'):
+        while j < len(seg):
+            t2 = seg[j]
+            if t2 in ('-C', '-c'):
                 j += 2; continue
-            if t.startswith('-'):
+            if t2.startswith('-'):
                 j += 1; continue
             break
-        if j < len(toks) and toks[j] == 'commit':
-            rest = toks[j+1:]
+        if j < len(seg) and seg[j] == 'commit':
+            rest = seg[j+1:]
             if '--dry-run' in rest or '--help' in rest or '-h' in rest:
-                sys.exit(0)  # not a real committing invocation -> skip
+                continue  # not a real committing invocation
             print('GATE')
-        sys.exit(0)
-    i += 1
+            sys.exit(0)
 " 2>/dev/null)
 
 is_agy=0
