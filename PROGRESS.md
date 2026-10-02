@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-02
-**Active Feature:** feat-020 (L1–L4 harness for hangar and atelier), prepared in scratch clones, awaiting review. `./init.sh` passes all 9 gates.
+**Active Feature:** none. feat-020 (L1–L4 harness for hangar and atelier) is merged and pushed in both repos; `./init.sh` passes all 9 gates.
 **Active Feature:** none. feat-026 closed out; `./init.sh` passes all 9 gates.
 **Active Feature:** none. feat-027 closed out; `./init.sh` passes all 9 gates.
 **Active Feature:** none. feat-028 closed out; `./init.sh` passes all 9 gates.
@@ -162,14 +162,12 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
 
 ### What's In Progress
 
-- feat-020: applied on branch `harness/l1-l4` in the real `~/projects/hangar` (3 commits, from
-  `main`) and `~/projects/atelier` (4 commits, from `origin/main` 2db97af); `./init.sh` and
-  `pre-commit run --all-files` pass in both. Not pushed or merged: `main` is untouched in both.
+- Nothing active.
 
 ### What's Next
 
-- Apply or reject the hangar and atelier branches after review, then run the fresh-session
-  test again on the real repos.
+- Run the fresh-session test again on the real hangar and atelier `main` (kiro-cli and gemini
+  `AGENTS.md` support is still untested: neither is logged in headless).
 - Optional follow-up experiment: repeat exercise 3 at ~10k tokens without the
   "read in full" instruction (design in `position-experiment.md` §13).
 - Lecture 5: Why Long-Running Tasks Lose Continuity.
