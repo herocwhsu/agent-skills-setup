@@ -101,14 +101,16 @@ EOF
   local before after
   before=$(cat "$tmpdir/kc")
   # NO KIRO_PROXY_KEY; closed stdin so the prompt (if reached) hits EOF.
-  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" SHELL="/bin/zsh" \
+  # env -u: under codex-kiro the real key is exported into every hook, and an
+  # inherited KIRO_PROXY_KEY made this test write and print it (2026-10-02).
+  env -u KIRO_PROXY_KEY PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" SHELL="/bin/zsh" \
     KIRO_GATEWAY_STATE_FILE="$tmpdir/state" \
     bash "$SCRIPT" setup-alias >/dev/null 2>&1 </dev/null || true
   after=$(cat "$tmpdir/kc")
   if [[ "$before" == "$after" ]]; then
     echo "PASS: $name"; PASS=$((PASS+1))
   else
-    echo "FAIL: $name (key changed: '$after')"; FAIL=$((FAIL+1))
+    echo "FAIL: $name (stored key changed; value not printed)"; FAIL=$((FAIL+1))
   fi
   rm -rf "$tmpdir"
 }
