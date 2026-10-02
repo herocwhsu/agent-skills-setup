@@ -33,7 +33,8 @@
     "Stop": [
       {
         "type": "command",
-        "command": "cd .. && bash .claude/hooks/stop-verify.sh"
+        "command": "cd .. && bash .claude/hooks/stop-verify.sh",
+        "timeout": 900
       }
     ]
   }

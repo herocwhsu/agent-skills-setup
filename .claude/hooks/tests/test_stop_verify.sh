@@ -87,6 +87,25 @@ assert any('stop-verify.sh' in json.dumps(x) for x in h)
 }
 agents_case
 
+# Test 5b: the AGY Stop hook sets its own timeout. AGY kills hooks at 30s by
+# default and harness-verify takes ~200s, so without one the gate is killed
+# every time and the agent stops anyway (seen live, 2026-10-02).
+agents_timeout_case() {
+  local hooks_file
+  hooks_file="$(cd "$(dirname "$0")/../../.." && pwd)/.agents/hooks.json"
+  if python3 -c "
+import json
+d = json.load(open('$hooks_file'))
+h = [x for x in d.get('harness-verify', {}).get('Stop', []) if 'stop-verify.sh' in x.get('command', '')]
+assert h and all(int(x.get('timeout', 0)) >= 600 for x in h)
+" 2>/dev/null; then
+    echo "PASS: .agents/hooks.json Stop hook sets timeout >= 600s"; PASS=$((PASS+1))
+  else
+    echo "FAIL: .agents/hooks.json Stop hook sets timeout >= 600s"; FAIL=$((FAIL+1))
+  fi
+}
+agents_timeout_case
+
 # Test 6: .codex/hooks.json registers Stop and SubagentStop hooks
 codex_case() {
   local hooks_file
