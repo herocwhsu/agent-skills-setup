@@ -126,10 +126,10 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
   (retired) → `gemini-3.5-flash-lite`. Not live-tested: no Gemini key on this machine.
 
 - [x] feat-020: refreshed the five shared hook templates from hangar and atelier (turn-scope
-  gating, stderr and exit 2), added `scripts/tests/test_shared_hook_templates.sh` (10 cases, each
-  killed by a mutation) and `docs/harness-adoption.md`. Built a custom L1–L4 set for hangar
+  gating, stderr and exit 2), added `scripts/tests/test_shared_hook_templates.sh` (17 cases) and `docs/harness-adoption.md`. Built a custom L1–L4 set for hangar
   and atelier in scratch clones on branch `harness/l1-l4`, then fixed what review of that work
-  found: gitleaks `--source .` in all three `secret-scan` copies, and atelier's `py-guard` and
+  found (an independent subagent review plus mutation runs showed hangar's and the template's
+  tests had blind spots, now closed): gitleaks `--source .` in all three `secret-scan` copies, and atelier's `py-guard` and
   `ts-guard` gating on the merge-base (they skipped committed and new files).
 
 ### What's In Progress
