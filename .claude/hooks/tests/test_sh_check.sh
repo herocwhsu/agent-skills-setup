@@ -145,6 +145,36 @@ assert any('sh-check.sh' in json.dumps(x) for x in h)
 }
 codex_case
 
+
+# Codex edits arrive as tool_name apply_patch; the edited paths exist only in
+# the patch text (live capture, 2026-10-02). Paths may be absolute or relative
+# to the payload's cwd, and one patch can touch several files.
+codex_patch() {  # <cwd> <patch body lines...>
+  local cwd="$1"; shift
+  python3 -c 'import json,sys; print(json.dumps({"tool_name":"apply_patch","cwd":sys.argv[1],"tool_input":{"command":"*** Begin Patch\n"+"\n".join(sys.argv[2:])+"\n*** End Patch"}}))' "$cwd" "$@"
+}
+codex_case() {  # <name> <expected_exit> <tmpdir> <patch lines...>
+  local name="$1" expected="$2" tmp="$3"; shift 3
+  local code=0
+  codex_patch "$tmp" "$@" | bash "$HOOK" >/dev/null 2>&1 || code=$?
+  if [[ "$code" -eq "$expected" ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (expected exit $expected, got $code)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmp"
+}
+
+t=$(mktemp -d); printf '#!/usr/bin/env bash\nif then fi\n' > "$t/a.sh"
+codex_case "codex apply_patch Add File with syntax error blocks" 2 "$t" "*** Add File: $t/a.sh" "+x"
+t=$(mktemp -d); printf '#!/usr/bin/env bash\necho ok\n' > "$t/a.sh"
+codex_case "codex apply_patch Update File clean allows" 0 "$t" "*** Update File: $t/a.sh" "@@" "+x"
+t=$(mktemp -d); printf '#!/usr/bin/env bash\nif then fi\n' > "$t/rel.sh"
+codex_case "codex apply_patch relative path resolves against cwd" 2 "$t" "*** Add File: rel.sh" "+x"
+t=$(mktemp -d); printf '#!/usr/bin/env bash\necho ok\n' > "$t/ok.sh"; printf '#!/usr/bin/env bash\nif then fi\n' > "$t/bad.sh"
+codex_case "codex apply_patch checks every file in the patch" 2 "$t" "*** Add File: $t/ok.sh" "+x" "*** Update File: $t/bad.sh" "@@" "+x"
+t=$(mktemp -d); printf '#!/usr/bin/env bash\nif then fi\n' > "$t/new.sh"
+codex_case "codex apply_patch Move to checks the new path" 2 "$t" "*** Update File: $t/old.sh" "*** Move to: $t/new.sh" "@@" "+x"
+t=$(mktemp -d)
+codex_case "codex apply_patch Delete File allows" 0 "$t" "*** Delete File: $t/gone.sh"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
