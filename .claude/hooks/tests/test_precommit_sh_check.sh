@@ -128,6 +128,35 @@ codex_valid_test() {
 }
 codex_valid_test ".codex/hooks.json registers the PreToolUse hook"
 
+
+# Real agent shape: the file is NOT staged when the hook runs, because the
+# hook fires before the command, and the command itself stages it (live
+# capture under AGY and Codex, 2026-10-02). Earlier cases staged in advance.
+run_unstaged_case() {  # <name> <expected_exit> <command> <untracked|modified>
+  local name="$1" expected="$2" cmd="$3" mode="$4"
+  local tmp; tmp=$(mktemp -d); local code=0
+  ( cd "$tmp"
+    git init -q; git config user.email t@t; git config user.name t
+    if [[ "$mode" == modified ]]; then
+      printf '#!/usr/bin/env bash\necho ok\n' > script.sh
+      git add script.sh; git commit -q -m init
+    fi
+    printf '#!/usr/bin/env bash\nif then fi\n' > script.sh
+    printf '{"tool_input":{"command":%s}}' "$(printf '%s' "$cmd" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" \
+      | bash "$HOOK" >/dev/null 2>&1
+  ) || code=$?
+  if [[ "$code" -eq "$expected" ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name (expected exit $expected, got $code)"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmp"
+}
+run_unstaged_case "add file && commit checks the file being added" 2 'git add script.sh && git commit -m x' untracked
+run_unstaged_case "add . && commit checks untracked scripts"       2 'git add . && git commit -m x' untracked
+run_unstaged_case "add -A && commit checks untracked scripts"      2 'git add -A && git commit -m x' untracked
+run_unstaged_case "commit -am checks modified tracked scripts"     2 'git commit -am x' modified
+run_unstaged_case "commit -a -m checks modified tracked scripts"   2 'git commit -a -m x' modified
+run_unstaged_case "adding an unrelated file does not gate others"  0 'git add notes.txt && git commit -m x' untracked
+run_unstaged_case "plain commit ignores unstaged changes"          0 'git commit -m x' modified
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
