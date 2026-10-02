@@ -175,6 +175,25 @@ codex_case "codex apply_patch Move to checks the new path" 2 "$t" "*** Update Fi
 t=$(mktemp -d)
 codex_case "codex apply_patch Delete File allows" 0 "$t" "*** Delete File: $t/gone.sh"
 
+
+# Codex names its edit tool apply_patch (live capture, 2026-10-02), so the
+# PostToolUse matcher must include it or the edit checks never run.
+codex_matcher_case() {
+  local hooks_file
+  hooks_file="$(cd "$(dirname "$0")/../../.." && pwd)/.codex/hooks.json"
+  if python3 -c "
+import json, re
+d = json.load(open('$hooks_file'))['hooks']
+g = [x for x in d['PostToolUse'] if 'sh-check.sh' in json.dumps(x)]
+assert g and all(re.fullmatch(x['matcher'], 'apply_patch') for x in g)
+" 2>/dev/null; then
+    echo "PASS: .codex/hooks.json edit matcher covers apply_patch"; PASS=$((PASS+1))
+  else
+    echo "FAIL: .codex/hooks.json edit matcher covers apply_patch"; FAIL=$((FAIL+1))
+  fi
+}
+codex_matcher_case
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

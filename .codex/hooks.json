@@ -13,7 +13,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "file_edit|Edit|Write|MultiEdit",
+        "matcher": "apply_patch|file_edit|Edit|Write|MultiEdit",
         "hooks": [
           {
             "type": "command",
