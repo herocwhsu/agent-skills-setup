@@ -221,6 +221,14 @@
       "dependencies": ["feat-027"],
       "status": "done",
       "evidence": "pytest skills/utils/polish-input/tests -> 59 passed (9 new cases from real 2026-10-01 outputs failed first). Live hook through the gateway: 'yes' silent, today's failing prompts now rewritten with meaning kept. ./init.sh -> all gates passed."
+    },
+    {
+      "id": "feat-029",
+      "name": "macOS tmux leaves SSH_CONNECTION out of update-environment",
+      "description": "agy (build of 2026-10-01) uses file token storage when SSH_CONNECTION is set and then reports 'not logged in' though the login is in the keychain. tmux copies SSH_CONNECTION into the session on any SSH attach, so every new pane inherited it. setup-host.sh's tmux step moved to scripts/setup-tmux-conf.sh, which on Darwin also appends update-environment without SSH_CONNECTION; Linux keeps tmux's default, where agy's SSH rule is right.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "scripts/tests/test_setup_tmux_conf.sh -> 10 OK under bash 5 and /bin/bash 3.2 (failed first: script missing); moving the line out of the Darwin branch fails 'linux: update-environment not set'. macmini: session env had SSH_CONNECTION=192.168.123.188 ... 22; with it cleared, agy -p authenticated via keyring and answered."
     }
   ]
 }

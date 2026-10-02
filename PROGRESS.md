@@ -2,11 +2,12 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-01
+**Last Updated:** 2026-10-02
 **Active Feature:** feat-020 (L1–L4 harness for hangar and atelier), prepared in scratch clones, awaiting review. `./init.sh` passes all 9 gates.
 **Active Feature:** none. feat-026 closed out; `./init.sh` passes all 9 gates.
 **Active Feature:** none. feat-027 closed out; `./init.sh` passes all 9 gates.
 **Active Feature:** none. feat-028 closed out; `./init.sh` passes all 9 gates.
+**Active Feature:** none. feat-029 closed out; `./init.sh` passes all 9 gates.
 **Lecture 4 is closed.** Exercises 1 (SNR audit) and 3 (position test) were run. Two parts were not:
 exercise 1's relocation step was skipped on purpose, since the noise is in the global rules file
 (summary §3.4), and exercise 2's before/after success-rate comparison has no baseline, because
@@ -157,6 +158,7 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
 - [x] feat-026: prompt polish rule ships to AGY only, and the AGY statusline renders again. The rule lives in `agents/antigravity-rules.md`; `install-agents-md.sh` appends it to the Gemini block only, so Claude, Codex and Kiro get the shared rules without it (they polish via the hook). The statusline was blank because AGY writes the JSON payload but never closes stdin, so `input=$(cat)` (and jq) blocked until AGY killed it (`signal: killed`). `statusline-command.sh` now stops reading when the top-level JSON object closes. `install_statusline` keeps the object-form `statusLine` for AGY (a live session runs it; the earlier boolean-schema theory was wrong) and now refreshes the installed script copy when settings already point at it, so fixes reach existing installs.
 - [x] feat-027: `codex-kiro` now works like `claude-kiro`: plain `codex` on the normal `~/.codex` home with the gateway passed as `-c` overrides. The old alias set `CODEX_HOME=~/.codex-kiro`, which hid every rule, hook and skill installed into `~/.codex`. `setup-codex` writes only the alias, `remove-codex` never deletes a Codex home (it used to `rm -rf` the codex-kiro home, which would have wiped `~/.codex` once they were shared), and `status` reads the alias. `~/.codex-kiro` was removed. The alias defaults to `gpt-5.6-sol` at medium reasoning, the model the old profile pinned.
 - [x] feat-028: polish-input stopped replying instead of rewriting. Under `claude-kiro` the hook inherits `ANTHROPIC_BASE_URL` and polishes through the kiro gateway, whose own system prompt made the model answer short prompts as chat ("I can't discuss that.", "I'm Kiro…"). The engine now sends the prompt inside `<text>` tags with a copy-editor system prompt and strips the tags from the reply. A guard in `polish.py` drops outputs that are multi-line, too long, or share under half the words, and logs them as `rejected:` even without `POLISH_DEBUG`.
+- [x] feat-029: agy said "not logged in" in macmini tmux panes but not in Terminal.app. Its 2026-10-01 build uses file token storage when `SSH_CONNECTION` is set, and tmux copies that variable into the session on any SSH attach, so new panes inherited it. `setup-host.sh`'s tmux step moved to `scripts/setup-tmux-conf.sh`, which on macOS also sets `update-environment` without `SSH_CONNECTION`; Linux keeps tmux's default, where agy's SSH rule is correct.
 
 ### What's In Progress
 
@@ -361,6 +363,7 @@ and `docs/harness-creator/lecture-02/`.
 - [x] feat-026: `bash scripts/tests/test_statusline_command.sh` → 8 passed (fails on the old script: 3.1s with stdin open); `bash scripts/tests/test_install_agents_md.sh` → 17 passed; live AGY session in tmux renders `herohsu@VOMAC4294:/tmp` with zero `signal: killed` in the new log; after `install-agents-md.sh`, `[polish]` appears only in `~/.gemini/GEMINI.md`.
 - [x] feat-027: commit `6c431bf`; `bash skills/infra/kiro-gateway/tests/test_kiro_gateway.sh` → 40 passed (4 new codex tests failed on the old code first); live `zsh -i -c 'codex-kiro exec ...'` → provider kiro, answered, and confirmed the `~/.codex` rules load (Fail Loud rule present); `./init.sh` → all gates passed.
 - [x] feat-028: `pytest skills/utils/polish-input/tests` → 59 passed (9 new cases failed first, built from today's real bad outputs); live hook through the gateway: "yes" → silent, "use codex-kiro only not codex directly" → "Use codex-kiro only, not codex directly.", the meaning-flip prompt keeps its meaning; `./init.sh` → all gates passed.
+- [x] feat-029: `scripts/tests/test_setup_tmux_conf.sh` → 10 OK under bash 5 and `/bin/bash` 3.2 (failed first, script missing); moving the line out of the Darwin branch fails `linux: update-environment not set`; on macmini, with `SSH_CONNECTION` cleared from the session, `agy -p` authenticated via keyring; `./init.sh` → all gates passed.
 
 ## Notes for Next Session
 

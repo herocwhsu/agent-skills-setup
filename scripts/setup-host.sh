@@ -185,23 +185,7 @@ fi
 # ── 5. tmux ───────────────────────────────────────────────────────────────────
 step "Configuring tmux"
 TMUX_CONF="$HOME/.tmux.conf"
-
-add_tmux_line() {
-  local line="$1"
-  if ! grep -qF "$line" "$TMUX_CONF" 2>/dev/null; then
-    echo "$line" >> "$TMUX_CONF"
-  fi
-}
-
-add_tmux_line "set -g mouse on"
-# Use xclip on Linux, pbcopy on macOS
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  add_tmux_line "bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel \"pbcopy\""
-  add_tmux_line "bind -T copy-mode y send-keys -X copy-pipe-and-cancel \"pbcopy\""
-else
-  add_tmux_line "bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel \"xclip -selection clipboard\""
-  add_tmux_line "bind -T copy-mode y send-keys -X copy-pipe-and-cancel \"xclip -selection clipboard\""
-fi
+bash "$REPO_DIR/scripts/setup-tmux-conf.sh"
 green "  ✓ $TMUX_CONF (mouse on, vi-copy yank)"
 
 # ── done ──────────────────────────────────────────────────────────────────────
