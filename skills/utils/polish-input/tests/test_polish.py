@@ -327,8 +327,10 @@ def test_detect_agent_supports_codex_claude_gemini(monkeypatch):
     assert detect_agent() == "unknown"
 
 
-def test_agy_pre_invocation_skips_when_invocation_num_greater_than_1():
-    payload = json.dumps({"invocationNum": 2, "transcriptPath": "/nonexistent"})
+def test_agy_pre_invocation_skips_later_invocations():
+    # AGY counts invocations from 0 (live capture 2026-10-02: 0, 1, 2 for one
+    # prompt); 1 is the second model call of the turn, after a tool ran.
+    payload = json.dumps({"invocationNum": 1, "transcriptPath": "/nonexistent"})
     out, err, code = run_polish(payload)
     assert code == 0
     assert out == "{}"
@@ -345,7 +347,7 @@ def test_agy_pre_invocation_parses_transcript_and_polishes(tmp_path):
     }
     transcript.write_text(json.dumps(entry) + "\n")
     fake = _fake_response({"i want add login": "I want to add a login."})
-    payload = json.dumps({"invocationNum": 1, "transcriptPath": str(transcript)})
+    payload = json.dumps({"invocationNum": 0, "transcriptPath": str(transcript)})
     out, err, code = run_polish(payload, env_overrides=fake)
     assert code == 0
     resp = json.loads(out)
@@ -366,7 +368,7 @@ def test_agy_pre_invocation_replace_mode_injects_step(tmp_path):
     transcript.write_text(json.dumps(entry) + "\n")
     fake = _fake_response({"i want add login": "I want to add a login."})
     overrides = {**fake, "POLISH_REPLACE": "1"}
-    payload = json.dumps({"invocationNum": 1, "transcriptPath": str(transcript)})
+    payload = json.dumps({"invocationNum": 0, "transcriptPath": str(transcript)})
     out, _, code = run_polish(payload, env_overrides=overrides)
     assert code == 0
     resp = json.loads(out)
@@ -375,7 +377,7 @@ def test_agy_pre_invocation_replace_mode_injects_step(tmp_path):
 
 
 def test_agy_pre_invocation_missing_transcript_falls_through():
-    payload = json.dumps({"invocationNum": 1, "transcriptPath": "/tmp/definitely_missing_transcript.jsonl"})
+    payload = json.dumps({"invocationNum": 0, "transcriptPath": "/tmp/definitely_missing_transcript.jsonl"})
     out, err, code = run_polish(payload)
     assert code == 0
     assert out == "{}"
@@ -398,7 +400,7 @@ def test_agy_pre_invocation_large_transcript_tail_read(tmp_path):
         f.write(latest_entry)
 
     fake = _fake_response({"i want add login": "I want to add a login."})
-    payload = json.dumps({"invocationNum": 1, "transcriptPath": str(transcript)})
+    payload = json.dumps({"invocationNum": 0, "transcriptPath": str(transcript)})
     out, err, code = run_polish(payload, env_overrides=fake)
     assert code == 0
     resp = json.loads(out)
@@ -412,7 +414,7 @@ def test_agy_pre_invocation_null_content_in_transcript(tmp_path):
     null_entry = json.dumps({"step_index": 1, "source": "USER_EXPLICIT", "type": "USER_INPUT", "content": None}) + "\n"
     transcript.write_text(null_entry)
 
-    payload = json.dumps({"invocationNum": 1, "transcriptPath": str(transcript)})
+    payload = json.dumps({"invocationNum": 0, "transcriptPath": str(transcript)})
     out, err, code = run_polish(payload)
     assert code == 0
     assert out == "{}"

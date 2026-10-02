@@ -382,10 +382,11 @@ def _extract_prompt_from_transcript(transcript_path: str) -> str | None:
 
 
 def _run_agy_pre_invocation(payload: dict, providers: list) -> int:
-    invocation_num = payload.get("invocationNum", 1)
-    if invocation_num != 1:
-        # AGY invokes PreInvocation before every step in a turn.
-        # Only polish on the initial model invocation of the turn.
+    invocation_num = payload.get("invocationNum", 0)
+    if invocation_num != 0:
+        # AGY invokes PreInvocation before every model call in a turn and
+        # counts from 0 (live capture: 0, 1, 2 for one prompt). Only the
+        # first call sees the user's prompt before any tool has run.
         sys.stdout.write(json.dumps({}))
         return 0
 
