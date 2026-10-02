@@ -134,8 +134,9 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
 
 ### What's In Progress
 
-- feat-020 review: `~/projects/harness-patches/{hangar,atelier}-l1-l4.patch` (2 and 3 commits, applied with
-  `git am` to a fresh clone of the real repos without conflict). Not applied to the real repos.
+- feat-020: applied on branch `harness/l1-l4` in the real `~/projects/hangar` (3 commits, from
+  `main`) and `~/projects/atelier` (4 commits, from `origin/main` 2db97af); `./init.sh` and
+  `pre-commit run --all-files` pass in both. Not pushed or merged: `main` is untouched in both.
 
 ### What's Next
 
