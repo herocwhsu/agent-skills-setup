@@ -52,6 +52,14 @@ out=$( { printf '%s' '{"cwd":"/tmp/a}b","context_window":{"total_input_tokens":1
   && ok "brace inside a string does not truncate the payload" \
   || bad "brace inside a string does not truncate the payload" "$out"
 
+# terminal_width in payload overrides COLUMNS and sets right padding properly
+PAYLOAD_WIDE='{"cwd":"/tmp/work","context_window":{"total_input_tokens":1000,"context_window_size":200000},"terminal_width":200}'
+out=$(printf '%s' "$PAYLOAD_WIDE" | COLUMNS=80 bash "$SCRIPT")
+visible_len=$(printf '%s' "$out" | perl -pe 's/\e\[[0-9;]*m//g' | wc -c | tr -d ' ')
+[[ "$visible_len" -ge 199 && "$visible_len" -le 200 ]] \
+  && ok "payload terminal_width overrides COLUMNS (${visible_len} cols)" \
+  || bad "payload terminal_width overrides COLUMNS" "got ${visible_len} cols"
+
 # install_statusline, each case in its own HOME so real ~/.gemini and ~/.claude
 # are never touched.
 TMP=$(mktemp -d)
@@ -67,22 +75,24 @@ res=$( HOME="$h"; export HOME
 [[ "$res" == "command bash $h/.gemini/antigravity-cli/statusline-command.sh" ]] \
   && ok "gemini fresh install writes command-object statusLine" \
   || bad "gemini fresh install writes command-object statusLine" "$res"
+[[ "$(jq -r '.stack_with_default' "$h/.gemini/antigravity-cli/settings.json")" == "true" ]] \
+  && ok "gemini fresh install enables stack_with_default" \
+  || bad "gemini fresh install enables stack_with_default" "missing stack_with_default"
 
-# settings already point at our script: the stale copy gets refreshed
+# settings already point at our script: the stale copy gets refreshed and stack_with_default ensured
 h="$TMP/stale"; d="$h/.gemini/antigravity-cli"; mkdir -p "$d"
 echo "stale" > "$d/statusline-command.sh"
 printf '{"statusLine":{"type":"command","command":"bash %s","enabled":true},"colorScheme":"dark"}\n' \
   "$d/statusline-command.sh" > "$d/settings.json"
-before=$(cat "$d/settings.json")
 ( HOME="$h"; export HOME
   source "$REPO_DIR/scripts/_lib.sh"
   install_statusline gemini "$REPO_DIR" >/dev/null )
 cmp -s "$d/statusline-command.sh" "$REPO_DIR/config/statusline-command.sh" \
   && ok "stale installed script is refreshed" \
   || bad "stale installed script is refreshed" "copy differs from config/statusline-command.sh"
-[[ "$(cat "$d/settings.json")" == "$before" ]] \
-  && ok "refresh leaves settings.json unchanged" \
-  || bad "refresh leaves settings.json unchanged" "$(cat "$d/settings.json")"
+[[ "$(jq -r '.stack_with_default' "$d/settings.json")" == "true" ]] \
+  && ok "refresh ensures stack_with_default is true" \
+  || bad "refresh ensures stack_with_default is true" "missing stack_with_default"
 
 # a foreign statusLine (e.g. claude-hud) is left alone and no script is copied
 h="$TMP/foreign"; mkdir -p "$h/.claude"

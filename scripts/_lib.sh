@@ -939,6 +939,11 @@ install_statusline() {
     if grep -qF "$status_script" "$settings" 2>/dev/null; then
       cp "$repo_dir/config/statusline-command.sh" "$status_script"
       chmod +x "$status_script"
+      if [[ "$agent" == "gemini" ]] && command -v jq &>/dev/null; then
+        local merged
+        merged=$(jq '.stack_with_default = true' "$settings" 2>/dev/null)
+        [[ -n "$merged" ]] && echo "$merged" > "$settings"
+      fi
       echo "  ✓ refreshed statusline script for $agent"
     fi
     return 0
@@ -950,10 +955,18 @@ install_statusline() {
 
   mkdir -p "$(dirname "$settings")"
   if [[ ! -f "$settings" ]]; then
-    printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s",\n    "enabled": true\n  }\n}\n' "$status_cmd" > "$settings"
+    if [[ "$agent" == "gemini" ]]; then
+      printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s",\n    "enabled": true\n  },\n  "stack_with_default": true\n}\n' "$status_cmd" > "$settings"
+    else
+      printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s",\n    "enabled": true\n  }\n}\n' "$status_cmd" > "$settings"
+    fi
   elif command -v jq &>/dev/null; then
     local merged
-    merged=$(jq --arg cmd "$status_cmd" '.statusLine = {type: "command", command: $cmd, enabled: true}' "$settings" 2>/dev/null)
+    if [[ "$agent" == "gemini" ]]; then
+      merged=$(jq --arg cmd "$status_cmd" '.statusLine = {type: "command", command: $cmd, enabled: true} | .stack_with_default = true' "$settings" 2>/dev/null)
+    else
+      merged=$(jq --arg cmd "$status_cmd" '.statusLine = {type: "command", command: $cmd, enabled: true}' "$settings" 2>/dev/null)
+    fi
     if [[ -n "$merged" ]]; then
       echo "$merged" > "$settings"
     fi
@@ -962,15 +975,18 @@ install_statusline() {
 import json, sys
 p = sys.argv[1]
 cmd = sys.argv[2]
+agent = sys.argv[3]
 try:
     with open(p, 'r') as f:
         d = json.load(f)
 except Exception:
     d = {}
 d['statusLine'] = {'type': 'command', 'command': cmd, 'enabled': True}
+if agent == 'gemini':
+    d['stack_with_default'] = True
 with open(p, 'w') as f:
     json.dump(d, f, indent=2)
-" "$settings" "$status_cmd" 2>/dev/null || true
+" "$settings" "$status_cmd" "$agent" 2>/dev/null || true
   fi
   echo "  ✓ configured statusline for $agent"
 }

@@ -159,30 +159,15 @@ if command -v agy &>/dev/null || [ -d "$GEMINI_CLI_DIR" ]; then
   step "Patching ~/.gemini/antigravity-cli/settings.json"
   mkdir -p "$GEMINI_CLI_DIR"
   AGY_SETTINGS="$GEMINI_CLI_DIR/settings.json"
-  if [ -n "$HUD_STATUSLINE_CMD" ]; then
-    AGY_STATUS_CMD="$HUD_STATUSLINE_CMD"
-  else
-    AGY_STATUS_CMD="bash $GEMINI_CLI_DIR/statusline-command.sh"
-  fi
+  AGY_STATUS_CMD="bash $GEMINI_CLI_DIR/statusline-command.sh"
+
   if [ -f "$AGY_SETTINGS" ]; then
-    MERGED=$(jq --arg cmd "$AGY_STATUS_CMD" '.statusLine = {type: "command", command: $cmd, enabled: true}' "$AGY_SETTINGS")
+    MERGED=$(jq --arg cmd "$AGY_STATUS_CMD" '.statusLine = {type: "command", command: $cmd, enabled: true} | .stack_with_default = true' "$AGY_SETTINGS")
     echo "$MERGED" > "$AGY_SETTINGS"
     green "  ✓ statusLine merged into $AGY_SETTINGS"
   else
-    jq -n --arg cmd "$AGY_STATUS_CMD" '{statusLine: {type: "command", command: $cmd, enabled: true}}' > "$AGY_SETTINGS"
+    jq -n --arg cmd "$AGY_STATUS_CMD" '{statusLine: {type: "command", command: $cmd, enabled: true}, stack_with_default: true}' > "$AGY_SETTINGS"
     green "  ✓ created $AGY_SETTINGS with statusLine"
-  fi
-
-  if [ -n "$HUD_STATUSLINE_CMD" ]; then
-    AGY_HUD_CFG="$GEMINI_CLI_DIR/claude-hud.json"
-    if [ -f "$AGY_HUD_CFG" ]; then
-      MERGED=$(jq '.display = ((.display // {}) * {"contextValue": "both", "showSessionTokens": true})' "$AGY_HUD_CFG")
-      echo "$MERGED" > "$AGY_HUD_CFG"
-      green "  ✓ claude-hud token usage enabled in $AGY_HUD_CFG"
-    else
-      jq -n '{display: {contextValue: "both", showSessionTokens: true}}' > "$AGY_HUD_CFG"
-      green "  ✓ created $AGY_HUD_CFG (token usage enabled)"
-    fi
   fi
 fi
 

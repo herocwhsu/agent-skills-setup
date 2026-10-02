@@ -27,7 +27,7 @@ else
 fi
 
 # Parse all fields in one single jq pass to ensure < 25ms execution time
-IFS=$'\t' read -r cwd used total < <(
+IFS=$'\t' read -r cwd used total term_width < <(
   printf '%s' "$input" | jq -r '
     [
       (.cwd // ""),
@@ -42,7 +42,8 @@ IFS=$'\t' read -r cwd used total < <(
           ""
         end
       ),
-      (.context_window.context_window_size // "")
+      (.context_window.context_window_size // ""),
+      (.terminal_width // "")
     ] | @tsv
   ' 2>/dev/null || true
 )
@@ -55,7 +56,10 @@ if [ -n "$used" ] && [ -n "$total" ]; then
   total_k=$(( (total + 500) / 1000 ))
   ctx_block="[ctx: ${used_k}k/${total_k}k]"
 
-  cols="${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}"
+  cols="${term_width:-${COLUMNS:-}}"
+  if [[ -z "$cols" || ! "$cols" =~ ^[0-9]+$ ]]; then
+    cols=$(tmux display-message -p '#{pane_width}' 2>/dev/null || tput cols 2>/dev/null || echo 80)
+  fi
   left_len=${#left_visible}
   ctx_len=${#ctx_block}
   pad=$(( cols - left_len - 1 - ctx_len ))
