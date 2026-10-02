@@ -44,7 +44,12 @@ Checked 2026-10-01 with a canary word in a throwaway repo:
 - **Claude Code:** reads `AGENTS.md` alone, and through `CLAUDE.md` containing
   `@AGENTS.md`. Verified.
 - **Codex CLI:** documented to read it; not installed here, so not run.
-- **agy, kiro-cli, gemini:** could not be tested headless (not logged in). Unverified.
+- **agy:** reads `AGENTS.md` alone and through `CLAUDE.md` containing `@AGENTS.md`.
+  Verified headless on 2026-10-02. Over SSH or tmux started from an SSH attach, run it
+  as `env -u SSH_CONNECTION agy ...`: with `SSH_CONNECTION` set, agy ignores its keychain
+  login and reports "not logged into Antigravity".
+- **kiro-cli, gemini:** could not be tested headless (not logged in; gemini's CLI is no
+  longer supported for individual accounts). Unverified.
 
 ## Review
 

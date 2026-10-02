@@ -77,6 +77,15 @@ if [[ "$(edit_hook common/sh-check.sh "$DIRTY" "$DIRTY/good.sh")" == 0 ]]; then
 else
   bad "sh-check allows a clean script" "did not exit 0"
 fi
+# Exercise the shellcheck step itself, not just bash -n: a failing stub on PATH must block a
+# syntactically valid script, and a passing one must not.
+SC="$TMPDIR/shellcheck-stub"; mkdir -p "$SC"
+printf '#!/usr/bin/env bash\necho "SC2086: unquoted" >&2\nexit 1\n' > "$SC/shellcheck"; chmod +x "$SC/shellcheck"
+r=$( ( cd "$DIRTY" && printf '{"tool_input":{"file_path":"%s"}}' "$DIRTY/good.sh" | PATH="$SC:$PATH" bash "$HOOKS_SRC/common/sh-check.sh" ) >/dev/null 2>&1; echo $? )
+if [[ "$r" == 2 ]]; then ok "sh-check blocks on a shellcheck finding"; else bad "sh-check blocks on a shellcheck finding" "got exit $r"; fi
+printf '#!/usr/bin/env bash\nexit 0\n' > "$SC/shellcheck"
+r=$( ( cd "$DIRTY" && printf '{"tool_input":{"file_path":"%s"}}' "$DIRTY/good.sh" | PATH="$SC:$PATH" bash "$HOOKS_SRC/common/sh-check.sh" ) >/dev/null 2>&1; echo $? )
+if [[ "$r" == 0 ]]; then ok "sh-check allows a clean shellcheck run"; else bad "sh-check allows a clean shellcheck run" "got exit $r"; fi
 
 printf 'host: 10.1.2.3\n' > "$DIRTY/ip.yaml"
 printf 'host: <DB_HOST>\n' > "$DIRTY/ok.yaml"
@@ -124,6 +133,12 @@ if [[ "$(edit_hook k8s/placeholder-guard.sh "$DIRTY" "$DIRTY/ip.yaml")" == 0 ]];
   ok "placeholder-guard ignores a value that was already committed"
 else
   bad "placeholder-guard ignores a value that was already committed" "did not exit 0"
+fi
+printf 'note: hello\n' >> "$DIRTY/ip.yaml"
+if [[ "$(edit_hook k8s/placeholder-guard.sh "$DIRTY" "$DIRTY/ip.yaml")" == 0 ]]; then
+  ok "placeholder-guard ignores a benign edit to a file that already holds an IP"
+else
+  bad "placeholder-guard ignores a benign edit to a file that already holds an IP" "did not exit 0"
 fi
 printf 'other: 10.9.9.9\n' >> "$DIRTY/ok.yaml"
 if [[ "$(edit_hook k8s/placeholder-guard.sh "$DIRTY" "$DIRTY/ok.yaml")" == 2 ]]; then

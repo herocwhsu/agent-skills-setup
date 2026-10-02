@@ -93,6 +93,8 @@ that block, not the logic. Behaviour you get:
 - **Findings go to stderr and a failure exits 2.** Only stderr reaches the model.
 - **`sh-check` runs shellcheck at the same severity as CI** (`-x`, default level).
 
+`sh-check.sh` here is a superset: it also accepts the payload shape AGY sends
+(`toolCall.args`), which hangar and atelier, running Claude only, do not need.
 If you improve one, mirror it in all three places in the same change. hangar's
 `shared-hook-drift.sh` compares only hangar and atelier, so a template that falls
 behind is caught only by `scripts/tests/test_shared_hook_templates.sh`, which pins
