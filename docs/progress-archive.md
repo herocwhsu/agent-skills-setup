@@ -117,12 +117,12 @@ feat-011 to feat-022; its early numbers (8 gates, 53 tests) are from when they w
       `bash .claude/hooks/tests/test_stop_verify.sh` → 6 passed;
       `bash scripts/run-tests.sh --fast` → 57 passed, 0 failed; `./init.sh` →
       all 9 gates passed clean. Live AGY execution confirmed PreToolUse, PostToolUse, and Stop hook triggering.
-- [x] feat-025: commits `e4c1f5a` and `93f517c` on `main`;
+- [x] feat-025: commit `112acf5` on `main`;
       `pytest skills/utils/polish-input/tests/test_polish.py` → 32 passed (including tail seek and payload variations);
       `bash scripts/run-tests.sh --fast` → 57 passed, 0 failed; `./init.sh` → all 9 gates passed clean;
       statusline execution reduced from ~250ms to ~21ms with zero recurring errors.
 
 - [x] feat-026: `bash scripts/tests/test_statusline_command.sh` → 8 passed (fails on the old script: 3.1s with stdin open); `bash scripts/tests/test_install_agents_md.sh` → 17 passed; live AGY session in tmux renders `herohsu@VOMAC4294:/tmp` with zero `signal: killed` in the new log; after `install-agents-md.sh`, `[polish]` appears only in `~/.gemini/GEMINI.md`.
-- [x] feat-027: commit `6c431bf`; `bash skills/infra/kiro-gateway/tests/test_kiro_gateway.sh` → 40 passed (4 new codex tests failed on the old code first); live `zsh -i -c 'codex-kiro exec ...'` → provider kiro, answered, and confirmed the `~/.codex` rules load (Fail Loud rule present); `./init.sh` → all gates passed.
+- [x] feat-027: commit `0943b0f`; `bash skills/infra/kiro-gateway/tests/test_kiro_gateway.sh` → 40 passed (4 new codex tests failed on the old code first); live `zsh -i -c 'codex-kiro exec ...'` → provider kiro, answered, and confirmed the `~/.codex` rules load (Fail Loud rule present); `./init.sh` → all gates passed.
 - [x] feat-028: `pytest skills/utils/polish-input/tests` → 59 passed (9 new cases failed first, built from today's real bad outputs); live hook through the gateway: "yes" → silent, "use codex-kiro only not codex directly" → "Use codex-kiro only, not codex directly.", the meaning-flip prompt keeps its meaning; `./init.sh` → all gates passed.
 - [x] feat-029: `scripts/tests/test_setup_tmux_conf.sh` → 10 OK under bash 5 and `/bin/bash` 3.2 (failed first, script missing); moving the line out of the Darwin branch fails `linux: update-environment not set`; on macmini, with `SSH_CONNECTION` cleared from the session, `agy -p` authenticated via keyring; `./init.sh` → all gates passed.
