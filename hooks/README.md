@@ -54,7 +54,7 @@ common/
   semgrep-guard.sh    Stop — SAST (turn-scoped; edit the repo config block)
   pr-guard.sh         Stop — verify open PR CI checks to completion (blocks on failure)
   grype-guard.sh      Stop — CVE scan on filesystem / images (HIGH+ with fixes)
-  sh-check.sh         PostToolUse *.sh — bash -n + shellcheck (error severity)
+  sh-check.sh         PostToolUse *.sh — bash -n + shellcheck -x (CI severity)
 
 python/
   py-check.sh         PostToolUse *.py — ast.parse syntax gate (blocks)
@@ -93,8 +93,10 @@ that block, not the logic. Behaviour you get:
 - **Findings go to stderr and a failure exits 2.** Only stderr reaches the model.
 - **`sh-check` runs shellcheck at the same severity as CI** (`-x`, default level).
 
-If you improve one, mirror it in all three places in the same change.
-`scripts/tests/test_shared_hook_templates.sh` pins the gate and exit-code behaviour.
+If you improve one, mirror it in all three places in the same change. hangar's
+`shared-hook-drift.sh` compares only hangar and atelier, so a template that falls
+behind is caught only by `scripts/tests/test_shared_hook_templates.sh`, which pins
+behaviour (gate, exit code, gitleaks arguments), not bytes.
 
 ## Scaffold a new repo
 

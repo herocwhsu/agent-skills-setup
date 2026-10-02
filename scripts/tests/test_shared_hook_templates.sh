@@ -91,13 +91,56 @@ else
   bad "placeholder-guard allows a placeholder" "did not exit 0"
 fi
 
+# Committed but never pushed must open the gate too. The gate is measured against
+# the merge-base with upstream, not HEAD; keyed on HEAD, a commit-then-stop session
+# skips every scan.
+UP="$TMPDIR/upstream.git"; CL="$TMPDIR/clone"
+git init -q --bare "$UP"
+git clone -q "$UP" "$CL" 2>/dev/null
+git -C "$CL" -c user.email=t@example.com -c user.name=test commit -q --allow-empty -m init
+git -C "$CL" push -q -u origin "$(git -C "$CL" rev-parse --abbrev-ref HEAD)" 2>/dev/null
+printf 'a: 1\n' > "$CL/t.yaml"
+git -C "$CL" add -A
+git -C "$CL" -c user.email=t@example.com -c user.name=test commit -q -m work
+for h in common/semgrep-guard.sh k8s/checkov-guard.sh common/secret-scan.sh; do
+  r=$(stop_hook "$h" "$CL")
+  if [[ "${r%% *}" == 2 ]]; then
+    ok "$(basename "$h") opens its gate for a committed, unpushed change"
+  else
+    bad "$(basename "$h") opens its gate for a committed, unpushed change" "got: $r"
+  fi
+done
+
+# placeholder-guard: a credential blocks, and a value already committed does not.
+printf 'password: hunter2xyz\n' > "$DIRTY/cred.yaml"
+if [[ "$(edit_hook k8s/placeholder-guard.sh "$DIRTY" "$DIRTY/cred.yaml")" == 2 ]]; then
+  ok "placeholder-guard blocks an added credential"
+else
+  bad "placeholder-guard blocks an added credential" "did not exit 2"
+fi
+git -C "$DIRTY" add -A
+git -C "$DIRTY" -c user.email=t@example.com -c user.name=test commit -q -m baseline
+if [[ "$(edit_hook k8s/placeholder-guard.sh "$DIRTY" "$DIRTY/ip.yaml")" == 0 ]]; then
+  ok "placeholder-guard ignores a value that was already committed"
+else
+  bad "placeholder-guard ignores a value that was already committed" "did not exit 0"
+fi
+printf 'other: 10.9.9.9\n' >> "$DIRTY/ok.yaml"
+if [[ "$(edit_hook k8s/placeholder-guard.sh "$DIRTY" "$DIRTY/ok.yaml")" == 2 ]]; then
+  ok "placeholder-guard blocks an IP added to an already committed file"
+else
+  bad "placeholder-guard blocks an IP added to an already committed file" "did not exit 2"
+fi
+
 LOGSTUB="$TMPDIR/logstub"; mkdir -p "$LOGSTUB"
 # shellcheck disable=SC2016  # the stub's own $* and $(pwd) must stay unexpanded
 printf '#!/usr/bin/env bash\necho "ARGS: $*" > "%s/args"\necho "CWD: $(pwd -P)" >> "%s/args"\nexit 0\n' "$LOGSTUB" "$LOGSTUB" > "$LOGSTUB/gitleaks"
 chmod +x "$LOGSTUB/gitleaks"
-( cd "$DIRTY" && printf '{}' | PATH="$LOGSTUB:$PATH" bash "$HOOKS_SRC/common/secret-scan.sh" ) >/dev/null 2>&1
+GL=$(repo gitleaks-args)
+printf 'a: 1\n' > "$GL/t.yaml"
+( cd "$GL" && printf '{}' | PATH="$LOGSTUB:$PATH" bash "$HOOKS_SRC/common/secret-scan.sh" ) >/dev/null 2>&1
 if grep -q -- '--source \.' "$LOGSTUB/args" 2>/dev/null \
-   && grep -q "CWD: $(cd "$DIRTY" && pwd -P)\$" "$LOGSTUB/args"; then
+   && grep -q "CWD: $(cd "$GL" && pwd -P)\$" "$LOGSTUB/args"; then
   ok "secret-scan runs gitleaks as --source . from the repo root"
 else
   bad "secret-scan runs gitleaks as --source . from the repo root" "got: $(tr '\n' ' ' < "$LOGSTUB/args" 2>/dev/null)"
