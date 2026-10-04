@@ -252,7 +252,7 @@
       "description": "agy's cli log showed 'failed to parse frontmatter: mapping values are not allowed' for skills/apidog, progress and testing: an unquoted ': ' in description. Quoted the three values and added scripts/skill-frontmatter-check.py, run by skill-paths-guard.sh, so an unquoted ': ' or ' #' blocks with exit 2.",
       "dependencies": ["feat-031"],
       "status": "done",
-      "evidence": "Before: 16/16/11 parse errors for testing/apidog/progress in one agy log. After: a headless agy run logged 0 'Failed to parse skill'. test_skill_paths_guard.sh -> 11 passed (2 new cases); unquoting skills/testing again made the guard exit 2, restoring it exit 0. Follow-up: agy headless allow rules work as exact-prefix command(<binary subcommand>) entries, not with '*' (tested; documented in docs/harness-adoption.md). Not installed in the user's agy settings."
+      "evidence": "Before: 16/16/11 parse errors for testing/apidog/progress in one agy log. After: a headless agy run logged 0 'Failed to parse skill'. test_skill_paths_guard.sh -> 11 passed (2 new cases); unquoting skills/testing again made the guard exit 2, restoring it exit 0. Follow-up: agy headless allow rules work as exact-prefix command(<binary subcommand>) entries, not with '*' (tested; documented in docs/harness-adoption.md). Installed in the user's agy settings: git status, git rev-parse, git merge-base, grep, wc, ls, head, tail, cat."
     }
   ]
 }

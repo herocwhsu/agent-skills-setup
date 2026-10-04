@@ -54,7 +54,10 @@ Checked 2026-10-01 with a canary word in a throwaway repo:
   `git log --oneline -1`, `command(cat)` allowed `cat PROGRESS.md`, and `touch` stayed denied
   (tested 2026-10-04; `command(git log *)` did not work). Otherwise paste the files into
   the prompt, or use `--dangerously-skip-permissions` with a read-only prompt and compare
-  `git status` before and after. agy also drops any skill
+  `git status` before and after. Installed on the dev machine (2026-10-04): `git status`,
+  `git rev-parse`, `git merge-base`, `grep`, `wc`, `ls`, `head`, `tail`, `cat`. `git log`,
+  `git diff` and `git show` are left out because `--output=<file>` makes them write (tested
+  with `git diff`); `&&` chaining and `>` redirection were denied under a prefix rule. agy also drops any skill
   whose `SKILL.md` frontmatter is not strict YAML (an unquoted `: ` in `description`);
   `skill-paths-guard.sh` now blocks that.
 - **kiro-cli, gemini:** could not be tested headless (not logged in; gemini's CLI is no
