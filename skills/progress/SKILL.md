@@ -1,6 +1,6 @@
 ---
 name: progress
-description: Use to check which spec-gated workflow gates a story has passed and what to run next. Read-only — derives status entirely from artifact files already produced by other skills (story.md, audit-report.md, apidog/contract.md, test-plan.md, etc.), never a separate hand-maintained tracker. One subcommand: status.
+description: "Use to check which spec-gated workflow gates a story has passed and what to run next. Read-only — derives status entirely from artifact files already produced by other skills (story.md, audit-report.md, apidog/contract.md, test-plan.md, etc.), never a separate hand-maintained tracker. One subcommand: status."
 ---
 
 # progress

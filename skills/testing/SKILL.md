@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Use after the API contract is approved to generate test plans, scaffold RED tests in the test repo, generate regression tests, and verify coverage. Tests should be planned before implementation starts. Four subcommands: plan, write, regression, qa-check.
+description: "Use after the API contract is approved to generate test plans, scaffold RED tests in the test repo, generate regression tests, and verify coverage. Tests should be planned before implementation starts. Four subcommands: plan, write, regression, qa-check."
 ---
 
 # testing

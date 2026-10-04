@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-04
-**Active Feature:** none. feat-031 closed out; `./init.sh` passes all 9 gates.
+**Active Feature:** none. feat-032 closed out; `./init.sh` passes all 9 gates.
 **Harness lectures:** 1–5 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 6
 (why initialization needs its own phase) is next. Lecture 5 open items: rebuild time never
 measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
@@ -151,6 +151,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] feat-029: agy said "not logged in" in macmini tmux panes but not in Terminal.app. Its 2026-10-01 build uses file token storage when `SSH_CONNECTION` is set, and tmux copies that variable into the session on any SSH attach, so new panes inherited it. `setup-host.sh`'s tmux step moved to `scripts/setup-tmux-conf.sh`, which on macOS also sets `update-environment` without `SSH_CONNECTION`; Linux keeps tmux's default, where agy's SSH rule is correct.
 - [x] feat-030: recorded after the fact for commit `83748b3` (made in a separate session): `polish.py`/`polish_engine.py` accept the agy PreInvocation payload and read Claude Code's macOS keychain credentials; `pytest skills/utils/polish-input/tests` → 60 passed; not re-run against a live agy session.
 - [x] feat-031: Lecture 5 cold-start audit. Three subagents and agy found state files lagging git in all three repos; fixed in hangar and atelier, `PROGRESS.md` split into `docs/progress-archive.md`, write-up in `docs/harness-creator/lecture-05/`. Gaps: rebuild time unmeasured, exercises 2–3 not run, no staleness guard.
+- [x] feat-032: agy dropped the `apidog`, `progress` and `testing` skills (unquoted `: ` in `description` is invalid strict YAML; Claude Code tolerated it). Quoted them and added `scripts/skill-frontmatter-check.py`, run by `skill-paths-guard.sh`. A headless agy run now logs 0 skill parse errors; `test_skill_paths_guard.sh` 11 passed. agy `permissions.allow` rules did not enable headless commands.
 
 ### What's In Progress
 

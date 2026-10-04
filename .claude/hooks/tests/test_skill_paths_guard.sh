@@ -12,6 +12,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 HOOK="$REPO_DIR/.claude/hooks/skill-paths-guard.sh"
 CHECKER="$REPO_DIR/scripts/skill-path-var-check.py"
+FM_CHECKER="$REPO_DIR/scripts/skill-frontmatter-check.py"
 [[ -f "$HOOK" ]]    || { echo "FAIL: hook not found at $HOOK"; exit 1; }
 [[ -f "$CHECKER" ]] || { echo "FAIL: checker not found at $CHECKER"; exit 1; }
 
@@ -32,6 +33,7 @@ fixture() {
   local d="$TMP/$name"
   mkdir -p "$d/skills/grp/sub" "$d/scripts"
   cp "$CHECKER" "$d/scripts/skill-path-var-check.py"
+  cp "$FM_CHECKER" "$d/scripts/skill-frontmatter-check.py"
   printf '%s\n' "$body" > "$d/skills/grp/sub/IMPL.md"
   echo "$d"
 }
@@ -125,6 +127,22 @@ python3 "$CHECKER" "$d/skills" >/dev/null 2>&1 && code=0 || code=$?
 [[ $code -eq 1 ]] \
   && ok "checker exits 1 (CLI), hook exits 2 (block)" \
   || bad "checker exits 1 (CLI), hook exits 2 (block)" "exit $code"
+
+# --- frontmatter YAML ---------------------------------------------------
+# skills/{apidog,progress,testing} shipped "Four subcommands: plan, ..." unquoted;
+# agy's YAML parser dropped each skill while Claude Code loaded it fine.
+d=$(fixture fm_bad 'no path vars here')
+printf -- '---\nname: x\ndescription: Use for X. Two subcommands: plan, run.\n---\n' > "$d/skills/grp/SKILL.md"
+out=$(run_hook "$d") && code=0 || code=$?
+if [[ $code -eq 2 && "$out" == *"unquoted"* ]]; then ok "unquoted ': ' in frontmatter blocks with exit 2"
+else bad "unquoted ': ' in frontmatter blocks with exit 2" "exit $code, out: $out"; fi
+
+d=$(fixture fm_ok 'no path vars here')
+printf -- '---\nname: x\ndescription: "Use for X. Two subcommands: plan, run."\n---\n' > "$d/skills/grp/SKILL.md"
+out=$(run_hook "$d") && code=0 || code=$?
+[[ $code -eq 0 ]] \
+  && ok "quoted frontmatter value passes" \
+  || bad "quoted frontmatter value passes" "exit $code, out: $out"
 
 # --- 8. the real tree passes -------------------------------------------
 out=$(bash "$HOOK" 2>&1) && code=0 || code=$?

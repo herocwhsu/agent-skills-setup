@@ -22,4 +22,12 @@ if ! out=$(python3 "$REPO_DIR/scripts/skill-path-var-check.py" "$REPO_DIR/skills
   exit 2
 fi
 
+if ! out=$(python3 "$REPO_DIR/scripts/skill-frontmatter-check.py" "$REPO_DIR/skills" 2>&1); then
+  {
+    echo "Blocked: a SKILL.md frontmatter value is not valid YAML (agy drops the skill):"
+    printf '%s\n' "$out"
+  } >&2
+  exit 2
+fi
+
 exit 0
