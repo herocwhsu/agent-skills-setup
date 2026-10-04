@@ -6,7 +6,7 @@
 **Active Feature:** none. feat-031 closed out; `./init.sh` passes all 9 gates.
 **Harness lectures:** 1–5 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 6
 (why initialization needs its own phase) is next. Lecture 5 open items: rebuild time never
-measured, no staleness guard, `What's Done` still ~140 lines (`lecture-05/summary.md`).
+measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
 
 ## Status
 
@@ -149,6 +149,8 @@ measured, no staleness guard, `What's Done` still ~140 lines (`lecture-05/summar
 - [x] feat-027: `codex-kiro` now works like `claude-kiro`: plain `codex` on the normal `~/.codex` home with the gateway passed as `-c` overrides. The old alias set `CODEX_HOME=~/.codex-kiro`, which hid every rule, hook and skill installed into `~/.codex`. `setup-codex` writes only the alias, `remove-codex` never deletes a Codex home (it used to `rm -rf` the codex-kiro home, which would have wiped `~/.codex` once they were shared), and `status` reads the alias. `~/.codex-kiro` was removed. The alias defaults to `gpt-5.6-sol` at medium reasoning, the model the old profile pinned.
 - [x] feat-028: polish-input stopped replying instead of rewriting. Under `claude-kiro` the hook inherits `ANTHROPIC_BASE_URL` and polishes through the kiro gateway, whose own system prompt made the model answer short prompts as chat ("I can't discuss that.", "I'm Kiro…"). The engine now sends the prompt inside `<text>` tags with a copy-editor system prompt and strips the tags from the reply. A guard in `polish.py` drops outputs that are multi-line, too long, or share under half the words, and logs them as `rejected:` even without `POLISH_DEBUG`.
 - [x] feat-029: agy said "not logged in" in macmini tmux panes but not in Terminal.app. Its 2026-10-01 build uses file token storage when `SSH_CONNECTION` is set, and tmux copies that variable into the session on any SSH attach, so new panes inherited it. `setup-host.sh`'s tmux step moved to `scripts/setup-tmux-conf.sh`, which on macOS also sets `update-environment` without `SSH_CONNECTION`; Linux keeps tmux's default, where agy's SSH rule is correct.
+- [x] feat-030: recorded after the fact for commit `83748b3` (made in a separate session): `polish.py`/`polish_engine.py` accept the agy PreInvocation payload and read Claude Code's macOS keychain credentials; `pytest skills/utils/polish-input/tests` → 60 passed; not re-run against a live agy session.
+- [x] feat-031: Lecture 5 cold-start audit. Three subagents and agy found state files lagging git in all three repos; fixed in hangar and atelier, `PROGRESS.md` split into `docs/progress-archive.md`, write-up in `docs/harness-creator/lecture-05/`. Gaps: rebuild time unmeasured, exercises 2–3 not run, no staleness guard.
 
 ### What's In Progress
 
@@ -238,8 +240,8 @@ and `docs/harness-creator/lecture-02/`.
 ## Archived history
 
 `Files Modified This Session` and `Evidence of Completion` moved to
-[docs/progress-archive.md](docs/progress-archive.md). They were frozen at feat-014 and
-feat-010; per-feature evidence now lives in `feature_list.json`.
+[docs/progress-archive.md](docs/progress-archive.md). The first stops at feat-014; the second
+has no entries for feat-011 to feat-022. Per-feature evidence lives in `feature_list.json`.
 
 ## Notes for Next Session
 

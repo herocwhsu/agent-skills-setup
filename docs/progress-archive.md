@@ -1,8 +1,8 @@
 # PROGRESS archive
 
 Frozen history moved out of `PROGRESS.md` on 2026-10-04 (Lecture 5). Nothing here is
-current state: the file lists stop at feat-014 and the evidence numbers (8 gates, 53 tests)
-are from when they were written. Current evidence lives in `feature_list.json`.
+current state: "Files Modified" stops at feat-014, and "Evidence of Completion" has no entries for
+feat-011 to feat-022; its early numbers (8 gates, 53 tests) are from when they were written. Current evidence lives in `feature_list.json`.
 
 ## Files Modified This Session
 

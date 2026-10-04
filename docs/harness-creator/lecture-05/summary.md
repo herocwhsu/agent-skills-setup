@@ -34,15 +34,16 @@ spot. Both models failed the same question: where the binding owner decisions ar
   corrected, auto-merge decision recorded in `PROGRESS.md` ("Standing decisions") and `AGENTS.md`.
 - hangar (`218a7ff`): TLS item closed, decision recorded, "Next" filled.
 - agent-skills-setup (`25eed39`): `feat-030` added, stacked lines collapsed, decision noted.
-- Second pass: `PROGRESS.md` 370 → 248 lines by moving two frozen sections to
-  `docs/progress-archive.md`; hangar `docs/architecture.md` Grafana SSO line corrected.
+- Second pass: `PROGRESS.md` 370 → 248 lines: 5 lines of stacked state and the Lecture 4
+  paragraph removed (its content is in `lecture-04/summary.md`), then two frozen sections
+  (124 lines) moved verbatim to `docs/progress-archive.md`; hangar `docs/architecture.md` Grafana SSO line corrected.
 
 ## Result
 
 Re-running agy on the fixed state: every answer matched the files, the auto-merge decision was
-quoted with its revisit condition, and the contradictions it had flagged were gone. The
-router works: agy loads the project `AGENTS.md` before reading any file (it said so in all
-three real-repo runs).
+quoted with its revisit condition, and the contradictions it had flagged were gone. agy
+reported that the project `AGENTS.md` was already in its context before it read any file
+(self-report in all three real-repo runs; not independently observed).
 
 ## What this does not show
 
