@@ -340,6 +340,28 @@ def test_anthropic_keychain_provider_macos_security(monkeypatch):
     assert provider.credential() == "test-anthropic-key"
 
 
+def test_claude_session_provider_macos_keychain(monkeypatch):
+    import json
+    import subprocess
+    import time
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+
+    fake_payload = json.dumps({
+        "claudeAiOauth": {
+            "accessToken": "sk-ant-keychain-test-token",
+            "expiresAt": int((time.time() + 3600) * 1000),
+        }
+    })
+
+    def fake_run(args, **kwargs):
+        if args[:4] == ["security", "find-generic-password", "-s", "Claude Code-credentials"]:
+            return subprocess.CompletedProcess(args, 0, stdout=fake_payload)
+        return subprocess.CompletedProcess(args, 1, stdout="")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    provider = polish_engine.ClaudeSessionProvider()
+    assert provider.credential() == "sk-ant-keychain-test-token"
 
 
 def test_polish_wraps_input_as_data_and_strips_tags(monkeypatch):

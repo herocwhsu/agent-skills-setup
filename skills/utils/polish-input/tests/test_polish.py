@@ -348,7 +348,9 @@ def test_agy_pre_invocation_parses_transcript_and_polishes(tmp_path):
     payload = json.dumps({"invocationNum": 1, "transcriptPath": str(transcript)})
     out, err, code = run_polish(payload, env_overrides=fake)
     assert code == 0
-    assert out == "{}"
+    resp = json.loads(out)
+    assert "injectSteps" in resp
+    assert "I want to add a login." in resp["injectSteps"][0]["ephemeralMessage"]
     assert "[polish]" in err
     assert "I want to add a login." in err
 
@@ -399,7 +401,9 @@ def test_agy_pre_invocation_large_transcript_tail_read(tmp_path):
     payload = json.dumps({"invocationNum": 1, "transcriptPath": str(transcript)})
     out, err, code = run_polish(payload, env_overrides=fake)
     assert code == 0
-    assert out == "{}"
+    resp = json.loads(out)
+    assert "injectSteps" in resp
+    assert "I want to add a login." in resp["injectSteps"][0]["ephemeralMessage"]
     assert "[polish] I want to add a login." in err
 
 

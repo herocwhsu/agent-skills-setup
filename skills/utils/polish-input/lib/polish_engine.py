@@ -122,6 +122,31 @@ class ClaudeSessionProvider(AuthProvider):
     def credential(self) -> str | None:
         import time
 
+        # 1. macOS Keychain ("Claude Code-credentials")
+        try:
+            result = subprocess.run(
+                [
+                    "security",
+                    "find-generic-password",
+                    "-s",
+                    "Claude Code-credentials",
+                    "-w",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                data = json.loads(result.stdout.strip())
+                oauth = data.get("claudeAiOauth", {})
+                token = oauth.get("accessToken")
+                expires_at_ms = oauth.get("expiresAt", 0)
+                if token and time.time() * 1000 < expires_at_ms:
+                    return token
+        except Exception:
+            pass
+
+        # 2. Legacy/fallback credentials.json file
         creds_path = Path(os.path.expanduser("~/.claude/.credentials.json"))
         if not creds_path.exists():
             return None
@@ -330,7 +355,8 @@ def _polish_gemini(text: str, cred: str) -> str | None:
         write_engine_error_hint_once(f"google-genai SDK not importable: {e}")
         return None
     try:
-        timeout_ms = int(os.environ.get("POLISH_TIMEOUT_MS", str(DEFAULT_TIMEOUT_MS)))
+        timeout_env = os.environ.get("POLISH_TIMEOUT_MS")
+        timeout_ms = int(timeout_env) if timeout_env else 10000
         client = genai.Client(api_key=cred, http_options=types.HttpOptions(timeout=timeout_ms))
         response = client.models.generate_content(
             model=os.environ.get("POLISH_MODEL", "gemini-3.5-flash-lite"),

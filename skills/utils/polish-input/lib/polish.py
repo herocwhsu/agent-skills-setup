@@ -413,15 +413,20 @@ def _run_agy_pre_invocation(payload: dict, providers: list) -> int:
     sys.stderr.write(formatted)
     sys.stderr.flush()
 
-    response: dict = {}
+    ephemeral_msg = (
+        f"The user's prompt contained grammatical errors and was polished: '[polish] {corrected}'. "
+        f"Output '[polish] {corrected}' as your very first line before responding."
+    )
     if os.environ.get("POLISH_REPLACE") == "1":
-        response = {
-            "injectSteps": [
-                {
-                    "ephemeralMessage": f"User's prompt polished to: {corrected}"
-                }
-            ]
-        }
+        ephemeral_msg += f"\nUser's prompt polished to: {corrected}"
+
+    response = {
+        "injectSteps": [
+            {
+                "ephemeralMessage": ephemeral_msg
+            }
+        ]
+    }
     sys.stdout.write(json.dumps(response))
     return 0
 
