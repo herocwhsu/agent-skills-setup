@@ -237,6 +237,14 @@
       "dependencies": ["feat-028"],
       "status": "done",
       "evidence": "Recorded after the fact on 2026-10-04. pytest skills/utils/polish-input/tests -> 60 passed. Not re-run against a live agy session in this entry."
+    },
+    {
+      "id": "feat-031",
+      "name": "Lecture 5: cold-start continuity audit and state-file fixes",
+      "description": "Cold-start rebuilds by three subagents and agy found state files lagging git in all three repos and the auto-merge decision missing from them. Fixed in hangar and atelier, recorded it in their AGENTS.md/PROGRESS.md, moved frozen PROGRESS sections to docs/progress-archive.md, wrote docs/harness-creator/lecture-05/.",
+      "dependencies": ["feat-020", "feat-030"],
+      "status": "done",
+      "evidence": "agy re-run on the fixed state matched the files in all three repos with HEAD and dirty count unchanged; ./init.sh -> all gates passed. Not done: rebuild time in seconds, exercises 2 and 3, a staleness guard (see lecture-05/summary.md)."
     }
   ]
 }
