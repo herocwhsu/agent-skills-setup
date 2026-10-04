@@ -48,11 +48,13 @@ Checked 2026-10-01 with a canary word in a throwaway repo:
   Verified headless on 2026-10-02. Over SSH or tmux started from an SSH attach, run it
   as `env -u SSH_CONNECTION agy ...`: with `SSH_CONNECTION` set, agy ignores its keychain
   login and reports "not logged into Antigravity".
-  Headless `agy -p` auto-denies any shell command ("a tool required the command
-  permission"); `permissions.allow` rules of the form `command(git log *)` in
-  `~/.gemini/antigravity-cli/settings.json` did not lift that in a 2026-10-04 test. Either
-  paste the files into the prompt, or use `--dangerously-skip-permissions` with a
-  read-only prompt and compare `git status` before and after. agy also drops any skill
+  Headless `agy -p` auto-denies any shell command not covered by an allow rule in
+  `~/.gemini/antigravity-cli/settings.json` (`"permissions": {"allow": ["command(git log)", ...]}`).
+  Rules are `command(<binary> [subcommand])` prefixes with no `*`: `command(git log)` allowed
+  `git log --oneline -1`, `command(cat)` allowed `cat PROGRESS.md`, and `touch` stayed denied
+  (tested 2026-10-04; `command(git log *)` did not work). Otherwise paste the files into
+  the prompt, or use `--dangerously-skip-permissions` with a read-only prompt and compare
+  `git status` before and after. agy also drops any skill
   whose `SKILL.md` frontmatter is not strict YAML (an unquoted `: ` in `description`);
   `skill-paths-guard.sh` now blocks that.
 - **kiro-cli, gemini:** could not be tested headless (not logged in; gemini's CLI is no
