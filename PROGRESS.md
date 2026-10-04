@@ -2,21 +2,10 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-02
-**Active Feature:** none. feat-020 (L1–L4 harness for hangar and atelier) is merged and pushed in both repos; `./init.sh` passes all 9 gates.
-**Active Feature:** none. feat-026 closed out; `./init.sh` passes all 9 gates.
-**Active Feature:** none. feat-027 closed out; `./init.sh` passes all 9 gates.
-**Active Feature:** none. feat-028 closed out; `./init.sh` passes all 9 gates.
-**Active Feature:** none. feat-029 closed out; `./init.sh` passes all 9 gates.
-**Lecture 4 is closed.** Exercises 1 (SNR audit) and 3 (position test) were run. Two parts were not:
-exercise 1's relocation step was skipped on purpose, since the noise is in the global rules file
-(summary §3.4), and exercise 2's before/after success-rate comparison has no baseline, because
-`AGENTS.md` was already under 100 lines before this lecture. feat-015's first pass overclaimed,
-and feat-016 corrected it: it added `bash-compat-guard.sh` (Shell Portability had no
-repo-wide check), fixed `split_simulation.py` (real savings 26.6%, not 67.7%), added
-Source/Applies/Expires metadata and Load-when conditions to `AGENTS.md` (96 lines), and ran
-exercise 3: 15/15 compliance at top/middle/bottom, a null result at this size. Corrections
-table: `docs/harness-creator/lecture-04/summary.md` §4.
+**Last Updated:** 2026-10-04
+**Active Feature:** none. feat-030 closed out; `./init.sh` passes all 9 gates.
+**Harness lectures:** 1–4 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 5
+(session continuity) is next; its baseline found stale state files.
 
 ## Status
 
@@ -170,7 +159,8 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
   `AGENTS.md` support is still untested: neither is logged in headless).
 - Optional follow-up experiment: repeat exercise 3 at ~10k tokens without the
   "read in full" instruction (design in `position-experiment.md` §13).
-- Lecture 5: Why Long-Running Tasks Lose Continuity.
+- Lecture 5: Why Long-Running Tasks Lose Continuity. Baseline (2026-10-04, three cold-start
+  agents) found drift between state files and git, not slow rebuilds.
 
 
 ## Blockers / Risks
@@ -181,6 +171,11 @@ table: `docs/harness-creator/lecture-04/summary.md` §4.
   `--break-system-packages`.
 
 ## Decisions Made
+
+- **Auto-merge in hangar and atelier stays** (owner, 2026-10-01): Renovate automerge and
+  the macmini agents' direct pushes continue until scale-up or a significant incident.
+  The rule is now recorded in both repos' `PROGRESS.md` and `AGENTS.md`, so a session
+  there can read it without this repo's memory.
 
 - **Did not add a fake "one feature at a time" placeholder feature list**:
   this repo is an ongoing multi-skill toolkit, not a single-feature build, so a

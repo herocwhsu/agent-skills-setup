@@ -229,6 +229,14 @@
       "dependencies": [],
       "status": "done",
       "evidence": "scripts/tests/test_setup_tmux_conf.sh -> 10 OK under bash 5 and /bin/bash 3.2 (failed first: script missing); moving the line out of the Darwin branch fails 'linux: update-environment not set'. macmini: session env had SSH_CONNECTION=192.168.123.188 ... 22; with it cleared, agy -p authenticated via keyring and answered."
+    },
+    {
+      "id": "feat-030",
+      "name": "polish-input supports the agy pre-invocation hook and keychain credentials",
+      "description": "Commit 83748b3 (made in a separate session): polish.py and polish_engine.py accept the agy PreInvocation payload and read credentials from the keychain.",
+      "dependencies": ["feat-028"],
+      "status": "done",
+      "evidence": "Recorded after the fact on 2026-10-04. pytest skills/utils/polish-input/tests -> 60 passed. Not re-run against a live agy session in this entry."
     }
   ]
 }
