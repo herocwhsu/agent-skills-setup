@@ -68,3 +68,12 @@ repo is, how it is laid out, how to run it, how to verify it and where work stan
   atelier's `py-guard` and `ts-guard` used `git diff HEAD`, which skipped both a
   commit-then-stop session and a brand-new file; four test cases failed on the old
   code before the fix.
+
+## State files rot at session boundaries
+
+A cold-start rebuild of all three repos found cheap rebuilds but stale state: a merged
+harness still marked unmerged, a parallel session's commit unrecorded, and one `Active
+Feature` line added per session instead of replaced. Put this in the repo's End of Session:
+overwrite "Current state" and "In flight", append history under dated sections, and write
+owner decisions into the repo (a decision only in chat or memory is invisible to the next
+agent). No staleness gate is shipped: it would also gate automerged PRs.
