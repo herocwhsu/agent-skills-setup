@@ -29,10 +29,29 @@ while IFS= read -r f; do
 done < <(find "$REPO_DIR" \( -name .git -o -name .venv -o -name node_modules \) -prune \
            -o -type f -name '*.sh' -print | sort)
 
-if [[ -n "$hits" ]]; then
+# A multi-line `python3 -c "` body must start at column 0: Python 3.14 dedents
+# -c code, but 3.13 and older raise IndentationError. py-check.sh shipped an
+# indented body that passed on this host's 3.14 and failed on CI's python3.
+pyhits=""
+while IFS= read -r f; do
+  if h=$(awk '/python3?[[:space:]]+-c[[:space:]]+"$/ { open = NR; next }
+              open && NR == open + 1 && /^[[:space:]]+[^[:space:]]/ { print NR ": " $0 }
+              { open = 0 }' "$f"); [[ -n "$h" ]]; then
+    pyhits="$pyhits$(printf '%s\n' "$h" | sed "s|^|  ${f#"$REPO_DIR"/}:|")"$'\n'
+  fi
+done < <(find "$REPO_DIR" \( -name .git -o -name .venv -o -name node_modules \) -prune \
+           -o -type f -name '*.sh' -print | sort)
+
+if [[ -n "$hits" || -n "$pyhits" ]]; then
   {
-    echo "Blocked: Bash 4+ constructs abort under macOS /bin/bash 3.2 (see AGENTS.md Shell Portability):"
-    printf '%s' "$hits"
+    if [[ -n "$hits" ]]; then
+      echo "Blocked: Bash 4+ constructs abort under macOS /bin/bash 3.2 (see AGENTS.md Shell Portability):"
+      printf '%s' "$hits"
+    fi
+    if [[ -n "$pyhits" ]]; then
+      echo "Blocked: indented python -c body (IndentationError on Python <= 3.13; start it at column 0):"
+      printf '%s' "$pyhits"
+    fi
   } >&2
   exit 2
 fi

@@ -48,15 +48,18 @@ done <<< "$file_list"
 
 for file in ${files[@]+"${files[@]}"}; do
   [[ "$file" == *.py && -f "$file" ]] || continue
+  # The -c body stays at column 0: Python 3.14 dedents -c code, but 3.13 and
+  # older raise IndentationError, which this hook would report as the edited
+  # file's syntax error and block every .py edit (CI broke this way, 2026-10-05).
   if ! out=$(python3 -c "
-  import ast, sys
-  p = sys.argv[1]
-  try:
-      ast.parse(open(p, encoding='utf-8').read(), filename=p)
-  except SyntaxError as e:
-      print(f'{e.msg} (line {e.lineno})')
-      sys.exit(1)
-  " "$file" 2>&1); then
+import ast, sys
+p = sys.argv[1]
+try:
+    ast.parse(open(p, encoding='utf-8').read(), filename=p)
+except SyntaxError as e:
+    print(f'{e.msg} (line {e.lineno})')
+    sys.exit(1)
+" "$file" 2>&1); then
     {
       echo "Blocked: python syntax error in $file"
       printf '%s\n' "$out"

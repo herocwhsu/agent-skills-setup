@@ -75,6 +75,15 @@ printf 'mapfile -t x < f\n' > "$d/.venv/bin/activate.sh"
 printf 'declare -A m\n' > "$d/.git/hook.sh"
 expect_pass ".venv and .git are skipped" "$d"
 
+# --- inline python -c bodies must start at column 0 ------------------------
+# Python 3.14 dedents -c code; 3.13 and older raise IndentationError. py-check.sh
+# shipped an indented body and blocked every .py edit on CI's older python3.
+expect_block "indented python3 -c body blocks" "$(tree pyind s/a.sh 'for f in x; do\n  python3 -c "\n  import sys\n  print(1)\n  " "$f"\ndone\n')"
+expect_block "indented python -c body blocks"  "$(tree pyind2 s/a.sh 'python -c "\n    import sys\n"\n')"
+expect_pass  "column-0 python3 -c body passes" "$(tree pycol s/a.sh 'for f in x; do\n  python3 -c "\nimport sys\nprint(1)\n" "$f"\ndone\n')"
+expect_pass  "one-line python3 -c passes"      "$(tree pyone s/a.sh 'python3 -c "import sys; print(1)"\n')"
+expect_pass  "python3 heredoc passes"          "$(tree pyhd s/a.sh "python3 - <<'X'\n  import sys\nX\n")"
+
 # --- the real tree passes --------------------------------------------------
 out=$(bash "$HOOK" 2>&1) && code=0 || code=$?
 [[ $code -eq 0 ]] \
