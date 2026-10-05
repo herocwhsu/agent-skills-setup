@@ -117,7 +117,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] feat-019: polish-input's Gemini backend moved to `google-genai` (API key only). The
   Antigravity OAuth path was removed: it already failed with a 403 scope error, and
   `google-genai` can't use OAuth for the Gemini API. Default model `gemini-1.5-flash`
-  (retired) → `gemini-3.5-flash-lite`. Not live-tested: no Gemini key on this machine.
+  (retired) → `gemini-3.5-flash-lite`. Live-tested 2026-10-05 via the `agent-skills-setup:gemini` keychain entry.
 
 - [x] feat-020: refreshed the five shared hook templates from hangar and atelier (turn-scope
   gating, stderr and exit 2), added `scripts/tests/test_shared_hook_templates.sh` (17 cases) and `docs/harness-adoption.md`. Built a custom L1–L4 set for hangar
