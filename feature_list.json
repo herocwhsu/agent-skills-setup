@@ -114,9 +114,7 @@
       "id": "feat-015",
       "name": "Lecture 4 (harness-creator): Split Instructions Across Files & SNR Audit",
       "description": "Advanced repository to Lecture 4 standards from learn-harness-engineering. Elevated root AGENTS.md to an explicit router file (82 lines) with a dedicated ## Topic Docs routing section (docs/architecture.md, agents/engineering-rules.md, skills/README.md, docs/harness-creator/, docs/migration.md). Created standalone audit/simulation tool docs/harness-creator/lecture-04/code/split_simulation.py demonstrating 23.2% average SNR across 5 canonical tasks (76.8% noise in monolithic context), 67.7% context token savings via router+topic splitting, and mapped 'Lost in the Middle' position depth (30%-70% danger window) confirming middle invariants must be backed by deterministic guard hooks. Documented full analysis under docs/harness-creator/lecture-04/.",
-      "dependencies": [
-        "feat-014"
-      ],
+      "dependencies": ["feat-014"],
       "status": "done",
       "evidence": "python3 docs/harness-creator/lecture-04/code/split_simulation.py passed clean (exit 0). bash scripts/run-tests.sh --fast passed 54/54. bash scripts/harness-verify.sh passed clean across all 8 gates (registry, types, tests, skill paths, cred backends, hook wiring, state layer, secret scan)."
     },
@@ -124,9 +122,7 @@
       "id": "feat-016",
       "name": "Lecture 4 completion: bash 3.2 guard, corrected SNR audit, rule metadata, exercise 3",
       "description": "Review of feat-015 found it overclaimed. Its guards did not enforce what it said, its savings figure left the always-loaded engineering-rules.md off the split side (67.7% -> 26.6%), and exercise 3 was never run. Added .claude/hooks/bash-compat-guard.sh (mapfile/readarray, declare|local|typeset -A, ;& / ;;& in command position across every *.sh), wired into harness-verify.sh and Stop/SubagentStop. Fixed split_simulation.py (heading-based line lookup, enforcing files resolved on disk). Added a Source/Applies/Expires line per AGENTS.md incident section (sources restored from ee34b0a) and Load-when conditions on Topic Docs; AGENTS.md is 96 lines. Ran exercise 3: made-up rule at 15%/57%/98% depth, 5 Haiku 4.5 runs each, 15/15 compliance, a null result at this size (ceiling effects recorded). Corrections table in docs/harness-creator/lecture-04/summary.md section 4.",
-      "dependencies": [
-        "feat-015"
-      ],
+      "dependencies": ["feat-015"],
       "status": "done",
       "evidence": "bash .claude/hooks/tests/test_bash_compat_guard.sh -> 15 passed under /bin/bash 3.2.57 and bash 5.3. Experiment scored from files (sed -n 2p, each script run under /bin/bash 3.2, guard pointed at each sandbox): top 5/5, middle 5/5, bottom 5/5, 0 invalid. .venv rebuilt from requirements-dev.txt so types-guard ran real mypy (clean). bash scripts/harness-verify.sh -> 9/9 gates pass."
     },
@@ -142,9 +138,7 @@
       "id": "feat-018",
       "name": "Split global engineering rules: host-general core + on-demand spec-workflow skill",
       "description": "agents/engineering-rules.md is installed into all four hosts and loaded on every task, but Part IV (65 lines) was the Jira/OpenSpec production procedure. It used Claude-only slash commands (/progress-status, /review-amend, /opsx:*) and ~/.claude/docs paths that do not exist. Moved the procedure verbatim (29/29 lines checked) into new required skill skills/spec-workflow/SKILL.md (registry: local). Replaced Part IV with two host-neutral trigger lines (production -> spec-workflow; exploratory -> repo learning charter / experiment-iteration where installed). Trigger kept global rather than per-repo opt-in (user decision) so production repos need no setup. Repo AGENTS.md files stay repo-specific.",
-      "dependencies": [
-        "feat-016"
-      ],
+      "dependencies": ["feat-016"],
       "status": "done",
       "evidence": "scripts/tests/test_engineering_rules_scope.sh: 0/6 before the change, 6/6 after (no .claude/ paths, no slash commands, trigger names spec-workflow, skill registered local and present, gate text absent from global). split_simulation.py: engineering-rules 147->86 lines (~2765->~1800 tokens), baseline context 243->182 lines, avg SNR 22.9%->30.2%. install.sh symlinked spec-workflow into ~/.claude, ~/.codex, ~/.gemini/antigravity-cli, ~/.kiro skills. harness-verify 9/9; run-tests --fast 56 passed. install-agents-md.sh re-run 2026-09-28 with user approval, after confirming each host file held only the managed block and it matched the pre-split version: ~/.claude/CLAUDE.md, ~/.gemini/GEMINI.md, ~/.codex/AGENTS.md now 88 lines, Kiro steering 86; each has the spec-workflow trigger and no old gate text."
     },
@@ -152,9 +146,7 @@
       "id": "feat-019",
       "name": "Migrate polish-input Gemini backend from google-generativeai to google-genai (API key only)",
       "description": "google-generativeai is deprecated (flagged in feat-008). Live check before migrating: this machine's only Gemini credential was the Antigravity OAuth session, and it already failed with 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT under the old SDK. google-genai cannot use OAuth for the Gemini API at all: Client() raises 'No API key was provided' without a key, and bearer tokens are attached only in Vertex mode (_api_client.py:1463). Per user decision, ported _polish_gemini to genai.Client(api_key=...).models.generate_content with timeout in ms (the old SDK took seconds), removed GeminiAntigravityProvider and _read_antigravity_keychain_value, and log one hint (set GEMINI_API_KEY) when a Gemini provider had no key and nothing else succeeded. Default model changed from gemini-1.5-flash (no longer listed by Google, checked at ai.google.dev/gemini-api/docs/models) to gemini-3.5-flash-lite. requirements-dev.txt regenerated from a clean venv (51 -> 43 packages; gRPC/protobuf gone); pyproject, _lib.sh pip package, README updated.",
-      "dependencies": [
-        "feat-008"
-      ],
+      "dependencies": ["feat-008"],
       "status": "done",
       "evidence": "New tests failed first (2/3), then polish-input 40 passed. mypy clean; gitleaks + osv-scanner clean on the new manifest; harness-verify 9/9; run-tests --fast 56 passed. NOT verified live: no Gemini API key on this machine. Pre-existing installer gap: Homebrew python3 refuses global pip (PEP 668), so _lib.sh's pip step for polish-input fails here; ambient python still has only the old SDK. Not forced with --break-system-packages."
     },
@@ -170,9 +162,7 @@
       "id": "feat-021",
       "name": "Register pip google-genai dependency, bump superpowers, wire statusline in install.sh, and update host agents",
       "description": "Registered pip google-genai>=2.25.0 in registry.txt and added pip/npm validation to validate-registry.sh so install.sh installs runtime SDK automatically. Bumped obra/superpowers to 8ca22dba. Added install_statusline in _lib.sh and wired into install.sh to automatically ensure statusline is configured for supported agents (claude, gemini) without overwriting existing configurations. Deployed updated rules with prompt polish side-channel to all agents, configured statusline on host, and updated agent CLIs.",
-      "dependencies": [
-        "feat-019"
-      ],
+      "dependencies": ["feat-019"],
       "status": "done",
       "evidence": "registry.txt now includes pip google-genai>=2.25.0 and superpowers@8ca22dba; validate-registry.sh passes (26/26 registry tests pass). install_statusline safely configures statusline for claude and gemini if absent. Installed google-genai in .venv and pyenv global python; mypy clean across 28 files; install-agents-md.sh deployed to all 4 host files; update-agents.sh applied; ./init.sh passes all 9 gates clean."
     },
@@ -188,9 +178,7 @@
       "id": "feat-023",
       "name": "Migrate AGY prompt polish to native PreInvocation hook and remove prompt rule from engineering rules",
       "description": "Prompt polishing via system prompt rule in GEMINI.md caused 8-15s response latency on reasoning models (Gemini Flash Thinking / Claude Thinking) because thinking tokens and tool executions occur before response text generation. Replaced the system prompt rule with AGY's native PreInvocation lifecycle hook (~/.gemini/config/hooks.json). Updated skills/utils/polish-input/lib/polish.py to parse AGY PreInvocation payloads, extract prompt from transcript.jsonl, output immediate feedback to stderr, and return JSON. Added PreInvocation to hook.json, updated scripts/_settings_merge.py to support AGY hooks format, updated scripts/_lib.sh (wire_hook, rewire_hooks, unwire_hook), updated hook-wiring-check.py and harness-verify.sh. Removed Prompt polish rule from agents/engineering-rules.md and split_simulation.py.",
-      "dependencies": [
-        "feat-022"
-      ],
+      "dependencies": ["feat-022"],
       "status": "done",
       "evidence": "pytest skills/utils/polish-input/tests/test_polish.py -> 29 passed (4 new AGY PreInvocation tests). bash scripts/tests/test_hook_wiring.sh -> 37 checks passed (7 new Gemini hook wiring/rewiring/unwiring assertions). python3 docs/harness-creator/lecture-04/code/split_simulation.py -> passed. bash scripts/run-tests.sh --fast -> 56 passed, 0 failed. ./init.sh -> all 9 gates passed clean."
     },
@@ -198,9 +186,7 @@
       "id": "feat-024",
       "name": "Multi-agent workspace hook support (AGY and Codex CLI) with cross-agent payload handling",
       "description": "Configured repository-level lifecycle hooks for AGY (.agents/hooks.json) and Codex CLI (.codex/hooks.json), mirroring Claude Code (.claude/settings.json). Updated precommit-sh-check.sh to support both Claude/Codex (tool_input.command) and AGY (toolCall.args.CommandLine) payloads, returning {\"decision\": \"allow\"|\"deny\"} for AGY and exit 0/2 for Claude/Codex. Updated sh-check.sh and py-check.sh (in .claude/hooks/ and templates in hooks/) to recognize AGY TargetFile and AbsolutePath arguments. Implemented .claude/hooks/stop-verify.sh as universal Stop hook wrapper running harness-verify across all agent formats. Added unit and integration tests across all modified and new hooks.",
-      "dependencies": [
-        "feat-023"
-      ],
+      "dependencies": ["feat-023"],
       "status": "done",
       "evidence": "bash .claude/hooks/tests/test_precommit_sh_check.sh -> 14 passed. bash .claude/hooks/tests/test_sh_check.sh -> 16 passed. bash .claude/hooks/tests/test_py_check.sh -> 18 passed. bash .claude/hooks/tests/test_stop_verify.sh -> 6 passed. bash scripts/run-tests.sh --fast -> 57 passed, 0 failed. ./init.sh -> all 9 gates passed clean. Live AGY execution confirmed PreToolUse, PostToolUse, and Stop hook triggering and enforcement."
     },
@@ -208,9 +194,7 @@
       "id": "feat-025",
       "name": "AGY statusline timeout resolution and polish-input streaming squeeze",
       "description": "Resolved recurring AGY statusLine timeout errors (killed signal) by optimizing statusline-command.sh into a single jq pass (reducing runtime from ~250ms to ~21ms) and updating AGY settings to use statusline-command.sh. Squeezed polish-input hook memory and I/O consumption by seeking to the tail 64KB of transcript.jsonl instead of loading entire multi-megabyte files into memory. Hardened hook payload parsing to support camelCase and generic prompt payloads, gracefully handled null content in transcript steps, and updated standalone _settings_merge.py to detect .agents paths.",
-      "dependencies": [
-        "feat-024"
-      ],
+      "dependencies": ["feat-024"],
       "status": "done",
       "evidence": "Commit 112acf5 on main. pytest skills/utils/polish-input/tests/test_polish.py -> 32 passed (including large transcript tail-read, null content handling, and payload variations). bash scripts/run-tests.sh --fast -> 57 passed, 0 failed. ./init.sh -> all 9 gates passed clean. Live AGY statusline renders cleanly without timeout errors."
     },
@@ -218,9 +202,7 @@
       "id": "feat-026",
       "name": "AGY-only prompt polish rule and AGY statusline stdin fix",
       "description": "Moved the prompt polish rule out of the shared engineering rules into agents/antigravity-rules.md, appended only to the Gemini/AGY block by install-agents-md.sh. Fixed the blank AGY statusline: AGY never closes the statusline command's stdin, so statusline-command.sh now stops reading once the top-level JSON object closes. install_statusline keeps the object-form statusLine for AGY and refreshes the installed script copy when settings already point at it.",
-      "dependencies": [
-        "feat-025"
-      ],
+      "dependencies": ["feat-025"],
       "status": "done",
       "evidence": "bash scripts/tests/test_statusline_command.sh -> 8 passed (old script fails: 3.1s with stdin open). bash scripts/tests/test_install_agents_md.sh -> 17 passed. Live AGY session renders the statusline with no 'signal: killed' in the new log. After install-agents-md.sh, [polish] appears only in ~/.gemini/GEMINI.md. ./init.sh -> all gates passed."
     },
@@ -228,9 +210,7 @@
       "id": "feat-027",
       "name": "codex-kiro runs on ~/.codex like claude-kiro",
       "description": "The codex-kiro alias now runs plain codex on the normal ~/.codex home with the kiro gateway passed as -c overrides, instead of a separate CODEX_HOME (~/.codex-kiro) that hid the rules, hooks and skills installed into ~/.codex. setup-codex writes only the alias; remove-codex never deletes a Codex home; status reads the alias. ~/.codex-kiro removed. Default model gpt-5.6-sol at medium reasoning.",
-      "dependencies": [
-        "feat-026"
-      ],
+      "dependencies": ["feat-026"],
       "status": "done",
       "evidence": "Commit 0943b0f. test_kiro_gateway.sh -> 40 passed (4 new codex tests failed on the old code first). Live codex-kiro via interactive zsh -> provider kiro, answered, ~/.codex rules loaded. ./init.sh -> all gates passed."
     },
@@ -238,9 +218,7 @@
       "id": "feat-028",
       "name": "polish-input rewrites instead of replying behind the kiro gateway",
       "description": "Under claude-kiro the hook polishes through the kiro gateway, whose system prompt made the model answer short prompts as chat. The engine wraps the prompt in <text> tags with a copy-editor system prompt and unwraps the reply. polish.py drops multi-line, too-long or low-overlap outputs and always logs them as rejected.",
-      "dependencies": [
-        "feat-027"
-      ],
+      "dependencies": ["feat-027"],
       "status": "done",
       "evidence": "pytest skills/utils/polish-input/tests -> 59 passed (9 new cases from real 2026-10-01 outputs failed first). Live hook through the gateway: 'yes' silent, today's failing prompts now rewritten with meaning kept. ./init.sh -> all gates passed."
     },
@@ -256,9 +234,7 @@
       "id": "feat-030",
       "name": "polish-input supports the agy pre-invocation hook and keychain credentials",
       "description": "Commit 83748b3 (made in a separate session): polish.py and polish_engine.py accept the agy PreInvocation payload and read credentials from the keychain.",
-      "dependencies": [
-        "feat-028"
-      ],
+      "dependencies": ["feat-028"],
       "status": "done",
       "evidence": "Recorded after the fact on 2026-10-04. pytest skills/utils/polish-input/tests -> 60 passed. Not re-run against a live agy session in this entry."
     },
@@ -266,10 +242,7 @@
       "id": "feat-031",
       "name": "Lecture 5: cold-start continuity audit and state-file fixes",
       "description": "Cold-start rebuilds by three subagents and agy found state files lagging git in all three repos and the auto-merge decision missing from them. Fixed in hangar and atelier, recorded it in their AGENTS.md/PROGRESS.md, moved frozen PROGRESS sections to docs/progress-archive.md, wrote docs/harness-creator/lecture-05/.",
-      "dependencies": [
-        "feat-020",
-        "feat-030"
-      ],
+      "dependencies": ["feat-020", "feat-030"],
       "status": "done",
       "evidence": "agy re-run on the fixed state matched the files in all three repos with HEAD and dirty count unchanged; ./init.sh -> all gates passed. Not done: rebuild time in seconds, exercises 2 and 3, a staleness guard (see docs/harness-creator/lecture-05/summary.md)."
     },
@@ -277,9 +250,7 @@
       "id": "feat-032",
       "name": "agy loads apidog, progress and testing skills; frontmatter guard",
       "description": "agy's cli log showed 'failed to parse frontmatter: mapping values are not allowed' for skills/apidog, progress and testing: an unquoted ': ' in description. Quoted the three values and added scripts/skill-frontmatter-check.py, run by skill-paths-guard.sh, so an unquoted ': ' or ' #' blocks with exit 2.",
-      "dependencies": [
-        "feat-031"
-      ],
+      "dependencies": ["feat-031"],
       "status": "done",
       "evidence": "Before: 16/16/11 parse errors for testing/apidog/progress in one agy log. After: a headless agy run logged 0 'Failed to parse skill'. test_skill_paths_guard.sh -> 11 passed (2 new cases); unquoting skills/testing again made the guard exit 2, restoring it exit 0. Follow-up: agy headless allow rules work as exact-prefix command(<binary subcommand>) entries, not with '*' (tested; documented in docs/harness-adoption.md). Installed in the user's agy settings: git status, git rev-parse, git merge-base, grep, wc, ls, head, tail, cat."
     },
@@ -287,9 +258,7 @@
       "id": "feat-033",
       "name": "Live Codex/AGY hook smoke test and the fixes it drove",
       "description": "Ran codex-kiro and agy live in throwaway clones with tracer hooks (2026-10-02). Fixed: precommit-sh-check missed commits chained after other commands and scripts staged by the same command (git add x && git commit, commit -a); polish ran on AGY's second PreInvocation (AGY counts from 0); rewire/merge left duplicate hook entries (Claude polish ran twice); AGY killed the Stop gate at its 30s default (now timeout 900); sh-check/py-check ignored Codex apply_patch edits and .codex/hooks.json did not match apply_patch; the no-clobber key test stored and printed an inherited KIRO_PROXY_KEY.",
-      "dependencies": [
-        "feat-032"
-      ],
+      "dependencies": ["feat-032"],
       "status": "done",
       "evidence": "Each fix has a test that fails on the old code (mutation-checked) and passes on the new: precommit 26/26, sh-check 23/23, py-check 21/21, stop-verify 7/7, settings_merge 13/13, polish 60/60, kiro-gateway 41/41. update.sh on this host collapsed the duplicate Claude polish entry to 1. Live runs showed Codex repo hooks fire only once trusted (needs per-host trust). NOT re-run live after the fixes."
     },
@@ -297,9 +266,7 @@
       "id": "feat-034",
       "name": "Pin claude-kiro and hermes-kiro to claude-sonnet-5.5",
       "description": "Kiro started rejecting claude-sonnet-5 with HTTP 400 'Invalid model ID or insufficient subscription level' while the gateway's /v1/models still listed it (cache from container start plus FALLBACK_MODELS). Both aliases pinned it, so hermes-kiro failed. Re-pinned to claude-sonnet-5.5.",
-      "dependencies": [
-        "feat-027"
-      ],
+      "dependencies": ["feat-027"],
       "status": "done",
       "evidence": "Direct probes 2026-10-05: claude-sonnet-5.5, claude-opus-5.5, claude-haiku-4.5, gpt-5.6-sol -> 200; claude-sonnet-5, auto-kiro, gpt-6-sol -> 400. test_kiro_gateway.sh 41/41 (2 new alias tests failed first). setup-alias regenerated ~/.zshrc; live hermes-kiro chat -q answered with HTTP 200 through the gateway."
     }
