@@ -2,8 +2,8 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-04
-**Active Feature:** none. feat-032 closed out; `./init.sh` passes all 9 gates.
+**Last Updated:** 2026-10-05
+**Active Feature:** none. feat-034 closed out; `./init.sh` passes all 9 gates.
 **Harness lectures:** 1–5 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 6
 (why initialization needs its own phase) is next. Lecture 5 open items: rebuild time never
 measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
@@ -152,6 +152,8 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] feat-030: recorded after the fact for commit `83748b3` (made in a separate session): `polish.py`/`polish_engine.py` accept the agy PreInvocation payload and read Claude Code's macOS keychain credentials; `pytest skills/utils/polish-input/tests` → 60 passed; not re-run against a live agy session.
 - [x] feat-031: Lecture 5 cold-start audit. Three subagents and agy found state files lagging git in all three repos; fixed in hangar and atelier, `PROGRESS.md` split into `docs/progress-archive.md`, write-up in `docs/harness-creator/lecture-05/`. Gaps: rebuild time unmeasured, exercises 2–3 not run, no staleness guard.
 - [x] feat-032: agy dropped the `apidog`, `progress` and `testing` skills (unquoted `: ` in `description` is invalid strict YAML; Claude Code tolerated it). Quoted them and added `scripts/skill-frontmatter-check.py`, run by `skill-paths-guard.sh`. A headless agy run now logs 0 skill parse errors; `test_skill_paths_guard.sh` 11 passed. agy headless allow rules work as `command(git log)` prefixes (no `*`); documented and installed (read-only list; git log/diff/show excluded since --output writes).
+- [x] feat-033: live codex-kiro/agy smoke test with tracer hooks drove six hook fixes: chained and same-command-staged commits now gated, AGY polish on `invocationNum` 0, duplicate hook entries collapsed on install/update, AGY Stop timeout 900s, Codex `apply_patch` edits checked, and the no-clobber key test no longer stores or prints an inherited `KIRO_PROXY_KEY`. Not re-run live after the fixes; Codex repo hooks need per-host trust.
+- [x] feat-034: Kiro stopped serving `claude-sonnet-5` (HTTP 400) while `/v1/models` still listed it; `claude-kiro` and `hermes-kiro` now pin `claude-sonnet-5.5`.
 
 ### What's In Progress
 
@@ -159,6 +161,8 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 
 ### What's Next
 
+- Re-run the codex-kiro and agy smoke test live against the feat-033 fixes; trust the repo hooks in Codex on each host.
+- Optional: scope the Stop gate's tests to changed files so a stop no longer takes ~3 minutes.
 - Run the fresh-session test again on the real hangar and atelier `main` (kiro-cli and gemini
   `AGENTS.md` support is still untested: neither is logged in headless).
 - Optional follow-up experiment: repeat exercise 3 at ~10k tokens without the
