@@ -383,6 +383,23 @@ render_env_file() {
     printf 'PROXY_API_KEY=%s\nKIRO_CLI_DB_FILE=%s\nFIRST_TOKEN_TIMEOUT=120\nSQLITE_READONLY=true\nFAKE_REASONING=false\n' "$key" "$db" > "$envf" )
   chmod 600 "$envf"
   echo "Rendered $envf (chmod 600)"
+  sync_hermes_env_key "$key"
+}
+
+# Hermes's gateway service runs scheduled jobs under launchd, which cannot read
+# the login keychain the hermes-kiro alias uses, so the key is mirrored into
+# Hermes's own .env (config.yaml reads it via key_env: KIRO_PROXY_KEY). Only
+# touches an existing ~/.hermes; every other line is kept as-is.
+sync_hermes_env_key() {
+  local key="$1" henv="$HOME/.hermes/.env"
+  [[ -d "$HOME/.hermes" ]] || return 0
+  ( umask 077
+    tmp=$(mktemp "$HOME/.hermes/.env.XXXXXX")
+    { if [[ -f "$henv" ]]; then grep -v '^KIRO_PROXY_KEY=' "$henv" || true; fi
+      printf 'KIRO_PROXY_KEY=%s\n' "$key"; } > "$tmp"
+    mv "$tmp" "$henv" )
+  chmod 600 "$henv"
+  echo "Synced KIRO_PROXY_KEY into $henv (chmod 600)"
 }
 
 health_probe() {

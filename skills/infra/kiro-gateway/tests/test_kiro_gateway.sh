@@ -685,6 +685,51 @@ EOF
 }
 render_env_test "render_env_file writes chmod 600 env with key"
 
+# The Hermes gateway service (launchd) runs scheduled jobs and cannot read the
+# keychain, so render_env_file mirrors the key into ~/.hermes/.env for it. It must
+# keep every other line, replace a stale key in place, and never create ~/.hermes.
+hermes_env_sync_test() {
+  local name="$1" mode="$2"; local tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"
+  cat > "$tmpdir/bin/security" <<'MOCK'
+#!/usr/bin/env bash
+case "$*" in
+  *"find-generic-password"*"-w"*) echo "test-key-123" ;;
+  *) exit 0 ;;
+esac
+MOCK
+  chmod +x "$tmpdir/bin/security"
+  mkdir -p "$tmpdir/Library/Application Support/kiro-cli"
+  local henv="$tmpdir/.hermes/.env"
+  case "$mode" in
+    fresh)  mkdir -p "$tmpdir/.hermes"; printf 'SLACK_BOT_TOKEN=xoxb\n# note\n' > "$henv" ;;
+    stale)  mkdir -p "$tmpdir/.hermes"; printf 'A=1\nKIRO_PROXY_KEY=old-key\nB=2\n' > "$henv" ;;
+    nohome) : ;;
+  esac
+  PATH="$tmpdir/bin:/usr/bin:/bin" HOME="$tmpdir" bash "$SCRIPT" __render_env >/dev/null 2>&1 || true
+  local ok=1
+  case "$mode" in
+    fresh)
+      { grep -q '^SLACK_BOT_TOKEN=xoxb$' "$henv" && grep -q '^# note$' "$henv" \
+        && [[ "$(grep -c '^KIRO_PROXY_KEY=test-key-123$' "$henv")" == 1 ]]; } || ok=0 ;;
+    stale)
+      { [[ "$(grep -c '^KIRO_PROXY_KEY=' "$henv")" == 1 ]] && grep -q '^KIRO_PROXY_KEY=test-key-123$' "$henv" \
+        && grep -q '^A=1$' "$henv" && grep -q '^B=2$' "$henv"; } || ok=0 ;;
+    nohome)
+      [[ ! -e "$tmpdir/.hermes" ]] || ok=0 ;;
+  esac
+  if [[ "$mode" != nohome ]]; then
+    local perm; perm=$(stat -c '%a' "$henv" 2>/dev/null || stat -f '%Lp' "$henv" 2>/dev/null)
+    [[ "$perm" == "600" ]] || ok=0
+  fi
+  if [[ $ok == 1 ]]; then echo "PASS: $name"; PASS=$((PASS+1))
+  else echo "FAIL: $name ($(sed 's/=.*/=…/' "$henv" 2>/dev/null | tr '\n' ' '))"; FAIL=$((FAIL+1)); fi
+  rm -rf "$tmpdir"
+}
+hermes_env_sync_test "render_env_file adds KIRO_PROXY_KEY to ~/.hermes/.env, keeps other lines" fresh
+hermes_env_sync_test "render_env_file replaces a stale KIRO_PROXY_KEY in ~/.hermes/.env" stale
+hermes_env_sync_test "render_env_file does not create ~/.hermes when Hermes is absent" nohome
+
 # health_probe: mocks curl (emulates -w '%{http_code}' -o /dev/null) and docker
 make_curl_mock() {
   local dir="$1" code="$2"
