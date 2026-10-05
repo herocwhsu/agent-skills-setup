@@ -673,6 +673,7 @@ EOF
   if [[ -f "$envf" ]] && grep -q "^PROXY_API_KEY=test-key-123$" "$envf" \
      && grep -q "^FIRST_TOKEN_TIMEOUT=120$" "$envf" \
      && grep -q "^SQLITE_READONLY=true$" "$envf" \
+     && grep -q "^FAKE_REASONING=false$" "$envf" \
      && grep -q "^KIRO_CLI_DB_FILE=/home/kiro/.local/share/kiro-cli/data.sqlite3$" "$envf" \
      && ! grep -q "^KIRO_CLI_DB_FILE=$tmpdir" "$envf" \
      && [[ "$perm" == "600" ]]; then

@@ -374,9 +374,13 @@ render_env_file() {
   # ("no matching keys found") misdescribes the cause: the keys DO match, but
   # the UPDATE is rejected and the error is swallowed. Setting this skips the
   # write-back before it opens the DB. Upstream default is false.
+  # FAKE_REASONING=false: the gateway injects a <thinking_mode> prompt block into
+  # every request. Since 2026-10-05 Kiro answers it with a REASONING_EXTRACTION
+  # refusal (Sonnet always, Opus once tool history is present), which the
+  # gateway passes on as an empty 200 reply. Upstream default is enabled.
   # umask scoped to a subshell so it doesn't leak to the rest of the script.
   ( umask 077
-    printf 'PROXY_API_KEY=%s\nKIRO_CLI_DB_FILE=%s\nFIRST_TOKEN_TIMEOUT=120\nSQLITE_READONLY=true\n' "$key" "$db" > "$envf" )
+    printf 'PROXY_API_KEY=%s\nKIRO_CLI_DB_FILE=%s\nFIRST_TOKEN_TIMEOUT=120\nSQLITE_READONLY=true\nFAKE_REASONING=false\n' "$key" "$db" > "$envf" )
   chmod 600 "$envf"
   echo "Rendered $envf (chmod 600)"
 }
