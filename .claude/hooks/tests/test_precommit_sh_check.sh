@@ -115,6 +115,25 @@ agents_valid_test() {
 }
 agents_valid_test ".agents/hooks.json registers the PreToolUse hook"
 
+# AGY kills a hook at 30s by default. Under load (two agents plus harness-verify)
+# this gate was killed mid-run on 2026-10-05 while it takes ~3s, which blocks
+# commits with an empty "signal: killed" instead of a real verdict.
+agents_timeout_test() {
+  local hooks_file
+  hooks_file="$(cd "$(dirname "$0")/../../.." && pwd)/.agents/hooks.json"
+  if python3 -c "
+import json
+d = json.load(open('$hooks_file'))
+h = [x for g in d['precommit-sh-check']['PreToolUse'] for x in g['hooks'] if 'precommit-sh-check.sh' in x['command']]
+assert h and all(int(x.get('timeout', 0)) >= 120 for x in h)
+" 2>/dev/null; then
+    echo "PASS: .agents/hooks.json pre-commit hook sets timeout >= 120s"; PASS=$((PASS+1))
+  else
+    echo "FAIL: .agents/hooks.json pre-commit hook sets timeout >= 120s"; FAIL=$((FAIL+1))
+  fi
+}
+agents_timeout_test
+
 codex_valid_test() {
   local name="$1"
   local hooks_file

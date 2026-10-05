@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd .. && bash .claude/hooks/precommit-sh-check.sh"
+            "command": "cd .. && bash .claude/hooks/precommit-sh-check.sh",
+            "timeout": 120
           }
         ]
       }
