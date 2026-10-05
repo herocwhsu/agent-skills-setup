@@ -7,7 +7,7 @@ name = "agent-skills-setup"
 version = "0.1.0"
 description = "One-command setup for Agent Skills across multiple AI agents and platforms"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 
 dependencies = [
     "anthropic>=1.6.0",

@@ -9,17 +9,23 @@ on:
 jobs:
   install-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12: the oldest python3 the shipped hooks and skills meet on user
+        # machines (ubuntu-24.04's system Python). 3.14: .python-version, what
+        # the dev hosts and their .venv run. Code that only works on one of
+        # them fails here instead of on a user's machine.
+        python-version: ["3.12", "3.14"]
     steps:
       - uses: actions/checkout@v7
 
-      # Pinned, not the runner image's python3: ubuntu-latest moved to 3.12
-      # underneath us, and py-check.sh's indented `python3 -c` body only broke
-      # there (3.14 dedents -c code). 3.12 is deliberately older than the
-      # .python-version the dev hosts run, so CI keeps catching code that only
-      # works on a newer interpreter.
+      # Pinned per matrix entry, not the runner image's python3: py-check.sh's
+      # indented `python3 -c` body passed on 3.14 (which dedents -c code) and
+      # broke on the image's 3.12.
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       # No requirements.txt exists (a dev host has these globally, masking the
       # gap) — pytest runs the *.py tests, lxml is needed by confluence-tree's
