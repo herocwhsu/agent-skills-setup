@@ -520,9 +520,9 @@ cmd_setup_alias() {
   local rc; rc=$(rc_file_path)
   local read_cmd; read_cmd=$(store_proxy_key)
   write_managed_line "$rc" "claude-kiro" \
-    "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5 ANTHROPIC_API_KEY=${read_cmd} claude'"
+    "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5.5 ANTHROPIC_API_KEY=${read_cmd} claude'"
   write_managed_line "$rc" "hermes-kiro" \
-    "alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} hermes --provider anthropic --model claude-sonnet-5'"
+    "alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} hermes --provider anthropic --model claude-sonnet-5.5'"
   echo "Reconciled claude-kiro/hermes-kiro in $rc. Activate: source $rc"
 }
 
