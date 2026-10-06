@@ -51,6 +51,11 @@ grep -q 'Prompt polish' "$RULES" \
   && ok "antigravity-rules.md exists and contains AGY prompt polish rule" \
   || bad "antigravity-rules.md exists and contains AGY prompt polish rule" "missing or incomplete"
 
+grep -q 'outside-agent.sh run --purpose review' "$RULES" \
+  && ok "outside-agent rule present" || bad "outside-agent rule present" "missing"
+grep -q 'not independent' "$RULES" \
+  && ok "outside-agent rule names exit 3" || bad "outside-agent rule names exit 3" "missing"
+
 echo ""
 echo "test_engineering_rules_scope: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

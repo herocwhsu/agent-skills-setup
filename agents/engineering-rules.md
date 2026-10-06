@@ -72,6 +72,11 @@ You are an expert AI software engineer. You must adhere to the following 12 core
 - After any subagent dispatch, run `git log --oneline <base>..HEAD` and `git show --stat <sha>` for each commit before marking tasks complete.
 - Verify diffs and tests directly. Do not trust verbose subagent summaries.
 
+### Outside agents
+- Delegating: use your own subagent first. For an outside agent, run `~/.agent-skills-setup/outside-agent.sh run --purpose delegate --from <claude|openai|gemini> -- "<prompt>"`, where `--from` is your own model family. Give your shell tool a timeout longer than --timeout (default 110s).
+- Reviewing: get at least one answer from a different model family with `~/.agent-skills-setup/outside-agent.sh run --purpose review --from <claude|openai|gemini> -- "<prompt>"`. Report exit 3 as "not independent", never as a pass.
+- Exit 2 means no outside agent worked: report its stderr line and do not work around it.
+
 ---
 
 ## Part IV: Workflow Policies
