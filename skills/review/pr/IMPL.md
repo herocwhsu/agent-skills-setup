@@ -15,7 +15,7 @@ This skill is the entry point for the `/review-pr <number>` slash command.
 
 - `gh` CLI authenticated.
 - Current working directory is inside the target repo.
-- `.code-review/playbook.md` exists (run `/mine-review-patterns` first).
+- `.code-review/playbook.md` exists (run `/review-mine-patterns` first).
 
 ## Inputs the review uses
 
@@ -36,14 +36,14 @@ gh auth status
 git remote get-url origin
 ```
 
-Same checks as `mine-review-patterns`. Abort with clear messages if either fails.
+Same checks as `review/mine-patterns`. Abort with clear messages if either fails.
 
 ### Step 2 — Verify the playbook exists
 
 If `.code-review/playbook.md` does not exist, tell the user:
 
 ```
-.code-review/playbook.md not found. Run /mine-review-patterns first, or
+.code-review/playbook.md not found. Run /review-mine-patterns first, or
 write the playbook by hand. Aborting.
 ```
 

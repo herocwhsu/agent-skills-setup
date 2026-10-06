@@ -35,7 +35,7 @@ STORY_DIR=$(resolve_story_dir "$1") || exit 1
 1. `$STORY_DIR/story.md` — Jira description, acceptance criteria, linked tickets
 2. `$STORY_DIR/confluence-*.md` — all Confluence reference pages (may be zero)
 3. `$STORY_DIR/apidog-*.md` — all Apidog / public API reference pages (may be zero)
-4. `$STORY_DIR/intake-summary.md` — if it exists, read last (Phase 2)
+4. `$STORY_DIR/intake-summary.md` — if it exists, read last
 
 ## Audit checklist
 
@@ -77,7 +77,7 @@ Read once, pass to every subagent:
 1. `$STORY_DIR/story.md` — Jira description, acceptance criteria, linked tickets
 2. `$STORY_DIR/confluence-*.md` — all Confluence reference pages (may be zero)
 3. `$STORY_DIR/apidog-*.md` — all Apidog / public API reference pages (may be zero)
-4. `$STORY_DIR/intake-summary.md` — if present, read last (Phase 2)
+4. `$STORY_DIR/intake-summary.md` — if present, read last
 
 ## Step 2 — Dispatch 5 subagents in parallel
 

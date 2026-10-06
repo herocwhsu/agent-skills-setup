@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests the deterministic glue from review-pr SKILL.md.
+# Tests the deterministic glue from review/pr IMPL.md.
 set -euo pipefail
 
 TMP=$(mktemp -d)

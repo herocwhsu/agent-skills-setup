@@ -11,7 +11,7 @@ Connects approved specs to Jira tickets and verifies the evidence trail.
 
 | Slash command | What it does | Implementation |
 |---|---|---|
-| `/jira-subtasks <STORY-ID>` | Read the OpenSpec `tasks.md` (or pre-OpenSpec `plan.md` during transition) for a story, create one Jira sub-task per task, write the sub-task IDs back into the source file. | `subtasks/IMPL.md` |
+| `/jira-subtasks <STORY-ID>` | Read the OpenSpec `tasks.md` (or `plan.md` when the story has no OpenSpec change) for a story, create one Jira sub-task per task, write the sub-task IDs back into the source file. | `subtasks/IMPL.md` |
 | `/jira-evidence <STORY-ID>` | Walk every sub-task on a Jira story and check that each has the required evidence links (PR, Apidog, CI, OpenSpec change). Stdout report only; no file output. | `evidence/IMPL.md` |
 
 ## When to use which subcommand
@@ -31,9 +31,7 @@ that exists:
    that were planned before OpenSpec was in the loop
 
 The `<change-id>` is read from the `openspec_changes` frontmatter list in
-`./docs/stories/<JIRA-ID>-<slug>/intake-summary.md` (Phase 2). For Phase 1,
-`/jira-subtasks` keeps reading the legacy `plan.md` to preserve current
-behavior.
+`./docs/stories/<JIRA-ID>-<slug>/intake-summary.md`.
 
 ## Credentials
 
@@ -43,11 +41,3 @@ behavior.
 ```bash
 bash scripts/credentials/service.sh jira add
 ```
-
-## Migration note
-
-| Old skill | New subcommand | Old slash | New slash |
-|---|---|---|---|
-| `create-story-tasks` | `jira/subtasks` | `/create-story-tasks` | `/jira-subtasks` |
-
-Same script, same credentials, same outputs. `/jira-evidence` is new in Phase 2.

@@ -15,7 +15,7 @@ Fetch a Jira story and all linked reference pages, save to `./docs/stories/<STOR
 ```
 ./docs/stories/<STORY-ID>/
   story.md              ← story description + extracted links list
-  confluence-<slug>.md  ← one file per Confluence link (via fetch-page-to-markdown)
+  confluence-<slug>.md  ← one file per Confluence link (via intake/web-page)
   apidog-<slug>.md      ← one file per Apidog/public link (plain curl)
 ```
 

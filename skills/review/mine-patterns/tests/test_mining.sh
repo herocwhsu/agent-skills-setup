@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests the deterministic glue from mine-review-patterns SKILL.md.
+# Tests the deterministic glue from review/mine-patterns IMPL.md.
 # These exercise the bash commands embedded in the workflow against a
 # fake repo + fake `gh` to verify error messages and output paths.
 set -euo pipefail

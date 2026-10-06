@@ -42,16 +42,3 @@ During implementation, the API contract or scope changed → /review-change-requ
 If unsure, treat it as a change request — it costs more process but loses no
 information. Amendments are append-only: never edit a previous amendment, add
 a new one.
-
-## Migration note
-
-| Old skill | New subcommand | Old slash | New slash |
-|---|---|---|---|
-| `mine-review-patterns` | `review/mine-patterns` | `/mine-review-patterns` | `/review-mine-patterns` |
-| `review-pr` | `review/pr` | `/review-pr` | `/review-pr` (path same, source moves) |
-
-`mine-patterns/charter.md` and `pr/charter.md` retain their existing roles —
-the long-form rationale each script consults at runtime.
-
-`./.code-review/playbook.md` location is unchanged. Repos that already have a
-mined playbook keep working without re-mining.

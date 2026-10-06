@@ -13,7 +13,7 @@ Installed automatically as a `local` skill.
 
 ## Prerequisite
 
-`.code-review/playbook.md` must exist. Run `/mine-review-patterns` first.
+`.code-review/playbook.md` must exist. Run `/review-mine-patterns` first.
 
 ## How reviews are assembled
 
@@ -73,7 +73,7 @@ or important issues. N minor notes in the full report.`
 
 ## Troubleshooting
 
-- "Playbook not found": run `/mine-review-patterns` first.
+- "Playbook not found": run `/review-mine-patterns` first.
 - Large PR: the skill prompts for confirmation. Reviews of 2000+ line
   PRs tend to be noisy — consider splitting the PR.
 - Wrong report: the model occasionally over-flags. Edit the comment

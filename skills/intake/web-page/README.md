@@ -1,4 +1,4 @@
-# fetch-page-to-markdown
+# intake/web-page
 
 Fetch a Confluence page or any web URL and save it as a dated markdown file in `./docs/pre-specs/`.
 
@@ -57,11 +57,11 @@ For non-Confluence URLs the agent uses plain `curl` — no auth required unless 
 
 ## Agent Compatibility
 
-Works with Kiro, Claude Code, Codex, and Antigravity CLI. The `html2md.py` converter is located at install time by scanning `~/.kiro/skills/`, `~/.claude/skills/`, `~/.codex/skills/`, and `~/.gemini/antigravity-cli/skills/` in order — whichever is found first is used.
+Works with Kiro, Claude Code, Codex, and Antigravity CLI. The `html2md.py` converter is located at fetch time by scanning `~/.kiro/skills/`, `~/.claude/skills/`, `~/.codex/skills/`, and `~/.gemini/antigravity-cli/skills/` in order — whichever is found first is used.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `SKILL.md` | Agent instructions (read by Kiro/Claude automatically) |
+| `IMPL.md` | Agent instructions for `/intake-web-page` |
 | `html2md.py` | HTML → Markdown converter used at fetch time |

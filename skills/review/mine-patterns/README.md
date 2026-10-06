@@ -1,4 +1,4 @@
-# mine-review-patterns
+# review/mine-patterns
 
 Scan a repo's closed PRs to produce `.code-review/playbook.md`, a curated
 checklist future reviewers consult.
@@ -16,8 +16,8 @@ along with the others.
 
 ```bash
 cd /path/to/your/repo
-/mine-review-patterns          # default 50 PRs
-/mine-review-patterns 100      # scan 100 PRs
+/review-mine-patterns          # default 50 PRs
+/review-mine-patterns 100      # scan 100 PRs
 ```
 
 The skill writes `.code-review/playbook.md` and prints a summary.

@@ -178,6 +178,11 @@ rather than adding to it, so a narrow re-run narrows all later updates.
 A bare `bash scripts/install.sh` replays the saved selection instead of prompting;
 the prompt only appears on a first install.
 
+This mattered: the field previously held a single agent, so a claude+codex host
+refreshed only whichever was installed last and let the other go stale — 11
+weeks, in one case. A sibling bug compared the selection count against a literal
+`3`, so adding a fourth agent made `--agent all` record `kiro` instead.
+
 ### Install source guard
 
 Local skills are symlinked to the checkout `install.sh` runs from, so it refuses to
@@ -185,11 +190,6 @@ run from a linked git worktree or from any branch other than the default (`main`
 either would point every agent on the host at unmerged skill code, and deleting the
 worktree would dangle every link. Pass `--allow-non-main` to override (CI does,
 since a PR checkout is a detached merge ref). A copy with no `.git` is not checked.
-
-This mattered: the field previously held a single agent, so a claude+codex host
-refreshed only whichever was installed last and let the other go stale — 11
-weeks, in one case. A sibling bug compared the selection count against a literal
-`3`, so adding a fourth agent made `--agent all` record `kiro` instead.
 
 ---
 
@@ -395,7 +395,7 @@ External sources go in `registry.txt` too:
 
 ```
 # every dir under the subpath becomes a skill — pinned to a commit SHA
-github        obra/superpowers@b36e0829c6d0140e93cfef2ca599b1b07d4a7797  skills
+github        obra/superpowers@8ca22dba9a94f28898bbce59f2537ff4d87c747d  skills
 
 # exactly one skill out of a multi-skill repo — also pinnable
 github-skill  anthropics/skills@34040c9c568585f6929bedeaad110ad08f079624  skills/webapp-testing
@@ -588,7 +588,7 @@ give the calling shell a longer timeout so it does not kill the run first.
 
 ## Custom Skills
 
-The 14 group skills cover intake, spec audit, API contracts, testing, code
+The 16 group skills cover intake, spec audit, API contracts, testing, code
 review, release, and local infrastructure. Each group's
 `skills/<group>/SKILL.md` is the entry point; per-subcommand recipes live in
 `skills/<group>/<subcommand>/IMPL.md`. [`skills/README.md`](skills/README.md)

@@ -35,7 +35,7 @@ Check which artifacts exist in the story folder:
 | `confluence-*.md` | Recommended — warn if zero | |
 | `audit-report.md` | Recommended — warn if missing | |
 | `domain-risk.md` | Recommended — warn if missing | |
-| `repo-context.md` | Optional (Phase 2: repo/context-scan) | |
+| `repo-context.md` | Optional (repo/context-scan) | |
 
 If `story.md` is missing, abort with:
 ```

@@ -147,5 +147,5 @@ required evidence files exist. `status: incomplete` otherwise.
 | Mistake | Fix |
 |---|---|
 | Running archive-check before /release-readiness passes | Run readiness first — archive-check assumes the feature is released |
-| Missing intake-summary.md | Run /intake-spec-summary (Phase 2 full) or create it manually with openspec_changes list |
+| Missing intake-summary.md | Run /intake-spec-summary or create it manually with openspec_changes list |
 | Forgetting to /opsx:archive in the repo | The story-level archive.md is only complete after each OpenSpec change-id is archived via `/opsx:archive` |

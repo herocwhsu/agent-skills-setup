@@ -168,7 +168,7 @@ curl -s "$URL" | python3 "$HTML2MD" \
 ```
 
 For authenticated non-Confluence URLs, call `require_secret <slug> <user>`
-against the appropriate slug — see fetch-jira-story's Apidog example.
+against the appropriate slug — see the Confluence example in `intake/jira-story/IMPL.md`.
 
 ## File Naming
 

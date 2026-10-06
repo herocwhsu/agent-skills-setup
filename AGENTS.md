@@ -91,7 +91,7 @@ Load a topic doc only when its condition matches the task.
 
 - **`docs/architecture.md`** — layers, invariants, directory layout. *Load when:* changing a subsystem boundary, hook, or gate.
 - **`agents/engineering-rules.md`** — the shipped rules. *Load when:* editing them (changes every agent on the machine).
-- **`skills/README.md`** — subcommand specs and integration contracts. *Load when:* adding or changing a skill.
+- **`skills/README.md`** — group and subcommand index, skill layout, registry entry types. *Load when:* adding or changing a skill.
 - **`docs/harness-creator/`** — lecture logs and diagnostic tools. *Load when:* doing harness training work.
 - **`docs/harness-adoption.md`** — putting this harness into another repo. *Load when:* adopting or refreshing the harness in a repo.
 - **`docs/migration.md`** — host upgrades, pyenv, multi-agent dirs. *Load when:* changing interpreters or agent install paths.

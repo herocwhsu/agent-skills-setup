@@ -56,9 +56,7 @@ skills/intake/
 ```
 
 When invoked, read the matching `IMPL.md` for the full bash recipe, credential
-checks, and error handling. Implementations have not changed from the
-pre-refactor `fetch-jira-story` and `fetch-page-to-markdown` skills — only
-their location has.
+checks, and error handling.
 
 ## Credentials
 
@@ -78,13 +76,3 @@ Verify (no value printed):
 bash scripts/credentials/service.sh jira verify
 bash scripts/credentials/service.sh confluence verify
 ```
-
-## Migration note (from pre-refactor layout)
-
-| Old skill | New subcommand | Old slash | New slash |
-|---|---|---|---|
-| `fetch-jira-story` | `intake/jira-story` | `/fetch-jira-story` | `/intake-jira-story` |
-| `fetch-page-to-markdown` | `intake/web-page` | `/fetch-page-to-markdown` | `/intake-web-page` |
-
-Same scripts, same credentials, same outputs. Only the wrapper SKILL.md and
-slash command changed.
