@@ -50,11 +50,9 @@ fi
 select_agents "$AGENT_ARG"
 
 mkdir -p "$(dirname "$SELECTION_FILE")"
-# Record every selected agent, not just the first, and compare against the
-# agent list itself rather than a literal. Both halves of this were wrong:
-# the test read "-eq 3" and broke silently the moment codex made it four, and
-# the else-branch stored element 0, so a multi-agent install taught update.sh
-# to refresh exactly one of them.
+# Record every selected agent, not just the first, so update.sh refreshes all of
+# them; compare against the agent list, not a literal count, so adding an agent
+# keeps "all" correct.
 if [[ ${#SELECTED_AGENTS[@]} -eq ${#AGENTS[@]} ]]; then
   echo "all" > "$SELECTION_FILE"
 else
@@ -110,7 +108,6 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   fi
 
   while IFS=' ' read -r type id arg3 arg4; do
-    # Skip comments and blank lines
     case "$type" in
       ""|\#*) continue ;;
     esac
@@ -156,8 +153,8 @@ done
 
 # polish-input is always wired, not opt-in: it ships as part of the `utils`
 # group installed above, so its hook should be live wherever the skill is.
-# wire_hook wires hooks into ~/.claude/settings.json or ~/.codex/hooks.json,
-# skipping agents without supported settings paths (such as kiro or gemini).
+# wire_hook writes ~/.claude/settings.json, the Codex hooks.json, or the AGY
+# hooks.json, and skips kiro, which has no settings file for hooks.
 echo ""
 echo "==> Wiring hooks..."
 for agent in "${SELECTED_AGENTS[@]}"; do

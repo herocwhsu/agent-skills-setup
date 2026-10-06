@@ -4,7 +4,7 @@
 # The same checks already run as Stop hooks, but only when an agent finishes a
 # turn. This is the entry point for running them on demand: before a commit,
 # after a rebase, or when an agent needs to confirm its work rather than assume
-# it. Having one name to invoke is the point — "run the three hook scripts"
+# it. Having one name to invoke is the point — "run the hook scripts"
 # is an instruction people and agents skip.
 #
 # Single source of truth: this delegates to .claude/hooks/*.sh rather than
@@ -56,12 +56,12 @@ run_gate "tests"       "$HOOKS/tests-guard.sh"
 run_gate "skill paths" "$HOOKS/skill-paths-guard.sh"
 run_gate "bash compat" "$HOOKS/bash-compat-guard.sh"
 run_gate "cred backends" "$HOOKS/credential-backend-guard.sh"
-# Passes the real settings.json as well as the tree: a hook wired to a path that
-# no longer resolves is invisible to the Stop hook by design, and this is where a
-# person asks the question deliberately.
 run_gate "hook wiring" "$HOOKS/hook-wiring-guard.sh"
 run_gate "state layer" "$HOOKS/state-layer-guard.sh"
 run_gate "runtime drift" "$HOOKS/runtime-drift-guard.sh"
+# Passes the real settings files as well as the tree: a hook wired to a path that
+# no longer resolves is invisible to the Stop hook by design, and this is where a
+# person asks the question deliberately. A warning, not a gate.
 if ! out=$(python3 "$REPO_DIR/scripts/hook-wiring-check.py" "$REPO_DIR" \
            "$HOME/.claude/settings.json" "${CODEX_HOME:-$HOME/.codex}/hooks.json" \
            "${GEMINI_CONFIG_DIR:-$HOME/.gemini/config}/hooks.json" 2>&1); then

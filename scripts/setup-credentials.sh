@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # setup-credentials.sh — manage credentials for all services
 # Usage: bash setup-credentials.sh [service] [action]
-#   service: confluence | jira | apidog
+#   service: confluence | jira | apidog | anthropic | gemini | linear
 #   action:  add | update | delete | list | verify
 set -euo pipefail
 

@@ -20,9 +20,8 @@ Machine side (checked only for settings files that exist)
     wired command can name a skill the newly-installed repo does not carry. Keying
     the check off this repo's own hook.json files missed exactly that case -- the
     repo ships none, so there was nothing to match against and the stale wiring
-    read as clean. Absence is still never a failure: wiring is opt-in via
-    install.sh --with-hook, so a hook the user never asked for is correctly
-    missing.
+    read as clean. Absence is still never a failure: install.sh wires hooks
+    only for the agents it was run for, so an unwired hook is a legitimate state.
 
 Exit 0 clean, 1 on any failure. Findings go to stdout.
 """

@@ -2,7 +2,7 @@
 # credentials/service.sh — manage credentials for any service in one script
 # Usage: bash service.sh <service> <add|update|delete|list|verify>
 #
-# Supported services: confluence | jira | apidog
+# Supported services: confluence | jira | apidog | anthropic | gemini | linear
 set -euo pipefail
 source "$(dirname "$0")/_store.sh"
 

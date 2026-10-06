@@ -10,7 +10,7 @@ SELECTION_FILE="$(skills_runtime_dir "$REPO_DIR")/agent-selection.txt"
 
 # update.sh means "bring this machine current", so agent CLI updates apply here
 # rather than only being reported. --no-update-agents skips them for an offline or
-# CI run; the git pull above already needs the network, so this adds no new
+# CI run; the git pull below already needs the network, so this adds no new
 # requirement in the normal case.
 UPDATE_AGENTS=1
 while [[ $# -gt 0 ]]; do

@@ -43,7 +43,7 @@ _os() {
       if command -v secret-tool &>/dev/null; then
         echo "linux-gui"
       else
-        echo "linux-file" # Fallback to file storage
+        echo "linux-file"
       fi
       ;;
     *)             echo "unknown" ;;
@@ -78,7 +78,6 @@ store_credential() {
       ;;
     linux-file)
       _ensure_fallback_dir
-      # Use python to safely update the JSON file
       python3 -c "import json, os; p = os.path.expanduser('$_FALLBACK_STORE'); d = json.load(open(p)); d['$svc:$user'] = '$pass'; json.dump(d, open(p, 'w'), indent=2)"
       ;;
     linux-headless)

@@ -11,10 +11,11 @@
 #   k8s          — Kubernetes/Kustomize infra (yaml-validate, checkov, placeholder-guard)
 #   full         — all of the above
 #
-# Common hooks (secret-scan, semgrep, grype, sh-check) are always included.
+# Common hooks (secret-scan, semgrep, grype, sh-check, pr-guard) and check-tools.sh
+# are always included.
 #
 # The target repo gets .claude/hooks/ populated and .claude/settings.json created.
-# Existing files are NOT overwritten unless --force is passed.
+# Existing files are NOT overwritten unless FORCE=1 is set.
 
 set -euo pipefail
 

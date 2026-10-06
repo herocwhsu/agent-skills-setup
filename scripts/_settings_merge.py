@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
-"""Merge or remove a hook JSON snippet into ~/.claude/settings.json.
+"""Merge or remove a hook JSON snippet in an agent's hook settings file.
 
 Usage:
-    _settings_merge.py --merge  hook.json settings.json
-    _settings_merge.py --remove hook.json settings.json
-    _settings_merge.py --rewire hook.json settings.json --skills-dir DIR
+    _settings_merge.py --merge  hook.json settings.json [--agent A] [--hook-name N]
+    _settings_merge.py --remove hook.json settings.json [--agent A] [--hook-name N]
+    _settings_merge.py --rewire hook.json settings.json --skills-dir DIR [--agent A] [--hook-name N]
 
-Operates only on top-level "hooks.<EventName>" arrays. Preserves all other keys
-and other event names. Idempotent. Creates settings.json if missing on --merge.
+Claude Code and Codex: operates only on top-level "hooks.<EventName>" arrays.
+AGY (--agent gemini): operates on "<hook-name>.<EventName>" arrays. Preserves all
+other keys and other event names. Idempotent. Creates the file if missing on --merge.
 
 --rewire refreshes an entry that is *already* present, and adds nothing. A hook
 command embeds an absolute skills path, so moving the skills tree leaves the
 wired command pointing at a path that no longer resolves; the hook then fails
 silently because nothing re-runs the wiring. Rewire matches an existing entry by
-its skill-relative suffix, so a stale prefix is recognised and replaced. Absence
-means the user never opted in, and stays absence.
+its skill-relative suffix, so a stale prefix is recognised and replaced. An
+entry that was never wired stays unwired.
 """
 
 import argparse

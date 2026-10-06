@@ -5,14 +5,10 @@
 # Detect OS type
 # Returns: darwin | linux | unknown
 #
-# Windows was dropped 2026-08-20. It was carried as a parallel PowerShell
-# implementation (install.ps1, setup-credentials.ps1, _store.ps1) that no test
-# and no CI job ever executed, on any machine — so it was support in name only,
-# and it had already silently diverged from the bash side. Supported targets
-# are Linux and macOS, on x86_64 and arm64 alike; nothing here fetches an
-# arch-specific binary (GitHub source archives and npm packages only) and every
-# external tool is located with `command -v`, never a hardcoded prefix, so
-# Apple Silicon's /opt/homebrew and Intel's /usr/local both just work.
+# Supported targets are Linux and macOS, on x86_64 and arm64 alike: nothing here
+# fetches an arch-specific binary (GitHub source archives and npm packages only)
+# and every external tool is located with `command -v`, never a hardcoded
+# prefix, so Apple Silicon's /opt/homebrew and Intel's /usr/local both work.
 detect_os() {
   case "$(uname -s)" in
     Darwin) echo "darwin" ;;
@@ -21,9 +17,8 @@ detect_os() {
   esac
 }
 
-# Abort with a clear message on an unsupported OS, rather than half-installing.
-# A Windows user running this under Git Bash previously got `linux`-ish
-# behaviour from some helpers and Windows behaviour from others.
+# Abort with a clear message on an unsupported OS, rather than half-installing:
+# under Git Bash some helpers would act linux-ish and others would not.
 require_supported_os() {
   local os; os=$(detect_os)
   if [[ "$os" == "unknown" ]]; then
@@ -63,8 +58,6 @@ require_main_checkout() {
   return 0
 }
 
-# Download a URL to a file; tries curl then wget
-# Usage: download_file <url> <dest>
 # ---------------------------------------------------------------------------
 # skills_runtime_dir <repo_dir>
 #   Echo the runtime state dir for <repo_dir>: ~/.<its .skills-repo-id>, or
@@ -101,6 +94,8 @@ _other_skills_runtimes() {
   done
 }
 
+# Download a URL to a file; tries curl then wget
+# Usage: download_file <url> <dest>
 download_file() {
   local url="$1" dest="$2"
   if command -v curl &>/dev/null; then
@@ -253,12 +248,10 @@ install_skill() {
 # Remove a single skill from a target skills dir.
 # Usage: remove_skill <skill_name> <skills_target_dir> [repo_dir]
 #
-# A symlink is removed ONLY when it points into <repo_dir>/skills/. The comment
-# here used to claim that and the code did not check: it removed whatever sat at
-# the name. With two repos installed that share skill names, one repo's uninstall
-# deleted the other's live links -- confirmed by uninstalling agent-skills-setup
-# and finding we-skills' apidog link gone. Provenance is checked the same way
-# prune_dead_skill_links does it.
+# A symlink is removed ONLY when it points into <repo_dir>/skills/. With two
+# repos installed that share skill names, removing by name alone let one repo's
+# uninstall delete the other's live links (we-skills' apidog link, once).
+# Provenance is checked the same way prune_dead_skill_links does it.
 #
 # A real directory carries no provenance (github/pip/npm entries are `cp -r`
 # copies, not links), so it is still removed on the caller's word. Two repos
@@ -287,9 +280,8 @@ remove_skill() {
 # Registry-based install handlers
 # ---------------------------------------------------------------------------
 
-# install_pip_skill <package> <target_dir>
-# Only installs the pip package itself (for future use).
-# Skill files are installed via install_github_skill — avoids interactive prompts.
+# install_pip_skill <package>
+#   Install or upgrade a pip package. Skill files never come from pip.
 install_pip_skill() {
   local pkg="$1"
   local pip_cmd
@@ -324,7 +316,7 @@ install_npm_skill() {
 
 # install_github_skill <owner/repo[@ref]> <skills-subpath> <target_dir>
 #   [@ref] pins to a commit SHA, tag, or branch instead of the mutable default
-#   branch. Omit it to keep tracking HEAD (pre-existing behavior, unchanged).
+#   branch. Omit it to track HEAD.
 install_github_skill() {
   local repo_ref="$1" subpath="$2" target_dir="$3"
   local repo="${repo_ref%@*}" ref="HEAD"
@@ -361,8 +353,7 @@ install_github_skill() {
     # Replace, don't merge. Without this a file deleted upstream survives forever
     # in the installed copy, and the copy only avoided nesting itself inside the
     # old dir because the `*/` glob leaves a trailing slash on $skill_dir -- which
-    # BSD and GNU cp do not treat alike. install_github_single_skill already does
-    # this; the two paths had drifted.
+    # BSD and GNU cp do not treat alike.
     rm -rf "${target_dir:?}/${skill_name}"
     cp -r "$skill_dir" "$target_dir/$skill_name"
     record_installed "$skill_name"
@@ -379,7 +370,7 @@ install_github_skill() {
 #   itself is the skill. [name] overrides the installed dir name; defaults
 #   to basename of <skill-path>, or the repo name when skill-path is ".".
 #   [@ref] on the repo pins to a commit SHA, tag, or branch instead of the
-#   mutable default branch. Omit it to keep tracking HEAD (unchanged).
+#   mutable default branch. Omit it to track HEAD.
 install_github_single_skill() {
   local repo_ref="$1" skill_path="$2" target_dir="$3" name="${4:-}"
   local repo="${repo_ref%@*}" ref="HEAD"
@@ -493,7 +484,7 @@ prune_dead_skill_links() {
     # routes through its native binary, and when that binary is broken the
     # wrapper prints an error and returns nothing — silently, with status 0.
     # Exported into a script it would make this prune a no-op that reports
-    # success. Bit me while verifying this very function on 2026-08-20.
+    # success.
   done < <(command find "$target_dir" -maxdepth 1 -type l -print0)
   [[ $n -eq 0 ]] || echo "  ($n dead link(s) removed from $target_dir)"
 }
@@ -553,7 +544,7 @@ install_runtime_dir() {
   # to pick its OWN repo when sibling forks (same shape, different id) are also
   # installed. A tree without one is a *supported* state -- setup_repo_dir falls
   # back to a shape check -- so a missing marker must warn, never abort: an
-  # unguarded cp here under `set -e` took the whole install down at install.sh:62.
+  # unguarded cp here under `set -e` took the whole install down.
   # Clear a marker left by an earlier install, or the runtime keeps hunting for an
   # identity this tree no longer claims.
   if [[ -f "$repo_dir/.skills-repo-id" ]]; then
@@ -591,9 +582,7 @@ uninstall_pip_skill() {
   elif command -v pip &>/dev/null; then pip_cmd="pip"
   else return 0; fi
   # Same shared-global rule as uninstall_npm_skill: a pip package is not scoped
-  # to this repo, so another installed skills repo may depend on it. No pip entry
-  # exists in either registry today, but the dispatch in uninstall.sh is live and
-  # an asymmetric guard here would reintroduce the bug the moment one is added.
+  # to this repo, so another installed skills repo may depend on it.
   local other
   other=$(_other_skills_runtimes "$(skills_runtime_dir "${REPO_DIR:-}")")
   if [[ -n "$other" ]]; then
@@ -654,7 +643,7 @@ uninstall_github_skill() {
     return 0
   fi
 
-  # Fallback: network path (legacy behavior preserved for safety)
+  # No installed.txt: re-fetch the repo to learn which skill names it installs.
   echo "  WARNING: $list missing — falling back to network re-fetch" >&2
   local reponame="${repo##*/}"
   local zip extract branch_dir
@@ -746,9 +735,9 @@ select_agents() {
     echo "  (or type a comma-separated list, e.g. claude,codex)"
     echo ""
     read -rp "Choice [1-5 or list]: " input
-    # Bare Enter (or EOF) keeps the long-standing default. A *typo*, by
-    # contrast, no longer silently becomes claude — it is parsed as an agent
-    # list and rejected below.
+    # Bare Enter (or EOF) defaults to claude. Anything else is parsed as a
+    # literal agent list and validated below, so "claude,codex" works and a
+    # typo is rejected instead of becoming claude.
     [[ -n "$input" ]] || input=2
     case "$input" in
       1) choice="kiro" ;;
@@ -756,8 +745,6 @@ select_agents() {
       3) choice="gemini" ;;
       4) choice="codex" ;;
       5) choice="all" ;;
-      # Not an error: anything else is treated as a literal agent list and
-      # validated below, so "claude,codex" at the prompt works too.
       *) choice="$input" ;;
     esac
   fi
@@ -797,20 +784,18 @@ wire_hook() {
   local skill="$1" repo_dir="$2" agent="${3:-claude}"
   local hook_path settings
 
-
-  # Kiro has no settings.json either (hooks live in its IDE hook files). It used
-  # to fall through to Claude's settings.json, which wired a second copy of the
-  # hook, pointing at ~/.kiro/skills, into every Claude Code prompt.
+  # Kiro has no settings.json (hooks live in its IDE hook files). Falling through
+  # to Claude's settings.json would wire a second copy of the hook, pointing at
+  # ~/.kiro/skills, into every Claude Code prompt.
   if [[ "$agent" == "kiro" ]]; then
     echo "  hooks unsupported on kiro (no settings.json equivalent) — skipped" >&2
     return 0
   fi
 
-  # Try flat path first (legacy), then search one level deep (group/subcommand layout).
+  # Flat skills/<skill>/hook.json first, else skills/<group>/<skill>/hook.json.
   if [[ -f "$repo_dir/skills/$skill/hook.json" ]]; then
     hook_path="$repo_dir/skills/$skill/hook.json"
   else
-    # Search for hook.json inside any group subdirectory.
     hook_path=$(find "$repo_dir/skills" -maxdepth 3 -name "hook.json" \
       -path "*/$skill/hook.json" 2>/dev/null | head -1)
   fi
@@ -1014,7 +999,7 @@ unwire_hook() {
   local skill="$1" repo_dir="$2" agent="${3:-claude}"
   local hook_path settings
 
-  # Try flat path first (legacy), then search one level deep (group/subcommand layout).
+  # Flat skills/<skill>/hook.json first, else skills/<group>/<skill>/hook.json.
   if [[ -f "$repo_dir/skills/$skill/hook.json" ]]; then
     hook_path="$repo_dir/skills/$skill/hook.json"
   else

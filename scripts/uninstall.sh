@@ -78,7 +78,7 @@ for agent in "${SELECTED_AGENTS[@]}"; do
 done
 
 # polish-input's hook is always wired (see install.sh), so uninstall always
-# un-wires it too — there is no opt-in flag left to gate this on.
+# un-wires it too.
 echo ""
 echo "==> Un-wiring hooks..."
 for agent in "${SELECTED_AGENTS[@]}"; do
