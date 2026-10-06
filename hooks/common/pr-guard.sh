@@ -7,10 +7,8 @@ set -euo pipefail
 
 command -v gh &>/dev/null || { echo "  SKIP  gh CLI not installed"; exit 0; }
 
-# Check if current directory is a git repository
 git rev-parse --is-inside-work-tree &>/dev/null || exit 0
 
-# Check if current branch is set and not default main/master
 CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
 if [[ -z "$CURRENT_BRANCH" || "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
   exit 0
@@ -18,7 +16,6 @@ fi
 
 PR_NUMBER="$(gh pr view --json number,state -q 'select(.state=="OPEN") | .number' 2>/dev/null || true)"
 if [[ -z "$PR_NUMBER" ]]; then
-  # No open PR on this branch
   exit 0
 fi
 

@@ -5,9 +5,9 @@
 # file it touches, which is the wrong side effect for a hook that fires on
 # every edit. ast.parse raises the same SyntaxError and writes nothing.
 #
-# Syntax only, deliberately. `ruff check` reports 74 findings under its default
-# rules and `ruff format` would rewrite ~2400 lines, so linting or formatting
-# here would block on, or churn, code unrelated to the current edit.
+# Syntax only, deliberately. The tree carries pre-existing `ruff check` findings
+# and is not `ruff format`-clean, so linting or formatting here would block on,
+# or churn, code unrelated to the current edit.
 #
 # Exit 2 blocks (Claude Code re-reads stderr and can self-correct), matching
 # the other hooks in this directory; exit 0 allows.

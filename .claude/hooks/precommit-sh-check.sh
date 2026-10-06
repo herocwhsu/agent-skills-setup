@@ -119,7 +119,6 @@ if [[ "$decision" != "GATE" ]]; then
   exit 0
 fi
 
-# Must be in a git repo.
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
   [[ "$is_agy" -eq 1 ]] && echo '{"decision": "allow"}'
   exit 0

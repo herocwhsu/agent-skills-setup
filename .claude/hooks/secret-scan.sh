@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# common/secret-scan.sh — Stop hook: gitleaks + osv-scanner
-# Copy to .claude/hooks/secret-scan.sh in your repo
+# secret-scan.sh — Stop/SubagentStop hook: gitleaks + osv-scanner over the whole
+# tree. Not turn-scoped, unlike the shipped hooks/common/secret-scan.sh template.
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -17,7 +17,7 @@ cd "$REPO_ROOT"
 echo "=== Gitleaks secret scan ==="
 if command -v gitleaks &>/dev/null; then
   # No -q/--quiet flag exists in gitleaks v8 — passing one is a hard CLI
-  # error (exit 1), which this loop used to misreport as "leaks found."
+  # error (exit 1) that would read as "leaks found."
   if ! gitleaks detect --source . --no-git --redact 2>/dev/null; then
     echo "WARNING: gitleaks found potential secrets — review before committing" >&2
     WARN=1

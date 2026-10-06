@@ -35,7 +35,7 @@ run_case "shell file ignored"         0 s.sh     $'if then fi\n'
 run_case "empty file_path allows"     0 ""       ''
 
 # Syntax-only by design: a lint-level problem (unused import, no explicit
-# subprocess check=) must NOT block, or the hook would gate on the 74
+# subprocess check=) must NOT block, or the hook would gate on the
 # pre-existing ruff findings this repo carries.
 run_case "lint-level issue allows" \
   0 mod.py $'import os\nimport json\n\n\ndef f():\n    return 1\n'

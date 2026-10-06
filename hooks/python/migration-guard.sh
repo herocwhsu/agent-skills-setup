@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# python/migration-guard.sh — PostToolUse: warn when modifying existing migration
+# python/migration-guard.sh — PostToolUse: block edits to a committed migration
 # Copy to .claude/hooks/migration-guard.sh in your repo
 set -euo pipefail
 

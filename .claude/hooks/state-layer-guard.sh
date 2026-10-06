@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # state-layer-guard.sh — Stop/SubagentStop hook: block completion if this
-# repo's own state layer (feature_list.json, progress.md, init.sh) goes
+# repo's own state layer (feature_list.json, PROGRESS.md, init.sh) goes
 # missing or feature_list.json stops parsing as JSON. Without this, deleting
 # the state layer regresses the repo back to the state-blind 32/100 baseline
 # from the harness-creator audit (docs/harness-creator/lecture-01/) with no

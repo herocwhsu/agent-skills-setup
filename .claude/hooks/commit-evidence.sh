@@ -2,8 +2,7 @@
 # commit-evidence.sh — Stop hook: put the real commit evidence in front of the
 # agent instead of asking it to remember to look.
 #
-# Deliberately NOT named *-guard.sh. The guards (registry/types/tests/secret) are
-# validators: they answer pass/fail and are all wired into harness-verify.sh,
+# Deliberately NOT named *-guard.sh. The *-guard.sh hooks are validators: they answer pass/fail and are all wired into harness-verify.sh,
 # which a ratchet in scripts/tests/test_harness_verify.sh enforces by globbing
 # *-guard.sh. This hook is not a validator -- it checks nothing, it surfaces a
 # commit range once. Wiring it into harness-verify would be actively harmful:

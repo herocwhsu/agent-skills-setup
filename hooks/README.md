@@ -58,9 +58,9 @@ common/
 
 python/
   py-check.sh         PostToolUse *.py — ast.parse syntax gate (blocks)
-  ruff-fix.sh         PostToolUse *.py — auto-format with ruff (silent)
+  ruff-fix.sh         PostToolUse *.py — ruff format + ruff check --fix (silent)
   py-guard.sh         Stop — ruff check + bandit + pip-audit + pytest
-  migration-guard.sh  PostToolUse *.sql — warn if modifying committed migration
+  migration-guard.sh  PostToolUse *.sql — block edits to a committed migration
 
 js/
   ts-fix.sh           PostToolUse *.ts/tsx/js/jsx/css — auto-format with prettier
@@ -72,7 +72,7 @@ go/
 
 k8s/
   yaml-validate.sh    PostToolUse *.yaml — kustomize build on nearest overlay
-  placeholder-guard.sh PostToolUse *.yaml — warn on hardcoded IPs/credentials
+  placeholder-guard.sh PostToolUse *.yaml — block added hardcoded IPs/credentials
   checkov-guard.sh    Stop — IaC misconfiguration scan
 
 check-tools.sh        Inventory which tools are installed (run once per machine)

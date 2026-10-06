@@ -2,7 +2,8 @@
 # skill-paths-guard.sh — Stop/SubagentStop hook: block completion if a skill's
 # shell recipe builds a repo path from a variable it never defines. Such a path
 # expands to /scripts/... and cannot exist, so the recipe is dead as written
-# while still reading as if it works. Exit 2 blocks; exit 0 allows.
+# while still reading as if it works. Also blocks a SKILL.md whose frontmatter
+# is not valid YAML. Exit 2 blocks; exit 0 allows.
 #
 # Whole-repo rather than PostToolUse: the check reads every *.md under skills/
 # in one pass (~50ms), and a per-edit run would re-scan the tree on every

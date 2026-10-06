@@ -4,7 +4,7 @@
 # precommit-sh-check.sh gate at `git commit`.
 #
 # Severity is --severity=error deliberately: the repo is clean at error level
-# but carries 17 warning-level diagnostics, so gating on warnings would block
+# but carries warning-level diagnostics, so gating on warnings would block
 # on pre-existing issues unrelated to the current edit.
 #
 # Exit 2 blocks (Claude Code re-reads stderr and can self-correct), matching

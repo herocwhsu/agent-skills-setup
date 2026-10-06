@@ -2,7 +2,7 @@
 # Tests for .claude/hooks/state-layer-guard.sh.
 #
 # Uses STATE_LAYER_GUARD_REPO_DIR to point at throwaway trees. Asserting only
-# against the real feature_list.json/progress.md/init.sh would stop being a
+# against the real feature_list.json/PROGRESS.md/init.sh would stop being a
 # test the moment those files exist -- which they do, so every failure case
 # here builds its own fixture with one of the three missing or malformed.
 #

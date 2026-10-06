@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # python/py-check.sh — PostToolUse: syntax-check an edited *.py
-# Claude Code passes hook input as JSON on stdin
 # Copy to .claude/hooks/py-check.sh in your repo
 #
 # Uses ast.parse, NOT py_compile: py_compile writes __pycache__ next to every

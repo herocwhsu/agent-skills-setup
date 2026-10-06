@@ -3,9 +3,8 @@
 # type error. Exit 2 blocks; exit 0 allows.
 #
 # Whole-tree, never per-file: invoking mypy on a single file re-reports every
-# error that lives in the modules it imports, so `mypy polish.py` shows 11
-# errors that are all in polish_engine.py. Per-file counts triple the real
-# total and point at the wrong file.
+# error that lives in the modules it imports, so per-file counts multiply the
+# real total and point at the wrong file.
 #
 # Placed at Stop rather than PostToolUse deliberately: syntax checking is
 # instant and belongs on every edit (py-check.sh), but a whole-tree type pass
