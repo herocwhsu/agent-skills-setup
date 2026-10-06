@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-06
 **Active Feature:** none. feat-034 closed out; `./init.sh` passes all 9 gates.
 **Harness lectures:** 1–5 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 6
 (why initialization needs its own phase) is next. Lecture 5 open items: rebuild time never
@@ -170,6 +170,16 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - Optional follow-up experiment: repeat exercise 3 at ~10k tokens without the
   "read in full" instruction (design in `position-experiment.md` §13).
 - Lecture 6: Why Initialization Needs Its Own Phase.
+- Owner decision: `~/projects/daily-ai-video-pipeline` has no git remote, so its steps 1-4
+  (commits up to 30e083b: bilingual `--auto --and-render`, data chart scene, `--qa`) exist only
+  on this machine. Create a private GitHub repo to push it, or keep it local. Nothing watched
+  end to end yet: watch both rendered runs before any upload. feat-006 (YouTube upload,
+  scheduler) waits for the owner.
+- Hermes was removed from this machine on 2026-10-05 (repo and `~/.hermes`), but
+  `skills/infra/kiro-gateway` (`dbe4619`) still writes `~/.hermes/.env` and
+  `scripts/update-agents.sh` still lists `hermes`. Decide: keep for other hosts, or drop.
+- Handy: `local/zh-tw-default` (zh-TW default, rebased on upstream cjpais/Handy) is pushed to
+  the herocwhsu/Handy fork only; nothing here depends on it.
 
 
 ## Blockers / Risks
