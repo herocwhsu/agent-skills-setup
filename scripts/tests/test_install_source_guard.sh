@@ -53,7 +53,7 @@ run_install() {
   local repo="$1" home="$2"; shift 2
   mkdir -p "$home"
   set +e
-  HOME="$home" PATH="$STUBS:$PATH" bash "$repo/scripts/install.sh" "$@" \
+  HOME="$home" OUTSIDE_AGENT_INIT=0 PATH="$STUBS:$PATH" bash "$repo/scripts/install.sh" "$@" \
     </dev/null >"$home.out" 2>&1
   echo $?
   set -e
@@ -64,6 +64,8 @@ main_repo=$(make_repo main)
 check "installs from main" 0 "$(run_install "$main_repo" "$TMP/h1" --agent claude)"
 check "links point into the checkout it ran from" "$main_repo/skills/apidog" \
   "$(readlink "$TMP/h1/.claude/skills/apidog" || true)"
+check "install skips outside-agent init when asked" yes \
+  "$(grep -q 'skipped (OUTSIDE_AGENT_INIT=0)' "$TMP/h1.out" && echo yes || echo no)"
 
 git -C "$main_repo" checkout -qb feature
 check "refuses a feature branch" 1 "$(run_install "$main_repo" "$TMP/h2" --agent claude)"

@@ -81,6 +81,11 @@
           },
           {
             "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/runtime-drift-guard.sh\"",
+            "statusMessage": "checking runtime drift…"
+          },
+          {
+            "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/commit-evidence.sh\"",
             "statusMessage": "checking commit evidence…"
           }
@@ -129,6 +134,11 @@
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/state-layer-guard.sh\"",
             "statusMessage": "checking state layer…"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/runtime-drift-guard.sh\"",
+            "statusMessage": "checking runtime drift…"
           }
         ]
       }

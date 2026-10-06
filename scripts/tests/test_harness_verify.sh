@@ -25,7 +25,7 @@ stub_gates() {
   printf '#!/usr/bin/env bash\necho "scanning"\nexit %s\n'          "$3" > "$d/secret-scan.sh"
   printf '#!/usr/bin/env bash\necho "typing"\nexit %s\n'       "${4:-0}" > "$d/types-guard.sh"
   # Every other gate passes, so a missing script is never mistaken for a skip.
-  for g in skill-paths-guard bash-compat-guard credential-backend-guard hook-wiring-guard state-layer-guard; do
+  for g in skill-paths-guard bash-compat-guard credential-backend-guard hook-wiring-guard state-layer-guard runtime-drift-guard; do
     printf '#!/usr/bin/env bash\nexit 0\n' > "$d/$g.sh"
   done
   echo "$d"

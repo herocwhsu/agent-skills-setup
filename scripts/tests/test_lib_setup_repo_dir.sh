@@ -128,6 +128,8 @@ fake_src() {
   mkdir -p "$d/lib" "$d/scripts/credentials"
   cp "$LIB" "$d/lib/lib.sh"
   : > "$d/scripts/credentials/_store.sh"
+  : > "$d/scripts/outside-agent.sh"
+  : > "$d/scripts/outside_agent.py"
   [[ "$id" == "-" ]] || printf '%s\n' "$id" > "$d/.skills-repo-id"
 }
 
@@ -190,6 +192,8 @@ full_src() {
   mkdir -p "$d/lib" "$d/scripts/credentials"
   cp "$LIB" "$d/lib/lib.sh"
   cp "$REPO_DIR/scripts/credentials/_store.sh" "$d/scripts/credentials/_store.sh"
+  : > "$d/scripts/outside-agent.sh"
+  : > "$d/scripts/outside_agent.py"
   [[ "$id" == "-" ]] || printf '%s\n' "$id" > "$d/.skills-repo-id"
 }
 

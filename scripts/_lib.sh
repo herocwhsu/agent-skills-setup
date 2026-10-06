@@ -523,17 +523,32 @@ install_local_optional_skill() {
 }
 
 # ---------------------------------------------------------------------------
+# runtime_files
+#   Echo "<repo path> <runtime name>" for each file install_runtime_dir copies.
+#   runtime-drift-guard.sh reads the same list, so the two cannot disagree.
+# ---------------------------------------------------------------------------
+runtime_files() {
+  cat <<'EOF'
+lib/lib.sh lib.sh
+scripts/credentials/_store.sh _store.sh
+scripts/outside-agent.sh outside-agent.sh
+scripts/outside_agent.py outside_agent.py
+EOF
+}
+
+# ---------------------------------------------------------------------------
 # install_runtime_dir <repo_dir>
-#   Create the runtime dir and copy runtime files (lib.sh, _store.sh, marker)
+#   Create the runtime dir and copy runtime files (runtime_files, marker)
 #   into it. Idempotent.
 # ---------------------------------------------------------------------------
 install_runtime_dir() {
   local repo_dir="$1"
-  local rtdir
+  local rtdir src dst
   rtdir=$(skills_runtime_dir "$repo_dir")
   mkdir -p "$rtdir"
-  cp -f "$repo_dir/lib/lib.sh" "$rtdir/lib.sh"
-  cp -f "$repo_dir/scripts/credentials/_store.sh" "$rtdir/_store.sh"
+  while read -r src dst; do
+    cp -f "$repo_dir/$src" "$rtdir/$dst"
+  done < <(runtime_files)
   # Identity of the tree this runtime was installed from. setup_repo_dir reads it
   # to pick its OWN repo when sibling forks (same shape, different id) are also
   # installed. A tree without one is a *supported* state -- setup_repo_dir falls

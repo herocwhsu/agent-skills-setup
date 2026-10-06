@@ -187,6 +187,16 @@ else
   bash "$REPO_DIR/scripts/update-agents.sh" || true
 fi
 
+echo ""
+echo "==> Detecting outside agents..."
+# Failure-tolerant: a missing outside agent must never block installing skills.
+# OUTSIDE_AGENT_INIT=0 lets tests run install.sh without live agent probes.
+if [[ "${OUTSIDE_AGENT_INIT:-1}" == "0" ]]; then
+  echo "  skipped (OUTSIDE_AGENT_INIT=0)"
+else
+  bash "$(skills_runtime_dir "$REPO_DIR")/outside-agent.sh" init || echo "  WARNING: outside-agent init failed"
+fi
+
 # Print post-install hints when openspec is registered.
 if grep -qE '^npm[[:space:]]+@fission-ai/openspec' "$REPO_DIR/registry.txt" 2>/dev/null; then
   echo ""
