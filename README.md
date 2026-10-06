@@ -201,7 +201,8 @@ weeks, in one case. A sibling bug compared the selection count against a literal
 | `scripts/uninstall.sh` | macOS / Linux | Remove installed skills |
 | `scripts/update.sh` | macOS / Linux | `git pull` + re-install |
 | `init.sh` | macOS / Linux | One-command harness startup & verification entrypoint |
-| `scripts/harness-verify.sh` | macOS / Linux | Run all 8 verification gates across registry, types, tests, and security |
+| `scripts/harness-verify.sh` | macOS / Linux | Run every verification gate (registry, types, tests, hooks, runtime drift, secrets) |
+| `scripts/outside-agent.sh` | macOS / Linux | Pick a working outside agent for delegation or cross-family review (see [Outside Agents](#outside-agents)) |
 | `scripts/run-tests.sh` | macOS / Linux | Run all skill + script tests (`--fast` skips integration tests) |
 | `scripts/setup-host.sh` | macOS / Linux | Configure host environment (statusline HUD, push notifications, Playwright MCP, tmux) |
 | `scripts/setup-credentials.sh` | macOS / Linux | Store service credentials in keychain |
@@ -507,6 +508,81 @@ bash scripts/uninstall.sh --with-agents-md
 ```
 
 The `--with-agents-md` flag deploys to Claude, Antigravity, Codex, and Kiro simultaneously. The script is **idempotent**: re-running replaces the block in place, leaving other content in the host file untouched. Edit `agents/engineering-rules.md` (or `agents/antigravity-rules.md` for Antigravity only), re-run, and every agent picks up the change in its next session. `update.sh` does not redeploy these rules, so re-run this after pulling a rules change.
+
+---
+
+## Outside Agents
+
+`~/.agent-skills-setup/outside-agent.sh` runs a prompt through the first working
+outside CLI agent on this machine. Agents use it to delegate work or to get a review
+from a different model family. `install.sh` copies it into the runtime dir and runs
+`init`, which probes each known agent and writes `~/.agent-skills-setup/outside-agents.conf`.
+Edit that file to reorder or drop agents; install and update never rewrite it, they
+only print what changed.
+
+| Agent | Family | Needs |
+|---|---|---|
+| `claude-kiro` | claude | zsh alias + kiro-gateway on `localhost:7788` |
+| `codex-kiro` | openai | zsh alias + kiro-gateway (shares the `kiro` quota) |
+| `agy` | gemini | Antigravity CLI login |
+| `claude` | claude | Claude Code subscription login |
+| `codex` | openai | `~/.codex/auth.json` |
+
+```bash
+outside-agent.sh run --purpose review --from claude -- "Review this diff: ..."
+outside-agent.sh run --purpose delegate --from claude --allow-edits --cwd ~/repo -- "..."
+outside-agent.sh status          # conf plus any rate-limit or login penalties
+outside-agent.sh reset kiro      # clear a penalty early (kind, group, or all)
+outside-agent.sh init --force    # re-detect and rewrite the conf
+```
+
+Each call walks the conf in order. A failure is classified and handled:
+
+```mermaid
+flowchart TD
+    A[next agent in conf] --> B{quota group<br/>rate-limited?}
+    B -- yes --> A
+    B -- no --> C{pre-check<br/>gateway, alias, login}
+    C -- fails --> A
+    C -- passes --> D[run prompt<br/>read-only unless --allow-edits]
+    D --> E{classify}
+    E -- ok --> F([print answer, exit 0<br/>or 3 if same family on review])
+    E -- auth --> G[demote 7 days] --> A
+    E -- usage limit --> H[skip quota group<br/>5h, or kiro until the 1st] --> A
+    E -- timeout --> A
+    E -- unknown error --> X([stop, exit 2])
+    A -- none left --> X
+```
+
+On exit 0, a successful answer counts only when the output is not itself a short
+status message such as `Not logged in` or `Usage limit reached`. An answer that just
+mentions "quota" or "401" is still an answer.
+
+### Review flow
+
+The shipped rule (`agents/engineering-rules.md`, "Outside agents") requires two reviewers:
+
+```mermaid
+flowchart LR
+    W[change ready] --> S[fresh-context subagent<br/>diff + requirements only]
+    W --> O["outside-agent.sh run --purpose review --from &lt;own family&gt;"]
+    O --> R{exit}
+    R -- 0 --> I[independent review]
+    R -- 3 --> N[same family only:<br/>report as not independent]
+    R -- 2 --> E[no outside agent worked:<br/>report stderr, do not work around]
+    S --> M[merge findings]
+    I --> M
+    N --> M
+```
+
+The subagent catches assumptions carried in from the conversation. The other family
+catches what the caller's own model tends to miss. Neither replaces the other.
+`--from` is the caller's model family, so a `claude-kiro` session passes `--from claude`
+and is reviewed by `codex-kiro`, or by `agy` when kiro is down or out of quota.
+
+Exit codes: `0` answered, `2` nothing worked or an unknown error (stderr says why),
+`3` review answered only by the caller's own family. The default `--timeout` is 110s;
+give the calling shell a longer timeout so it does not kill the run first.
 
 ---
 

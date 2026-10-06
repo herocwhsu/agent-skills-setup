@@ -74,8 +74,11 @@ You are an expert AI software engineer. You must adhere to the following 12 core
 
 ### Outside agents
 - Delegating: use your own subagent first. For an outside agent, run `~/.agent-skills-setup/outside-agent.sh run --purpose delegate --from <claude|openai|gemini> -- "<prompt>"`, where `--from` is your own model family. Give your shell tool a timeout longer than --timeout (default 110s).
-- Reviewing: get at least one answer from a different model family with `~/.agent-skills-setup/outside-agent.sh run --purpose review --from <claude|openai|gemini> -- "<prompt>"`. Report exit 3 as "not independent", never as a pass.
+- Reviewing: use two reviewers. First, a fresh-context subagent of your own, given only the diff and the requirements, not your conversation. Second, a different model family via `~/.agent-skills-setup/outside-agent.sh run --purpose review --from <claude|openai|gemini> -- "<prompt>"`. The subagent alone is not independent; report exit 3 as "not independent", never as a pass.
 - Exit 2 means no outside agent worked: report its stderr line and do not work around it.
+
+### Cleanup pass
+- Before finishing a branch, run one cleanup pass over its diff: dead code, stale comments, duplicates, sources that must agree, and state files. Behavior stays unchanged and tests stay green.
 
 ---
 

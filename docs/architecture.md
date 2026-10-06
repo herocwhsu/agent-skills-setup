@@ -55,12 +55,15 @@ flowchart TD
   - `credential-backend-guard.sh`: Validates credential helper configurations and scripts.
   - `hook-wiring-guard.sh`: Asserts that configured hooks in `.claude/settings.json` accurately match actual files.
   - `state-layer-guard.sh`: Ensures repository state artifacts (`init.sh`, `feature_list.json`, `PROGRESS.md`) exist and parse.
+  - `runtime-drift-guard.sh`: Blocks when the flat runtime copies under `~/.agent-skills-setup` (from `runtime_files` in `scripts/_lib.sh`) differ from the repo.
   - `secret-scan.sh`: Scans for committed secrets (gitleaks) and vulnerable dependencies (osv-scanner).
 - **Tool-Event Hooks:** Immediate feedback hooks wired in `.claude/settings.json`:
   - `precommit-sh-check.sh` (PreToolUse on Bash): Validates shell scripts before commit commands.
   - `sh-check.sh` & `py-check.sh` (PostToolUse on Edit/Write): Immediate syntax and lint checks on touched shell/Python files.
-  - `commit-evidence.sh` (UserPromptSubmit): Context injection for commit evidence trails.
+  - `commit-evidence.sh` (Stop): Lists commits made since the last check so they are verified against what was claimed.
 - **Hook Exit Protocol:** Stop hooks exit with status code **2** to block agent turn termination and surface stdout/stderr directly into agent context.
+
+- **Outside agents:** `scripts/outside-agent.sh` (logic in `scripts/outside_agent.py`) picks a working outside CLI agent per call from the per-machine `~/.agent-skills-setup/outside-agents.conf`. Reviews pair a fresh-context subagent with a different model family. Flow charts are in the README's "Outside Agents" section.
 
 ### 2.4 State Management & Session Continuity
 - **Startup Entrypoint:** `init.sh` runs initial checks and executes `scripts/harness-verify.sh`.
