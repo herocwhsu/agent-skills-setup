@@ -582,7 +582,9 @@ uninstall_pip_skill() {
   elif command -v pip &>/dev/null; then pip_cmd="pip"
   else return 0; fi
   # Same shared-global rule as uninstall_npm_skill: a pip package is not scoped
-  # to this repo, so another installed skills repo may depend on it.
+  # to this repo, so another installed skills repo may depend on it. Kept even
+  # with no pip entry registered: the uninstall dispatch is live, and dropping
+  # the guard would reintroduce the bug the moment one is added.
   local other
   other=$(_other_skills_runtimes "$(skills_runtime_dir "${REPO_DIR:-}")")
   if [[ -n "$other" ]]; then

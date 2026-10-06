@@ -41,10 +41,3 @@ Need graceful shutdown on UPS power loss → /infra-ups setup
 |---|---|
 | `kiro-gateway` | `~/.agent-skills-setup/kiro-gateway.state` (current/previous image SHA) |
 | `host-optimization` | `~/.agent-skills-setup/backups/host-optimization/` |
-
-## Migration note
-
-| Old skill | New subcommand | Old slash | New slash |
-|---|---|---|---|
-| `kiro-gateway` | `infra/kiro-gateway` | `/kiro-gateway` | `/infra-kiro-gateway` |
-| `host-optimization` | `infra/host-optimization` | `/host-optimization` | `/infra-host-optimization` |

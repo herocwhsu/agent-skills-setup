@@ -1,6 +1,6 @@
 ---
 name: utils
-description: Use for cross-cutting utilities that don't belong to any single workflow gate. Subcommands install a Claude Code prompt-polishing hook (polish-input), migrate self-hosted Confluence page trees between locations (confluence-tree), and evaluate skills (skill-eval). Not part of the spec-gated workflow — these are general-purpose helpers.
+description: Use for cross-cutting utilities that don't belong to any single workflow gate. Subcommands install a Claude Code prompt-polishing hook (polish-input), migrate self-hosted Confluence page trees between locations (confluence-tree), evaluate skills (skill-eval), and run a multi-model review of repo-level changes (change-eval). Not part of the spec-gated workflow — these are general-purpose helpers.
 ---
 
 # utils
@@ -51,10 +51,3 @@ under a destination parent. Source and destination are independent — no versio
 conflict check, no push-back, no round-trip. See
 `confluence-tree/IMPL.md` for the full SKILL details (subcommand recipes,
 frontmatter schema, diagram preservation).
-
-## Migration note
-
-| Old skill | New subcommand | Old slash | New slash |
-|---|---|---|---|
-| `polish-input` | `utils/polish-input` | (hook only, no slash) | (hook only, no slash) |
-| `confluence` | `utils/confluence-tree` | `/confluence-tree-fetch` etc. | `/utils-confluence-tree-fetch` etc. |
