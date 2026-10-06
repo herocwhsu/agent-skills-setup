@@ -31,7 +31,7 @@ bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh <subcommand>
 | `update` | `git pull --ff-only` the fork checkout, run fix-guard, rebuild, recreate the container if the SHA changed. |
 | `rollback` | Revert to the previous SHA-tagged image. Swaps current ↔ previous in state. |
 | `status` | Show build path, current image tag, container state, current/previous SHA. |
-| `setup-alias` | Add `KIRO_PROXY_KEY` + `claude-kiro` alias to shell rc file. |
+| `setup-alias` | Store the proxy key in the keychain and add the `claude-kiro` and `hermes-kiro` aliases to the shell rc file. |
 | `setup-codex` | Add the `codex-kiro` alias: plain `codex` on `~/.codex`, gateway passed as `-c` overrides. Writes no Codex config. Checks for `codex` binary. Idempotent. |
 | `remove-codex` | Remove the `codex-kiro` alias. Never deletes a Codex home. |
 

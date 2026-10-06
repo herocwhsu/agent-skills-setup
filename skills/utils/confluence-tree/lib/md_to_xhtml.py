@@ -139,7 +139,6 @@ def parse_blocks(md: str) -> list[tuple[str, str]]:
             blocks.append(("hr", ""))
             i += 1
             continue
-        # paragraph
         buf = [line]
         i += 1
         while i < len(lines) and lines[i].strip() and not _starts_block(lines[i]):
@@ -155,7 +154,6 @@ def render_inline(text: str) -> str:
     raw = sax.escape(text)
     # images (must come before links — `![...](url)` would otherwise match the link regex)
     raw = re.sub(r"!\[([^\]]*)\]\(\./([^)]+)\)", lambda m: _image_xml(m.group(1), m.group(2)), raw)
-    # links
     raw = re.sub(
         r"\[([^\]]+)\]\(([^)]+)\)",
         lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}">{m.group(1)}</a>',
@@ -163,9 +161,7 @@ def render_inline(text: str) -> str:
     )
     # bold (must come before italic so `**x**` is not parsed as `*<em>x</em>*`)
     raw = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", raw)
-    # italic
     raw = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", raw)
-    # inline code
     raw = re.sub(r"`([^`]+)`", lambda m: f"<code>{m.group(1)}</code>", raw)
     return raw
 
@@ -184,7 +180,6 @@ def render_block(kind: str, body: str, diagrams: dict) -> str:
         level = len(m.group(1))
         return f"<h{level}>{render_inline(m.group(2))}</h{level}>"
     if kind == "p":
-        # admonition shorthand: paragraph that's actually a blockquote? handled in blockquote branch
         return f"<p>{render_inline(body)}</p>"
     if kind == "ul":
         items = [

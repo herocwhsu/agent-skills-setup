@@ -1,6 +1,6 @@
 ---
 name: infra-ups
-description: Configure NUT for APC UPS: 60-second power-loss → graceful shutdown + battery longevity settings. Subcommands: setup, status, battery-health, test-shutdown, remove.
+description: Configure NUT for APC UPS: 60-second power-loss → graceful shutdown + battery longevity settings. Subcommands: setup, status, battery-health, battery-replace, test-shutdown, remove.
 ---
 
 # infra/ups
@@ -35,6 +35,7 @@ bash ~/.claude/skills/infra/ups/lib/ups.sh <subcommand>
 | `lib/battery-health.sh` | Show and auto-fix battery longevity settings via upsrw |
 | `lib/shutdown.sh` | Graceful shutdown sequence (k3s → docker → zfs → sync → poweroff) |
 | `lib/status.sh` | Print current UPS status + battery health indicators |
+| `lib/battery-replace.sh` | Battery replacement procedure: EEPROM date, calibration, runtime check |
 
 ## Battery longevity settings (applied by setup)
 

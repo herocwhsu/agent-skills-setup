@@ -287,7 +287,6 @@ def main(argv: list[str]) -> int:
         print("ERROR: no pages in manifest", file=sys.stderr)
         return 2
 
-    # Build {source_title: source_page_id} from the manifest.
     source_title_to_id = {p["title"]: p["page_id"] for p in pages}
 
     started = time.monotonic()

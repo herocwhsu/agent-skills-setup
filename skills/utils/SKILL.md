@@ -11,7 +11,7 @@ Cross-cutting utilities. Independent of the Spec-Gated workflow.
 
 | Slash command | What it does | Implementation |
 |---|---|---|
-| `/utils-polish-input` | Install a UserPromptSubmit hook that polishes single-line prompts via Claude Haiku as a learning side-channel. Default behavior does not change what Claude receives. | `polish-input/IMPL.md` |
+| `/utils-polish-input` | Install a UserPromptSubmit hook that polishes single-line prompts via Claude Haiku (or Gemini) as a learning side-channel. Default behavior does not change what Claude receives. | `polish-input/IMPL.md` |
 | `/utils-confluence-tree-fetch <page-id>` | Walk a self-hosted Confluence page + descendants, write each as `<slug>.md` with frontmatter. Drawio/Gliffy diagrams preserved as opaque blocks; other macros flattened. | `confluence-tree/IMPL.md` |
 | `/utils-confluence-tree-upload <local-dir> --parent <id> --space <KEY>` | Reconcile titles, create stub pages under `<id>` in `<KEY>`, then upload content + attachments + diagrams. | `confluence-tree/IMPL.md` |
 | `/utils-confluence-link-rewrite-preview <local-dir> --parent <id>` | Dry-run: show how cross-tree links will rewrite given a destination parent. No network calls, no writes. | `confluence-tree/IMPL.md` |
@@ -32,9 +32,8 @@ Need to know whether removing a harness component actually changes agent behavio
 ## polish-input hook
 
 Wired automatically by `bash scripts/install.sh` (no separate flag). The hook is
-declared in `polish-input/hook.json`; the runtime command is now
-`python3 ${AGENT_SKILLS_DIR}/utils/polish-input/lib/polish.py` (path updated
-for the new group layout).
+declared in `polish-input/hook.json`; the runtime command is
+`python3 ${AGENT_SKILLS_DIR}/utils/polish-input/lib/polish.py`.
 
 Credentials: either `agent-skills-setup:gemini` (Gemini API key) or
 `agent-skills-setup:anthropic` (Anthropic API key). Set up with:
@@ -59,6 +58,3 @@ frontmatter schema, diagram preservation).
 |---|---|---|---|
 | `polish-input` | `utils/polish-input` | (hook only, no slash) | (hook only, no slash) |
 | `confluence` | `utils/confluence-tree` | `/confluence-tree-fetch` etc. | `/utils-confluence-tree-fetch` etc. |
-
-`hook.json` was updated to point at `utils/polish-input/lib/polish.py`. Other
-scripts and tests retain their existing internal layout.

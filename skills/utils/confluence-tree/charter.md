@@ -1,7 +1,7 @@
 # Confluence Skill — Review Charter
 
-Repo-specific review notes for `skills/confluence/`. Read alongside the
-generic `review-pr/charter.md`.
+Repo-specific review notes for `skills/utils/confluence-tree/`. Read alongside the
+generic `skills/review/pr/charter.md`.
 
 ## What this skill is, and isn't
 
@@ -30,13 +30,12 @@ The fetcher converts what it can to markdown:
   target is recorded in the manifest for cross-tree rewriting.
 - `<ac:image>` with `<ri:attachment>`: rewritten to a markdown image
   pointing at the local attachments directory.
-- **Drawio and Gliffy macros only:** preserved verbatim in
-  `_root.diagrams.json`, referenced from markdown by opaque ID.
-- **Every other macro** (info panels, expand, table-of-contents,
-  status pills, page-properties, etc.): flattened to its rendered
-  text equivalent. The original XML is kept under a `flattened` entry
-  in the diagrams sidecar for reference, but the upload pass does
-  not replay it. **This is lossy on purpose** — round-tripping every
+- **Drawio and Gliffy macros only:** preserved verbatim in the
+  page's `<basename>.diagrams.json`, referenced from markdown by opaque ID.
+- **Admonition, code, and expand macros:** flattened to a markdown
+  equivalent. **Every other macro** (table-of-contents, status pills,
+  page-properties, etc.) is dropped. Neither is replayed on upload.
+  **This is lossy on purpose** — round-tripping every
   macro is out of scope for this skill.
 
 ### Manifest integrity
@@ -105,7 +104,7 @@ which links rewrite vs. stay before running upload — use it.
 - Hardcoded `https://` URLs (must respect `$CONFLUENCE_HOST` only)
 - Upload uses a different `--space` than the destination parent
   actually lives in (must validate before pass 1)
-- `_root.diagrams.json` schema changed without migration for files
+- `<basename>.diagrams.json` schema changed without migration for files
   fetched under the previous schema
 
 ### Minor

@@ -23,7 +23,7 @@ Wired automatically by `bash scripts/install.sh` — no separate flag needed.
 Use `POLISH_DISABLE=1` (see below) to turn it off without uninstalling.
 
 Installing it does this:
-1. Installs the skill files (symlinks `skills/polish-input/` → `~/.<agent>/skills/polish-input/`).
+1. Installs the skill files (symlinks `skills/utils/` → `~/.<agent>/skills/utils/`).
 2. Installs the Python SDK via pip: `anthropic`, or `google-genai` for Antigravity.
 3. Merges the hook into the selected agent's hook file:
    - Claude Code: `~/.claude/settings.json` (`UserPromptSubmit`)

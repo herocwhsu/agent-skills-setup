@@ -102,7 +102,6 @@ def upload_page(page: dict, new_id: str, dry_run: bool) -> bool:
         print(f"  SKIP (no file): {page['title']}")
         return True
 
-    # Read and strip frontmatter
     raw = md_path.read_text(encoding="utf-8")
     if raw.startswith("---"):
         parts = raw.split("---", 2)
@@ -111,8 +110,14 @@ def upload_page(page: dict, new_id: str, dry_run: bool) -> bool:
         body_md = raw
 
     source_url = page.get("source_url", "")
+    placeholder = (
+        f"<p><strong>Note:</strong> Content could not be automatically migrated "
+        f"due to formatting. "
+    )
+    if source_url:
+        placeholder += f'See original: <a href="{source_url}">{source_url}</a>'
+    placeholder += "</p>"
 
-    # Try XHTML conversion using temp files (matching tree_upload.py approach)
     xhtml_body = None
     try:
         diagrams_path = md_path.parent / (md_path.stem + ".diagrams.json")
@@ -133,14 +138,7 @@ def upload_page(page: dict, new_id: str, dry_run: bool) -> bool:
         print(f"  WARN conversion error ({page['title']}): {e}")
 
     if xhtml_body is None:
-        # Fallback: placeholder with link to original
-        xhtml_body = (
-            f"<p><strong>Note:</strong> Content could not be automatically migrated "
-            f"due to formatting. "
-        )
-        if source_url:
-            xhtml_body += f'See original: <a href="{source_url}">{source_url}</a>'
-        xhtml_body += "</p>"
+        xhtml_body = placeholder
 
     if dry_run:
         print(f"  DRY-RUN upload: {page['title']} → #{new_id}")
@@ -148,7 +146,6 @@ def upload_page(page: dict, new_id: str, dry_run: bool) -> bool:
 
     try:
         put_content(new_id, page["title"], xhtml_body, version=2)
-        # Upload attachments if present
         attachments_dir = md_path.parent / (md_path.stem + ".attachments")
         if attachments_dir.exists():
             auth = auth_header()
@@ -159,17 +156,9 @@ def upload_page(page: dict, new_id: str, dry_run: bool) -> bool:
     except urllib.error.HTTPError as e:
         err_body = e.read().decode()
         if e.code == 400 and "xhtml" in err_body.lower():
-            # Retry with fallback placeholder
             print(f"  WARN XHTML rejected, uploading placeholder for: {page['title']}")
-            fallback = (
-                f"<p><strong>Note:</strong> Content could not be automatically migrated "
-                f"due to formatting. "
-            )
-            if source_url:
-                fallback += f'See original: <a href="{source_url}">{source_url}</a>'
-            fallback += "</p>"
             try:
-                put_content(new_id, page["title"], fallback, version=2)
+                put_content(new_id, page["title"], placeholder, version=2)
                 return True
             except Exception as e2:
                 print(f"  ERROR fallback also failed for {page['title']}: {e2}")
@@ -215,7 +204,6 @@ def main():
             skipped += 1
             continue
 
-        # Check if already uploaded (version >= 2)
         if not args.dry_run:
             ver = get_page_version(new_id)
             if ver >= 2:

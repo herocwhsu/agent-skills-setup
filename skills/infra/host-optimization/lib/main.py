@@ -11,7 +11,6 @@ def main():
     parser.add_argument("--revert", action="store_true", help="Revert optimization changes")
     args = parser.parse_args()
 
-    # Default to --check if no flag given
     if not any([args.check, args.apply, args.revert]):
         args.check = True
 
@@ -21,7 +20,6 @@ def main():
     if args.revert:
         print("[host-opt] Starting rollback...")
         if profile["is_macos"]:
-            lib_dir = Path(__file__).parent.resolve()
             subprocess.run(["bash", str(lib_dir / "tune_macos.sh"), "--revert"], check=True)
         else:
             backup.revert()

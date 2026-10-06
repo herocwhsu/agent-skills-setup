@@ -52,7 +52,6 @@ def revert():
     for bf in latest.iterdir():
         if bf.name == "99-performance.conf":
             target = Path("/etc/sysctl.d/99-performance.conf")
-            # Using sudo tee for restore as well
             os.system(f"cat {bf} | sudo tee {target} > /dev/null")
             os.system("sudo sysctl --system")
             print(f"✅ Restored {target}")

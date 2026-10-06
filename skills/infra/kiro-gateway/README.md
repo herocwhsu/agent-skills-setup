@@ -125,7 +125,7 @@ Tracks current and previous image SHAs for rollback. Never delete this file manu
 `init` clones the fork (`git@github.com:herocwhsu/kiro-gateway.git`) into
 `~/.agent-skills-setup/kiro-gateway` on first run. To reuse an existing local
 checkout instead, set `KIRO_GATEWAY_DIR=/path/to/checkout` — it's symlinked in
-rather than cloned. Before every build, `fix_guard` asserts **both** tracked
+rather than cloned. Before every build, `fix_guard` asserts **all three** tracked
 fork-local fixes are present, applying the matching patch if one is missing:
 
 | fix | marker | patch |
@@ -134,7 +134,7 @@ fork-local fixes are present, applying the matching patch if one is missing:
 | `_flatten_tool_namespaces` in `kiro/responses_adapter.py` | Codex 0.149.1 sends tools as `namespace` containers inside `additional_tools`; unflattened they are dropped and the model reports having no terminal tool | `patches/kiro-gateway-namespace-tools.patch` |
 | `assistant_tool_calls: Dict[int, ...]` in `kiro/responses_adapter.py` | streamed tool calls are read by the upstream `index`; as an append-ordered list, a first delta at index 1 raised IndexError and surfaced as `response.failed` | `patches/kiro-gateway-toolcall-index.patch` |
 
-Both are carried as patches rather than only commits because `update` runs
+All are carried as patches rather than only commits because `update` runs
 `git pull --ff-only`, which would silently revert a fork-local edit. Note the
 namespace fix emits **bare** tool names (`exec`, not `functions.exec`): the Kiro
 backend rejects a dot in a tool name with HTTP 400 `Invalid tool use format`.

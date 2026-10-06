@@ -54,7 +54,6 @@ if [[ ! -f "$TMUX_CONF" ]]; then
   if [[ -f "$SKILL_DIR/lib/tmux.conf.template" ]]; then
     cp "$SKILL_DIR/lib/tmux.conf.template" "$TMUX_CONF"
   else
-    # Minimal fallback
     cat > "$TMUX_CONF" <<'EOF'
 set -g mouse on
 set -g mode-keys vi
@@ -92,7 +91,6 @@ EOF
   fi
   echo "  created $TMUX_CONF"
 else
-  # Ensure tmux-yank plugin line is present
   if ! grep -q "tmux-yank" "$TMUX_CONF"; then
     echo "==> Adding tmux-yank to existing ~/.tmux.conf..."
     # Insert before the tpm run line, or append

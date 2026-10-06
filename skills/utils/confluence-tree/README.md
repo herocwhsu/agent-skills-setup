@@ -1,4 +1,4 @@
-# confluence
+# confluence-tree
 
 Migrate a **self-hosted Confluence Server/DC** page tree to a new
 location. Source and destination are independent — fetch is one-way
@@ -16,7 +16,7 @@ Self-hosted Server/DC only.
 bash scripts/install.sh
 ```
 
-Installed automatically as a `local` skill once added to `registry.txt`.
+Installed as part of the `utils` group (`local  utils` in `registry.txt`).
 
 ## Prerequisites
 
@@ -25,38 +25,38 @@ Installed automatically as a `local` skill once added to `registry.txt`.
   ```bash
   bash scripts/credentials/service.sh confluence add
   ```
-- Python 3 with standard library (HTTP, manifest building). The
-  XHTML converter (Task 2) adds an `lxml` dependency when it lands.
+- Python 3 with standard library (HTTP, manifest building), plus
+  `lxml` for the XHTML-to-markdown converter.
 - `jq` for manifest and diagram-sidecar inspection during debugging
 
 ## Subcommands
 
 | Command | Argument | Behavior |
 |---|---|---|
-| `/confluence-tree-fetch` | source page ID | Walk source page + descendants; write markdown tree, attachments, diagram sidecar, and manifest under `./docs/confluence/<slug>/` |
-| `/confluence-tree-upload` | local dir, `--parent <id>`, `--space <KEY>` | Re-build manifest, create stub pages under `<id>`, then upload content + attachments + diagrams |
-| `/confluence-link-rewrite-preview` | local dir, `--parent <id>` | Dry-run; print which cross-tree links will rewrite to destination IDs and which stay as source URLs |
+| `/utils-confluence-tree-fetch` | source page ID | Walk source page + descendants; write markdown tree, attachments, diagram sidecars, and manifest under `./docs/confluence/<YYYY-MM-DD>-<page-id>/` |
+| `/utils-confluence-tree-upload` | local dir, `--parent <id>`, `--space <KEY>` | Re-build manifest, create stub pages under `<id>`, then upload content + attachments + diagrams |
+| `/utils-confluence-link-rewrite-preview` | local dir, `--parent <id>` | Dry-run; print which cross-tree links will rewrite to destination IDs and which stay as source URLs |
 
 ## Output Location
 
 ```
-./docs/confluence/<root-slug>/
+./docs/confluence/<YYYY-MM-DD>-<page-id>/
   manifest.json
+  _root.md                 # the root page
   _root.attachments/
     diagram.png
-    flowchart.svg
   _root.diagrams.json
-  index.md                 # the root page
-  setup-notes.md
+  setup-notes.md           # leaf page
   child-page/
+    _index.md              # branch page
     grandchild-page.md
     grandchild-page.attachments/
       ...
 ```
 
 The directory mirrors the source page tree. Each markdown file owns the
-attachments directory at its sibling path; diagrams live in a single
-top-level `_root.diagrams.json` keyed by opaque ID.
+attachments directory and diagrams sidecar at its sibling path
+(`<basename>.attachments/`, `<basename>.diagrams.json`), keyed by opaque ID.
 
 ## Auth
 
@@ -68,17 +68,17 @@ password/token from the keychain.
   no colon), the skill sends `Authorization: Bearer <token>` instead
   of Basic Auth. No credential-store change needed.
 
-## Why this is separate from `fetch-page-to-markdown` and `fetch-jira-story`
+## Why this is separate from `intake-web-page` and `intake-jira-story`
 
-- **`fetch-page-to-markdown`** is a general one-shot URL-to-markdown
+- **`intake-web-page`** is a general one-shot URL-to-markdown
   fetcher. It handles any `curl`-able page (Apidog, internal wikis,
   one Confluence page at a time) and does not walk descendants, build
   manifests, or rewrite cross-page links. Use it when you need a
   reference snapshot of a single URL.
-- **`fetch-jira-story`** chains from a Jira story and follows embedded
+- **`intake-jira-story`** chains from a Jira story and follows embedded
   Confluence and Apidog links into reference files. It is a one-shot
   fetch keyed by Jira ID, not a tree walk.
-- **`confluence`** (this skill) is a recursive page-tree migration
+- **`confluence-tree`** (this skill) is a recursive page-tree migration
   tool. It walks a page subtree, preserves drawio/Gliffy diagrams,
   rewrites cross-tree links to point at destination IDs, and uploads
   the edited tree to a new parent. Use it when you are *moving* a
@@ -99,7 +99,6 @@ password/token from the keychain.
   macro XML; if the destination space's macro permissions differ from
   the source's, the macro may be rejected. Check the destination
   space's allowlist.
-- **Macro flattened to placeholder comment** — the converter does not
-  recognize the macro type. The original XML is preserved in
-  `_root.diagrams.json` under a `flattened` entry; copy it manually
-  into the destination page if you need it back.
+- **Macro missing after fetch** — the converter does not recognize
+  the macro type and drops it (no placeholder, no sidecar entry).
+  Copy it manually from the source page if you need it back.

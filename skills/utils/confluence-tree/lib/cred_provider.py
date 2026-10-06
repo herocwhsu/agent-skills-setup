@@ -93,7 +93,6 @@ class ConfluenceConfigKeychainProvider(ConfluenceCredentialProvider):
         self._user = user
 
     def credential(self) -> str | None:
-        # Try macOS Keychain
         try:
             r = subprocess.run(
                 ["security", "find-generic-password", "-s", self._svc_key, "-a", self._user, "-w"],
@@ -105,7 +104,6 @@ class ConfluenceConfigKeychainProvider(ConfluenceCredentialProvider):
         except FileNotFoundError:
             pass
 
-        # Try Linux secret-tool
         try:
             r = subprocess.run(
                 ["secret-tool", "lookup", "service", self._svc_key, "username", self._user],

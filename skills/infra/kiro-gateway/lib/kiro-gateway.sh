@@ -132,7 +132,6 @@ _read_block() {
 _write_block() {
   local rc="$1" body="$2" tmp
   tmp="$(mktemp)"
-  # copy everything outside the block
   awk -v s="$BLOCK_START" -v e="$BLOCK_END" '
     $0==s {inb=1; next} $0==e {inb=0; next} !inb {print}' "$rc" 2>/dev/null > "$tmp"
   if [[ -n "$body" ]]; then
@@ -181,7 +180,7 @@ PATCH_FILE_TOOLINDEX="$LIB_DIR/../patches/kiro-gateway-toolcall-index.patch"
 #
 # One tracked fix: assert its marker is present, else apply the patch and assert
 # again. Aborts loudly rather than building from known-broken code. Kept as a
-# helper because there are now two of these and bash 3.2 has no associative
+# helper because there are several of these and bash 3.2 has no associative
 # arrays to table-drive them.
 _require_fix() {
   local label="$1" file="$2" marker="$3" patch="$4"
@@ -206,8 +205,8 @@ _require_fix() {
   return 0
 }
 
-# Assert every tracked fix is present before any build. Both are fork-local
-# carries that an upstream sync (cmd_update runs `git pull --ff-only`) would
+# Assert every tracked fix is present before any build. Each is a fork-local
+# carry that an upstream sync (cmd_update runs `git pull --ff-only`) would
 # silently revert, which is the whole reason they are patches and not just
 # commits.
 fix_guard() {

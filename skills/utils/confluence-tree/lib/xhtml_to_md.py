@@ -144,7 +144,6 @@ def _find_macro_param(node, name_value: str):
 
 def load_xhtml(path: str) -> str:
     raw = Path(path).read_text(encoding="utf-8")
-    # If input is REST JSON, extract body.storage.value
     if raw.lstrip().startswith("{"):
         data = json.loads(raw)
         return data["body"]["storage"]["value"]

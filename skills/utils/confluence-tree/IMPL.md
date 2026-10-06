@@ -25,9 +25,9 @@ equivalent on fetch.
 
 | Command | What it does |
 |---|---|
-| `/confluence-tree-fetch <page-id>` | Walk the source page and descendants; write each as `<slug>.md` with frontmatter, plus `_root.attachments/`, `_root.diagrams.json`, and `manifest.json` describing the tree shape |
-| `/confluence-tree-upload <local-dir> --parent <id> --space <KEY>` | Reconcile titles from on-disk frontmatter, create stub pages under `<id>` in `<KEY>` (pass 1), then upload content + attachments + diagrams (pass 2) |
-| `/confluence-link-rewrite-preview <local-dir> --parent <id>` | Dry-run: show how cross-tree links will rewrite given the destination parent. No network calls, no writes. |
+| `/utils-confluence-tree-fetch <page-id>` | Walk the source page and descendants; write each as `<slug>.md` with frontmatter, plus `<basename>.attachments/`, `<basename>.diagrams.json`, and `manifest.json` describing the tree shape |
+| `/utils-confluence-tree-upload <local-dir> --parent <id> --space <KEY>` | Reconcile titles from on-disk frontmatter, create stub pages under `<id>` in `<KEY>` (pass 1), then upload content + attachments + diagrams (pass 2) |
+| `/utils-confluence-link-rewrite-preview <local-dir> --parent <id>` | Dry-run: show how cross-tree links will rewrite given the destination parent. No network calls, no writes. |
 
 ## Frontmatter contract
 
@@ -54,7 +54,7 @@ diagrams_file: "./_root.diagrams.json"
 
 Drawio and Gliffy diagrams cannot be losslessly converted to markdown,
 so the fetcher does not try. Each diagram is preserved as an entry in
-`_root.diagrams.json` keyed by an opaque ID, and referenced from the
+the page's `<basename>.diagrams.json` sidecar keyed by an opaque ID, and referenced from the
 markdown as a single line:
 
 ```
@@ -84,12 +84,12 @@ keychain via `require_secret`.
 
 ## Workflow: tree-fetch
 
-> **Note:** The bash recipes below assume Claude Code (`$HOME/.claude/skills/confluence`). On Antigravity CLI, Kiro, or Codex, change `SKILL_DIR` to the matching path (e.g., `$HOME/.gemini/antigravity-cli/skills/confluence`).
+> **Note:** The bash recipes below assume Claude Code (`$HOME/.claude/skills/utils/confluence-tree`). On Antigravity CLI, Kiro, or Codex, change `SKILL_DIR` to the matching path (e.g., `$HOME/.gemini/antigravity-cli/skills/utils/confluence-tree`).
 
 Argument: the source page ID. Output lands at `./docs/confluence/<YYYY-MM-DD>-<page-id>/` relative to the user's CWD.
 
 ```bash
-SKILL_DIR="$HOME/.claude/skills/confluence"
+SKILL_DIR="$HOME/.claude/skills/utils/confluence-tree"
 
 source ~/.agent-skills-setup/lib.sh
 load_config || exit 1
@@ -117,7 +117,7 @@ echo "Edit the markdown files, then run /confluence-tree-upload to push to a new
 Arguments: the local tree directory (produced by tree-fetch and optionally edited), the destination parent page ID, and the destination space key. The upload runs in two passes — stub creation, then content + attachments + diagrams — and aborts before pass 2 if any stub fails.
 
 ```bash
-SKILL_DIR="$HOME/.claude/skills/confluence"
+SKILL_DIR="$HOME/.claude/skills/utils/confluence-tree"
 
 source ~/.agent-skills-setup/lib.sh
 load_config || exit 1
@@ -151,7 +151,7 @@ unset _PASS
 Dry-run via `tree_upload.py --dry-run`. No network operations, no credentials needed — confirms which `wiki://page/<title>` links would resolve against the local manifest versus pass through unchanged.
 
 ```bash
-SKILL_DIR="$HOME/.claude/skills/confluence"
+SKILL_DIR="$HOME/.claude/skills/utils/confluence-tree"
 
 LOCAL_DIR="$1"
 NEW_PARENT="$2"
