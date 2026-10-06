@@ -32,6 +32,10 @@ jobs:
       # tree_fetch.py/xhtml_to_md.py. Found by actually running this workflow
       # on a clean runner and reading the real "No module named X" failures,
       # not guessed in advance.
+      # tests/test_outside_agent.py runs outside agents through an interactive zsh.
+      - name: Install zsh
+        run: sudo apt-get install -y zsh
+
       - name: Install Python test dependencies
         run: pip install pytest lxml
 
