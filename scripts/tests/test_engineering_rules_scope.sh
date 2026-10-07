@@ -55,6 +55,12 @@ grep -q 'outside-agent.sh run --purpose review' "$RULES" \
   && ok "outside-agent rule present" || bad "outside-agent rule present" "missing"
 grep -q 'not independent' "$RULES" \
   && ok "outside-agent rule names exit 3" || bad "outside-agent rule names exit 3" "missing"
+grep -q 'cumulative diff' "$RULES" \
+  && ok "review rule names its trigger (once per branch, on the cumulative diff)" \
+  || bad "review rule names its trigger (once per branch, on the cumulative diff)" "missing"
+grep -q 'read access to the repo' "$RULES" \
+  && ok "review rule gives reviewers repo access, not only the diff" \
+  || bad "review rule gives reviewers repo access, not only the diff" "missing"
 
 echo ""
 echo "test_engineering_rules_scope: $pass passed, $fail failed"

@@ -64,7 +64,7 @@ flowchart TD
   - `sh-check.sh` & `py-check.sh` (PostToolUse on Edit/Write): Immediate syntax and lint checks on touched shell/Python files.
 - **Hook Exit Protocol:** Stop hooks exit with status code **2** to block agent turn termination and surface stdout/stderr directly into agent context.
 
-- **Outside agents:** `scripts/outside-agent.sh` (logic in `scripts/outside_agent.py`) picks a working outside CLI agent per call from the per-machine `~/.agent-skills-setup/outside-agents.conf`. Reviews pair a fresh-context subagent with a different model family. Flow charts are in the README's "Outside Agents" section.
+- **Outside agents:** `scripts/outside-agent.sh` (logic in `scripts/outside_agent.py`) picks a working outside CLI agent per call from the per-machine `~/.agent-skills-setup/outside-agents.conf`. Reviews run once per branch and scale with risk: none, one fresh-context subagent, or that subagent plus a different model family for high-risk changes. Flow charts are in the README's "Outside Agents" section.
 
 ### 2.4 State Management & Session Continuity
 - **Startup Entrypoint:** `init.sh` builds `.venv` from `requirements-dev.txt` when it is missing (refusing a `python3` that differs from `.python-version`), then executes `scripts/harness-verify.sh`.

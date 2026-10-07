@@ -301,6 +301,14 @@
       "dependencies": ["feat-037"],
       "status": "done",
       "evidence": "Reproduced on a clean clone before the fix: types-guard.sh failed with 'Cannot find implementation or library stub for module anthropic'. Port flake reproduced: limactl (49906) and wsagent (49706) listen inside test_tree_upload.sh's 49000-49999 range and a Python HTTPServer bind on either fails with 'Address already in use'. scripts/tests/test_init_sh.sh 8 passed (failed first, before init.sh changed). test_tree_upload, test_push, test_attach, test_tree_fetch all exit 0 with kernel-assigned ports. Follow-up: test_init_sh.sh 12 passed (version-mismatch and terminated-mid-build cases failed first; removing the trap from init.sh turns the interrupt case red). Clean copy of the working tree without .venv, HOME redirected to a temp dir: ./init.sh built the venv and ran in 4m26s, 9 gates OK and 1 SKIP (runtime drift, no runtime installed under the temp HOME)."
+    },
+    {
+      "id": "feat-039",
+      "name": "Review rule: one review per branch, reviewers scaled to risk, reviewers get repo access",
+      "description": "The Reviewing rule in agents/engineering-rules.md said 'use two reviewers' with no trigger and gave the fresh subagent only the diff and requirements. It now says: review once per branch on the cumulative diff, right before finishing it (next to the cleanup pass); no reviewer for docs, wording, state files and test-only changes, one fresh-context subagent for ordinary code, two (subagent plus another model family) for hooks and gates, shipped rules, install scripts, and permission, security, data or contract changes. Reviewers get read access to the repo at the post-change commit, the user's original request and acceptance checks, and the test and gate commands, and never the author's conversation, reasoning or verified-claims. README and docs/architecture.md describe the tiers. install-agents-md.sh was run on 2026-10-07 after owner approval: Claude Code, Antigravity, Codex and Kiro host files were refreshed, and a diff against backups showed only the Reviewing line changed in each.",
+      "dependencies": ["feat-035", "feat-036"],
+      "status": "done",
+      "evidence": "test_engineering_rules_scope.sh: two new checks (trigger wording, repo access) failed first, 12/12 after. Reasoning for repo access: the feat-036 subagent review verified 24 facts and call sites, which a diff alone cannot show; this session's docs claim about the ambient-Python fallback needed run-tests.sh, types-guard.sh and test.yml, none in the diff. Yield data is thin (two cases: Lecture 2 cross-model review found one real bug and one false claim, feat-036 review of 65 files found no defect), so the tiers are a starting guess. Open: record 'review found a real defect yes/no' in evidence for about ten reviews, then check the tier thresholds."
     }
   ]
 }

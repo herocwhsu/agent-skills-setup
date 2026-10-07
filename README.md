@@ -562,7 +562,10 @@ mentions "quota" or "401" is still an answer.
 
 ### Review flow
 
-The shipped rule (`agents/engineering-rules.md`, "Outside agents") requires two reviewers:
+The shipped rule (`agents/engineering-rules.md`, "Outside agents") scales reviewers to
+risk, once per branch on the cumulative diff: none for docs and state files, one subagent
+for ordinary code, and two for hooks, gates, shipped rules, install scripts, and
+permission, security, data or contract changes. The flow below is the two-reviewer case:
 
 ```mermaid
 flowchart LR
