@@ -22,6 +22,8 @@ Before writing code:
 4. Run `./init.sh` (delegates to `scripts/harness-verify.sh`) to confirm the repo is
    clean and verifiable before adding scope. A fresh clone first builds `.venv`;
    the run takes about 5 minutes, so a quiet terminal is not a hang.
+5. Work on one feature at a time (WIP=1). Never activate multiple features or combine
+   unrelated refactorings. Active features must define an executable verification command.
 
 ## Verify
 

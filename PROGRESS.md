@@ -3,10 +3,10 @@
 ## Current State
 
 **Last Updated:** 2026-10-07
-**Active Feature:** none. feat-039 closed out; `./init.sh` passes all gates.
-**Harness lectures:** 1–6 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 6
-(why initialization needs its own phase) open items: `What's Next` is unordered and
-`feature_list.json` has no acceptance-criteria field (`docs/harness-creator/lecture-06/summary.md`).
+**Active Feature:** none. feat-040 closed out; `./init.sh` passes all gates.
+**Harness lectures:** 1–7 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 7
+(why agents overreach and under-finish) closed: WIP=1 and executable verification enforced
+in `state-layer-guard.sh`; `What's Next` ordered by priority with verification commands.
 Lecture 5 open items: rebuild time never
 measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
 
@@ -161,6 +161,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] feat-037: `claude-kiro` hit HTTP 400 from a tmux pane opened 2026-10-01 that still held the old `claude-sonnet-5` alias (a running shell never re-reads `~/.zshrc`); not caused by install/update or the feat-036 cleanup. `claude-kiro` now defaults to `ANTHROPIC_MODEL=claude-sonnet-5.5` and pins Opus/Sonnet/Haiku to Kiro-served IDs; `setup-alias` warns that open shells must re-source.
 - [x] feat-038: Lecture 6 follow-up fixes. `init.sh` builds `.venv` from `requirements-dev.txt` on a fresh clone (the first `./init.sh` used to fail the types gate), README and `AGENTS.md` cover the contributor path, run time and SKIP meaning, and the four confluence-tree mock-server tests take a kernel-assigned port for all 11 picks (`limactl`/`wsagent` sit inside the old 49000 range). Verified on a clean copy: 9 gates OK, 1 SKIP (runtime drift under a temp HOME), 4m26s. `init.sh` also refuses a `python3` that differs from `.python-version` and cleans up a build interrupted by INT/TERM/HUP. Left open: unordered `What's Next`, no acceptance-criteria field in `feature_list.json`.
 - [x] feat-039: review rule now says when and how much. One review per branch on the cumulative diff before finishing it; none for docs/state/test-only changes, one subagent for ordinary code, two reviewers (plus another model family) for hooks, gates, shipped rules, install scripts and permission/security/data/contract changes. Reviewers get repo read access, the original request and the gate commands, not the author's reasoning. README and `docs/architecture.md` updated. `install-agents-md.sh` was run after owner approval (all four host files refreshed, only the Reviewing line changed). Open: the tiers rest on two data points, so record defect found yes/no over about ten reviews.
+- [x] feat-040: Lecture 7 training (why agents overreach and under-finish). Enforced WIP=1 and completion evidence in `state-layer-guard.sh` (17/17 passed); codified WIP=1 in `AGENTS.md`; restructured `What's Next` in `PROGRESS.md` into an ordered queue with verification commands, resolving the open items from Lecture 6; created `docs/harness-creator/lecture-07/` documentation and comparison experiment (-31% LOC with zero scope creep).
 
 ### What's In Progress
 
@@ -168,22 +169,21 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 
 ### What's Next
 
-- Re-run the codex-kiro and agy smoke test live against the feat-033 fixes; trust the repo hooks in Codex on each host.
-- Optional: scope the Stop gate's tests to changed files so a stop no longer takes ~3 minutes.
-- Run the fresh-session test again on the real hangar and atelier `main` (kiro-cli and gemini
-  `AGENTS.md` support is still untested: neither is logged in headless).
-- Optional follow-up experiment: repeat exercise 3 at ~10k tokens without the
-  "read in full" instruction (design in `position-experiment.md` §13).
-- Owner decision: `~/projects/daily-ai-video-pipeline` has no git remote, so its steps 1-4
-  (commits up to 30e083b: bilingual `--auto --and-render`, data chart scene, `--qa`) exist only
-  on this machine. Create a private GitHub repo to push it, or keep it local. Nothing watched
-  end to end yet: watch both rendered runs before any upload. feat-006 (YouTube upload,
-  scheduler) waits for the owner.
-- Hermes was removed from this machine on 2026-10-05 (repo and `~/.hermes`), but
-  `skills/infra/kiro-gateway` (`dbe4619`) still writes `~/.hermes/.env` and
-  `scripts/update-agents.sh` still lists `hermes`. Decide: keep for other hosts, or drop.
-- Handy: `local/zh-tw-default` (zh-TW default, rebased on upstream cjpais/Handy) is pushed to
-  the herocwhsu/Handy fork only; nothing here depends on it.
+**Prioritized Technical Queue (WIP=1):**
+1. **Scope Stop gate tests to changed files:** Reduce stop hook latency from ~3m to <10s on single-file edits.
+   - *Verification:* `bash scripts/run-tests.sh --fast --changed` and `bash .claude/hooks/tests-guard.sh`.
+   - *Plan:* `docs/harness-creator/lecture-07/code/task-atomization-plan.md`.
+2. **Fix `_lib.sh` pip step under Homebrew Python (PEP 668):** Replace `--break-system-packages` with isolated venv/pipx.
+   - *Verification:* `bash scripts/tests/test_hook_wiring.sh` without pip PEP 668 warnings.
+3. **Smoke test verification:** Re-run live `codex-kiro` and `agy` smoke tests against feat-033 fixes; trust repo hooks in Codex on each host.
+   - *Verification:* `outside-agent.sh run --purpose review` exits 0.
+4. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
+5. **Position experiment scaling:** Run follow-up experiment at ~10k tokens without "read in full" instruction (`position-experiment.md` §13).
+
+**Pending Owner Decisions (Blocked on Human):**
+- **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
+- **Hermes cleanup:** Decide whether to drop residual `~/.hermes` configs from `skills/infra/kiro-gateway` or keep for other hosts.
+- **Handy branch:** Decide if `local/zh-tw-default` needs further integration or remains fork-only.
 
 
 ## Blockers / Risks

@@ -29,13 +29,50 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   exit 2
 fi
 
-json_err=$(mktemp)
-trap 'rm -f "$json_err"' EXIT
+check_out=$(python3 - <<'PYEOF' "$REPO_DIR/feature_list.json" 2>&1
+import json, sys
 
-if ! python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$REPO_DIR/feature_list.json" 2>"$json_err"; then
-  echo "Blocked: feature_list.json is not valid JSON:" >&2
-  cat "$json_err" >&2
-  exit 2
-fi
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as f:
+        data = json.load(f)
+except Exception as e:
+    sys.exit(f"JSON_ERROR: {e}")
+
+features = data.get("features", data) if isinstance(data, dict) else data
+if not isinstance(features, list):
+    sys.exit("SCHEMA_ERROR: feature_list root or 'features' must be a list")
+
+active = [f for f in features if isinstance(f, dict) and f.get("status") in ("active", "in_progress", "doing")]
+
+if len(active) > 1:
+    ids = [f.get("id", "unknown") for f in active]
+    sys.exit(f"WIP_ERROR: WIP limit violation: {len(active)} features active concurrently: {ids}. Lecture 07 mandates WIP=1.")
+
+for f in active:
+    fid = f.get("id", "unknown")
+    v = f.get("verification") or f.get("acceptance_criteria")
+    if not v or not str(v).strip():
+        sys.exit(f"EVIDENCE_ERROR: Completion evidence missing: active feature '{fid}' has no non-empty 'verification' or 'acceptance_criteria' command.")
+PYEOF
+) || {
+  rc=$?
+  if grep -q "JSON_ERROR:" <<<"$check_out"; then
+    echo "Blocked: feature_list.json is not valid JSON:" >&2
+    echo "$check_out" | sed 's/JSON_ERROR: //' >&2
+    exit 2
+  elif grep -q "WIP_ERROR:" <<<"$check_out"; then
+    echo "Blocked by WIP limit: feature_list.json has multiple active features:" >&2
+    echo "$check_out" | sed 's/WIP_ERROR: //' >&2
+    exit 2
+  elif grep -q "EVIDENCE_ERROR:" <<<"$check_out"; then
+    echo "Blocked: active feature lacks completion evidence:" >&2
+    echo "$check_out" | sed 's/EVIDENCE_ERROR: //' >&2
+    exit 2
+  else
+    echo "Blocked: state layer validation error:" >&2
+    echo "$check_out" >&2
+    exit 2
+  fi
+}
 
 exit 0

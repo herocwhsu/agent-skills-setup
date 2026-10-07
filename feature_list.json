@@ -309,6 +309,14 @@
       "dependencies": ["feat-035", "feat-036"],
       "status": "done",
       "evidence": "test_engineering_rules_scope.sh: two new checks (trigger wording, repo access) failed first, 12/12 after. Reasoning for repo access: the feat-036 subagent review verified 24 facts and call sites, which a diff alone cannot show; this session's docs claim about the ambient-Python fallback needed run-tests.sh, types-guard.sh and test.yml, none in the diff. Yield data is thin (two cases: Lecture 2 cross-model review found one real bug and one false claim, feat-036 review of 65 files found no defect), so the tiers are a starting guess. Open: record 'review found a real defect yes/no' in evidence for about ten reviews, then check the tier thresholds."
+    },
+    {
+      "id": "feat-040",
+      "name": "Lecture 7: enforce WIP=1 and completion evidence in state-layer guard, close lecture 7",
+      "description": "Lecture 7 training (docs/harness-creator/lecture-07/) addressed agent overreach and under-finish. Upgraded .claude/hooks/state-layer-guard.sh to mechanically enforce WIP<=1 and non-empty verification/acceptance_criteria on active features. Added 4 test cases to test_state_layer_guard.sh (17 passed). Codified WIP=1 in AGENTS.md Startup Workflow. Restructured PROGRESS.md What's Next into a prioritized queue with verification commands, resolving the open items from Lecture 6. Ran comparison experiment in /tmp/l7 showing WIP=1 yields 31% fewer lines with zero scope creep while passing all 5 hidden acceptance tests.",
+      "dependencies": ["feat-038"],
+      "status": "done",
+      "evidence": "test_state_layer_guard.sh: 17 passed, 0 failed (WIP limit violation and missing evidence cases failed first). test_scope_tracker.py passed. scope_tracker.py verified clean on feature_list.json (40 completed, 0 active). Comparison experiment: /tmp/l7/exp-b passed 5/5 hidden checks in 86 LOC vs 125 LOC in exp-a. bash-compat-guard.sh OK. test_engineering_rules_scope.sh 12/12."
     }
   ]
 }

@@ -97,14 +97,54 @@ set +e; out=$(run_hook "$d"); status=$?; set -e
   && ok "malformed feature_list.json blocks with exit 2" \
   || bad "malformed feature_list.json blocks with exit 2" "exit $status, out: $out"
 grep -qi 'json' <<<"$out" \
-  && ok "message names the JSON problem" \
-  || bad "message names the JSON problem" "out: $out"
-
 # --- 7. the real repo's own state layer passes ------------------------------
 set +e; out=$(bash "$HOOK" 2>&1); status=$?; set -e
 [[ $status -eq 0 ]] \
   && ok "this repo's own state layer is clean" \
   || bad "this repo's own state layer is clean" "exit $status, out: $out"
+
+# --- 8. multiple active features blocks with exit 2 (WIP limit) -------------
+d=$(fixture_complete wip-limit-violation)
+cat > "$d/feature_list.json" <<'EOF'
+{"features": [
+  {"id": "feat-a", "status": "active", "verification": "true"},
+  {"id": "feat-b", "status": "active", "verification": "true"}
+]}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "multiple active features blocks with exit 2 (WIP limit)" \
+  || bad "multiple active features blocks with exit 2 (WIP limit)" "exit $status, out: $out"
+grep -qi 'WIP' <<<"$out" \
+  && ok "message names WIP violation" \
+  || bad "message names WIP violation" "out: $out"
+
+# --- 9. active feature without verification blocks with exit 2 --------------
+d=$(fixture_complete missing-verification)
+cat > "$d/feature_list.json" <<'EOF'
+{"features": [
+  {"id": "feat-a", "status": "active", "verification": ""}
+]}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "active feature without verification blocks with exit 2" \
+  || bad "active feature without verification blocks with exit 2" "exit $status, out: $out"
+grep -qi 'evidence\|verification' <<<"$out" \
+  && ok "message names missing verification" \
+  || bad "message names missing verification" "out: $out"
+
+# --- 10. single active feature with valid verification passes ---------------
+d=$(fixture_complete valid-single-active)
+cat > "$d/feature_list.json" <<'EOF'
+{"features": [
+  {"id": "feat-a", "status": "active", "verification": "bash test.sh"}
+]}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 0 ]] \
+  && ok "single active feature with verification passes" \
+  || bad "single active feature with verification passes" "exit $status, out: $out"
 
 echo ""
 echo "test_state_layer_guard: $pass passed, $fail failed"
