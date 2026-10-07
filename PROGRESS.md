@@ -179,6 +179,10 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
    - *Verification:* `outside-agent.sh run --purpose review` exits 0.
 4. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
 5. **Position experiment scaling:** Run follow-up experiment at ~10k tokens without "read in full" instruction (`position-experiment.md` §13).
+6. **Enforce case-sensitive filesystem invariant & layout consistency:**
+   - Drop legacy lowercase `progress.md` fallback in `state-layer-guard.sh` since all development and CI environments are case-sensitive.
+   - Clean up `lecture-07/` layout to match L4/L6 conventions: move `task-atomization-plan.md` to lecture root, rename `cmp-*-report.md` to `cmp-*-s1.md`, move `hidden_accept.py` into `code/`.
+   - *Verification:* `bash .claude/hooks/tests/test_state_layer_guard.sh` and `./init.sh`.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
@@ -195,6 +199,13 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 
 ## Decisions Made
 
+- **Case-sensitive filesystem assumed repo-wide (owner, 2026-10-07):** All host environments, Docker
+  containers, and CI operate on case-sensitive filesystems. New hooks and guards must not add
+  case-insensitive fallback logic (e.g. checking both lowercase and uppercase variations).
+  Legacy fallbacks (like `progress.md` in `state-layer-guard.sh`) queued for removal in next cleanup.
+- **Retain `feature_list.json` without symlinks (owner, 2026-10-07):** Keep the canonical name
+  `feature_list.json` to preserve compatibility with upstream harness scanners (`validate-harness.mjs`,
+  `repo-reader.ts`, Lecture 08 `feature-list-validator.ts`). No alias symlinks (`feature-list.json`).
 - **Auto-merge in hangar and atelier stays** (owner, 2026-10-01): Renovate automerge and
   the macmini agents' direct pushes continue until scale-up or a significant incident.
   The rule is now recorded in both repos' `PROGRESS.md` and `AGENTS.md`, so a session
