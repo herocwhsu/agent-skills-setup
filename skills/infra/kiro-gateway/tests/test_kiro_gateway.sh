@@ -881,6 +881,48 @@ alias_pins_sonnet_test() {
 }
 alias_pins_sonnet_test "claude-kiro alias maps Sonnet to the Kiro-served claude-sonnet-5.5"
 
+# claude-kiro sets ANTHROPIC_MODEL to the literal claude-sonnet-5.5, as
+# hermes-kiro does with --model, so the default no longer follows the model
+# alias in settings.json (opus on this host). Every family is also pinned to an
+# ID Kiro serves, so /model and --model switches stay inside what Kiro accepts.
+alias_pins_all_families_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; local rc="$tmpdir/.zshrc"; touch "$rc"
+  PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="k" \
+    bash "$SCRIPT" setup-alias >/dev/null 2>&1 || true
+  local line; line=$(grep "alias claude-kiro=" "$rc")
+  local missing=""
+  for want in "ANTHROPIC_MODEL=claude-sonnet-5.5 " \
+              "ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-5.5 " \
+              "ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-4.5 "; do
+    grep -q -- "$want" <<<"$line" || missing="$missing [$want]"
+  done
+  if [[ -z "$missing" ]]; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (missing$missing in: $(sed -E 's/API_KEY=[^ ]*/API_KEY=…/' <<<"$line"))"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+alias_pins_all_families_test "claude-kiro alias defaults to Sonnet 5.5 and pins every family to a Kiro-served ID"
+
+setup_alias_warns_open_shells_test() {
+  local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
+  make_mock_bin "$tmpdir"; local rc="$tmpdir/.zshrc"; touch "$rc"
+  local out
+  out=$(PATH="$tmpdir/bin:$PATH" KIRO_GATEWAY_STATE_FILE="$tmpdir/state" \
+    SHELL="/bin/zsh" HOME="$tmpdir" KIRO_PROXY_KEY="k" \
+    bash "$SCRIPT" setup-alias 2>&1) || true
+  if grep -q "already open keep the old aliases" <<<"$out" && grep -qF "source $rc" <<<"$out"; then
+    echo "PASS: $name"; PASS=$((PASS+1))
+  else
+    echo "FAIL: $name (output: $out)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmpdir"
+}
+setup_alias_warns_open_shells_test "setup-alias warns that open shells keep the old alias until re-sourced"
+
 hermes_alias_model_test() {
   local name="$1"; local tmpdir; tmpdir=$(mktemp -d)
   make_mock_bin "$tmpdir"; local rc="$tmpdir/.zshrc"; touch "$rc"

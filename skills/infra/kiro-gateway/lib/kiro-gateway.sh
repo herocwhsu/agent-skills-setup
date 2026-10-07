@@ -540,10 +540,15 @@ cmd_setup_alias() {
   local rc; rc=$(rc_file_path)
   local read_cmd; read_cmd=$(store_proxy_key)
   write_managed_line "$rc" "claude-kiro" \
-    "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5.5 ANTHROPIC_API_KEY=${read_cmd} claude'"
+    "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_MODEL=claude-sonnet-5.5 ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-5.5 ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5.5 ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-4.5 ANTHROPIC_API_KEY=${read_cmd} claude'"
   write_managed_line "$rc" "hermes-kiro" \
     "alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} hermes --provider anthropic --model claude-sonnet-5.5'"
   echo "Reconciled claude-kiro/hermes-kiro in $rc. Activate: source $rc"
+  # An alias is expanded from the copy a shell loaded at startup, so shells and
+  # tmux panes opened earlier keep sending the old model until they re-source.
+  # A pane left on the old claude-sonnet-5 pin kept failing with HTTP 400 for
+  # days after this file was fixed (2026-10-07).
+  echo "Shells already open keep the old aliases until you run: source $rc (in each tmux pane too)"
 }
 
 # Like claude-kiro: plain codex on the normal ~/.codex home, with the gateway

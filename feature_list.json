@@ -285,6 +285,14 @@
       "dependencies": ["feat-035"],
       "status": "done",
       "evidence": "65 files, +213/-315 over ba699a2. run-tests.sh --fast 62 passed, 0 failed; mypy clean; bash-compat, hook-wiring, skill-paths and registry guards pass; test_engineering_rules_scope.sh 10/10. Two reviews: a fresh-context subagent verified 24 facts and call sites (_own_repo_id at all three call sites, slugify sed under BSD sed, 16 groups, 46 subcommands, 12 rules, service lists, init-repo FORCE=1, hook events) and found no behavior change, no wrong doc fix and no scope violation; outside-agent.sh run --purpose review (used=codex-kiro, exit 0) checked every changed non-comment shell and Python line and reported NONE. Its four follow-ups were applied (pip-guard WHY restored, change-eval added to utils description, remaining migration-note tables dropped since docs/migration.md keeps them, one comment rewrapped). Known: lib/lib.sh changed, so runtime-drift-guard flags lib.sh too until install.sh runs from main."
+    },
+    {
+      "id": "feat-037",
+      "name": "Default claude-kiro to claude-sonnet-5.5 and warn that open shells keep old aliases",
+      "description": "claude-kiro failed with HTTP 400 'Invalid model ID' from a tmux pane started 2026-10-01: its live environment still held ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5 from 0771014, because a running shell never re-reads ~/.zshrc after 1feec92 rewrote the alias. Not caused by install.sh, update.sh or the feat-036 cleanup (none touch the alias line). claude-kiro now sets ANTHROPIC_MODEL=claude-sonnet-5.5 (a literal ID, like hermes-kiro's --model), so the default no longer follows the opus alias in settings.json, and pins ANTHROPIC_DEFAULT_OPUS/SONNET/HAIKU_MODEL to claude-opus-5.5/claude-sonnet-5.5/claude-haiku-4.5. setup-alias now prints that shells and tmux panes already open must re-source the rc file.",
+      "dependencies": ["feat-034"],
+      "status": "done",
+      "evidence": "Failing process 90223 (parent: tmux pane 0:2.1 zsh, started 2026-10-01 14:44) had ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5 in its environment; a shell started later had claude-sonnet-5.5. Gateway log shows claude-sonnet-5 400s only at 2026-10-05 12:30 and 2026-10-07 00:06-00:14 UTC. With this change stashed, the committed alias from a fresh shell sent claude-opus-5-5 (settings.json opus) and --model sonnet sent claude-sonnet-5.5, both 200. After: claude-kiro sent claude-sonnet-5.5 (200); claude-kiro --model opus sent claude-opus-5.5 (200). test_kiro_gateway.sh 46/46 (two new tests failed first). ./init.sh: all gates passed. setup-alias regenerated ~/.zshrc."
     }
   ]
 }
