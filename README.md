@@ -68,6 +68,8 @@ NTFY_TOKEN=tk_xxx \
 
 Or run interactively and it will prompt for ntfy credentials (leave blank to skip notifications).
 
+**Contributing to this repo:** the steps above install the skills for your own use. To work on the repo itself, read [AGENTS.md](AGENTS.md) and run `./init.sh`. On a fresh clone it builds `.venv` from `requirements-dev.txt`, then runs every gate (about 5 minutes).
+
 ---
 
 ## Post-install: OpenSpec setup
@@ -200,7 +202,7 @@ since a PR checkout is a detached merge ref). A copy with no `.git` is not check
 | `scripts/install.sh` | macOS / Linux | Install superpowers + custom skills |
 | `scripts/uninstall.sh` | macOS / Linux | Remove installed skills |
 | `scripts/update.sh` | macOS / Linux | `git pull` + re-install |
-| `init.sh` | macOS / Linux | One-command harness startup & verification entrypoint |
+| `init.sh` | macOS / Linux | One-command harness startup & verification entrypoint (builds `.venv` on a fresh clone) |
 | `scripts/harness-verify.sh` | macOS / Linux | Run every verification gate (registry, types, tests, hooks, runtime drift, secrets) |
 | `scripts/outside-agent.sh` | macOS / Linux | Pick a working outside agent for delegation or cross-family review (see [Outside Agents](#outside-agents)) |
 | `scripts/run-tests.sh` | macOS / Linux | Run all skill + script tests (`--fast` skips integration tests) |

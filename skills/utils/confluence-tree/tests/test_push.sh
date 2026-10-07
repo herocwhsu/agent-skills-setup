@@ -7,6 +7,7 @@
 #   2. 401 on POST returns exit code 3
 #   3. PAT-format secret produces Bearer auth header
 set -euo pipefail
+source "$(dirname "$0")/free_port.sh"
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PUSH="$SKILL_DIR/lib/push.py"
@@ -63,7 +64,7 @@ sys.stdout.write("ready\n"); sys.stdout.flush()
 import signal; signal.pause()
 PYEOF
 
-PORT=$((40000 + RANDOM % 1000))
+PORT=$(free_port)
 MODE_FILE="$TMP/mode"
 AUTH_RECORD="$TMP/auth"
 echo ok > "$MODE_FILE"
@@ -167,7 +168,7 @@ sys.stdout.write("ready\n"); sys.stdout.flush()
 import signal; signal.pause()
 PYEOF
 
-PORT2=$((46000 + RANDOM % 1000))
+PORT2=$(free_port)
 PORT=$PORT2 python3 "$TMP/server2.py" >"$TMP/server2.log" 2>&1 &
 SERVER2_PID=$!
 trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER2_PID:-}" ]] && kill "$SERVER2_PID" 2>/dev/null; rm -rf "$TMP"' EXIT

@@ -10,6 +10,7 @@
 #   4. page-id flag in URL: upload URL contains
 #      /content/<page-id>/child/attachment
 set -euo pipefail
+source "$(dirname "$0")/free_port.sh"
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ATTACH="$SKILL_DIR/lib/attach.py"
@@ -45,7 +46,7 @@ sys.stdout.write("ready\n"); sys.stdout.flush()
 import signal; signal.pause()
 PYEOF
 
-PORT=$((41000 + RANDOM % 1000))
+PORT=$(free_port)
 BODY_DUMP="$TMP/bodies"
 : > "$BODY_DUMP"
 
@@ -147,7 +148,7 @@ sys.stdout.write("ready\n"); sys.stdout.flush()
 import signal; signal.pause()
 PYEOF
 
-PORT_AUTH=$((47000 + RANDOM % 1000))
+PORT_AUTH=$(free_port)
 PORT=$PORT_AUTH python3 "$TMP/server401.py" >"$TMP/server401.log" 2>&1 &
 SERVER401_PID=$!
 trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER401_PID:-}" ]] && kill "$SERVER401_PID" 2>/dev/null; rm -rf "$TMP"' EXIT

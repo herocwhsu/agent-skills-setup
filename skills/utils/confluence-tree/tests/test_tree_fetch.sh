@@ -7,6 +7,7 @@
 #   3. child page saved as leaf (Child A, page id 200)
 #   4. manifest.json shape (root + child, parent_id, depth)
 set -euo pipefail
+source "$(dirname "$0")/free_port.sh"
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FETCH="$SKILL_DIR/lib/tree_fetch.py"
@@ -86,7 +87,7 @@ sys.stdout.write("ready\n"); sys.stdout.flush()
 import signal; signal.pause()
 PYEOF
 
-PORT=$((42000 + RANDOM % 1000))
+PORT=$(free_port)
 PORT=$PORT python3 "$TMP/server.py" >"$TMP/server.log" 2>&1 &
 SERVER_PID=$!
 
@@ -179,7 +180,7 @@ sys.stdout.write("ready\n"); sys.stdout.flush()
 import signal; signal.pause()
 PYEOF
 
-PORT2=$((43000 + RANDOM % 1000))
+PORT2=$(free_port)
 PORT=$PORT2 python3 "$TMP/server2.py" >"$TMP/server2.log" 2>&1 &
 SERVER2_PID=$!
 trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER2_PID:-}" ]] && kill "$SERVER2_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
@@ -241,7 +242,7 @@ sys.stdout.write("ready\n"); sys.stdout.flush()
 import signal; signal.pause()
 PYEOF
 
-PORT3=$((44000 + RANDOM % 1000))
+PORT3=$(free_port)
 PORT=$PORT3 python3 "$TMP/server3.py" >"$TMP/server3.log" 2>&1 &
 SERVER3_PID=$!
 trap '[[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null; [[ -n "${SERVER2_PID:-}" ]] && kill "$SERVER2_PID" 2>/dev/null; [[ -n "${SERVER3_PID:-}" ]] && kill "$SERVER3_PID" 2>/dev/null; rm -rf "$TMP"' EXIT

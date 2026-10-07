@@ -3,9 +3,11 @@
 ## Current State
 
 **Last Updated:** 2026-10-07
-**Active Feature:** none. feat-037 closed out; `./init.sh` passes all gates.
-**Harness lectures:** 1–5 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 6
-(why initialization needs its own phase) is next. Lecture 5 open items: rebuild time never
+**Active Feature:** none. feat-038 closed out; `./init.sh` passes all gates.
+**Harness lectures:** 1–6 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 6
+(why initialization needs its own phase) open items: `What's Next` is unordered and
+`feature_list.json` has no acceptance-criteria field (`docs/harness-creator/lecture-06/summary.md`).
+Lecture 5 open items: rebuild time never
 measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
 
 ## Status
@@ -157,6 +159,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] feat-035: `scripts/outside-agent.sh` (`run`/`init`/`status`/`reset`) runs a prompt through the first working outside agent in `~/.agent-skills-setup/outside-agents.conf`; review prefers another model family and exits 3 when only the caller's family answered. `engineering-rules.md` gains `### Outside agents`. The live check found an agy argv-order bug (fixed: `agy --mode plan -p <prompt>`). `init` probes now run from the runtime dir, not the caller's cwd: agy had answered and then likely ran this repo's agy Stop gate (cwd-dependent hang measured). Final review fixes: on rc 0, only a short output that is itself a complete status message (e.g. `Not logged in`, `Usage limit reached`) is read as auth/rate_limit, so answers that merely mention quota/401//login stay ok; an external SIGTERM/SIGINT/SIGHUP to `run` now kills the agent's process group; default `--timeout` is 110s; an ok result clears auth demotion; exit 3 prints one stderr line. Harness-verify and live evidence were recorded on 2026-10-05 before these fixes. `init --force` from the worktree keeps `claude-kiro codex-kiro agy`, and the live review used `codex-kiro` (exit 0). Open: `run` keeps the caller's cwd, so inside a repo that wires agy Stop hooks agy still pays them and may time out; `install-agents-md.sh` not run, so host rule files lack the rule (needs owner approval); real usage-limit messages not observed; no cheap login signal for agy; the runtime drift gate blocks on this host until merge and `install.sh` from main; pre-existing confluence-tree upload flake (random port collision).
 - [x] feat-036: rules gain a two-reviewer review (fresh-context subagent plus another model family via `outside-agent.sh`) and a one-pass branch cleanup rule; README gains an "Outside Agents" section with two flow charts. Repo-wide cleanup ran as four parallel fixers (scripts, hooks, skills/utils+infra, other skills and docs) in isolated worktrees: 65 files, +213/-315. Restating and history comments dropped, ~90 doc facts corrected against code (counts, flags, paths, hook events), three duplicates merged (`_own_repo_id` in `lib/lib.sh`, two in confluence-tree/host-optimization). Reviewed both ways: fresh-context subagent (clean, 24 facts and call sites verified) and `codex-kiro` on every changed code line (no behavior change). `lib/lib.sh` changed, so the runtime drift gate also flags `lib.sh` until `install.sh` runs from main. Left on purpose: dated incident comments, hook blocks mirrored byte-for-byte with hangar/atelier, `_repo_id` copies with no canonical home, `_store.sh` dead `linux-headless` branches (dispatch code).
 - [x] feat-037: `claude-kiro` hit HTTP 400 from a tmux pane opened 2026-10-01 that still held the old `claude-sonnet-5` alias (a running shell never re-reads `~/.zshrc`); not caused by install/update or the feat-036 cleanup. `claude-kiro` now defaults to `ANTHROPIC_MODEL=claude-sonnet-5.5` and pins Opus/Sonnet/Haiku to Kiro-served IDs; `setup-alias` warns that open shells must re-source.
+- [x] feat-038: Lecture 6 follow-up fixes. `init.sh` builds `.venv` from `requirements-dev.txt` on a fresh clone (the first `./init.sh` used to fail the types gate), README and `AGENTS.md` cover the contributor path, run time and SKIP meaning, and the four confluence-tree mock-server tests take a kernel-assigned port for all 11 picks (`limactl`/`wsagent` sit inside the old 49000 range). Verified on a clean copy: 9 gates OK, 1 SKIP (runtime drift under a temp HOME), 4m26s. `init.sh` also refuses a `python3` that differs from `.python-version` and cleans up a build interrupted by INT/TERM/HUP. Left open: unordered `What's Next`, no acceptance-criteria field in `feature_list.json`.
 
 ### What's In Progress
 
@@ -170,7 +173,6 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
   `AGENTS.md` support is still untested: neither is logged in headless).
 - Optional follow-up experiment: repeat exercise 3 at ~10k tokens without the
   "read in full" instruction (design in `position-experiment.md` §13).
-- Lecture 6: Why Initialization Needs Its Own Phase.
 - Owner decision: `~/projects/daily-ai-video-pipeline` has no git remote, so its steps 1-4
   (commits up to 30e083b: bilingual `--auto --and-render`, data chart scene, `--qa`) exist only
   on this machine. Create a private GitHub repo to push it, or keep it local. Nothing watched

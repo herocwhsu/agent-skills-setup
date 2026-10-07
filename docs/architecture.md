@@ -67,7 +67,7 @@ flowchart TD
 - **Outside agents:** `scripts/outside-agent.sh` (logic in `scripts/outside_agent.py`) picks a working outside CLI agent per call from the per-machine `~/.agent-skills-setup/outside-agents.conf`. Reviews pair a fresh-context subagent with a different model family. Flow charts are in the README's "Outside Agents" section.
 
 ### 2.4 State Management & Session Continuity
-- **Startup Entrypoint:** `init.sh` runs initial checks and executes `scripts/harness-verify.sh`.
+- **Startup Entrypoint:** `init.sh` builds `.venv` from `requirements-dev.txt` when it is missing (refusing a `python3` that differs from `.python-version`), then executes `scripts/harness-verify.sh`.
 - **System of Record Artifacts:**
   - `feature_list.json`: Structured JSON catalog of all repository capabilities, statuses (`done`, `in-progress`, `planned`), dependencies, and test evidence.
   - `PROGRESS.md`: Human- and agent-readable log detailing current focus, resolved findings, and immediate next steps.
@@ -115,7 +115,7 @@ flowchart TD
 
 2. **Isolated Tooling & Zero Version Drift:**
    - Python code must execute under Python 3.14.7.
-   - Verification guards (`types-guard.sh`, `run-tests.sh`) resolve tools through `.venv/bin/` and fail loud if `.venv` does not match `.python-version`. Silent fallback to arbitrary ambient interpreters is prohibited.
+   - Verification guards (`types-guard.sh`, `run-tests.sh`) resolve tools through `.venv/bin/` and fail loud if `.venv` exists but is broken or does not match `.python-version`. They fall back to ambient `python3`/`mypy` only when no `.venv` directory exists (CI runs that way); `init.sh` builds `.venv` first, so the fallback is not the contributor path.
 
 3. **Defensive Boundary Restrictions:**
    - Direct writes to `AGENTS.override.md` under home directories are denied via `.claude/settings.json`.

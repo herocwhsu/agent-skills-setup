@@ -293,6 +293,14 @@
       "dependencies": ["feat-034"],
       "status": "done",
       "evidence": "Failing process 90223 (parent: tmux pane 0:2.1 zsh, started 2026-10-01 14:44) had ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5 in its environment; a shell started later had claude-sonnet-5.5. Gateway log shows claude-sonnet-5 400s only at 2026-10-05 12:30 and 2026-10-07 00:06-00:14 UTC. With this change stashed, the committed alias from a fresh shell sent claude-opus-5-5 (settings.json opus) and --model sonnet sent claude-sonnet-5.5, both 200. After: claude-kiro sent claude-sonnet-5.5 (200); claude-kiro --model opus sent claude-opus-5.5 (200). test_kiro_gateway.sh 46/46 (two new tests failed first). ./init.sh: all gates passed. setup-alias regenerated ~/.zshrc."
+    },
+    {
+      "id": "feat-038",
+      "name": "Lecture 6: init.sh builds .venv on a fresh clone, contributor docs, free ports for mock-server tests",
+      "description": "Lecture 6 training (docs/harness-creator/lecture-06/) found that the first ./init.sh on a fresh clone fails the types gate because the .venv creation command lived only in error strings. init.sh now builds .venv from requirements-dev.txt when the directory is missing and removes a half-built one on failure. README Quick Start points contributors at AGENTS.md and ./init.sh. AGENTS.md states the ~5 minute run and that a SKIP is not a pass. docs/architecture.md now describes the ambient-python fallback as it is (only when no .venv exists; CI runs that way). The four confluence-tree mock-server tests take a kernel-assigned port for all 11 picks (tests/free_port.sh) instead of a random pick from a fixed range. init.sh also refuses to build when python3 differs from .python-version (names both versions, builds nothing) and removes a half-built .venv on INT/TERM/HUP. Left open on purpose: unordered What's Next and no acceptance-criteria field in feature_list.json, since an order or criteria for 37 finished entries would be invented.",
+      "dependencies": ["feat-037"],
+      "status": "done",
+      "evidence": "Reproduced on a clean clone before the fix: types-guard.sh failed with 'Cannot find implementation or library stub for module anthropic'. Port flake reproduced: limactl (49906) and wsagent (49706) listen inside test_tree_upload.sh's 49000-49999 range and a Python HTTPServer bind on either fails with 'Address already in use'. scripts/tests/test_init_sh.sh 8 passed (failed first, before init.sh changed). test_tree_upload, test_push, test_attach, test_tree_fetch all exit 0 with kernel-assigned ports. Follow-up: test_init_sh.sh 12 passed (version-mismatch and terminated-mid-build cases failed first; removing the trap from init.sh turns the interrupt case red). Clean copy of the working tree without .venv, HOME redirected to a temp dir: ./init.sh built the venv and ran in 4m26s, 9 gates OK and 1 SKIP (runtime drift, no runtime installed under the temp HOME)."
     }
   ]
 }

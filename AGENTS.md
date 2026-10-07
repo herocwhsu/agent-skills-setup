@@ -19,8 +19,9 @@ Before writing code:
 1. Read this file completely.
 2. Read `feature_list.json` for current feature status.
 3. Read `PROGRESS.md` for what's done, in progress, and next.
-4. Run `./init.sh` (delegates to `scripts/harness-verify.sh`) to confirm the repo
-   is in a clean, verifiable state before adding scope.
+4. Run `./init.sh` (delegates to `scripts/harness-verify.sh`) to confirm the repo is
+   clean and verifiable before adding scope. A fresh clone first builds `.venv`;
+   the run takes about 5 minutes, so a quiet terminal is not a hang.
 
 ## Verify
 
@@ -38,7 +39,8 @@ A change is done only when `./init.sh` passes — not when it looks right. If a 
 is already failing for an unrelated reason, check `feature_list.json` for a
 tracked, pre-existing failure before assuming you broke it. Don't claim done
 until either it's fixed or you've stated explicitly that it's a known, unrelated
-gap.
+gap. A SKIP (runtime drift, until `install.sh` has run) means that gate checked
+nothing: report it as skipped, not as passed.
 
 ## End of Session
 

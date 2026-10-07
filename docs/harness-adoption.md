@@ -21,7 +21,7 @@ which is why the templates were refreshed from them.
 | `PROGRESS.md` | Current state, in flight, next. | Never. |
 | `feature_list.json` | Catalog with evidence per entry. | The repo has no feature catalog (an infra repo, for example). |
 | Hook tests | A `scripts/test-hooks.sh` run in CI, using a throwaway git repo per case. | The repo has no hooks. |
-| `.python-version` and `.venv` | Pin the interpreter and fail loud on drift. | The repo has no Python project. |
+| `.python-version` and `.venv` | Pin the interpreter and fail loud on drift. Have `init.sh` build `.venv` when it is missing: a fresh clone's first `init.sh` otherwise fails the types gate, and the only place the build command lives is an error string (Lecture 6). | The repo has no Python project. |
 
 ## Rules that cost an incident
 

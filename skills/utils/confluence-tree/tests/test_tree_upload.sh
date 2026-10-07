@@ -9,6 +9,7 @@
 #   3. stub failure aborts pass 2: second POST returns 500 → exit 6, error
 #      mentions stubs-created-so-far, no PUT happens
 set -euo pipefail
+source "$(dirname "$0")/free_port.sh"
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 UPLOAD="$SKILL_DIR/lib/tree_upload.py"
@@ -171,7 +172,7 @@ build_tree "$TMP/tree"
 # ============================================================
 # Test 1: happy path — 2 stubs created, 2 PUTs, both ids on stderr
 # ============================================================
-PORT1=$((45000 + RANDOM % 1000))
+PORT1=$(free_port)
 DUMP1="$TMP/dump1"
 start_server "$PORT1" "$DUMP1" "ok" >/dev/null
 
@@ -219,7 +220,7 @@ echo "OK test 2: wiki link rewrite — root PUT body contains /pages/2000"
 # ============================================================
 # Test 3: stub failure (second POST → 500) aborts before pass 2
 # ============================================================
-PORT3=$((46000 + RANDOM % 1000))
+PORT3=$(free_port)
 DUMP3="$TMP/dump3"
 start_server "$PORT3" "$DUMP3" "fail2" >/dev/null
 
@@ -248,7 +249,7 @@ echo "OK test 3: stub failure aborts before pass 2 (no PUT)"
 # ============================================================
 # Test 4: --dry-run — no network calls, link resolution shown
 # ============================================================
-PORT4=$((47000 + RANDOM % 1000))
+PORT4=$(free_port)
 DUMP4="$TMP/dump4"
 start_server "$PORT4" "$DUMP4" "ok" >/dev/null
 
@@ -352,7 +353,7 @@ cat > "$T5/manifest.json" <<'JSON'
 }
 JSON
 
-PORT5=$((49000 + RANDOM % 1000))
+PORT5=$(free_port)
 PUT_FLAG="$TMP/put5.flag"
 PORT=$PORT5 PUT_FLAG=$PUT_FLAG python3 "$TMP/server5.py" >"$TMP/server5.log" 2>&1 &
 SERVER5_PID=$!
