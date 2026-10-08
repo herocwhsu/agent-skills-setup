@@ -38,7 +38,7 @@ The diagnostic script `repo-reader.ts` scores repository discoverability across 
 
 ### 2.2 Remediations Applied
 1. **Architecture Documentation (+15 pts):** Authored `docs/architecture.md` detailing system overview, subsystems (rules engine, skills registry, verification hooks, state management), directory layout, and hard architectural invariants. Recognized directly by `repo-reader.ts` without requiring a root symlink shim.
-2. **Canonical Handoff / Session Continuity (+15 pts):** Upgraded `progress.md` directly to standard uppercase `PROGRESS.md` rather than a fragile symlink. Updated `state-layer-guard.sh` and its test suite to enforce `PROGRESS.md` (with backward compatibility fallback for `progress.md`).
+2. **Canonical Handoff / Session Continuity (+15 pts):** Upgraded `progress.md` directly to standard uppercase `PROGRESS.md` rather than a fragile symlink. Updated `state-layer-guard.sh` and its test suite to enforce `PROGRESS.md` (with backward compatibility fallback for `progress.md`; removed in feat-041, the guard now requires `PROGRESS.md`).
 3. **Configuration File (+10 pts):** Authored standard PEP 621 `pyproject.toml` specifying project metadata, Python `>=3.14` requirement, core dependencies, and dev extras.
 
 ### 2.3 Post-Remediation Audit

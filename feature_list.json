@@ -317,6 +317,16 @@
       "dependencies": ["feat-038"],
       "status": "done",
       "evidence": "test_state_layer_guard.sh: 17 passed, 0 failed (WIP limit violation and missing evidence cases failed first). test_scope_tracker.py passed. scope_tracker.py verified clean on feature_list.json (40 completed, 0 active). Comparison experiment: /tmp/l7/exp-b passed 5/5 hidden checks in 86 LOC vs 125 LOC in exp-a. bash-compat-guard.sh OK. test_engineering_rules_scope.sh 12/12."
+    },
+    {
+      "id": "feat-041",
+      "name": "Lecture 3 and 8 tools ported to Python; state-layer guard rejects done features without evidence",
+      "description": "learn-harness-engineering's repo-reader.ts (lecture 3) and feature-list-validator.ts (lecture 8) were only reachable through another machine's checkout. Ported both to Python under docs/harness-creator/lecture-03/code/ and lecture-08/code/ (validator adapted to this repo's {features:[...]} schema with status/evidence). state-layer-guard.sh now blocks when a feature with status done has empty evidence, which lecture 8 calls out and the guard did not cover. Restored a test assertion (message names the JSON problem) that 613a95f dropped and left a dangling grep line. PROGRESS.md decision on feature_list.json now names the scanners as external. Also dropped the lowercase progress.md fallback from the guard (case 1b inverted), made run-tests.sh collect docs/harness-creator/lecture-*/code tests, and renamed lecture-07/raw/cmp-*-report.md to cmp-*-s1.md.",
+      "dependencies": [
+        "feat-040"
+      ],
+      "status": "done",
+      "evidence": "test_state_layer_guard.sh: 27 passed, 0 failed (done-without-evidence, message, non-string/boolean/numeric evidence and lowercase progress.md cases failed first). test_repo_reader.py 5 passed and test_feature_list_validator.py 23 passed (both failed first on missing module); collected by run-tests.sh (66 passed, 0 failed under --fast; all gates pass). repo_reader.py scores this repo 100/100 Grade A; feature_list_validator.py reports 41 features valid. mypy . and ruff format --check clean."
     }
   ]
 }

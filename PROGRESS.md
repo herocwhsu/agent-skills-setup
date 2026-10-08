@@ -2,8 +2,8 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-07
-**Active Feature:** none. feat-040 closed out; `./init.sh` passes all gates.
+**Last Updated:** 2026-10-08
+**Active Feature:** none. feat-041 closed out; `./init.sh` passes all gates.
 **Harness lectures:** 1–7 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 7
 (why agents overreach and under-finish) closed: WIP=1 and executable verification enforced
 in `state-layer-guard.sh`; `What's Next` ordered by priority with verification commands.
@@ -162,6 +162,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] feat-038: Lecture 6 follow-up fixes. `init.sh` builds `.venv` from `requirements-dev.txt` on a fresh clone (the first `./init.sh` used to fail the types gate), README and `AGENTS.md` cover the contributor path, run time and SKIP meaning, and the four confluence-tree mock-server tests take a kernel-assigned port for all 11 picks (`limactl`/`wsagent` sit inside the old 49000 range). Verified on a clean copy: 9 gates OK, 1 SKIP (runtime drift under a temp HOME), 4m26s. `init.sh` also refuses a `python3` that differs from `.python-version` and cleans up a build interrupted by INT/TERM/HUP. Left open: unordered `What's Next`, no acceptance-criteria field in `feature_list.json`.
 - [x] feat-039: review rule now says when and how much. One review per branch on the cumulative diff before finishing it; none for docs/state/test-only changes, one subagent for ordinary code, two reviewers (plus another model family) for hooks, gates, shipped rules, install scripts and permission/security/data/contract changes. Reviewers get repo read access, the original request and the gate commands, not the author's reasoning. README and `docs/architecture.md` updated. `install-agents-md.sh` was run after owner approval (all four host files refreshed, only the Reviewing line changed). Open: the tiers rest on two data points, so record defect found yes/no over about ten reviews.
 - [x] feat-040: Lecture 7 training (why agents overreach and under-finish). Enforced WIP=1 and completion evidence in `state-layer-guard.sh` (17/17 passed); codified WIP=1 in `AGENTS.md`; restructured `What's Next` in `PROGRESS.md` into an ordered queue with verification commands, resolving the open items from Lecture 6; created `docs/harness-creator/lecture-07/` documentation and comparison experiment (-31% LOC with zero scope creep).
+- [x] feat-041: ported the course's `repo-reader.ts` (lecture 3) and `feature-list-validator.ts` (lecture 8) to Python under `docs/harness-creator/lecture-03/code/` and `lecture-08/code/`, validator adapted to this repo's schema. `state-layer-guard.sh` now blocks a `done` feature with empty `evidence` (only text counts: `[""]`, `true`, `5` are rejected) and no longer accepts lowercase `progress.md` (27/27). `run-tests.sh` now collects `docs/harness-creator/lecture-*/code/test_*.py`. Restored a JSON-message assertion that feat-040 dropped; renamed `lecture-07/raw/cmp-*-report.md` to `cmp-*-s1.md`.
 
 ### What's In Progress
 
@@ -179,10 +180,6 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
    - *Verification:* `outside-agent.sh run --purpose review` exits 0.
 4. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
 5. **Position experiment scaling:** Run follow-up experiment at ~10k tokens without "read in full" instruction (`position-experiment.md` §13).
-6. **Enforce case-sensitive filesystem invariant & layout consistency:**
-   - Drop legacy lowercase `progress.md` fallback in `state-layer-guard.sh` since all development and CI environments are case-sensitive.
-   - Clean up `lecture-07/` layout to match L4/L6 conventions: move `task-atomization-plan.md` to lecture root, rename `cmp-*-report.md` to `cmp-*-s1.md`, move `hidden_accept.py` into `code/`.
-   - *Verification:* `bash .claude/hooks/tests/test_state_layer_guard.sh` and `./init.sh`.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
@@ -197,15 +194,28 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
   Pre-existing; found during feat-019. Needs a venv or `pipx`-style install, not
   `--break-system-packages`.
 
+- **`agy` latency varies by caller and environment (2026-10-08, cause unconfirmed):** a trivial
+  `agy --dangerously-skip-permissions -p` prompt took 221s from the Claude Code session, above
+  `outside-agent.sh`'s 110s default `--timeout`. The earlier `agy failed with an unclassified error`
+  during a review is likely the same slowness, but it was not reproduced through the wrapper. Not a
+  code defect. For a review that may fall through to `agy`, pass `--timeout 900`.
+
 ## Decisions Made
 
 - **Case-sensitive filesystem assumed repo-wide (owner, 2026-10-07):** All host environments, Docker
   containers, and CI operate on case-sensitive filesystems. New hooks and guards must not add
   case-insensitive fallback logic (e.g. checking both lowercase and uppercase variations).
-  Legacy fallbacks (like `progress.md` in `state-layer-guard.sh`) queued for removal in next cleanup.
+  The legacy `progress.md` fallback in `state-layer-guard.sh` is removed.
 - **Retain `feature_list.json` without symlinks (owner, 2026-10-07):** Keep the canonical name
-  `feature_list.json` to preserve compatibility with upstream harness scanners (`validate-harness.mjs`,
-  `repo-reader.ts`, Lecture 08 `feature-list-validator.ts`). No alias symlinks (`feature-list.json`).
+  `feature_list.json` to preserve compatibility with external harness scanners (`validate-harness.mjs`
+  in the harness-creator skill; `repo-reader.ts` and `feature-list-validator.ts` in the
+  learn-harness-engineering course repo). Both course tools are ported to Python under
+  `docs/harness-creator/lecture-03/code/` and `lecture-08/code/`; the validator is adapted to this
+  repo's schema, since the original expects a bare array with `passes`/`verification`. No alias
+  symlinks (`feature-list.json`).
+- **Lecture-07 layout stays as is (2026-10-08):** `task-atomization-plan.md` remains in `code/` and
+  `hidden_accept.py` in `raw/`. Lecture-06 keeps its grader in `raw/` and lecture-04 has no `raw/`,
+  so there is no L4/L6 layout to match. Only the `cmp-*-report.md` to `cmp-*-s1.md` rename followed lecture-06.
 - **Auto-merge in hangar and atelier stays** (owner, 2026-10-01): Renovate automerge and
   the macmini agents' direct pushes continue until scale-up or a significant incident.
   The rule is now recorded in both repos' `PROGRESS.md` and `AGENTS.md`, so a session

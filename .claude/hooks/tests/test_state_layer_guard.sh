@@ -41,13 +41,13 @@ set +e; out=$(run_hook "$d"); status=$?; set -e
   && ok "complete state layer passes" \
   || bad "complete state layer passes" "exit $status, out: $out"
 
-# --- 1b. legacy lowercase progress.md also passes -------------------------
-d=$(fixture_complete legacy-lowercase)
+# --- 1b. lowercase progress.md does not satisfy the state layer -------------
+d=$(fixture_complete lowercase-only)
 mv "$d/PROGRESS.md" "$d/progress.md"
 set +e; out=$(run_hook "$d"); status=$?; set -e
-[[ $status -eq 0 ]] \
-  && ok "legacy lowercase progress.md passes" \
-  || bad "legacy lowercase progress.md passes" "exit $status, out: $out"
+[[ $status -eq 2 ]] \
+  && ok "lowercase progress.md alone blocks with exit 2" \
+  || bad "lowercase progress.md alone blocks with exit 2" "exit $status, out: $out"
 
 # --- 2. feature_list.json missing: blocks with exit 2 ----------------------
 d=$(fixture_complete missing-feature-list)
@@ -97,6 +97,9 @@ set +e; out=$(run_hook "$d"); status=$?; set -e
   && ok "malformed feature_list.json blocks with exit 2" \
   || bad "malformed feature_list.json blocks with exit 2" "exit $status, out: $out"
 grep -qi 'json' <<<"$out" \
+  && ok "message names the JSON problem" \
+  || bad "message names the JSON problem" "out: $out"
+
 # --- 7. the real repo's own state layer passes ------------------------------
 set +e; out=$(bash "$HOOK" 2>&1); status=$?; set -e
 [[ $status -eq 0 ]] \
@@ -145,6 +148,46 @@ set +e; out=$(run_hook "$d"); status=$?; set -e
 [[ $status -eq 0 ]] \
   && ok "single active feature with verification passes" \
   || bad "single active feature with verification passes" "exit $status, out: $out"
+
+# --- 11. done feature without evidence blocks with exit 2 -------------------
+d=$(fixture_complete done-without-evidence)
+cat > "$d/feature_list.json" <<'EOF'
+{"features": [
+  {"id": "feat-a", "status": "done", "evidence": "  "}
+]}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "done feature without evidence blocks with exit 2" \
+  || bad "done feature without evidence blocks with exit 2" "exit $status, out: $out"
+grep -q 'feat-a' <<<"$out" \
+  && ok "message names the unevidenced feature" \
+  || bad "message names the unevidenced feature" "out: $out"
+grep -q 'active feature lacks' <<<"$out" \
+  && bad "done-feature message does not call it an active feature" "out: $out" \
+  || ok "done-feature message does not call it an active feature"
+
+# --- 11b. non-string evidence that is empty in effect blocks ----------------
+for ev in '[""]' '{"a": ""}' 'true' '5' '[true]'; do
+  d=$(fixture_complete "done-nonstring-evidence")
+  echo "{\"features\": [{\"id\": \"feat-a\", \"status\": \"done\", \"evidence\": $ev}]}" > "$d/feature_list.json"
+  set +e; out=$(run_hook "$d"); status=$?; set -e
+  [[ $status -eq 2 ]] \
+    && ok "done feature with evidence $ev blocks with exit 2" \
+    || bad "done feature with evidence $ev blocks with exit 2" "exit $status, out: $out"
+done
+
+# --- 12. done feature with evidence passes ----------------------------------
+d=$(fixture_complete done-with-evidence)
+cat > "$d/feature_list.json" <<'EOF'
+{"features": [
+  {"id": "feat-a", "status": "done", "evidence": "bash test.sh: 3 passed"}
+]}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 0 ]] \
+  && ok "done feature with evidence passes" \
+  || bad "done feature with evidence passes" "exit $status, out: $out"
 
 echo ""
 echo "test_state_layer_guard: $pass passed, $fail failed"

@@ -65,6 +65,19 @@ run_python() {
   fi
 }
 
+run_python_in() {
+  local dir="$1" f="$2"
+  local out
+  if out=$(cd "$dir" && "$PYTHON" -m pytest "$f" -q --tb=short 2>&1); then
+    echo "  PASS  $f"
+    pass=$((pass + 1))
+  else
+    echo "  FAIL  $f"
+    echo "$out" | sed 's/^/        /'
+    fail=$((fail + 1))
+  fi
+}
+
 echo "==> Script tests"
 if [[ -d "$REPO_DIR/tests" ]]; then
   for f in "$REPO_DIR/tests"/*.py; do
@@ -79,6 +92,16 @@ done
 for f in "$REPO_DIR/.claude/hooks/tests"/test_*.sh; do
   [[ -f "$f" ]] || continue
   run_bash "$f"
+done
+
+echo ""
+echo "==> Lecture tests"
+# Each lecture's code/ dir is its own import root (tests import their sibling module).
+for dir in "$REPO_DIR"/docs/harness-creator/lecture-*/code; do
+  for f in "$dir"/test_*.py; do
+    [[ -f "$f" ]] || continue
+    run_python_in "$dir" "$f"
+  done
 done
 
 echo ""

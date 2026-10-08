@@ -18,9 +18,7 @@ REPO_DIR="${STATE_LAYER_GUARD_REPO_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
 missing=()
 [[ -f "$REPO_DIR/feature_list.json" ]] || missing+=("feature_list.json")
-if [[ ! -f "$REPO_DIR/PROGRESS.md" && ! -f "$REPO_DIR/progress.md" ]]; then
-  missing+=("PROGRESS.md")
-fi
+[[ -f "$REPO_DIR/PROGRESS.md" ]] || missing+=("PROGRESS.md")
 [[ -f "$REPO_DIR/init.sh" ]] || missing+=("init.sh")
 
 if [[ ${#missing[@]} -gt 0 ]]; then
@@ -53,6 +51,23 @@ for f in active:
     v = f.get("verification") or f.get("acceptance_criteria")
     if not v or not str(v).strip():
         sys.exit(f"EVIDENCE_ERROR: Completion evidence missing: active feature '{fid}' has no non-empty 'verification' or 'acceptance_criteria' command.")
+
+def has_text(v):
+    if isinstance(v, str):
+        return bool(v.strip())
+    if isinstance(v, (list, tuple)):
+        return any(has_text(x) for x in v)
+    if isinstance(v, dict):
+        return any(has_text(x) for x in v.values())
+    return False
+
+unevidenced = [
+    f.get("id", "unknown")
+    for f in features
+    if isinstance(f, dict) and f.get("status") == "done" and not has_text(f.get("evidence"))
+]
+if unevidenced:
+    sys.exit(f"DONE_ERROR: done features without 'evidence': {unevidenced}.")
 PYEOF
 ) || {
   rc=$?
@@ -63,6 +78,10 @@ PYEOF
   elif grep -q "WIP_ERROR:" <<<"$check_out"; then
     echo "Blocked by WIP limit: feature_list.json has multiple active features:" >&2
     echo "$check_out" | sed 's/WIP_ERROR: //' >&2
+    exit 2
+  elif grep -q "DONE_ERROR:" <<<"$check_out"; then
+    echo "Blocked: done feature lacks completion evidence:" >&2
+    echo "$check_out" | sed 's/DONE_ERROR: //' >&2
     exit 2
   elif grep -q "EVIDENCE_ERROR:" <<<"$check_out"; then
     echo "Blocked: active feature lacks completion evidence:" >&2

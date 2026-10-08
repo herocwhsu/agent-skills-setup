@@ -12,6 +12,12 @@ Lecture 3 provides a diagnostic tool (`repo-reader.ts`) to score a repository on
 bun /Users/phoenix/projects/learn-harness-engineering/docs/en/lectures/lecture-03-why-the-repository-must-become-the-system-of-record/code/repo-reader.ts /Users/phoenix/projects/agent-skills-setup
 ```
 
+That path was a different machine's checkout. The tool is now ported to Python in this repo, with the same 8 criteria and weights, so the run is repeatable without `bun` or the course repo:
+
+```bash
+python3 docs/harness-creator/lecture-03/code/repo_reader.py .
+```
+
 ### Initial Run Output:
 ```text
 ================================================================================
@@ -57,7 +63,7 @@ Created `docs/architecture.md` detailing:
 ### Step 2.2: Upgrade to Canonical Uppercase `PROGRESS.md`
 Rather than introducing a fragile symlink (`PROGRESS.md -> progress.md`) which duplicates file entries, causes scanner redundancy, and creates issues across case-preserving filesystems and non-symlink archives, we upgraded directly to the standard:
 1. Renamed `progress.md` directly to uppercase `PROGRESS.md` (`git mv progress.md PROGRESS.md`).
-2. Updated `.claude/hooks/state-layer-guard.sh` and its test suite (`test_state_layer_guard.sh`) to check for `PROGRESS.md` as primary while retaining a backward-compatible fallback for `progress.md`.
+2. Updated `.claude/hooks/state-layer-guard.sh` and its test suite (`test_state_layer_guard.sh`) to check for `PROGRESS.md` as primary while retaining a backward-compatible fallback for `progress.md` (removed in feat-041; the guard now requires `PROGRESS.md`).
 3. Updated `AGENTS.md` and `docs/architecture.md` to reference `PROGRESS.md`.
 
 ### Step 2.3: Add Standard Project Manifest (`pyproject.toml`)
