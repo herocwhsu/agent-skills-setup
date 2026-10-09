@@ -14,6 +14,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -31,9 +32,27 @@ def _repo_id(start: str) -> str:
     return "agent-skills-setup"
 
 
+import site
+
 _KEYCHAIN_PREFIX = _repo_id(__file__)
 _GEMINI_SVC = f"{_KEYCHAIN_PREFIX}:gemini"
 _FALLBACK_STORE = f"~/.{_KEYCHAIN_PREFIX}/credentials.json"
+
+
+def _add_runtime_site_packages() -> None:
+    """Add isolated runtime venv site-packages to sys.path so installed SDKs are importable."""
+    rt_dir = Path.home() / f".{_KEYCHAIN_PREFIX}"
+    for venv_name in ("venv", ".venv"):
+        vdir = rt_dir / venv_name
+        if vdir.is_dir():
+            sps = list(vdir.glob("lib/python*/site-packages")) + list(vdir.glob("Lib/site-packages"))
+            for sp in sps:
+                if sp.is_dir():
+                    site.addsitedir(str(sp))
+
+
+_add_runtime_site_packages()
+
 from typing import Any
 
 SYSTEM_PROMPT = (

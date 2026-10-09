@@ -342,6 +342,23 @@
       ],
       "evidence": "scripts/get-changed-files.sh tracks staged/unstaged/untracked files (test_changed_files_detector.sh: 6 passed). scripts/resolve_test_targets.py maps skills, lecture code, and tests to target suites with fallback to ALL on infra changes (test_resolve_test_targets.py: 7 passed). scripts/run-tests.sh supports --changed and -h/--help (test_run_tests_changed.sh: 3 passed). .claude/hooks/tests-guard.sh delegates to --changed unless HARNESS_VERIFY_ACTIVE=1 or --full. scripts/setup-git-hooks.sh installs pre-commit and pre-push hooks (test_setup_git_hooks.sh: 2 passed) wired in init.sh. Full suite bash scripts/run-tests.sh --fast: 72 passed, 0 failed; bash scripts/harness-verify.sh: all 10 gates passed clean.",
       "verification": "bash scripts/run-tests.sh --fast --changed && bash .claude/hooks/tests-guard.sh"
+    },
+    {
+      "id": "feat-043",
+      "name": "Fix _lib.sh pip step under Homebrew Python (PEP 668) with isolated runtime venv",
+      "description": "Replace --break-system-packages in _lib.sh with an isolated runtime venv (~/.agent-skills-setup/venv) so SDK installs (anthropic, google-genai) do not pollute system/homebrew Python or fail under PEP 668, and ensure polish.py loads packages from runtime venv site-packages.",
+      "dependencies": [
+        "feat-019",
+        "feat-022"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "install_python_sdk in scripts/_lib.sh installs into runtime venv without --break-system-packages",
+        "polish.py and polish_engine.py add runtime venv site-packages to sys.path",
+        "scripts/tests/test_hook_wiring.sh passes with new test coverage for isolated venv installation"
+      ],
+      "evidence": "install_python_sdk in scripts/_lib.sh isolates SDK installs into runtime venv ($rtdir/venv) without --break-system-packages. polish.py and polish_engine.py automatically discover and add runtime venv site-packages to sys.path. test_hook_wiring.sh passes with 2 new assertions verifying absence of --break-system-packages and successful venv creation/pip logging. Full fast suite run-tests.sh --fast: 72 passed; harness-verify.sh: all 10 gates passed cleanly.",
+      "verification": "bash scripts/tests/test_hook_wiring.sh"
     }
   ]
 }

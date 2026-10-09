@@ -280,21 +280,62 @@ remove_skill() {
 # Registry-based install handlers
 # ---------------------------------------------------------------------------
 
-# install_pip_skill <package>
-#   Install or upgrade a pip package. Skill files never come from pip.
-install_pip_skill() {
-  local pkg="$1"
-  local pip_cmd
+# install_python_sdk <repo_dir> <package>
+#   Installs or upgrades a Python package into an isolated runtime venv
+#   (~/.<repo_id>/venv) to avoid PEP 668 restrictions (Homebrew/Debian) and
+#   prevent polluting global/user site-packages.
+#   Falls back to pipx or ambient pip if venv creation is unavailable.
+install_python_sdk() {
+  local repo_dir="${1:-}" pkg="${2:-}"
+  local rtdir venv_dir
+  rtdir=$(skills_runtime_dir "$repo_dir")
+  venv_dir="$rtdir/venv"
+
+  # 1. Preferred: Isolated runtime venv
+  if command -v python3 &>/dev/null; then
+    if [[ ! -d "$venv_dir" ]]; then
+      python3 -m venv "$venv_dir" 2>/dev/null || true
+    fi
+    if [[ -x "$venv_dir/bin/pip" ]]; then
+      if "$venv_dir/bin/pip" install --quiet --upgrade "$pkg" 2>/dev/null; then
+        return 0
+      fi
+    fi
+  fi
+
+  # 2. Try pipx if available
+  if command -v pipx &>/dev/null; then
+    if pipx install --quiet "$pkg" 2>/dev/null || pipx upgrade --quiet "$pkg" 2>/dev/null; then
+      return 0
+    fi
+  fi
+
+  # 3. Fallback to ambient pip/pip3 (for stubbed test environments or legacy hosts)
+  local pip_cmd=""
   if command -v pip3 &>/dev/null; then
     pip_cmd="pip3"
   elif command -v pip &>/dev/null; then
     pip_cmd="pip"
-  else
-    echo "  pip not found — skipping pip install for $pkg" >&2
+  fi
+  if [[ -n "$pip_cmd" ]]; then
+    "$pip_cmd" install --user --quiet "$pkg" 2>/dev/null || \
+    "$pip_cmd" install --quiet --upgrade "$pkg" 2>/dev/null || {
+      return 1
+    }
     return 0
   fi
-  "$pip_cmd" install --quiet --upgrade "$pkg" 2>/dev/null || true
-  echo "  ✓ $pkg (pip package updated)"
+  return 1
+}
+
+# install_pip_skill <package>
+#   Install or upgrade a pip package. Skill files never come from pip.
+install_pip_skill() {
+  local pkg="$1"
+  if install_python_sdk "${REPO_DIR:-}" "$pkg"; then
+    echo "  ✓ $pkg (pip package updated)"
+  else
+    echo "  WARNING: pip install for $pkg failed" >&2
+  fi
 }
 
 # install_npm_skill <package>
@@ -577,23 +618,35 @@ record_installed() {
 # uninstall_pip_skill <package>
 uninstall_pip_skill() {
   local pkg="$1"
-  local pip_cmd
-  if command -v pip3 &>/dev/null; then pip_cmd="pip3"
-  elif command -v pip &>/dev/null; then pip_cmd="pip"
-  else return 0; fi
-  # Same shared-global rule as uninstall_npm_skill: a pip package is not scoped
-  # to this repo, so another installed skills repo may depend on it. Kept even
-  # with no pip entry registered: the uninstall dispatch is live, and dropping
-  # the guard would reintroduce the bug the moment one is added.
-  local other
-  other=$(_other_skills_runtimes "$(skills_runtime_dir "${REPO_DIR:-}")")
+  local other rtdir venv_dir
+  rtdir=$(skills_runtime_dir "${REPO_DIR:-}")
+  venv_dir="$rtdir/venv"
+  other=$(_other_skills_runtimes "$rtdir")
   if [[ -n "$other" ]]; then
     echo "  - $pkg (kept: another skills repo is installed)" >&2
     echo "      $(echo "$other" | tr '\n' ' ')" >&2
-    echo "      remove manually with: $pip_cmd uninstall -y $pkg" >&2
+    echo "      remove manually with: pip uninstall -y $pkg" >&2
     return 0
   fi
-  if "$pip_cmd" uninstall -y "$pkg" >/dev/null 2>&1; then
+
+  local uninstalled=0
+  if [[ -x "$venv_dir/bin/pip" ]]; then
+    if "$venv_dir/bin/pip" uninstall -y --quiet "$pkg" >/dev/null 2>&1; then
+      uninstalled=1
+    fi
+  fi
+
+  local pip_cmd=""
+  if command -v pip3 &>/dev/null; then pip_cmd="pip3"
+  elif command -v pip &>/dev/null; then pip_cmd="pip"
+  fi
+  if [[ -n "$pip_cmd" ]]; then
+    if "$pip_cmd" uninstall -y "$pkg" >/dev/null 2>&1; then
+      uninstalled=1
+    fi
+  fi
+
+  if [[ $uninstalled -eq 1 ]]; then
     echo "  ✓ $pkg (pip uninstalled)"
   else
     echo "  - $pkg (not installed via pip, or removal failed)" >&2
@@ -822,20 +875,9 @@ wire_hook() {
       pkg="google-genai"
     fi
 
-    echo "  Installing required SDK via pip..."
-    local pip_cmd
-    if command -v pip3 &>/dev/null; then
-      pip_cmd="pip3"
-    elif command -v pip &>/dev/null; then
-      pip_cmd="pip"
-    else
-      echo "  WARNING: pip not found — skipping SDK install" >&2
-      pip_cmd=""
-    fi
-    if [[ -n "$pip_cmd" ]]; then
-      "$pip_cmd" install --user --quiet $pkg --break-system-packages 2>/dev/null || {
-        echo "  WARNING: $pip_cmd install $pkg failed. Hook will fail open." >&2
-      }
+    echo "  Installing required SDK ($pkg)..."
+    if ! install_python_sdk "$repo_dir" "$pkg"; then
+      echo "  WARNING: install $pkg failed. Hook will fail open." >&2
     fi
   fi
 

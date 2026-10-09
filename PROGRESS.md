@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-09
-**Active Feature:** none. feat-042 closed out; Lecture 10 completed; `./init.sh` passes all gates.
+**Active Feature:** none. feat-043 closed out; `./init.sh` passes all gates.
 **Harness lectures:** 1–10 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 10
 (why end-to-end testing changes results) closed: e2e_runner ported and passing (5/5 tests), empirical
 evaluation demonstrated 75% false confidence rate in unit isolation, review feedback promotion documented,
@@ -167,6 +167,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] Lecture 09 training (preventing premature declaration of victory): codified Three-Layer Termination Gate Hierarchy in `AGENTS.md`; fixed path bug in `.agents/hooks.json`; implemented and hardened `victory_detector.py` and `test_victory_detector.py` under `docs/harness-creator/lecture-09/code/` (6/6 tests passing, clean ruff); adversarial subagent audit verified Worker/Checker separation; authored `docs/harness-creator/lecture-09/summary.md` and `progress-detail.md`.
 - [x] Lecture 10 training (why end-to-end testing changes results): ported `e2e_runner.py` and `test_e2e_runner.py` under `docs/harness-creator/lecture-10/code/` (5/5 tests passing, clean ruff/mypy); demonstrated that mock unit tests suffer a 75% false confidence rate on component boundaries; formulated 3-part agent-oriented error diagnostics (WHAT + WHY + FIX); audited repository review feedback promotion history; independent adversarial subagent audit verified deliverables; authored `docs/harness-creator/lecture-10/summary.md` and `progress-detail.md`.
 - [x] feat-042: scoped Stop gate tests to changed files and installed repo git hooks. Added `scripts/get-changed-files.sh` (detects staged/unstaged/untracked files; 6/6 tests), `scripts/resolve_test_targets.py` (maps changed paths to targeted test files, falls back to ALL on shared infra; 7/7 tests), `scripts/run-tests.sh` `--changed` flag (3/3 tests), and wired `.claude/hooks/tests-guard.sh` to run `--changed` unless in harness-verify/full mode. Created `scripts/setup-git-hooks.sh` installing `pre-commit` (bash compat + state layer) and `pre-push` (harness verify) hooks (2/2 tests), wired into `init.sh`. All 72 tests pass, all 10 harness gates pass.
+- [x] feat-043: fixed `_lib.sh` pip step under Homebrew Python (PEP 668). Replaced `--break-system-packages` with `install_python_sdk` creating/using an isolated runtime venv (`~/.agent-skills-setup/venv`). Updated `polish.py` and `polish_engine.py` to discover and load runtime venv `site-packages`. Added `test_hook_wiring.sh` assertions for absence of `--break-system-packages` and successful venv creation/pip logging.
 
 ### What's In Progress
 
@@ -175,12 +176,10 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-1. **Fix `_lib.sh` pip step under Homebrew Python (PEP 668):** Replace `--break-system-packages` with isolated venv/pipx.
-   - *Verification:* `bash scripts/tests/test_hook_wiring.sh` without pip PEP 668 warnings.
-2. **Smoke test verification:** Re-run live `codex-kiro` and `agy` smoke tests against feat-033 fixes; trust repo hooks in Codex on each host.
+1. **Smoke test verification:** Re-run live `codex-kiro` and `agy` smoke tests against feat-033 fixes; trust repo hooks in Codex on each host.
    - *Verification:* `outside-agent.sh run --purpose review` exits 0.
-3. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
-4. **Position experiment scaling:** Run follow-up experiment at ~10k tokens without "read in full" instruction (`position-experiment.md` §13).
+2. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
+3. **Position experiment scaling:** Run follow-up experiment at ~10k tokens without "read in full" instruction (`position-experiment.md` §13).
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
@@ -190,10 +189,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 
 ## Blockers / Risks
 
-- **`_lib.sh` pip step fails on Homebrew Python (PEP 668)**: the polish-input SDK install
-  (`pip3 install anthropic|google-genai`) is refused as an externally managed environment.
-  Pre-existing; found during feat-019. Needs a venv or `pipx`-style install, not
-  `--break-system-packages`.
+- **`_lib.sh` pip step on Homebrew Python (PEP 668) [RESOLVED in feat-043]:** Replaced `--break-system-packages` with isolated runtime venv (`~/.agent-skills-setup/venv`) and automatic `site-packages` discovery.
 
 - **`agy` latency varies by caller and environment (2026-10-08, cause unconfirmed):** a trivial
   `agy --dangerously-skip-permissions -p` prompt took 221s from the Claude Code session, above

@@ -21,6 +21,30 @@ trap 'rm -rf "$TMP"' EXIT
 TMP=$(cd -P "$TMP" && pwd)   # macOS mktemp yields /var -> /private/var
 
 fails=0
+REAL_PYTHON="$(command -v python3)"
+
+stub_python_env() {
+  local d="$1"
+  mkdir -p "$d/bin"
+  printf '#!/bin/sh\nexit 0\n' > "$d/bin/pip3"; chmod +x "$d/bin/pip3"
+  printf '#!/bin/sh\nexit 0\n' > "$d/bin/pip"; chmod +x "$d/bin/pip"
+  cat > "$d/bin/python3" << STUB_PY
+#!/bin/sh
+if [ "\$1" = "-m" ] && [ "\$2" = "venv" ]; then
+  target="\$3"
+  mkdir -p "\$target/bin"
+  cat > "\$target/bin/pip" << 'STUB_PIP'
+#!/bin/sh
+exit 0
+STUB_PIP
+  chmod +x "\$target/bin/pip"
+  exit 0
+fi
+exec "$REAL_PYTHON" "\$@"
+STUB_PY
+  chmod +x "$d/bin/python3"
+}
+
 check() {
   local label="$1" expected="$2" actual="$3"
   if [[ "$expected" == "$actual" ]]; then
@@ -207,8 +231,7 @@ print(len(a), 'yes' if sib else 'no')")"
 # polish-input entry (pointing at ~/.kiro/skills) into ~/.claude/settings.json
 # and every Claude prompt was polished twice.
 kh="$TMP/kirohome"
-mkdir -p "$kh/bin"
-printf '#!/bin/sh\nexit 0\n' > "$kh/bin/pip3"; chmod +x "$kh/bin/pip3"
+stub_python_env "$kh"
 (
   export HOME="$kh" PATH="$kh/bin:$PATH"
   # shellcheck source=scripts/_lib.sh
@@ -233,8 +256,7 @@ check "rewire_hooks kiro does not repoint claude's hook at ~/.kiro" "$before" \
 
 # --- codex hook wiring, rewiring, and unwiring ----------------------------
 cdx="$TMP/codexhome"
-mkdir -p "$cdx/bin"
-printf '#!/bin/sh\nexit 0\n' > "$cdx/bin/pip3"; chmod +x "$cdx/bin/pip3"
+stub_python_env "$cdx"
 (
   export HOME="$cdx" PATH="$cdx/bin:$PATH"
   source "$REPO_DIR/scripts/_lib.sh"
@@ -301,8 +323,7 @@ check "wire_hook codex honours CODEX_HOME" "yes" \
 
 # --- gemini hook wiring, rewiring, and unwiring ---------------------------
 gm="$TMP/geminihome"
-mkdir -p "$gm/bin"
-printf '#!/bin/sh\nexit 0\n' > "$gm/bin/pip3"; chmod +x "$gm/bin/pip3"
+stub_python_env "$gm"
 mkdir -p "$gm/.gemini/antigravity-cli"
 cat > "$gm/.gemini/antigravity-cli/settings.json" <<JSON
 {"colorScheme":"dark","hooks":{"UserPromptSubmit":[{"hooks":[{"command":"python3 old.py"}]}]}}
@@ -383,6 +404,39 @@ check "update.sh resolves agents via select_agents" "yes" \
   "$(grep -q 'select_agents "$(cat "$SELECTION_FILE")"' "$REPO_DIR/scripts/update.sh" && echo yes || echo no)"
 check "update.sh does not word-split the selection file" "yes" \
   "$(grep -q 'for agent in ${AGENT_ARG' "$REPO_DIR/scripts/update.sh" && echo no || echo yes)"
+
+# --- install_python_sdk isolated venv and no break-system-packages ---------
+check "_lib.sh does not use --break-system-packages" "yes" \
+  "$(grep -q 'break-system-packages' "$REPO_DIR/scripts/_lib.sh" && echo no || echo yes)"
+
+venv_test_home="$TMP/venv-test-home"
+mkdir -p "$venv_test_home/bin"
+cat > "$venv_test_home/bin/python3" << 'STUB_PY'
+#!/bin/sh
+if [ "$1" = "-m" ] && [ "$2" = "venv" ]; then
+  target="$3"
+  mkdir -p "$target/bin"
+  cat > "$target/bin/pip" << STUB_PIP
+#!/bin/sh
+echo "VENV-PIP-RAN \$@" >> "$target/pip.log"
+exit 0
+STUB_PIP
+  chmod +x "$target/bin/pip"
+  exit 0
+fi
+exit 1
+STUB_PY
+chmod +x "$venv_test_home/bin/python3"
+
+(
+  export HOME="$venv_test_home" PATH="$venv_test_home/bin:$PATH"
+  source "$REPO_DIR/scripts/_lib.sh"
+  install_python_sdk "$REPO_DIR" "test-package>=1.0.0"
+) >/dev/null 2>&1 || true
+
+check "install_python_sdk creates and installs into runtime venv" "yes" \
+  "$([[ -f "$venv_test_home/.agent-skills-setup/venv/pip.log" ]] && echo yes || echo no)"
+
 
 if [[ $fails -gt 0 ]]; then
   echo ""

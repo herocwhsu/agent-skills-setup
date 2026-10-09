@@ -40,7 +40,24 @@ def _repo_id(start: str) -> str:
     return "agent-skills-setup"
 
 
+import site
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+
+def _add_runtime_site_packages() -> None:
+    """Add isolated runtime venv site-packages to sys.path so installed SDKs are importable."""
+    rt_dir = Path.home() / f".{_repo_id(__file__)}"
+    for venv_name in ("venv", ".venv"):
+        vdir = rt_dir / venv_name
+        if vdir.is_dir():
+            sps = list(vdir.glob("lib/python*/site-packages")) + list(vdir.glob("Lib/site-packages"))
+            for sp in sps:
+                if sp.is_dir():
+                    site.addsitedir(str(sp))
+
+
+_add_runtime_site_packages()
 
 MAX_LEN = 4000
 
