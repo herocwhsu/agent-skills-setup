@@ -3,10 +3,11 @@
 ## Current State
 
 **Last Updated:** 2026-10-09
-**Active Feature:** none. feat-041 closed out; Lecture 8 completed; `./init.sh` passes all gates.
-**Harness lectures:** 1–8 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 8
-(why feature lists are harness primitives) closed: feature-list validator ported and passing (23/23 tests),
-loose vs strict verification compared, single-source principle audited, and feat-042 registered in `feature_list.json`.
+**Active Feature:** none. feat-041 closed out; Lecture 9 completed; `./init.sh` passes all gates.
+**Harness lectures:** 1–9 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 9
+(preventing premature declaration of victory) closed: Three-Layer gate codified in AGENTS.md;
+.agents/hooks.json path bug resolved; victory detector ported and passing (6/6 tests); adversarial
+subagent audit verified Worker/Checker separation.
 Lecture 5 open items: rebuild time never
 measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
 
@@ -163,6 +164,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] feat-039: review rule now says when and how much. One review per branch on the cumulative diff before finishing it; none for docs/state/test-only changes, one subagent for ordinary code, two reviewers (plus another model family) for hooks, gates, shipped rules, install scripts and permission/security/data/contract changes. Reviewers get repo read access, the original request and the gate commands, not the author's reasoning. README and `docs/architecture.md` updated. `install-agents-md.sh` was run after owner approval (all four host files refreshed, only the Reviewing line changed). Open: the tiers rest on two data points, so record defect found yes/no over about ten reviews.
 - [x] feat-040: Lecture 7 training (why agents overreach and under-finish). Enforced WIP=1 and completion evidence in `state-layer-guard.sh` (17/17 passed); codified WIP=1 in `AGENTS.md`; restructured `What's Next` in `PROGRESS.md` into an ordered queue with verification commands, resolving the open items from Lecture 6; created `docs/harness-creator/lecture-07/` documentation and comparison experiment (-31% LOC with zero scope creep).
 - [x] feat-041: ported the course's `repo-reader.ts` (lecture 3) and `feature-list-validator.ts` (lecture 8) to Python under `docs/harness-creator/lecture-03/code/` and `lecture-08/code/`, validator adapted to this repo's schema. `state-layer-guard.sh` now blocks a `done` feature with empty `evidence` (only text counts: `[""]`, `true`, `5` are rejected) and no longer accepts lowercase `progress.md` (27/27). `run-tests.sh` now collects `docs/harness-creator/lecture-*/code/test_*.py`. Restored a JSON-message assertion that feat-040 dropped; renamed `lecture-07/raw/cmp-*-report.md` to `cmp-*-s1.md`.
+- [x] Lecture 09 training (preventing premature declaration of victory): codified Three-Layer Termination Gate Hierarchy in `AGENTS.md`; fixed path bug in `.agents/hooks.json`; implemented and hardened `victory_detector.py` and `test_victory_detector.py` under `docs/harness-creator/lecture-09/code/` (6/6 tests passing, clean ruff); adversarial subagent audit verified Worker/Checker separation; authored `docs/harness-creator/lecture-09/summary.md` and `progress-detail.md`.
 
 ### What's In Progress
 

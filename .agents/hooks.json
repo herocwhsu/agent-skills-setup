@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd .. && bash .claude/hooks/precommit-sh-check.sh",
+            "command": "bash .claude/hooks/precommit-sh-check.sh",
             "timeout": 120
           }
         ]
@@ -20,11 +20,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd .. && bash .claude/hooks/sh-check.sh"
+            "command": "bash .claude/hooks/sh-check.sh"
           },
           {
             "type": "command",
-            "command": "cd .. && bash .claude/hooks/py-check.sh"
+            "command": "bash .claude/hooks/py-check.sh"
           }
         ]
       }
@@ -34,7 +34,7 @@
     "Stop": [
       {
         "type": "command",
-        "command": "cd .. && bash .claude/hooks/stop-verify.sh",
+        "command": "bash .claude/hooks/stop-verify.sh",
         "timeout": 900
       }
     ]

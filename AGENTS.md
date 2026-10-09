@@ -32,8 +32,14 @@ bash scripts/harness-verify.sh     # registry + tests + secret scan, one exit co
 bash scripts/run-tests.sh --fast   # tests only (skips RUN_INTEGRATION=1 cases)
 ```
 
-Run `harness-verify.sh` before claiming work is done. The same gates run as Stop
-hooks, so skipping it only defers the failure.
+### Three-Layer Termination Gate
+
+Task completion requires passing through three non-bypassable layers in order:
+1. **Layer 1: Static & Syntax** (`mypy .`, `ruff check`, `bash-compat-guard.sh`) — verifies syntax, types, and shell portability (< 2s).
+2. **Layer 2: Runtime Unit** (`run-tests.sh --fast`) — verifies isolated component units and scripts (~2 min).
+3. **Layer 3: System & E2E** (`harness-verify.sh` / `./init.sh`) — validates all 10 system gates including runtime drift, hook wiring, and state layer.
+
+Passing Layer 1 or Layer 2 alone never constitutes completion; skipping Layer 3 is considered a premature victory declaration. Run `harness-verify.sh` before claiming work is done. The same gates run as Stop hooks, so skipping it only defers the failure.
 
 ## Definition of Done
 
