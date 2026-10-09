@@ -3,11 +3,11 @@
 ## Current State
 
 **Last Updated:** 2026-10-09
-**Active Feature:** none. feat-041 closed out; Lecture 9 completed; `./init.sh` passes all gates.
-**Harness lectures:** 1–9 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 9
-(preventing premature declaration of victory) closed: Three-Layer gate codified in AGENTS.md;
-.agents/hooks.json path bug resolved; victory detector ported and passing (6/6 tests); adversarial
-subagent audit verified Worker/Checker separation.
+**Active Feature:** none. feat-041 closed out; Lecture 10 completed; `./init.sh` passes all gates.
+**Harness lectures:** 1–10 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 10
+(why end-to-end testing changes results) closed: e2e_runner ported and passing (5/5 tests), empirical
+evaluation demonstrated 75% false confidence rate in unit isolation, review feedback promotion documented,
+subagent adversarial audit passed.
 Lecture 5 open items: rebuild time never
 measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
 
@@ -165,6 +165,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] feat-040: Lecture 7 training (why agents overreach and under-finish). Enforced WIP=1 and completion evidence in `state-layer-guard.sh` (17/17 passed); codified WIP=1 in `AGENTS.md`; restructured `What's Next` in `PROGRESS.md` into an ordered queue with verification commands, resolving the open items from Lecture 6; created `docs/harness-creator/lecture-07/` documentation and comparison experiment (-31% LOC with zero scope creep).
 - [x] feat-041: ported the course's `repo-reader.ts` (lecture 3) and `feature-list-validator.ts` (lecture 8) to Python under `docs/harness-creator/lecture-03/code/` and `lecture-08/code/`, validator adapted to this repo's schema. `state-layer-guard.sh` now blocks a `done` feature with empty `evidence` (only text counts: `[""]`, `true`, `5` are rejected) and no longer accepts lowercase `progress.md` (27/27). `run-tests.sh` now collects `docs/harness-creator/lecture-*/code/test_*.py`. Restored a JSON-message assertion that feat-040 dropped; renamed `lecture-07/raw/cmp-*-report.md` to `cmp-*-s1.md`.
 - [x] Lecture 09 training (preventing premature declaration of victory): codified Three-Layer Termination Gate Hierarchy in `AGENTS.md`; fixed path bug in `.agents/hooks.json`; implemented and hardened `victory_detector.py` and `test_victory_detector.py` under `docs/harness-creator/lecture-09/code/` (6/6 tests passing, clean ruff); adversarial subagent audit verified Worker/Checker separation; authored `docs/harness-creator/lecture-09/summary.md` and `progress-detail.md`.
+- [x] Lecture 10 training (why end-to-end testing changes results): ported `e2e_runner.py` and `test_e2e_runner.py` under `docs/harness-creator/lecture-10/code/` (5/5 tests passing, clean ruff/mypy); demonstrated that mock unit tests suffer a 75% false confidence rate on component boundaries; formulated 3-part agent-oriented error diagnostics (WHAT + WHY + FIX); audited repository review feedback promotion history; independent adversarial subagent audit verified deliverables; authored `docs/harness-creator/lecture-10/summary.md` and `progress-detail.md`.
 
 ### What's In Progress
 
