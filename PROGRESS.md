@@ -2,11 +2,11 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-08
-**Active Feature:** none. feat-041 closed out; `./init.sh` passes all gates.
-**Harness lectures:** 1–7 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 7
-(why agents overreach and under-finish) closed: WIP=1 and executable verification enforced
-in `state-layer-guard.sh`; `What's Next` ordered by priority with verification commands.
+**Last Updated:** 2026-10-09
+**Active Feature:** none. feat-041 closed out; Lecture 8 completed; `./init.sh` passes all gates.
+**Harness lectures:** 1–8 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 8
+(why feature lists are harness primitives) closed: feature-list validator ported and passing (23/23 tests),
+loose vs strict verification compared, single-source principle audited, and feat-042 registered in `feature_list.json`.
 Lecture 5 open items: rebuild time never
 measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
 

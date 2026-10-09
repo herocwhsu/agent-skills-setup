@@ -327,6 +327,20 @@
       ],
       "status": "done",
       "evidence": "test_state_layer_guard.sh: 27 passed, 0 failed (done-without-evidence, message, non-string/boolean/numeric evidence and lowercase progress.md cases failed first). test_repo_reader.py 5 passed and test_feature_list_validator.py 23 passed (both failed first on missing module); collected by run-tests.sh (66 passed, 0 failed under --fast; all gates pass). repo_reader.py scores this repo 100/100 Grade A; feature_list_validator.py reports 41 features valid. mypy . and ruff format --check clean."
+    },
+    {
+      "id": "feat-042",
+      "name": "Scope Stop gate tests to changed files",
+      "description": "Reduce Stop hook latency from ~3 minutes to under 10 seconds on single-file edits by mapping git-changed files to specific test targets and executing only affected tests, while falling back to full suite on shared/infra modifications.",
+      "dependencies": ["feat-040", "feat-041"],
+      "status": "not_started",
+      "acceptance_criteria": [
+        "scripts/get-changed-files.sh identifies modified and untracked files",
+        "scripts/run-tests.sh supports --changed flag",
+        ".claude/hooks/tests-guard.sh runs targeted tests on Stop",
+        "harness-verify.sh and CI unconditionally retain full test suite"
+      ],
+      "verification": "bash scripts/run-tests.sh --fast --changed && bash .claude/hooks/tests-guard.sh"
     }
   ]
 }
