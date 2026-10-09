@@ -333,13 +333,14 @@
       "name": "Scope Stop gate tests to changed files",
       "description": "Reduce Stop hook latency from ~3 minutes to under 10 seconds on single-file edits by mapping git-changed files to specific test targets and executing only affected tests, while falling back to full suite on shared/infra modifications.",
       "dependencies": ["feat-040", "feat-041"],
-      "status": "not_started",
+      "status": "done",
       "acceptance_criteria": [
         "scripts/get-changed-files.sh identifies modified and untracked files",
         "scripts/run-tests.sh supports --changed flag",
         ".claude/hooks/tests-guard.sh runs targeted tests on Stop",
         "harness-verify.sh and CI unconditionally retain full test suite"
       ],
+      "evidence": "scripts/get-changed-files.sh tracks staged/unstaged/untracked files (test_changed_files_detector.sh: 6 passed). scripts/resolve_test_targets.py maps skills, lecture code, and tests to target suites with fallback to ALL on infra changes (test_resolve_test_targets.py: 7 passed). scripts/run-tests.sh supports --changed and -h/--help (test_run_tests_changed.sh: 3 passed). .claude/hooks/tests-guard.sh delegates to --changed unless HARNESS_VERIFY_ACTIVE=1 or --full. scripts/setup-git-hooks.sh installs pre-commit and pre-push hooks (test_setup_git_hooks.sh: 2 passed) wired in init.sh. Full suite bash scripts/run-tests.sh --fast: 72 passed, 0 failed; bash scripts/harness-verify.sh: all 10 gates passed clean.",
       "verification": "bash scripts/run-tests.sh --fast --changed && bash .claude/hooks/tests-guard.sh"
     }
   ]

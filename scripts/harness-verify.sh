@@ -15,6 +15,8 @@
 # a hook; hooks use exit 2 to block).
 set -uo pipefail
 
+export HARNESS_VERIFY_ACTIVE=1
+
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # Overridable so tests can point at stub gates. A test cannot exercise the real
 # gates: tests-guard.sh runs run-tests.sh, which runs the tests, so a test that

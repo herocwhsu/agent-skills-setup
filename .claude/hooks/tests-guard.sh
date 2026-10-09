@@ -7,7 +7,14 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
-if ! out=$(bash "$REPO_DIR/scripts/run-tests.sh" --fast 2>&1); then
+rc=0
+if [[ "${HARNESS_VERIFY_ACTIVE:-0}" -eq 1 || "${1:-}" == "--full" ]]; then
+  out=$(bash "$REPO_DIR/scripts/run-tests.sh" --fast 2>&1) || rc=$?
+else
+  out=$(bash "$REPO_DIR/scripts/run-tests.sh" --fast --changed 2>&1) || rc=$?
+fi
+
+if [[ $rc -ne 0 ]]; then
   echo "Blocked: test suite is failing:" >&2
   echo "$out" >&2
   exit 2

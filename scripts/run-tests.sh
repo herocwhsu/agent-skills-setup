@@ -4,9 +4,21 @@
 #   --fast  skip integration tests (those gated behind RUN_INTEGRATION=1)
 set -euo pipefail
 
+export RUN_TESTS_ACTIVE=1
+
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FAST=0
-[[ "${1:-}" == "--fast" ]] && FAST=1
+CHANGED=0
+for arg in "$@"; do
+  case "$arg" in
+    --fast) FAST=1 ;;
+    --changed) CHANGED=1 ;;
+    -h|--help)
+      echo "Usage: run-tests.sh [--fast] [--changed]"
+      exit 0
+      ;;
+  esac
+done
 
 # Prefer this repo's own venv (built from requirements-dev.txt) so pytest and
 # the third-party packages tests import (anthropic, google.genai, lxml)
@@ -77,6 +89,44 @@ run_python_in() {
     fail=$((fail + 1))
   fi
 }
+
+if [[ $CHANGED -eq 1 ]]; then
+  echo "==> Resolving targeted tests for changed files..."
+  changed_files=$(bash "$REPO_DIR/scripts/get-changed-files.sh")
+  if [[ -z "$changed_files" ]]; then
+    echo "No changed files detected; nothing to test."
+    exit 0
+  fi
+  targets=$(printf '%s\n' "$changed_files" | "$PYTHON" "$REPO_DIR/scripts/resolve_test_targets.py")
+  if [[ "$targets" == "ALL" ]]; then
+    echo "  Shared infrastructure or unrecognized files changed — executing full suite."
+  elif [[ -z "$targets" ]]; then
+    echo "  Changes affect non-executable documentation or metadata — no tests required."
+    exit 0
+  else
+    echo "==> Running targeted tests:"
+    while IFS= read -r test_file; do
+      [[ -z "$test_file" ]] && continue
+      abs_f="$REPO_DIR/$test_file"
+      [[ -f "$abs_f" ]] || continue
+      case "$test_file" in
+        *.sh) run_bash "$abs_f" ;;
+        *.py)
+          case "$test_file" in
+            docs/harness-creator/lecture-*/code/*)
+              run_python_in "$(dirname "$abs_f")" "$abs_f" ;;
+            *)
+              run_python "$abs_f" ;;
+          esac
+          ;;
+      esac
+    done <<< "$targets"
+    echo ""
+    echo "Targeted Results: $pass passed, $fail failed, $skip skipped"
+    [[ $fail -eq 0 ]]
+    exit 0
+  fi
+fi
 
 echo "==> Script tests"
 if [[ -d "$REPO_DIR/tests" ]]; then

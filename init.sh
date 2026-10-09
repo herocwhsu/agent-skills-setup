@@ -31,4 +31,9 @@ if [[ ! -d "$REPO_DIR/.venv" && -f "$REPO_DIR/requirements-dev.txt" ]]; then
   trap - INT TERM HUP
 fi
 
+# Ensure repo-level git hooks are installed so CLI commits/pushes run harness gates
+if [[ -d "$REPO_DIR/.git" && ! -f "$REPO_DIR/.git/hooks/pre-commit" ]]; then
+  bash "$REPO_DIR/scripts/setup-git-hooks.sh" "$REPO_DIR" >/dev/null 2>&1 || true
+fi
+
 exec bash "$REPO_DIR/scripts/harness-verify.sh" "$@"
