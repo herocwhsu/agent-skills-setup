@@ -10,13 +10,17 @@ Provides historical trend reporting and regression alerting across agents.
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import os
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+# macOS system Python 3.9 compatibility (datetime.UTC was added in 3.11)
+UTC = getattr(_dt, "UTC", _dt.timezone.utc)  # noqa: UP017
 
 # Default warning thresholds to prevent context bloat
 THRESHOLD_FEATURE_LIST_LINES = 250
@@ -197,11 +201,105 @@ def estimate_tokens(file_path: Path) -> int:
         return 0
 
 
+def format_subagents(sub: dict[str, Any] | None) -> str:
+    """Format subagents telemetry into human-readable string."""
+    if not sub or not isinstance(sub, dict):
+        return "-"
+    try:
+        self_c = int(sub.get("self_count") or 0)
+    except (TypeError, ValueError):
+        self_c = 0
+    try:
+        out_c = int(sub.get("outside_count") or 0)
+    except (TypeError, ValueError):
+        out_c = 0
+
+    raw_used = sub.get("outside_used") or []
+    used: list[str] = []
+    if isinstance(raw_used, list):
+        for item in raw_used:
+            if item is not None:
+                used.append(str(item))
+
+    if self_c == 0 and out_c == 0:
+        return "-"
+    parts: list[str] = []
+    if self_c > 0:
+        parts.append(f"{self_c} self")
+    if out_c > 0:
+        names = f" ({','.join(used)})" if used else ""
+        parts.append(f"{out_c} out{names}")
+    return ", ".join(parts)
+
+
+def auto_detect_outside_runs(
+    repo_dir: Path, since_ts_iso: str | None = None
+) -> list[dict[str, Any]]:
+    """Detect outside agent runs since the specified timestamp (or last 30 minutes)."""
+    custom_dir = os.environ.get("OUTSIDE_AGENT_DIR")
+    runtime_base = Path(custom_dir) if custom_dir else Path.home() / ".agent-skills-setup"
+    candidates: list[tuple[Path, bool]] = [
+        (repo_dir / "docs" / "telemetry" / "outside-agent-runs.jsonl", True),
+        (runtime_base / "state" / "outside-agent-runs.jsonl", False),
+    ]
+    runs: list[dict[str, Any]] = []
+    cutoff_dt: datetime | None = None
+    if since_ts_iso:
+        try:
+            cutoff_dt = datetime.fromisoformat(since_ts_iso)
+        except (ValueError, TypeError):
+            pass
+    if cutoff_dt is None:
+        cutoff_dt = datetime.now(UTC) - timedelta(minutes=30)
+
+    # Normalize cutoff_dt to timezone-aware UTC
+    if cutoff_dt.tzinfo is None:
+        cutoff_dt = cutoff_dt.replace(tzinfo=UTC)
+
+    resolved_repo_str = str(repo_dir.resolve())
+
+    for p, is_local_repo in candidates:
+        if not p.is_file():
+            continue
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        if not isinstance(rec, dict):
+                            continue
+                        # If reading global runtime state, require matching repo
+                        if not is_local_repo:
+                            rec_repo = rec.get("repo")
+                            if not rec_repo or rec_repo != resolved_repo_str:
+                                continue
+                        ts_val = rec.get("timestamp")
+                        if not isinstance(ts_val, str):
+                            continue
+                        rec_dt = datetime.fromisoformat(ts_val)
+                        if rec_dt.tzinfo is None:
+                            rec_dt = rec_dt.replace(tzinfo=UTC)
+                        if rec_dt >= cutoff_dt:
+                            runs.append(rec)
+                    except (json.JSONDecodeError, ValueError, TypeError, AttributeError):
+                        continue
+        except OSError:
+            pass
+        if runs:
+            break
+    return runs
+
+
 def collect_snapshot(
     repo_dir: Path,
     trace_path: Path | None = None,
     explicit_agent: str | None = None,
     duration_ms: float | None = None,
+    self_subagents: int | None = None,
+    outside_subagents: str | None = None,
 ) -> dict[str, Any]:
     """Gather all evaluation metrics for the current repository state."""
     commit = get_git_commit(repo_dir)
@@ -212,6 +310,49 @@ def collect_snapshot(
         duration_ms = auto_detect_duration_ms(trace_path, repo_dir)
 
     dur_str = format_duration(duration_ms)
+
+    # Subagents detection & parsing
+    self_c = self_subagents if self_subagents is not None else 0
+    outside_used: list[str] = []
+    outside_c = 0
+    indep_verified = False
+
+    if outside_subagents:
+        for part in outside_subagents.split(","):
+            part = part.strip()
+            if part.isdigit():
+                outside_c += int(part)
+            elif part:
+                outside_used.append(part)
+                outside_c += 1
+                indep_verified = True
+    else:
+        since_ts = None
+        if trace_path and trace_path.is_file():
+            try:
+                with open(trace_path, "r", encoding="utf-8") as f:
+                    lines = [ln.strip() for ln in f if ln.strip()]
+                    if lines:
+                        last_rec = json.loads(lines[-1])
+                        if isinstance(last_rec, dict):
+                            since_ts = last_rec.get("timestamp")
+            except (json.JSONDecodeError, OSError, TypeError, AttributeError):
+                pass
+        runs = auto_detect_outside_runs(repo_dir, since_ts_iso=since_ts)
+        for r in runs:
+            ag = r.get("agent")
+            if ag and ag not in outside_used:
+                outside_used.append(ag)
+            outside_c += 1
+            if r.get("independent", False):
+                indep_verified = True
+
+    subagents_data = {
+        "self_count": self_c,
+        "outside_count": outside_c,
+        "outside_used": outside_used,
+        "independent_verified": indep_verified,
+    }
 
     feature_file = repo_dir / "feature_list.json"
     progress_file = repo_dir / "PROGRESS.md"
@@ -279,6 +420,7 @@ def collect_snapshot(
         "commit": commit,
         "timestamp": now_iso,
         "agent": agent_name,
+        "subagents": subagents_data,
         "duration_ms": duration_ms or 0,
         "duration_str": dur_str,
         "state_layer": {
@@ -326,8 +468,8 @@ def render_markdown_dashboard(trace_path: Path, output_md: Path | None = None) -
         "",
         "*Automated execution telemetry, multi-agent state evolution, and state layer tracking.*",
         "",
-        "| Commit | Timestamp (UTC) | Agent | Spent Time | Est. Tokens | `feature_list.json` | `PROGRESS.md` | Done (Active) | Status |",
-        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+        "| Commit | Timestamp (UTC) | Agent | Subagents | Spent Time | Est. Tokens | `feature_list.json` | `PROGRESS.md` | Done (Active) | Status |",
+        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
     ]
 
     latest_warnings: list[str] = []
@@ -335,6 +477,7 @@ def render_markdown_dashboard(trace_path: Path, output_md: Path | None = None) -
         commit = rec.get("commit", "unknown")
         ts = rec.get("timestamp", "")[:19].replace("T", " ")
         ag = rec.get("agent", "unknown")
+        sub_str = format_subagents(rec.get("subagents"))
         dur = rec.get("duration_str") or format_duration(rec.get("duration_ms", 0))
         sl = rec.get("state_layer", {})
         tok = f"~{sl.get('total_state_tokens_est', 0):,} tok"
@@ -346,7 +489,7 @@ def render_markdown_dashboard(trace_path: Path, output_md: Path | None = None) -
         st = rec.get("thresholds", {}).get("status", "OK")
         latest_warnings = rec.get("thresholds", {}).get("warnings", [])
         md_lines.append(
-            f"| `{commit}` | {ts} | `{ag}` | {dur} | {tok} | {feat_l} | {prog_l} | {done_active} | **{st}** |"
+            f"| `{commit}` | {ts} | `{ag}` | {sub_str} | {dur} | {tok} | {feat_l} | {prog_l} | {done_active} | **{st}** |"
         )
 
     md_lines.append("")
@@ -372,6 +515,8 @@ def record_snapshot(
     trace_path: Path,
     explicit_agent: str | None = None,
     duration_ms: float | None = None,
+    self_subagents: int | None = None,
+    outside_subagents: str | None = None,
 ) -> dict[str, Any]:
     """Record current snapshot to JSONL file and update Markdown dashboard."""
     snapshot = collect_snapshot(
@@ -379,6 +524,8 @@ def record_snapshot(
         trace_path=trace_path,
         explicit_agent=explicit_agent,
         duration_ms=duration_ms,
+        self_subagents=self_subagents,
+        outside_subagents=outside_subagents,
     )
     trace_path.parent.mkdir(parents=True, exist_ok=True)
     with open(trace_path, "a", encoding="utf-8") as f:
@@ -411,20 +558,21 @@ def render_trend_table(trace_path: Path) -> None:
         print(f"No records found in {trace_path}")
         return
 
-    print("=" * 114)
+    print("=" * 136)
     print(" EVALUATION TRACE HISTORY & MULTI-AGENT STATE EVOLUTION")
-    print("=" * 114)
+    print("=" * 136)
     print(
-        f"{'Commit':<10} {'Timestamp':<20} {'Agent':<8} {'Spent Time':<12} "
+        f"{'Commit':<10} {'Timestamp':<20} {'Agent':<8} {'Subagents':<22} {'Spent Time':<12} "
         f"{'Est. Tokens':<14} {'feat.json':<12} {'prog.md':<10} {'Done (Active)':<14} {'Status':<6}"
     )
-    print("-" * 114)
+    print("-" * 136)
 
     latest_warnings: list[str] = []
     for rec in records[-15:]:  # Show last 15 entries
         commit = rec.get("commit", "unknown")
         ts = rec.get("timestamp", "")[:19].replace("T", " ")
         ag = rec.get("agent", "unknown")
+        sub_str = format_subagents(rec.get("subagents"))
         dur = rec.get("duration_str") or format_duration(rec.get("duration_ms", 0))
         sl = rec.get("state_layer", {})
         tok = f"~{sl.get('total_state_tokens_est', 0):,} tok"
@@ -436,11 +584,11 @@ def render_trend_table(trace_path: Path) -> None:
         st = rec.get("thresholds", {}).get("status", "OK")
         latest_warnings = rec.get("thresholds", {}).get("warnings", [])
         print(
-            f"{commit:<10} {ts:<20} {ag:<8} {dur:<12} {tok:<14} "
+            f"{commit:<10} {ts:<20} {ag:<8} {sub_str:<22} {dur:<12} {tok:<14} "
             f"{feat_l:<12} {prog_l:<10} {done_active:<14} {st:<6}"
         )
 
-    print("=" * 114)
+    print("=" * 136)
     if latest_warnings:
         print("\nActionable Remediation & Suggestions:")
         for w in latest_warnings:
@@ -470,6 +618,18 @@ def main() -> int:
         type=int,
         default=None,
         help="Total task / session duration in milliseconds",
+    )
+    parser.add_argument(
+        "--self-subagents",
+        type=int,
+        default=None,
+        help="Count of self/internal subagents dispatched in this milestone",
+    )
+    parser.add_argument(
+        "--outside-subagents",
+        type=str,
+        default=None,
+        help="Outside agents used (e.g. 'claude' or count '1')",
     )
     parser.add_argument(
         "--record",
@@ -513,6 +673,8 @@ def main() -> int:
             trace_path=default_trace_file,
             explicit_agent=args.agent,
             duration_ms=args.duration_ms,
+            self_subagents=args.self_subagents,
+            outside_subagents=args.outside_subagents,
         )
         print(json.dumps(snapshot, indent=2))
         return 0
@@ -523,6 +685,8 @@ def main() -> int:
             trace_path=default_trace_file,
             explicit_agent=args.agent,
             duration_ms=args.duration_ms,
+            self_subagents=args.self_subagents,
+            outside_subagents=args.outside_subagents,
         )
         warnings = snapshot.get("thresholds", {}).get("warnings", [])
         if warnings:
@@ -558,10 +722,14 @@ def main() -> int:
         target_trace,
         explicit_agent=args.agent,
         duration_ms=args.duration_ms,
+        self_subagents=args.self_subagents,
+        outside_subagents=args.outside_subagents,
     )
+    sub_disp = format_subagents(snapshot.get("subagents"))
     print(f"Recorded evaluation trace snapshot to: {target_trace}")
     print(
         f"  Commit: {snapshot['commit']} | Agent: {snapshot['agent']} | "
+        f"Subagents: {sub_disp} | "
         f"Spent Time: {snapshot['duration_str']} | "
         f"Tokens: ~{snapshot['state_layer']['total_state_tokens_est']:,} est "
         f"(feat={snapshot['state_layer']['feature_list_tokens_est']:,}, prog={snapshot['state_layer']['progress_tokens_est']:,}) | "

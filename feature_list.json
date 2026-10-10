@@ -112,6 +112,24 @@
       ],
       "evidence": "Upgraded scripts/trace_evaluation.py with auto duration calculation (auto_detect_duration_ms), process tree ancestry inspection in detect_agent() via get_process_ancestors(), human-friendly time formatting in format_duration() (ms, s, m, h), and automatic Markdown dashboard generation in docs/telemetry/SUMMARY.md via render_markdown_dashboard(). Added unit tests in scripts/tests/test_trace_evaluation.sh (12/12 passed). Verified run-tests.sh --fast (80/80 passed) and all 11 harness gates clean.",
       "verification": "bash scripts/tests/test_trace_evaluation.sh && bash scripts/trace-evaluation.sh --trend"
+    },
+    {
+      "id": "feat-057",
+      "name": "Subagent telemetry tracking (self subagents and outside agents) and independent review verification",
+      "description": "Track self subagents and outside cross-model agents in scripts/trace_evaluation.py, log outside-agent runs in outside_agent.py, render Subagents column in docs/telemetry/SUMMARY.md and CLI trend table, and verify independent reviews.",
+      "dependencies": [
+        "feat-056"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "scripts/outside_agent.py logs outside agent executions to outside-agent-runs.jsonl",
+        "scripts/trace_evaluation.py collects subagent metrics (self_count, outside_count, outside_used, independent_verified) with CLI flags and auto-detection",
+        "scripts/trace_evaluation.py displays Subagents column in docs/telemetry/SUMMARY.md and --trend CLI table",
+        "scripts/tests/test_trace_evaluation.sh and tests/test_outside_agent.py verify subagent tracking",
+        "All fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Added execution logging (_log_outside_run) in scripts/outside_agent.py recording timestamps, agent name, family, purpose, caller family, exit code, independence status, and repo path to both ~/.agent-skills-setup/state/outside-agent-runs.jsonl and docs/telemetry/outside-agent-runs.jsonl (gitignored). Implemented subagent metrics tracking in scripts/trace_evaluation.py (format_subagents, auto_detect_outside_runs, format_table, render_markdown_dashboard, CLI flags --self-subagents and --outside-subagents). Hardened parsing defensively against malformed jsonl lines, None values, and timezone naive/aware datetimes with cross-platform Python 3.9+ compatibility. Added unit tests in scripts/tests/test_trace_evaluation.sh (16/16 passed across UTC, Asia/Taipei, and America/Los_Angeles timezones) and tests/test_outside_agent.py (92 passed, 1 skipped). Adversarially reviewed across 5 iterative rounds with both self subagents and outside independent agents (Claude Code outside-agent.sh) achieving CLEAN PASS.",
+      "verification": "bash scripts/tests/test_trace_evaluation.sh && .venv/bin/pytest tests/test_outside_agent.py"
     }
   ]
 }

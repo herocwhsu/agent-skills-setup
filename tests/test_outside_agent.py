@@ -1,5 +1,6 @@
 """Tests for scripts/outside_agent.py."""
 
+import json
 import os
 import signal
 import stat
@@ -150,6 +151,7 @@ def stubenv(tmp_path, monkeypatch):
     bin_.mkdir()
     home = tmp_path / "home"
     home.mkdir()
+    monkeypatch.chdir(home)
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("PATH", f"{bin_}:/usr/bin:/bin")
     monkeypatch.setenv("OUTSIDE_AGENT_GATEWAY", "http://127.0.0.1:9")
@@ -605,6 +607,25 @@ def test_cli_review_without_rubric_leaves_prompt_unmodified(stubenv):
     passed_args = argsfile.read_text()
     assert "Review feature X" in passed_args
     assert "## Evaluator Rubric" not in passed_args
+
+
+def test_outside_agent_logs_run_to_jsonl(stubenv):
+    bin_, home = stubenv
+    _stub(bin_, "agy", "echo OK")
+    _conf(home, "agy")
+    r = cli("run", "--purpose", "review", "--from", "claude", "--", "p")
+    assert r.returncode == 0
+    rt_log = oa.runtime_dir() / "state" / "outside-agent-runs.jsonl"
+    assert rt_log.is_file()
+    lines = [json.loads(line) for line in rt_log.read_text().splitlines() if line]
+    assert len(lines) == 1
+    rec = lines[0]
+    assert rec["agent"] == "agy"
+    assert rec["purpose"] == "review"
+    assert rec["caller_family"] == "claude"
+    assert rec["exit_code"] == 0
+    assert rec["independent"] is True
+    assert "repo" in rec
 
 
 @pytest.mark.skipif(

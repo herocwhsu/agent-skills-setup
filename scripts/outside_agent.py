@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import os
 import re
@@ -17,6 +18,9 @@ import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, NamedTuple, NoReturn
+
+# macOS system Python 3.9 compatibility (datetime.UTC was added in 3.11)
+UTC = getattr(_dt, "UTC", _dt.timezone.utc)  # noqa: UP017
 
 
 class Kind(NamedTuple):
@@ -374,6 +378,64 @@ def _earliest_reset(state: dict, now: datetime) -> str | None:
     return min((v["until"] for v in state["groups"].values() if _active(v, now)), default=None)
 
 
+def _log_outside_run(
+    name: str,
+    family: str,
+    purpose: str,
+    caller_family: str,
+    exit_code: int,
+    independent: bool,
+    cwd: str | None = None,
+) -> None:
+    """Log outside agent run to runtime state and repo telemetry."""
+    ts = datetime.now(UTC).isoformat()
+    target_dir = Path(cwd).resolve() if cwd else Path.cwd().resolve()
+    repo_root: str | None = None
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(target_dir), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            repo_root = r.stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        pass
+
+    entry = {
+        "timestamp": ts,
+        "agent": name,
+        "family": family,
+        "purpose": purpose,
+        "caller_family": caller_family,
+        "exit_code": exit_code,
+        "independent": independent,
+        "repo": repo_root,
+    }
+    line = json.dumps(entry) + "\n"
+
+    # 1. Runtime state directory (~/.agent-skills-setup/state/outside-agent-runs.jsonl)
+    try:
+        rt_log = runtime_dir() / "state" / "outside-agent-runs.jsonl"
+        rt_log.parent.mkdir(parents=True, exist_ok=True)
+        with open(rt_log, "a", encoding="utf-8") as f:
+            f.write(line)
+    except OSError:
+        pass
+
+    # 2. Local repository telemetry if present
+    try:
+        active_repo = Path(repo_root) if repo_root else target_dir
+        repo_telemetry = active_repo / "docs" / "telemetry"
+        if repo_telemetry.is_dir():
+            with open(repo_telemetry / "outside-agent-runs.jsonl", "a", encoding="utf-8") as f:
+                f.write(line)
+    except OSError:
+        pass
+
+
 def cmd_run(a: argparse.Namespace) -> int:
     if getattr(a, "rubric", False) and a.purpose != "review":
         _say("--rubric is only supported when --purpose is review")
@@ -411,7 +473,17 @@ def cmd_run(a: argparse.Namespace) -> int:
             if state["auth"].pop(name, None) is not None:
                 save_state(state)
             used = f"used={name} skipped={','.join(notes) or '-'}"
-            if a.purpose == "review" and KINDS[name].family == a.from_:
+            is_indep = not (a.purpose == "review" and KINDS[name].family == a.from_)
+            _log_outside_run(
+                name=name,
+                family=KINDS[name].family,
+                purpose=a.purpose,
+                caller_family=a.from_,
+                exit_code=0 if is_indep else 3,
+                independent=is_indep,
+                cwd=a.cwd,
+            )
+            if not is_indep:
                 _say(f"{used} (not independent: same model family as caller)")
                 return 3
             _say(used)

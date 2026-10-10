@@ -109,7 +109,7 @@ set +e; out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --trend "$trace_agent" 2>&1);
 # --- 10. Auto duration delta calculated when --duration-ms omitted ------------
 # Add a record with recent past timestamp (within 30m session window), then record again without --duration-ms
 trace_auto="$d/docs/telemetry/auto-trace.jsonl"
-recent_ts=$(python3 -c "from datetime import datetime, UTC, timedelta; print((datetime.now(UTC) - timedelta(seconds=120)).isoformat())")
+recent_ts=$(python3 -c "import datetime as _dt; UTC = getattr(_dt, 'UTC', _dt.timezone.utc); print((_dt.datetime.now(UTC) - _dt.timedelta(seconds=120)).isoformat())")
 echo "{\"commit\": \"init\", \"timestamp\": \"$recent_ts\", \"agent\": \"claude\", \"duration_ms\": 1000, \"duration_str\": \"1.0s\", \"state_layer\": {}, \"test_metrics\": {}, \"thresholds\": {\"status\": \"OK\", \"warnings\": []}}" > "$trace_auto"
 set +e; out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --record "$trace_auto" 2>&1); status=$?; set -e
 second_line=$(tail -n 1 "$trace_auto")
@@ -128,6 +128,71 @@ set +e; md_out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --markdown "$trace_auto" 2
 [[ $md_status -eq 0 && "$md_out" =~ "| Commit |" && "$md_out" =~ "Status" ]] \
   && ok "--markdown renders formatted markdown table" \
   || bad "--markdown renders formatted markdown table" "status: $md_status, out: $md_out"
+
+# --- 13. Subagents tracking via CLI and trend rendering -----------------------
+trace_sub="$d/docs/telemetry/sub-trace.jsonl"
+set +e; out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --record "$trace_sub" --self-subagents 7 --outside-subagents claude 2>&1); status=$?; set -e
+has_self=$(grep -c '"self_count": 7' "$trace_sub" || true)
+has_out=$(grep -c '"outside_used": \["claude"\]' "$trace_sub" || true)
+has_indep=$(grep -c '"independent_verified": true' "$trace_sub" || true)
+set +e; trend_sub=$(python3 "$PY_SCRIPT" --repo-dir "$d" --trend "$trace_sub" 2>&1); set -e
+[[ $status -eq 0 && "$has_self" -eq 1 && "$has_out" -eq 1 && "$has_indep" -eq 1 && "$trend_sub" =~ "7 self, 1 out (claude)" ]] \
+  && ok "--self-subagents and --outside-subagents recorded and rendered in trend" \
+  || bad "--self-subagents and --outside-subagents recorded and rendered in trend" "status: $status, trend: $trend_sub"
+
+# --- 14. Auto-detect outside agent runs from outside-agent-runs.jsonl ----------
+mkdir -p "$d/docs/telemetry"
+now_iso=$(python3 -c "import datetime as _dt; UTC = getattr(_dt, 'UTC', _dt.timezone.utc); print(_dt.datetime.now(UTC).isoformat())")
+echo "{\"timestamp\": \"$now_iso\", \"agent\": \"claude\", \"family\": \"claude\", \"purpose\": \"review\", \"caller_family\": \"gemini\", \"exit_code\": 0, \"independent\": true}" > "$d/docs/telemetry/outside-agent-runs.jsonl"
+trace_auto_sub="$d/docs/telemetry/auto-sub-trace.jsonl"
+set +e; out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --record "$trace_auto_sub" --self-subagents 2 2>&1); status=$?; set -e
+has_auto_out=$(grep -c '"outside_used": \["claude"\]' "$trace_auto_sub" || true)
+has_auto_indep=$(grep -c '"independent_verified": true' "$trace_auto_sub" || true)
+summary_auto="$d/docs/telemetry/SUMMARY.md"
+has_sub_col=$(grep -c "Subagents" "$summary_auto" || true)
+has_sub_val=$(grep -c "2 self, 1 out (claude)" "$summary_auto" || true)
+[[ $status -eq 0 && "$has_auto_out" -eq 1 && "$has_auto_indep" -eq 1 && "$has_sub_col" -ge 1 && "$has_sub_val" -ge 1 ]] \
+  && ok "auto-detects outside agent runs and renders Subagents column in SUMMARY.md" \
+  || bad "auto-detects outside agent runs and renders Subagents column in SUMMARY.md" "status: $status, out: $has_auto_out, sub_val: $has_sub_val"
+
+# --- 15. Defensive tolerance against malformed and naive outside runs ---------
+trace_corrupt="$d/docs/telemetry/corrupt-sub-trace.jsonl"
+naive_now=$(python3 -c "import datetime as _dt; UTC = getattr(_dt, 'UTC', _dt.timezone.utc); print(_dt.datetime.now(UTC).replace(tzinfo=None, microsecond=0).isoformat())")
+cat << EOF > "$d/docs/telemetry/outside-agent-runs.jsonl"
+not json
+123
+{"timestamp": 12345}
+{"timestamp": "$naive_now", "agent": "claude", "independent": true}
+{"timestamp": "invalid_date", "agent": "claude"}
+EOF
+set +e; out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --record "$trace_corrupt" 2>&1); status=$?; set -e
+has_recorded=$(test -f "$trace_corrupt" && echo "YES" || echo "NO")
+has_claude_naive=$(grep -c '"outside_used": \["claude"\]' "$trace_corrupt" || true)
+fmt_none=$(python3 -c "import sys; from pathlib import Path; sys.path.insert(0, '$REPO_DIR/scripts'); import trace_evaluation as te; print(te.format_subagents({'self_count': None, 'outside_count': None}))")
+fmt_with_out=$(python3 -c "import sys; from pathlib import Path; sys.path.insert(0, '$REPO_DIR/scripts'); import trace_evaluation as te; print(te.format_subagents({'self_count': None, 'outside_count': 1, 'outside_used': [None, 'codex']}))")
+[[ $status -eq 0 && "$has_recorded" == "YES" && "$has_claude_naive" -eq 1 && "$fmt_none" == "-" && "$fmt_with_out" == "1 out (codex)" ]] \
+  && ok "handles malformed, naive, and None subagent telemetry defensively" \
+  || bad "handles malformed, naive, and None subagent telemetry defensively" "status: $status, claude: $has_claude_naive, fmt_none: $fmt_none, fmt_out: $fmt_with_out"
+
+# --- 16. Cross-repo isolation in global runtime state fallback ----------------
+global_state="$d/mock_global_state"
+mkdir -p "$global_state/state"
+resolved_d=$(python3 -c "import sys; from pathlib import Path; print(Path(sys.argv[1]).resolve())" "$d")
+now_iso=$(python3 -c "import datetime as _dt; UTC = getattr(_dt, 'UTC', _dt.timezone.utc); print(_dt.datetime.now(UTC).isoformat())")
+cat << EOF > "$global_state/state/outside-agent-runs.jsonl"
+{"timestamp": "$now_iso", "agent": "codex", "independent": true, "repo": "/foreign/unrelated/repo"}
+{"timestamp": "$now_iso", "agent": "kiro", "independent": true, "repo": null}
+{"timestamp": "$now_iso", "agent": "claude", "independent": true, "repo": "$resolved_d"}
+EOF
+trace_iso="$d/docs/telemetry/iso-trace.jsonl"
+rm -f "$d/docs/telemetry/outside-agent-runs.jsonl"
+set +e; out=$(OUTSIDE_AGENT_DIR="$global_state" python3 "$PY_SCRIPT" --repo-dir "$d" --record "$trace_iso" 2>&1); status=$?; set -e
+has_claude=$(grep -c '"outside_used": \["claude"\]' "$trace_iso" || true)
+has_codex=$(grep -c 'codex' "$trace_iso" || true)
+has_kiro=$(grep -c 'kiro' "$trace_iso" || true)
+[[ $status -eq 0 && "$has_claude" -eq 1 && "$has_codex" -eq 0 && "$has_kiro" -eq 0 ]] \
+  && ok "cross-repo isolation filters out foreign and null repo runs in global fallback" \
+  || bad "cross-repo isolation filters out foreign and null repo runs in global fallback" "status: $status, claude: $has_claude, codex: $has_codex, kiro: $has_kiro"
 
 # --- Summary ------------------------------------------------------------------
 echo ""

@@ -20,3 +20,4 @@ apctest.output
 # is shipped code that must keep resolving python3 from the ambient PATH on
 # whatever host installs it.
 .venv/
+docs/telemetry/outside-agent-runs.jsonl
