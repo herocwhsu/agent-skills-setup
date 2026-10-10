@@ -122,11 +122,11 @@ agent_skills_dir() {
 }
 
 # install_kiro_prompts <repo_dir>
-#   Copy prompts/*.md to ~/.kiro/prompts/, substituting <user> with $USER.
-#   Idempotent: copies every file in prompts/, overwriting old versions.
+#   Copy agents/kiro/prompts/*.md to ~/.kiro/prompts/, substituting <user> with $USER.
+#   Idempotent: copies every file in agents/kiro/prompts/, overwriting old versions.
 install_kiro_prompts() {
   local repo_dir="$1"
-  local src="$repo_dir/prompts"
+  local src="$repo_dir/agents/kiro/prompts"
   local target="$HOME/.kiro/prompts"
   [[ -d "$src" ]] || return 0
   mkdir -p "$target"
@@ -142,10 +142,10 @@ install_kiro_prompts() {
 
 # uninstall_kiro_prompts <repo_dir>
 #   Remove prompt files this repo installed from ~/.kiro/prompts/.
-#   Only removes files that still exist in the repo's prompts/ dir.
+#   Only removes files that still exist in the repo's agents/kiro/prompts/ dir.
 uninstall_kiro_prompts() {
   local repo_dir="$1"
-  local src="$repo_dir/prompts"
+  local src="$repo_dir/agents/kiro/prompts"
   local target="$HOME/.kiro/prompts"
   [[ -d "$src" ]] || return 0
   [[ -d "$target" ]] || return 0

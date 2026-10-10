@@ -86,7 +86,10 @@ flowchart TD
 ├── pyproject.toml             # Python project manifest & build configuration
 ├── requirements-dev.txt       # Frozen development dependencies
 ├── .python-version            # Pinned runtime version (3.14.7)
-├── agents/                    # Rules shipped to target agent hosts
+├── agents/                    # Rules and agent-specific adapters
+│   ├── kiro/                  # Kiro IDE workflow prompts
+│   │   └── prompts/
+│   ├── antigravity-rules.md   # Google Antigravity custom rules
 │   └── engineering-rules.md   # The 12 core engineering rules
 ├── config/                    # Shared configurations and templates
 ├── docs/                      # Architectural, educational, and design documentation
