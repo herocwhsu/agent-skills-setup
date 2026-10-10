@@ -15,6 +15,7 @@
 | `1f91780` | 2026-10-10 09:33:05 | `agy` | 22.1s | ~9,290 tok | 254 lines | 150 lines | 13 (0 act) | **WARN** |
 | `63c6395` | 2026-10-10 09:37:09 | `agy` | 35.0s | ~10,630 tok | 254 lines | 154 lines | 13 (0 act) | **WARN** |
 | `63c6395` | 2026-10-10 10:03:21 | `agy` | 18.2s | ~4,350 tok | 81 lines | 139 lines | 4 (0 act) | **OK** |
-| `63225ae` | 2026-10-10 11:55:29 | `agy` | 1h 52m | ~5,291 tok | 116 lines | 144 lines | 5 (1 act) | **OK** |
+| `63225ae` | 2026-10-10 10:20:22 | `agy` | 11m 25s | ~4,810 tok | 98 lines | 140 lines | 5 (0 act) | **OK** |
+| `469c2b2` | 2026-10-10 12:01:09 | `agy` | 8m 12s | ~5,435 tok | 117 lines | 141 lines | 6 (0 act) | **OK** |
 
 ✅ **Status:** All state layer metrics are within clean-state limits.

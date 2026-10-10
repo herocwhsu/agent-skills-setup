@@ -106,7 +106,14 @@ def detect_agent(explicit_agent: str | None = None) -> str:
 
 
 def auto_detect_duration_ms(trace_path: Path, repo_dir: Path) -> float | None:
-    """Auto-detect elapsed time since previous trace entry or commit."""
+    """Auto-detect elapsed active time since previous trace entry or commit.
+
+    Ignores inter-session idle pauses (>30 minutes) to prevent human waiting
+    time from inflating agent active milestone durations.
+    """
+    IDLE_BREAK_THRESHOLD_SEC = 1800.0  # 30 minutes
+
+    # 1. Check previous trace entry timestamp
     if trace_path.is_file():
         try:
             last_line = ""
@@ -121,12 +128,13 @@ def auto_detect_duration_ms(trace_path: Path, repo_dir: Path) -> float | None:
                     prev_dt = datetime.fromisoformat(prev_ts_str)
                     now_dt = datetime.now(UTC)
                     delta_sec = (now_dt - prev_dt).total_seconds()
-                    # Sanity check: between 0 and 7 days
-                    if 0 < delta_sec < 86400 * 7:
+                    # Return active duration if within session boundary
+                    if 0 < delta_sec <= IDLE_BREAK_THRESHOLD_SEC:
                         return delta_sec * 1000
         except (json.JSONDecodeError, ValueError, OSError):
             pass
 
+    # 2. Try git commit timestamp delta if trace delta spanned an idle break
     try:
         res = subprocess.run(
             ["git", "-C", str(repo_dir), "log", "-2", "--format=%ct"],
@@ -141,7 +149,7 @@ def auto_detect_duration_ms(trace_path: Path, repo_dir: Path) -> float | None:
         ]
         if len(lines) >= 2:
             delta_sec = lines[0] - lines[1]
-            if 0 < delta_sec < 86400 * 7:
+            if 0 < delta_sec <= IDLE_BREAK_THRESHOLD_SEC:
                 return float(delta_sec * 1000)
     except (subprocess.SubprocessError, OSError, ValueError):
         pass
