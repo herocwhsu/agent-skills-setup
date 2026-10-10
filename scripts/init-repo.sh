@@ -20,7 +20,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-HOOKS_SRC="$(cd "$SCRIPT_DIR/../hooks" && pwd)"
+HOOKS_SRC="$(cd "$SCRIPT_DIR/../templates/hooks" && pwd)"
 
 PROFILE="${1:-}"
 TARGET="${2:-$(pwd)}"

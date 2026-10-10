@@ -92,7 +92,8 @@ flowchart TD
 ├── docs/                      # Architectural, educational, and design documentation
 │   ├── architecture.md        # Canonical system architecture (this document)
 │   └── harness-creator/       # Harness engineering training records & audits
-├── hooks/                     # Template hooks distributed to agent environments
+├── templates/
+│   └── hooks/                 # Template hooks distributed to agent environments
 ├── .claude/
 │   ├── hooks/                 # Verification guard scripts
 │   └── settings.json          # Permissions & hook registrations

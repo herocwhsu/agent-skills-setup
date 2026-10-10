@@ -14,7 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT="$SCRIPT_DIR/init-repo.sh"
-HOOKS_SRC="$(cd "$SCRIPT_DIR/../hooks" && pwd)"
+HOOKS_SRC="$(cd "$SCRIPT_DIR/../templates/hooks" && pwd)"
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 

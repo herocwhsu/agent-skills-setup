@@ -454,7 +454,7 @@ see [`docs/migration.md`](docs/migration.md).
 
 ## Hook Templates
 
-[`hooks/`](hooks/README.md) is a library of Claude Code hook templates — local
+[`templates/hooks/`](templates/hooks/README.md) is a library of Claude Code hook templates — local
 quality gates that run on your machine as you work, not in CI. Scaffold them into
 any repo:
 
@@ -475,7 +475,7 @@ without `semgrep` or `grype` still works.
 
 This repo runs its own gates from [`.claude/`](.claude/settings.json): shell and
 Python syntax on every edit, plus registry validation, the test suite, and a secret
-scan on Stop. See [`hooks/README.md`](hooks/README.md) for the full template list and
+scan on Stop. See [`templates/hooks/README.md`](templates/hooks/README.md) for the full template list and
 the tool inventory script.
 
 ---

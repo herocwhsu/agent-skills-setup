@@ -72,7 +72,7 @@ Shared scripts must be portable across macOS default `/bin/bash` (3.2) and Linux
 
 ## Hook Conventions
 
-*Source:* `hooks/common/sh-check.sh` exited 1 with `|| true`, so every repo scaffolded from it got a gate that blocked nothing. *Applies:* adding or editing a hook. *Expires:* wiring is enforced by the `*-guard.sh` ratchet in `test_harness_verify.sh`; exit 2 only by each hook's own test.
+*Source:* `templates/hooks/common/sh-check.sh` exited 1 with `|| true`, so every repo scaffolded from it got a gate that blocked nothing. *Applies:* adding or editing a hook. *Expires:* wiring is enforced by the `*-guard.sh` ratchet in `test_harness_verify.sh`; exit 2 only by each hook's own test.
 
 - **Exit code 2**: Stop hooks must exit 2 to block the agent and surface failure details.
 - **`-guard.sh` suffix**: Reserved for whole-repo pass/fail validators wired into `scripts/harness-verify.sh`.

@@ -470,6 +470,25 @@
       ],
       "evidence": "Standardized 5 internal Python scripts from kebab-case to PEP 8 snake_case (credential_backend_check.py, hook_wiring_check.py, skill_frontmatter_check.py, skill_path_var_check.py, apidog_share_fetch.py). Updated callers in .claude/hooks/credential-backend-guard.sh, hook-wiring-guard.sh, skill-paths-guard.sh, harness-verify.sh, resolve_test_targets.py, and documentation in skills/apidog/. Verified 100% clean imports across all 5 modules, tests/test_resolve_test_targets.py passed (9/9), run-tests.sh --fast passed (78/78), and all 11 gates in harness-verify.sh passed.",
       "verification": "bash scripts/harness-verify.sh"
+    },
+    {
+      "id": "feat-050",
+      "name": "Template library relocation from hooks/ to templates/hooks/",
+      "description": "Relocate external target repository hook templates from root hooks/ to templates/hooks/ to eliminate root clutter and disambiguate template libraries from active repository guard rails. Update init-repo.sh, test_init_repo.sh, test_shared_hook_templates.sh, skill_path_var_check.py, and docs.",
+      "dependencies": [
+        "feat-049"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "Root hooks/ moved to templates/hooks/ via git mv",
+        "scripts/init-repo.sh correctly resolves templates/hooks/",
+        "scripts/tests/test_init_repo.sh and test_shared_hook_templates.sh pass cleanly",
+        "scripts/skill_path_var_check.py REPO_SUBDIRS includes templates",
+        "Documentation references in README.md, docs/architecture.md, docs/harness-adoption.md, AGENTS.md updated",
+        "All 78 fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Relocated root hooks/ to templates/hooks/ via git mv. Updated hook resolution path in scripts/init-repo.sh, scripts/tests/test_init_repo.sh, scripts/tests/test_shared_hook_templates.sh, and added templates to REPO_SUBDIRS in scripts/skill_path_var_check.py. Updated references across README.md, docs/architecture.md, and AGENTS.md. Verified with test_init_repo.sh (16/16), test_shared_hook_templates.sh (20/20), run-tests.sh --fast (78/78), and all 11 gates in harness-verify.sh.",
+      "verification": "bash scripts/harness-verify.sh"
     }
   ]
 }
