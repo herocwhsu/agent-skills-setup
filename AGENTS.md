@@ -1,9 +1,29 @@
-# AGENTS.md
+---
+description: Quick reference and operating manual for AI agents working on agent-skills-setup
+entrypoint: ./init.sh
+verify_command: bash scripts/harness-verify.sh
+fast_test_command: bash scripts/run-tests.sh --fast
+rules_file: agents/engineering-rules.md
+architecture_doc: docs/architecture.md
+recent_improvements_doc: docs/improvements/recent-tasks-summary.md
+state_layer: [feature_list.json, PROGRESS.md]
+---
 
-Instructions for agents working **on this repository**. The engineering rules this
-repo *ships* live in `agents/engineering-rules.md` and are installed into host
-files by `scripts/install-agents-md.sh` — editing that file changes every agent on
-the machine, not just work done here.
+# AGENTS.md — Agent Operating Manual & Quick Reference
+
+> **Quick Orientation:** Instructions for agents working **on this repository**. The engineering rules this repo *ships* live in [`agents/engineering-rules.md`](file:///Users/phoenix/projects/agent-skills-setup/agents/engineering-rules.md) and are installed into host files by `scripts/install-agents-md.sh` — editing that file changes every agent on the machine, not just work done here.
+
+## Quick Reference & Cheatsheet
+
+| Domain | Quick Rule / Command | Canonical Reference |
+| :--- | :--- | :--- |
+| **Startup** | Run `./init.sh` (or `bash scripts/harness-verify.sh`). Read `PROGRESS.md` & `feature_list.json`. | [Startup Workflow](#startup-workflow) |
+| **Verification** | Micro-edits: `bash scripts/run-tests.sh --fast --changed`<br>Fast suite: `bash scripts/run-tests.sh --fast`<br>Full gates: `bash scripts/harness-verify.sh` | [Verify](#verify) |
+| **Architecture** | Guards: [`harness/guards/`](file:///Users/phoenix/projects/agent-skills-setup/harness/guards/) (symlinked as `.claude/hooks`)<br>Templates: [`templates/hooks/`](file:///Users/phoenix/projects/agent-skills-setup/templates/hooks/)<br>Multi-Agent: [`agents/`](file:///Users/phoenix/projects/agent-skills-setup/agents/) (`kiro/prompts/`, `antigravity-rules.md`)<br>Skills: [`skills/`](file:///Users/phoenix/projects/agent-skills-setup/skills/) & [`registry.txt`](file:///Users/phoenix/projects/agent-skills-setup/registry.txt) | [`docs/architecture.md`](file:///Users/phoenix/projects/agent-skills-setup/docs/architecture.md) |
+| **Conventions** | Strictly `WIP=1`. Karpathy rules (Think before coding, Simplicity first, Surgical changes, Fail loud). | [`agents/engineering-rules.md`](file:///Users/phoenix/projects/agent-skills-setup/agents/engineering-rules.md) |
+| **Portability** | macOS `/bin/bash` (3.2) floor + Linux. No `mapfile`, `declare -A`, `;&`. PEP 8 Python naming. | [Shell Portability](#shell-portability) |
+| **Git Policy** | Check `git log --oneline` before commit. **NEVER run `git push` without explicit user instruction.** | [Personal Conventions](file:///Users/phoenix/projects/agent-skills-setup/agents/engineering-rules.md#part-iii-personal-conventions) |
+| **Clean State** | Verify 11 gates pass. Run `bash scripts/session-clean.sh --dry-run`. Update `feature_list.json` & `PROGRESS.md`. | [End of Session](#end-of-session) |
 
 Everything below the next two sections cost a real incident. The startup workflow
 and definition of done are the exception — added proactively, not from a specific
@@ -37,7 +57,7 @@ bash scripts/run-tests.sh --fast   # tests only (skips RUN_INTEGRATION=1 cases)
 Task completion requires passing through three non-bypassable layers in order:
 1. **Layer 1: Static & Syntax** (`mypy .`, `ruff check`, `bash-compat-guard.sh`) — verifies syntax, types, and shell portability (< 2s).
 2. **Layer 2: Runtime Unit** (`run-tests.sh --fast`) — verifies isolated component units and scripts (~2 min).
-3. **Layer 3: System & E2E** (`harness-verify.sh` / `./init.sh`) — validates all 10 system gates including runtime drift, hook wiring, and state layer.
+3. **Layer 3: System & E2E** (`harness-verify.sh` / `./init.sh`) — validates all 11 system gates including runtime drift, clean state, hook wiring, and state layer.
 
 Passing Layer 1 or Layer 2 alone never constitutes completion; skipping Layer 3 is considered a premature victory declaration. Run `harness-verify.sh` before claiming work is done. The same gates run as Stop hooks, so skipping it only defers the failure.
 
@@ -100,8 +120,10 @@ Shared scripts must be portable across macOS default `/bin/bash` (3.2) and Linux
 Load a topic doc only when its condition matches the task.
 
 - **`docs/architecture.md`** — layers, invariants, directory layout. *Load when:* changing a subsystem boundary, hook, or gate.
+- **`docs/improvements/recent-tasks-summary.md`** — recent milestone summaries, architecture changes, and ROI matrix. *Load when:* reviewing recent changes or understanding repository evolution.
 - **`agents/engineering-rules.md`** — the shipped rules. *Load when:* editing them (changes every agent on the machine).
 - **`skills/README.md`** — group and subcommand index, skill layout, registry entry types. *Load when:* adding or changing a skill.
+- **`docs/archive/features/`** — historical feature specifications. *Load when:* looking up older features (`feat-001` through `feat-040`).
 - **`docs/harness-creator/`** — lecture logs and diagnostic tools. *Load when:* doing harness training work.
 - **`docs/harness-adoption.md`** — putting this harness into another repo. *Load when:* adopting or refreshing the harness in a repo.
 - **`docs/migration.md`** — host upgrades, pyenv, multi-agent dirs. *Load when:* changing interpreters or agent install paths.
