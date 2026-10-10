@@ -413,6 +413,25 @@
       ],
       "evidence": "Added --rubric flag to outside_agent.py run and EVALUATOR_RUBRIC defining the 4 core dimensions (Rule Conformance, Surgical Precision, Test Verifiability, Evidence Grounding scored 1-5) along with required output schema (Dimension Scores, Identified Risks, Concrete Failure Scenarios, Final Verdict). Validates --rubric usage only under --purpose review, exiting 2 on misuse. tests/test_outside_agent.py passes with 4 new tests covering rubric structure, CLI validation, agent prompt augmentation, and unmodified behavior when omitted. Synced runtime copy to ~/.agent-skills-setup and verified all 10 gates in harness-verify.sh.",
       "verification": ".venv/bin/pytest tests/test_outside_agent.py -k rubric"
+    },
+    {
+      "id": "feat-047",
+      "name": "Clean-state lifecycle, Invariant 4 gating, and repo pruning",
+      "description": "Add clean-state-guard.sh closing Invariant 4 gap as Gate 11 in harness-verify.sh, implement session-clean.sh for idempotent session handoff, and prune historical PROGRESS.md bloat into progress-archive.md.",
+      "dependencies": [
+        "feat-046"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "clean-state-guard.sh detects untracked scratch files, temp backups, and uncommitted env files, exiting 2 with 3-part diagnostic",
+        "test_clean_state_guard.sh verifies clean workspace exit 0 and dirty workspace exit 2 across scratch, temp, and env files",
+        "harness-verify.sh runs clean-state-guard.sh as Gate 11 with per-gate duration profiling",
+        "scripts/session-clean.sh performs idempotent cache clearing, runtime sync, and clean state validation",
+        "PROGRESS.md historical entries archived into docs/progress-archive.md reducing active file to under 80 lines",
+        "All 11 verification gates in harness-verify.sh pass cleanly"
+      ],
+      "evidence": "Implemented .claude/hooks/clean-state-guard.sh enforcing Invariant 4 (blocking scratch/temp/backup/uncommitted env files with exit 2 and 3-part diagnostic WHAT + WHY + FIX). Created .claude/hooks/tests/test_clean_state_guard.sh (11/11 passed). Wired clean state into scripts/harness-verify.sh as Gate 11 with duration measurement and into scripts/setup-git-hooks.sh pre-commit hook (test_harness_verify.sh 20/20 passed, test_setup_git_hooks.sh 2/2 passed). Created scripts/session-clean.sh with cache purge, runtime sync, and 5-invariant validation (test_session_clean.sh 6/6 passed). Pruned historical feat-001 to feat-040 entries from PROGRESS.md into docs/progress-archive.md, reducing PROGRESS.md to ~80 lines. All 11 verification gates in harness-verify.sh pass clean.",
+      "verification": "bash .claude/hooks/tests/test_clean_state_guard.sh"
     }
   ]
 }

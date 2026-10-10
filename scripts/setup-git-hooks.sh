@@ -26,6 +26,9 @@ bash "$REPO_DIR/.claude/hooks/bash-compat-guard.sh"
 
 echo "==> [git pre-commit] checking state layer..."
 bash "$REPO_DIR/.claude/hooks/state-layer-guard.sh"
+
+echo "==> [git pre-commit] checking clean state..."
+bash "$REPO_DIR/.claude/hooks/clean-state-guard.sh"
 EOF
 chmod +x "$HOOKS_DIR/pre-commit"
 

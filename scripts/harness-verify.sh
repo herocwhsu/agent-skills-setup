@@ -142,6 +142,7 @@ run_gate "bash compat" "$HOOKS/bash-compat-guard.sh"
 run_gate "cred backends" "$HOOKS/credential-backend-guard.sh"
 run_gate "hook wiring" "$HOOKS/hook-wiring-guard.sh"
 run_gate "state layer" "$HOOKS/state-layer-guard.sh"
+run_gate "clean state" "$HOOKS/clean-state-guard.sh"
 run_gate "runtime drift" "$HOOKS/runtime-drift-guard.sh"
 
 # Passes the real settings files as well as the tree: a hook wired to a path that
