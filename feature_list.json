@@ -76,6 +76,24 @@
       ],
       "evidence": "Implemented scripts/trace_evaluation.py and scripts/trace-evaluation.sh supporting --record, --trend, --check-thresholds, and --json. Added automated test suite scripts/tests/test_trace_evaluation.sh passing 9/9 checks. Verified ruff and mypy are clean. Verified full test suite runs 80/80 passed with 0 failures, and all 11 harness gates pass cleanly.",
       "verification": "bash scripts/tests/test_trace_evaluation.sh && bash scripts/trace-evaluation.sh --trend"
+    },
+    {
+      "id": "feat-055",
+      "name": "Wire evaluation trace telemetry into session-clean.sh and AGENTS.md base workflow",
+      "description": "Integrate scripts/trace-evaluation.sh into scripts/session-clean.sh to automatically record session snapshots and render trend tables during handoffs, add threshold checks to session handoff verification, update test_session_clean.sh, and document trace commands in AGENTS.md quick reference.",
+      "dependencies": [
+        "feat-054"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "scripts/session-clean.sh records trace snapshot and renders trend table when trace-evaluation.sh exists",
+        "scripts/session-clean.sh checks state layer thresholds during handoff",
+        "scripts/tests/test_session_clean.sh covers trace recording and clean handoff integration",
+        "AGENTS.md quick reference documents trace-evaluation.sh commands",
+        "All 80 fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Integrated scripts/trace-evaluation.sh into scripts/session-clean.sh with automated snapshot recording and --trend table rendering on handoff, plus state layer threshold checking. Extended scripts/tests/test_session_clean.sh with 8/8 tests passing (including telemetry trace execution). Documented trace-evaluation.sh commands and session telemetry in AGENTS.md quick reference table, Verify section, and End of Session guidelines. Verified run-tests.sh --fast (80/80 passed) and all 11 harness gates clean.",
+      "verification": "bash scripts/session-clean.sh --dry-run && bash scripts/tests/test_session_clean.sh"
     }
   ]
 }

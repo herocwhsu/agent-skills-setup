@@ -23,7 +23,8 @@ state_layer: [feature_list.json, PROGRESS.md]
 | **Conventions** | Strictly `WIP=1`. Karpathy rules (Think before coding, Simplicity first, Surgical changes, Fail loud). | [`agents/engineering-rules.md`](file:///Users/phoenix/projects/agent-skills-setup/agents/engineering-rules.md) |
 | **Portability** | macOS `/bin/bash` (3.2) floor + Linux. No `mapfile`, `declare -A`, `;&`. PEP 8 Python naming. | [Shell Portability](#shell-portability) |
 | **Git Policy** | Check `git log --oneline` before commit. **NEVER run `git push` without explicit user instruction.** | [Personal Conventions](file:///Users/phoenix/projects/agent-skills-setup/agents/engineering-rules.md#part-iii-personal-conventions) |
-| **Clean State** | Verify 11 gates pass. Run `bash scripts/session-clean.sh --dry-run`. Update `feature_list.json` & `PROGRESS.md`. | [End of Session](#end-of-session) |
+| **Clean State** | Verify 11 gates pass. Run `bash scripts/session-clean.sh`. Update `feature_list.json` & `PROGRESS.md`. | [End of Session](#end-of-session) |
+| **Telemetry** | Trend: `bash scripts/trace-evaluation.sh --trend`<br>Check limits: `bash scripts/trace-evaluation.sh --check-thresholds` | [Evaluation Trace](#evaluation-trace) |
 
 Everything below the next two sections cost a real incident. The startup workflow
 and definition of done are the exception — added proactively, not from a specific
@@ -50,6 +51,7 @@ Before writing code:
 ```bash
 bash scripts/harness-verify.sh     # registry + tests + secret scan, one exit code
 bash scripts/run-tests.sh --fast   # tests only (skips RUN_INTEGRATION=1 cases)
+bash scripts/trace-evaluation.sh --trend  # evaluation trace history, multi-agent timeline, token load
 ```
 
 ### Three-Layer Termination Gate
@@ -76,7 +78,15 @@ Before ending a session:
 
 - Update `PROGRESS.md` with what's done, in progress, and next.
 - Update `feature_list.json` with new feature status and evidence.
+- Run `bash scripts/session-clean.sh` to purge ephemeral caches, sync runtime copies, record session telemetry snapshot, and verify the 5 clean-state invariants.
 - The state of the repo — not chat history — is what the next session reads.
+
+### Evaluation Trace
+
+Repository state evolution, multi-agent attribution, duration, and token usage are recorded in `docs/telemetry/evaluation-trace.jsonl`:
+- `bash scripts/trace-evaluation.sh --trend`: View recent commit telemetry, multi-agent handoffs, and token trends.
+- `bash scripts/trace-evaluation.sh --check-thresholds`: Validate state layer limits (`feature_list.json` <= 250 lines, `PROGRESS.md` <= 150 lines, tokens <= 6,000).
+- `bash scripts/session-clean.sh`: Automatically runs threshold checks, purges caches, syncs runtime copies, records a new trace snapshot, and prints the trend table.
 
 ## Shell Portability
 

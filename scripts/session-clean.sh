@@ -71,6 +71,24 @@ if [[ -f "$state_layer_hook" ]]; then
   fi
 fi
 
+# State Layer Threshold & Telemetry Check
+trace_script="$REPO_DIR/scripts/trace-evaluation.sh"
+if [[ -f "$trace_script" ]]; then
+  if ! out=$(bash "$trace_script" --check-thresholds 2>&1); then
+    echo "" >&2
+    echo "  [WARN] State layer thresholds exceeded:" >&2
+    echo "$out" >&2
+    echo "  TIP: Run feature archival (docs/archive/features/) or prune PROGRESS.md." >&2
+  fi
+fi
+
+if [[ $CHECK_ONLY -eq 0 && -f "$trace_script" ]]; then
+  echo ""
+  echo "==> [Session Telemetry] Recording evaluation trace snapshot..."
+  bash "$trace_script" >/dev/null 2>&1 || true
+  bash "$trace_script" --trend 2>&1 || true
+fi
+
 echo ""
 echo "================================================================================"
 echo "  CLEAN HANDOFF VERIFICATION: ALL INVARIANTS SATISFIED"

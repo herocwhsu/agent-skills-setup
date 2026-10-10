@@ -85,6 +85,26 @@ set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" --bogus 2>&1); status=$
   && ok "unknown option exits 2" \
   || bad "unknown option exits 2" "exit $status, out: $out"
 
+# --- 7. Triggers session telemetry trace when trace-evaluation.sh exists -----
+d=$(fixture_repo "telemetry_test")
+mkdir -p "$d/scripts"
+cat <<'SH' > "$d/scripts/trace-evaluation.sh"
+#!/usr/bin/env bash
+if [[ "${1:-}" == "--trend" ]]; then
+  echo "MOCK_TREND_TABLE: Session Telemetry Recorded"
+elif [[ "${1:-}" == "--check-thresholds" ]]; then
+  echo "OK: thresholds clean"
+else
+  echo "MOCK_TRACE_RECORDED"
+fi
+exit 0
+SH
+chmod +x "$d/scripts/trace-evaluation.sh"
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "MOCK_TREND_TABLE: Session Telemetry Recorded" ]] \
+  && ok "triggers session telemetry trace and trend display" \
+  || bad "triggers session telemetry trace and trend display" "exit $status, out: $out"
+
 echo ""
 echo "test_session_clean: $pass passed, $fail failed"
 [[ $fail -eq 0 ]] || exit 1
