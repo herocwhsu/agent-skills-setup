@@ -46,6 +46,12 @@ set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" --check 2>&1); status=$
   && ok "--check mode passes without purging" \
   || bad "--check mode passes without purging" "exit $status, out: $out"
 
+# --- 2b. --dry-run alias passes without purging -------------------------------
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" --dry-run 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "Read-only check mode" ]] \
+  && ok "--dry-run mode passes without purging" \
+  || bad "--dry-run mode passes without purging" "exit $status, out: $out"
+
 # --- 3. Purges __pycache__ and cache dirs ------------------------------------
 d=$(fixture_repo "cache_test")
 mkdir -p "$d/src/__pycache__" "$d/.pytest_cache"

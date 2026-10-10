@@ -1,0 +1,245 @@
+{
+  "version": "1.0.0",
+  "suite_name": "agent-skills-setup-harness-suite",
+  "timestamp": "2026-10-10T06:23:02.375822+00:00",
+  "git_commit": "1eaaa726569dc8c67023e1f79254c79289a1ae57",
+  "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+  "python_version": "3.14.7",
+  "sla_threshold_pct": 15.0,
+  "total_duration_ms": 8128.65,
+  "tasks_count": 7,
+  "passed_sla_count": 7,
+  "tasks": {
+    "registry_validation": {
+      "name": "registry_validation",
+      "command": "bash scripts/validate-registry.sh",
+      "sla_target_ms": 200.0,
+      "description": "Validate syntax and schema of all entries in registry.txt",
+      "iterations": 3,
+      "min_ms": 25.19,
+      "avg_ms": 26.66,
+      "max_ms": 29.25,
+      "p95_ms": 29.25,
+      "sla_passed": true,
+      "all_success": true,
+      "runs": [
+        {
+          "iteration": 1,
+          "duration_ms": 29.25,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 2,
+          "duration_ms": 25.53,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 3,
+          "duration_ms": 25.19,
+          "return_code": 0,
+          "error": null
+        }
+      ]
+    },
+    "bash_compat_guard": {
+      "name": "bash_compat_guard",
+      "command": "bash .claude/hooks/bash-compat-guard.sh",
+      "sla_target_ms": 2500.0,
+      "description": "Verify macOS bash 3.2 compatibility across all shell scripts",
+      "iterations": 3,
+      "min_ms": 1510.51,
+      "avg_ms": 1535.42,
+      "max_ms": 1556.8,
+      "p95_ms": 1556.8,
+      "sla_passed": true,
+      "all_success": true,
+      "runs": [
+        {
+          "iteration": 1,
+          "duration_ms": 1538.94,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 2,
+          "duration_ms": 1510.51,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 3,
+          "duration_ms": 1556.8,
+          "return_code": 0,
+          "error": null
+        }
+      ]
+    },
+    "state_layer_guard": {
+      "name": "state_layer_guard",
+      "command": "bash .claude/hooks/state-layer-guard.sh",
+      "sla_target_ms": 500.0,
+      "description": "Verify WIP=1, feature list schema, and scope exclusions",
+      "iterations": 3,
+      "min_ms": 179.26,
+      "avg_ms": 183.1,
+      "max_ms": 190.05,
+      "p95_ms": 190.05,
+      "sla_passed": true,
+      "all_success": true,
+      "runs": [
+        {
+          "iteration": 1,
+          "duration_ms": 190.05,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 2,
+          "duration_ms": 179.26,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 3,
+          "duration_ms": 179.99,
+          "return_code": 0,
+          "error": null
+        }
+      ]
+    },
+    "clean_state_guard": {
+      "name": "clean_state_guard",
+      "command": "bash .claude/hooks/clean-state-guard.sh",
+      "sla_target_ms": 500.0,
+      "description": "Verify working tree is free of untracked scratch and backup files",
+      "iterations": 3,
+      "min_ms": 116.73,
+      "avg_ms": 120.14,
+      "max_ms": 125.2,
+      "p95_ms": 125.2,
+      "sla_passed": true,
+      "all_success": true,
+      "runs": [
+        {
+          "iteration": 1,
+          "duration_ms": 118.5,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 2,
+          "duration_ms": 125.2,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 3,
+          "duration_ms": 116.73,
+          "return_code": 0,
+          "error": null
+        }
+      ]
+    },
+    "session_clean_dry_run": {
+      "name": "session_clean_dry_run",
+      "command": "bash scripts/session-clean.sh --dry-run",
+      "sla_target_ms": 1000.0,
+      "description": "Dry-run check of session cleanup and 5-invariant validation",
+      "iterations": 3,
+      "min_ms": 300.02,
+      "avg_ms": 307.64,
+      "max_ms": 319.65,
+      "p95_ms": 319.65,
+      "sla_passed": true,
+      "all_success": true,
+      "runs": [
+        {
+          "iteration": 1,
+          "duration_ms": 319.65,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 2,
+          "duration_ms": 303.24,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 3,
+          "duration_ms": 300.02,
+          "return_code": 0,
+          "error": null
+        }
+      ]
+    },
+    "resolve_test_targets": {
+      "name": "resolve_test_targets",
+      "command": "python3 scripts/resolve_test_targets.py --changed PROGRESS.md",
+      "sla_target_ms": 200.0,
+      "description": "Resolve targeted test files for changed files",
+      "iterations": 3,
+      "min_ms": 58.94,
+      "avg_ms": 63.34,
+      "max_ms": 68.92,
+      "p95_ms": 68.92,
+      "sla_passed": true,
+      "all_success": true,
+      "runs": [
+        {
+          "iteration": 1,
+          "duration_ms": 68.92,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 2,
+          "duration_ms": 62.15,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 3,
+          "duration_ms": 58.94,
+          "return_code": 0,
+          "error": null
+        }
+      ]
+    },
+    "targeted_unit_test": {
+      "name": "targeted_unit_test",
+      "command": ".venv/bin/pytest tests/test_resolve_test_targets.py",
+      "sla_target_ms": 1500.0,
+      "description": "Fast unit test execution for targeted components",
+      "iterations": 3,
+      "min_ms": 464.41,
+      "avg_ms": 472.59,
+      "max_ms": 479.54,
+      "p95_ms": 479.54,
+      "sla_passed": true,
+      "all_success": true,
+      "runs": [
+        {
+          "iteration": 1,
+          "duration_ms": 479.54,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 2,
+          "duration_ms": 473.82,
+          "return_code": 0,
+          "error": null
+        },
+        {
+          "iteration": 3,
+          "duration_ms": 464.41,
+          "return_code": 0,
+          "error": null
+        }
+      ]
+    }
+  }
+}

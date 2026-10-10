@@ -432,6 +432,25 @@
       ],
       "evidence": "Implemented .claude/hooks/clean-state-guard.sh enforcing Invariant 4 (blocking scratch/temp/backup/uncommitted env files with exit 2 and 3-part diagnostic WHAT + WHY + FIX). Created .claude/hooks/tests/test_clean_state_guard.sh (11/11 passed). Wired clean state into scripts/harness-verify.sh as Gate 11 with duration measurement and into scripts/setup-git-hooks.sh pre-commit hook (test_harness_verify.sh 20/20 passed, test_setup_git_hooks.sh 2/2 passed). Created scripts/session-clean.sh with cache purge, runtime sync, and 5-invariant validation (test_session_clean.sh 6/6 passed). Pruned historical feat-001 to feat-040 entries from PROGRESS.md into docs/progress-archive.md, reducing PROGRESS.md to ~80 lines. All 11 verification gates in harness-verify.sh pass clean.",
       "verification": "bash .claude/hooks/tests/test_clean_state_guard.sh"
+    },
+    {
+      "id": "feat-048",
+      "name": "Production harness self-benchmark framework and baseline suite",
+      "description": "Add live harness self-benchmark framework with SLA budgets, before/after delta comparison, and regression tracking across core harness operations.",
+      "dependencies": [
+        "feat-047"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "benchmarks/harness-suite.json defines real harness benchmark tasks with SLA latency targets",
+        "scripts/harness_benchmark.py executes real benchmark tasks, computing min/avg/p95 latency and SLA compliance",
+        "scripts/harness_benchmark.py supports --compare mode for regression detection against baseline JSON",
+        "scripts/harness-benchmark.sh provides executable shell wrapper",
+        "tests/test_harness_benchmark.py passes unit tests for execution, comparison, and CLI flags",
+        "benchmarks/baseline.json generated and checked into repository"
+      ],
+      "evidence": "Created benchmarks/harness-suite.json defining 7 core harness tasks with explicit SLA latency targets. Implemented scripts/harness_benchmark.py and shell wrapper scripts/harness-benchmark.sh executing live commands across multiple iterations with min/avg/max/p95 latency profiling, SLA budget validation, and --compare delta regression tracking (+15% threshold). Added unit and integration tests in tests/test_harness_benchmark.py (10/10 passed). Added --dry-run support and test in scripts/session-clean.sh (7/7 passed). Generated benchmarks/baseline.json with 7/7 tasks meeting SLA (100% PASS) in 8129ms.",
+      "verification": ".venv/bin/pytest tests/test_harness_benchmark.py"
     }
   ]
 }

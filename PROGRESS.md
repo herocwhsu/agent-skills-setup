@@ -28,8 +28,8 @@
 - [x] feat-045: scope exclusions in `feature_list.json` with automated `state-layer-guard` enforcement. Added optional `exclusions` list of string patterns to `feature_list.json` schema; updated `.claude/hooks/state-layer-guard.sh` to validate changed files against active feature exclusions (supporting exact paths and wildcard globs), blocking turn/commit with exit 2 and 3-part agent diagnostic (WHAT + WHY + FIX) on violation. `test_state_layer_guard.sh` passes 34/34 tests.
 - [x] feat-046: multidimensional evaluator rubric in `outside_agent.py` review prompts. Added `--rubric` CLI flag and `EVALUATOR_RUBRIC` defining 4 core dimensions (Rule Conformance, Surgical Precision, Test Verifiability, Evidence Grounding scored 1-5) and required structured output format (Dimension Scores, Identified Risks, Concrete Failure Scenarios, Final Verdict). Enforces review-only usage (exits 2 on non-review). Unit tests in `test_outside_agent.py` verify rubric formatting, agent prompt augmentation, and CLI validation (91 passed).
 - [x] Lecture 12 training (why every session must leave a clean state): ported and hardened `cleanup_scanner.py` and `benchmark_runner.py` under `docs/harness-creator/lecture-12/code/` (22/22 tests passing, clean ruff/mypy); audited 5 Invariants of clean state against target repo and identified Invariant 4 (stale artifacts/WIP files) as an open gap in current verification gates; added benchmark comparison and regression delta calculator; independent adversarial subagent audit passed; authored `docs/harness-creator/lecture-12/summary.md` and `progress-detail.md`.
-
 - [x] feat-047: clean-state lifecycle, Invariant 4 gating, and repo pruning. Added `.claude/hooks/clean-state-guard.sh` (Gate 11 in `harness-verify.sh` & `pre-commit` git hook; 11/11 tests pass), implemented `scripts/session-clean.sh` for idempotent cache purge and 5-invariant validation (6/6 tests pass), and pruned historical `PROGRESS.md` into `docs/progress-archive.md`.
+- [x] feat-048: live harness self-benchmark runner and baseline suite. Created `benchmarks/harness-suite.json` (7 tasks with SLA latency targets), implemented `scripts/harness_benchmark.py` and `scripts/harness-benchmark.sh` supporting multi-iteration timing, SLA checking, and `--compare` delta regression tracking (+15% threshold; 10/10 tests pass), added `--dry-run` to `session-clean.sh` (7/7 tests pass), and generated canonical `benchmarks/baseline.json` with 100% SLA compliance (7/7 tasks PASS in 8129ms).
 
 ### What's In Progress
 
@@ -38,10 +38,9 @@
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-1. **feat-048 (Production Harness Self-Benchmark Framework):** Real SLA task suite in `benchmarks/harness-suite.json` and live runner `scripts/harness_benchmark.py` with baseline delta comparisons.
-2. **Smoke test verification:** Re-run live `codex-kiro` and `agy` smoke tests against feat-033 fixes; trust repo hooks in Codex on each host.
+1. **Smoke test verification:** Re-run live `codex-kiro` and `agy` smoke tests against feat-033 fixes; trust repo hooks in Codex on each host.
    - *Verification:* `outside-agent.sh run --purpose review` exits 0.
-3. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
+2. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.

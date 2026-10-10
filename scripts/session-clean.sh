@@ -15,7 +15,7 @@ CHECK_ONLY=0
 
 for arg in "$@"; do
   case "$arg" in
-    --check) CHECK_ONLY=1 ;;
+    --check|--dry-run) CHECK_ONLY=1 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done

@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "name": "agent-skills-setup-harness-suite",
+  "description": "Production benchmark suite measuring latency and regression across core harness gates and operations",
+  "sla_regression_threshold_pct": 15.0,
+  "tasks": [
+    {
+      "name": "registry_validation",
+      "command": "bash scripts/validate-registry.sh",
+      "sla_target_ms": 200.0,
+      "description": "Validate syntax and schema of all entries in registry.txt"
+    },
+    {
+      "name": "bash_compat_guard",
+      "command": "bash .claude/hooks/bash-compat-guard.sh",
+      "sla_target_ms": 2500.0,
+      "description": "Verify macOS bash 3.2 compatibility across all shell scripts"
+    },
+    {
+      "name": "state_layer_guard",
+      "command": "bash .claude/hooks/state-layer-guard.sh",
+      "sla_target_ms": 500.0,
+      "description": "Verify WIP=1, feature list schema, and scope exclusions"
+    },
+    {
+      "name": "clean_state_guard",
+      "command": "bash .claude/hooks/clean-state-guard.sh",
+      "sla_target_ms": 500.0,
+      "description": "Verify working tree is free of untracked scratch and backup files"
+    },
+    {
+      "name": "session_clean_dry_run",
+      "command": "bash scripts/session-clean.sh --dry-run",
+      "sla_target_ms": 1000.0,
+      "description": "Dry-run check of session cleanup and 5-invariant validation"
+    },
+    {
+      "name": "resolve_test_targets",
+      "command": "python3 scripts/resolve_test_targets.py --changed PROGRESS.md",
+      "sla_target_ms": 200.0,
+      "description": "Resolve targeted test files for changed files"
+    },
+    {
+      "name": "targeted_unit_test",
+      "command": ".venv/bin/pytest tests/test_resolve_test_targets.py",
+      "sla_target_ms": 1500.0,
+      "description": "Fast unit test execution for targeted components"
+    }
+  ]
+}
