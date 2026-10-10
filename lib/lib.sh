@@ -146,7 +146,7 @@ _skills_runtime_dir() {
 # setup_repo_dir
 #   Echo the absolute path of THIS runtime's own working tree.
 #
-#   Needed by skills that shell out to scripts/ (e.g. apidog-share-fetch.py):
+#   Needed by skills that shell out to scripts/ (e.g. apidog_share_fetch.py):
 #   those live outside skills/, so an installed skill symlink does not reach
 #   them. Derived from that symlink rather than recorded at install time
 #   because this file is *copied* to the runtime dir by install_runtime_dir --

@@ -12,7 +12,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 HOOK="$REPO_DIR/.claude/hooks/credential-backend-guard.sh"
-CHECKER="$REPO_DIR/scripts/credential-backend-check.py"
+CHECKER="$REPO_DIR/scripts/credential_backend_check.py"
 [[ -f "$HOOK" ]]    || { echo "FAIL: hook not found at $HOOK"; exit 1; }
 [[ -f "$CHECKER" ]] || { echo "FAIL: checker not found at $CHECKER"; exit 1; }
 
@@ -32,7 +32,7 @@ fixture() {
   local body="$2"
   local d="$TMP/$name"
   mkdir -p "$d/scripts/credentials"
-  cp "$CHECKER" "$d/scripts/credential-backend-check.py"
+  cp "$CHECKER" "$d/scripts/credential_backend_check.py"
   printf '%s\n' "$body" > "$d/scripts/credentials/_store.sh"
   echo "$d"
 }

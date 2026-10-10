@@ -9,7 +9,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-CHECK="$REPO_DIR/scripts/hook-wiring-check.py"
+CHECK="$REPO_DIR/scripts/hook_wiring_check.py"
 MERGE="$REPO_DIR/scripts/_settings_merge.py"
 GUARD="$REPO_DIR/.claude/hooks/hook-wiring-guard.sh"
 for f in "$CHECK" "$MERGE" "$GUARD"; do

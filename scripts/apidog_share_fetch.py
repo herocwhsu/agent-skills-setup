@@ -26,7 +26,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from typing import Any, Iterable
+from typing import Any
 
 SHARE_HOST = "https://share.apidog.com"
 USER_AGENT = "apidog-share-fetch/1.0"

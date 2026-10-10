@@ -20,7 +20,7 @@ set -euo pipefail
 # the moment the tree is clean.
 REPO_DIR="${CREDENTIAL_BACKEND_GUARD_REPO_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
-CHECKER="$REPO_DIR/scripts/credential-backend-check.py"
+CHECKER="$REPO_DIR/scripts/credential_backend_check.py"
 STORE="$REPO_DIR/scripts/credentials/_store.sh"
 
 # Skip rather than crash when the pieces are absent, matching the repo's hook

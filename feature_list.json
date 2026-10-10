@@ -451,6 +451,25 @@
       ],
       "evidence": "Created benchmarks/harness-suite.json defining 7 core harness tasks with explicit SLA latency targets. Implemented scripts/harness_benchmark.py and shell wrapper scripts/harness-benchmark.sh executing live commands across multiple iterations with min/avg/max/p95 latency profiling, SLA budget validation, and --compare delta regression tracking (+15% threshold). Added unit and integration tests in tests/test_harness_benchmark.py (10/10 passed). Added --dry-run support and test in scripts/session-clean.sh (7/7 passed). Generated benchmarks/baseline.json with 7/7 tasks meeting SLA (100% PASS) in 8129ms.",
       "verification": ".venv/bin/pytest tests/test_harness_benchmark.py"
+    },
+    {
+      "id": "feat-049",
+      "name": "Python module naming standardization to PEP 8 snake_case",
+      "description": "Standardize internal Python scripts from kebab-case to PEP 8 snake_case (credential_backend_check.py, hook_wiring_check.py, skill_frontmatter_check.py, skill_path_var_check.py, apidog_share_fetch.py), updating all guard hooks, tests, resolve_test_targets.py, and documentation call sites.",
+      "dependencies": [
+        "feat-048"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "All 5 internal Python scripts renamed to snake_case.py and importable",
+        "All guard hooks in .claude/hooks/ invoke new snake_case names",
+        "scripts/resolve_test_targets.py maps renamed scripts to tests cleanly",
+        "All test scripts and documentation references updated",
+        "ruff check and mypy pass cleanly on scripts/",
+        "bash scripts/run-tests.sh --fast and bash scripts/harness-verify.sh pass with 100% green gates"
+      ],
+      "evidence": "Standardized 5 internal Python scripts from kebab-case to PEP 8 snake_case (credential_backend_check.py, hook_wiring_check.py, skill_frontmatter_check.py, skill_path_var_check.py, apidog_share_fetch.py). Updated callers in .claude/hooks/credential-backend-guard.sh, hook-wiring-guard.sh, skill-paths-guard.sh, harness-verify.sh, resolve_test_targets.py, and documentation in skills/apidog/. Verified 100% clean imports across all 5 modules, tests/test_resolve_test_targets.py passed (9/9), run-tests.sh --fast passed (78/78), and all 11 gates in harness-verify.sh passed.",
+      "verification": "bash scripts/harness-verify.sh"
     }
   ]
 }

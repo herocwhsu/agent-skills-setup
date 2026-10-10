@@ -77,12 +77,15 @@ def resolve_targets_for_file(path_str: str, repo_root: Path) -> set[str]:
         alt_test = f"scripts/tests/test_{name.replace('-', '_')}"
         if (repo_root / alt_test).exists():
             targets.add(alt_test)
-        # Python scripts in scripts/ -> tests/test_<name>.py
+        # Python scripts in scripts/ -> tests/test_<name>.py or scripts/tests/test_<name>.sh
         if clean.endswith(".py"):
             py_name = os.path.splitext(name)[0]
             py_test = f"tests/test_{py_name}.py"
             if (repo_root / py_test).exists():
                 targets.add(py_test)
+            py_sh_test = f"scripts/tests/test_{py_name}.sh"
+            if (repo_root / py_sh_test).exists():
+                targets.add(py_sh_test)
         return targets
 
     # 4. Lecture code: docs/harness-creator/lecture-<N>/code/<file>.py -> .../test_<file>.py

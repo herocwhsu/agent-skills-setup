@@ -4,7 +4,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-SCRIPT="$REPO_DIR/scripts/apidog-share-fetch.py"
+SCRIPT="$REPO_DIR/scripts/apidog_share_fetch.py"
 FIXTURE="$REPO_DIR/scripts/tests/fixtures/apidog-share-10000001.data"
 
 [[ -f "$SCRIPT" ]]  || { echo "FAIL: script not found at $SCRIPT"; exit 1; }

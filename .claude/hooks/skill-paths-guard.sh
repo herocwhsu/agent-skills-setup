@@ -15,7 +15,7 @@ set -euo pipefail
 # the moment the tree is clean.
 REPO_DIR="${SKILL_PATHS_GUARD_REPO_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
-if ! out=$(python3 "$REPO_DIR/scripts/skill-path-var-check.py" "$REPO_DIR/skills" 2>&1); then
+if ! out=$(python3 "$REPO_DIR/scripts/skill_path_var_check.py" "$REPO_DIR/skills" 2>&1); then
   {
     echo "Blocked: a skill shell block references an undefined repo path variable:"
     printf '%s\n' "$out"
@@ -23,7 +23,7 @@ if ! out=$(python3 "$REPO_DIR/scripts/skill-path-var-check.py" "$REPO_DIR/skills
   exit 2
 fi
 
-if ! out=$(python3 "$REPO_DIR/scripts/skill-frontmatter-check.py" "$REPO_DIR/skills" 2>&1); then
+if ! out=$(python3 "$REPO_DIR/scripts/skill_frontmatter_check.py" "$REPO_DIR/skills" 2>&1); then
   {
     echo "Blocked: a SKILL.md frontmatter value is not valid YAML (agy drops the skill):"
     printf '%s\n' "$out"

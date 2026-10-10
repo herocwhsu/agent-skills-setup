@@ -11,8 +11,8 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 HOOK="$REPO_DIR/.claude/hooks/skill-paths-guard.sh"
-CHECKER="$REPO_DIR/scripts/skill-path-var-check.py"
-FM_CHECKER="$REPO_DIR/scripts/skill-frontmatter-check.py"
+CHECKER="$REPO_DIR/scripts/skill_path_var_check.py"
+FM_CHECKER="$REPO_DIR/scripts/skill_frontmatter_check.py"
 [[ -f "$HOOK" ]]    || { echo "FAIL: hook not found at $HOOK"; exit 1; }
 [[ -f "$CHECKER" ]] || { echo "FAIL: checker not found at $CHECKER"; exit 1; }
 
@@ -32,8 +32,8 @@ fixture() {
   local body="$2"
   local d="$TMP/$name"
   mkdir -p "$d/skills/grp/sub" "$d/scripts"
-  cp "$CHECKER" "$d/scripts/skill-path-var-check.py"
-  cp "$FM_CHECKER" "$d/scripts/skill-frontmatter-check.py"
+  cp "$CHECKER" "$d/scripts/skill_path_var_check.py"
+  cp "$FM_CHECKER" "$d/scripts/skill_frontmatter_check.py"
   printf '%s\n' "$body" > "$d/skills/grp/sub/IMPL.md"
   echo "$d"
 }
@@ -42,9 +42,9 @@ run_hook() { SKILL_PATHS_GUARD_REPO_DIR="$1" bash "$HOOK" 2>&1; }
 
 # --- 1. the pre-fix shape blocks with exit 2 -------------------------------
 # skills/apidog/diff/IMPL.md shipped exactly this: $REPO_DIR undefined at
-# runtime, so the path expanded to /scripts/apidog-share-fetch.py.
+# runtime, so the path expanded to /scripts/apidog_share_fetch.py.
 d=$(fixture bad '```bash
-SCRIPT="$REPO_DIR/scripts/apidog-share-fetch.py"
+SCRIPT="$REPO_DIR/scripts/apidog_share_fetch.py"
 python3 "$SCRIPT" --help
 ```')
 out=$(run_hook "$d") && code=0 || code=$?
@@ -57,7 +57,7 @@ grep -q 'REPO_DIR' <<<"$out" \
 # --- 2. defining it first is accepted -------------------------------------
 d=$(fixture good '```bash
 REPO_DIR=$(setup_repo_dir) || exit 1
-SCRIPT="$REPO_DIR/scripts/apidog-share-fetch.py"
+SCRIPT="$REPO_DIR/scripts/apidog_share_fetch.py"
 ```')
 out=$(run_hook "$d") && code=0 || code=$?
 [[ $code -eq 0 ]] \

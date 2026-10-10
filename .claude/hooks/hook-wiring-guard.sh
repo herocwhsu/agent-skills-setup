@@ -17,11 +17,11 @@ set -euo pipefail
 # non-existent checker, so python3 exits non-zero for the wrong reason and the
 # guard looks like it blocked correctly when it never ran the check at all.
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-CHECK="$REPO_DIR/scripts/hook-wiring-check.py"
+CHECK="$REPO_DIR/scripts/hook_wiring_check.py"
 TREE="${HOOK_WIRING_GUARD_REPO_DIR:-$REPO_DIR}"
 
 if [[ ! -f "$CHECK" ]]; then
-  echo "Blocked: hook-wiring-check.py missing at $CHECK" >&2
+  echo "Blocked: hook_wiring_check.py missing at $CHECK" >&2
   exit 2
 fi
 

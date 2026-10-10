@@ -29,8 +29,8 @@ Pick the read path based on what the user is comparing against:
 | Target | Read path | Why |
 |---|---|---|
 | Default branch (project main) | MCP `apidog_export(module: ...)` | Native, single round-trip, branch-aware writes still possible |
-| Non-default branch (e.g. Sprint 90) | `scripts/apidog-share-fetch.py` against the branch's public share link | MCP has no branch support and Apidog REST `/v1/shared-docs/<uuid>/export-openapi` redirects to docs (verified 2026-06-18) — the share link's Remix loader is the only working read path |
-| Single endpoint on any branch | `scripts/apidog-share-fetch.py --endpoint-id N` | Same as above, faster than full export |
+| Non-default branch (e.g. Sprint 90) | `scripts/apidog_share_fetch.py` against the branch's public share link | MCP has no branch support and Apidog REST `/v1/shared-docs/<uuid>/export-openapi` redirects to docs (verified 2026-06-18) — the share link's Remix loader is the only working read path |
+| Single endpoint on any branch | `scripts/apidog_share_fetch.py --endpoint-id N` | Same as above, faster than full export |
 
 The user passes the share UUID either as a second CLI argument or in `intake-summary.md`'s `apidog_share_uuid:` frontmatter. Without one, fall back to MCP and warn that only the default branch is being compared.
 
@@ -41,7 +41,7 @@ SHARE_UUID=$(echo "$SHARE_URL" | grep -oE '[0-9a-f-]{36}')
 # setup_repo_dir comes from lib.sh, sourced in Prerequisites above. The script
 # lives in the agent-skills-setup tree, not in the repo under review.
 REPO_DIR=$(setup_repo_dir) || exit 1
-SCRIPT="$REPO_DIR/scripts/apidog-share-fetch.py"
+SCRIPT="$REPO_DIR/scripts/apidog_share_fetch.py"
 
 # Pull every endpoint matching the contract's path prefix
 python3 "$SCRIPT" --share-uuid "$SHARE_UUID" --path-prefix "$CONTRACT_PATH_PREFIX" \
