@@ -1,0 +1,182 @@
+{
+  "archive_version": 1,
+  "description": "Historical completed features feat-041 through feat-050",
+  "archived_at": "2026-10-10",
+  "features": [
+    {
+      "id": "feat-041",
+      "name": "Lecture 3 and 8 tools ported to Python; state-layer guard rejects done features without evidence",
+      "description": "learn-harness-engineering's repo-reader.ts (lecture 3) and feature-list-validator.ts (lecture 8) were only reachable through another machine's checkout. Ported both to Python under docs/harness-creator/lecture-03/code/ and lecture-08/code/ (validator adapted to this repo's {features:[...]} schema with status/evidence). state-layer-guard.sh now blocks when a feature with status done has empty evidence, which lecture 8 calls out and the guard did not cover. Restored a test assertion (message names the JSON problem) that 613a95f dropped and left a dangling grep line. PROGRESS.md decision on feature_list.json now names the scanners as external. Also dropped the lowercase progress.md fallback from the guard (case 1b inverted), made run-tests.sh collect docs/harness-creator/lecture-*/code tests, and renamed lecture-07/raw/cmp-*-report.md to cmp-*-s1.md.",
+      "dependencies": [
+        "feat-040"
+      ],
+      "status": "done",
+      "evidence": "test_state_layer_guard.sh: 27 passed, 0 failed (done-without-evidence, message, non-string/boolean/numeric evidence and lowercase progress.md cases failed first). test_repo_reader.py 5 passed and test_feature_list_validator.py 23 passed (both failed first on missing module); collected by run-tests.sh (66 passed, 0 failed under --fast; all gates pass). repo_reader.py scores this repo 100/100 Grade A; feature_list_validator.py reports 41 features valid. mypy . and ruff format --check clean."
+    },
+    {
+      "id": "feat-042",
+      "name": "Scope Stop gate tests to changed files",
+      "description": "Reduce Stop hook latency from ~3 minutes to under 10 seconds on single-file edits by mapping git-changed files to specific test targets and executing only affected tests, while falling back to full suite on shared/infra modifications.",
+      "dependencies": [
+        "feat-040",
+        "feat-041"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "scripts/get-changed-files.sh identifies modified and untracked files",
+        "scripts/run-tests.sh supports --changed flag",
+        ".claude/hooks/tests-guard.sh runs targeted tests on Stop",
+        "harness-verify.sh and CI unconditionally retain full test suite"
+      ],
+      "evidence": "scripts/get-changed-files.sh tracks staged/unstaged/untracked files (test_changed_files_detector.sh: 6 passed). scripts/resolve_test_targets.py maps skills, lecture code, and tests to target suites with fallback to ALL on infra changes (test_resolve_test_targets.py: 7 passed). scripts/run-tests.sh supports --changed and -h/--help (test_run_tests_changed.sh: 3 passed). .claude/hooks/tests-guard.sh delegates to --changed unless HARNESS_VERIFY_ACTIVE=1 or --full. scripts/setup-git-hooks.sh installs pre-commit and pre-push hooks (test_setup_git_hooks.sh: 2 passed) wired in init.sh. Full suite bash scripts/run-tests.sh --fast: 72 passed, 0 failed; bash scripts/harness-verify.sh: all 10 gates passed clean.",
+      "verification": "bash scripts/run-tests.sh --fast --changed && bash .claude/hooks/tests-guard.sh"
+    },
+    {
+      "id": "feat-043",
+      "name": "Fix _lib.sh pip step under Homebrew Python (PEP 668) with isolated runtime venv",
+      "description": "Replace --break-system-packages in _lib.sh with an isolated runtime venv (~/.agent-skills-setup/venv) so SDK installs (anthropic, google-genai) do not pollute system/homebrew Python or fail under PEP 668, and ensure polish.py loads packages from runtime venv site-packages.",
+      "dependencies": [
+        "feat-019",
+        "feat-022"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "install_python_sdk in scripts/_lib.sh installs into runtime venv without --break-system-packages",
+        "polish.py and polish_engine.py add runtime venv site-packages to sys.path",
+        "scripts/tests/test_hook_wiring.sh passes with new test coverage for isolated venv installation"
+      ],
+      "evidence": "install_python_sdk in scripts/_lib.sh isolates SDK installs into runtime venv ($rtdir/venv) without --break-system-packages. polish.py and polish_engine.py automatically discover and add runtime venv site-packages to sys.path. test_hook_wiring.sh passes with 2 new assertions verifying absence of --break-system-packages and successful venv creation/pip logging. Full fast suite run-tests.sh --fast: 72 passed; harness-verify.sh: all 10 gates passed cleanly.",
+      "verification": "bash scripts/tests/test_hook_wiring.sh"
+    },
+    {
+      "id": "feat-044",
+      "name": "Per-gate execution timing and structured JSON trace reporting in harness-verify.sh",
+      "description": "Add execution duration profiling (ms/s) per gate in scripts/harness-verify.sh and support structured JSON trace reporting (--json / --report <file>) to make harness verification runtime observable and pinpoint slow gates.",
+      "dependencies": [
+        "feat-042"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "harness-verify.sh profiles duration for each executed gate in milliseconds or seconds",
+        "harness-verify.sh displays gate execution time in console output (e.g. OK gate (15ms))",
+        "harness-verify.sh supports --json / --report <file> emitting structured trace entries",
+        "scripts/tests/test_harness_verify.sh passes with assertions verifying per-gate duration reporting and JSON trace generation",
+        "macOS /bin/bash 3.2 compatibility preserved without Bash 4+ or 5+ features"
+      ],
+      "evidence": "scripts/harness-verify.sh updated with portable millisecond timing (now_ms) displaying per-gate execution durations in console (e.g. OK registry (38ms), OK tests (125.3s, slow)). Added structured JSON trace reporting via --json and --report <path> with timestamp, total_duration_ms, and per-gate records with slow gate detection (HARNESS_VERIFY_SLOW_MS). scripts/tests/test_harness_verify.sh passes 20/20 tests with 4 new assertions covering console duration display, --report JSON trace, --json stdout parsing, and slow gate detection. All 10 gates pass in scripts/harness-verify.sh.",
+      "verification": "bash scripts/tests/test_harness_verify.sh"
+    },
+    {
+      "id": "feat-045",
+      "name": "Scope exclusions in feature_list.json with automated state-layer-guard enforcement",
+      "description": "Add optional exclusions list (files or glob patterns) to feature_list.json and enforce in state-layer-guard.sh by comparing against changed files, blocking commit/completion with exit 2 if an agent touches excluded paths.",
+      "dependencies": [
+        "feat-040",
+        "feat-044"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "feature_list.json schema supports optional 'exclusions' list of string patterns",
+        "state-layer-guard.sh checks changed files against exclusions for active feature and blocks with exit 2 if violated",
+        "state-layer-guard.sh provides 3-part agent diagnostic (WHAT + WHY + FIX) on exclusion violation",
+        "test_state_layer_guard.sh verifies exclusion enforcement, wildcard matching, schema validation, and exit 2 blocking"
+      ],
+      "evidence": "feature_list.json schema supports optional 'exclusions' list of string patterns. .claude/hooks/state-layer-guard.sh detects changed files and validates them against exclusions declared by active features (using exact and wildcard glob matching). On violation, blocks turn/commit with exit 2 and outputs a 3-part agent diagnostic (WHAT + WHY + FIX). .claude/hooks/tests/test_state_layer_guard.sh passes 34/34 tests with 7 new assertions verifying exact path blocking, wildcard matching, clean execution when only permitted files change, and schema validation. Passed bash-compat-guard.sh.",
+      "verification": "bash .claude/hooks/tests/test_state_layer_guard.sh"
+    },
+    {
+      "id": "feat-046",
+      "name": "Multidimensional evaluator rubric in outside_agent.py review prompts",
+      "description": "Add --rubric support and standardized 4-dimension evaluator scoring (Rule Conformance, Surgical Precision, Test Verifiability, Evidence Grounding) into scripts/outside_agent.py review prompts.",
+      "dependencies": [
+        "feat-045"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "outside_agent.py run supports --rubric flag",
+        "Evaluator rubric defines 4 core dimensions (Rule Conformance, Surgical Precision, Test Verifiability, Evidence Grounding) scored 1-5",
+        "Review prompt appends structured rubric instructions and required output format when --rubric is passed",
+        "outside_agent.py rejects --rubric when --purpose is not review",
+        "tests/test_outside_agent.py passes with unit tests verifying rubric formatting and argument validation"
+      ],
+      "evidence": "Added --rubric flag to outside_agent.py run and EVALUATOR_RUBRIC defining the 4 core dimensions (Rule Conformance, Surgical Precision, Test Verifiability, Evidence Grounding scored 1-5) along with required output schema (Dimension Scores, Identified Risks, Concrete Failure Scenarios, Final Verdict). Validates --rubric usage only under --purpose review, exiting 2 on misuse. tests/test_outside_agent.py passes with 4 new tests covering rubric structure, CLI validation, agent prompt augmentation, and unmodified behavior when omitted. Synced runtime copy to ~/.agent-skills-setup and verified all 10 gates in harness-verify.sh.",
+      "verification": ".venv/bin/pytest tests/test_outside_agent.py -k rubric"
+    },
+    {
+      "id": "feat-047",
+      "name": "Clean-state lifecycle, Invariant 4 gating, and repo pruning",
+      "description": "Add clean-state-guard.sh closing Invariant 4 gap as Gate 11 in harness-verify.sh, implement session-clean.sh for idempotent session handoff, and prune historical PROGRESS.md bloat into progress-archive.md.",
+      "dependencies": [
+        "feat-046"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "clean-state-guard.sh detects untracked scratch files, temp backups, and uncommitted env files, exiting 2 with 3-part diagnostic",
+        "test_clean_state_guard.sh verifies clean workspace exit 0 and dirty workspace exit 2 across scratch, temp, and env files",
+        "harness-verify.sh runs clean-state-guard.sh as Gate 11 with per-gate duration profiling",
+        "scripts/session-clean.sh performs idempotent cache clearing, runtime sync, and clean state validation",
+        "PROGRESS.md historical entries archived into docs/progress-archive.md reducing active file to under 80 lines",
+        "All 11 verification gates in harness-verify.sh pass cleanly"
+      ],
+      "evidence": "Implemented .claude/hooks/clean-state-guard.sh enforcing Invariant 4 (blocking scratch/temp/backup/uncommitted env files with exit 2 and 3-part diagnostic WHAT + WHY + FIX). Created .claude/hooks/tests/test_clean_state_guard.sh (11/11 passed). Wired clean state into scripts/harness-verify.sh as Gate 11 with duration measurement and into scripts/setup-git-hooks.sh pre-commit hook (test_harness_verify.sh 20/20 passed, test_setup_git_hooks.sh 2/2 passed). Created scripts/session-clean.sh with cache purge, runtime sync, and 5-invariant validation (test_session_clean.sh 6/6 passed). Pruned historical feat-001 to feat-040 entries from PROGRESS.md into docs/progress-archive.md, reducing PROGRESS.md to ~80 lines. All 11 verification gates in harness-verify.sh pass clean.",
+      "verification": "bash .claude/hooks/tests/test_clean_state_guard.sh"
+    },
+    {
+      "id": "feat-048",
+      "name": "Production harness self-benchmark framework and baseline suite",
+      "description": "Add live harness self-benchmark framework with SLA budgets, before/after delta comparison, and regression tracking across core harness operations.",
+      "dependencies": [
+        "feat-047"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "benchmarks/harness-suite.json defines real harness benchmark tasks with SLA latency targets",
+        "scripts/harness_benchmark.py executes real benchmark tasks, computing min/avg/p95 latency and SLA compliance",
+        "scripts/harness_benchmark.py supports --compare mode for regression detection against baseline JSON",
+        "scripts/harness-benchmark.sh provides executable shell wrapper",
+        "tests/test_harness_benchmark.py passes unit tests for execution, comparison, and CLI flags",
+        "benchmarks/baseline.json generated and checked into repository"
+      ],
+      "evidence": "Created benchmarks/harness-suite.json defining 7 core harness tasks with explicit SLA latency targets. Implemented scripts/harness_benchmark.py and shell wrapper scripts/harness-benchmark.sh executing live commands across multiple iterations with min/avg/max/p95 latency profiling, SLA budget validation, and --compare delta regression tracking (+15% threshold). Added unit and integration tests in tests/test_harness_benchmark.py (10/10 passed). Added --dry-run support and test in scripts/session-clean.sh (7/7 passed). Generated benchmarks/baseline.json with 7/7 tasks meeting SLA (100% PASS) in 8129ms.",
+      "verification": ".venv/bin/pytest tests/test_harness_benchmark.py"
+    },
+    {
+      "id": "feat-049",
+      "name": "Python module naming standardization to PEP 8 snake_case",
+      "description": "Standardize internal Python scripts from kebab-case to PEP 8 snake_case (credential_backend_check.py, hook_wiring_check.py, skill_frontmatter_check.py, skill_path_var_check.py, apidog_share_fetch.py), updating all guard hooks, tests, resolve_test_targets.py, and documentation call sites.",
+      "dependencies": [
+        "feat-048"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "All 5 internal Python scripts renamed to snake_case.py and importable",
+        "All guard hooks in .claude/hooks/ invoke new snake_case names",
+        "scripts/resolve_test_targets.py maps renamed scripts to tests cleanly",
+        "All test scripts and documentation references updated",
+        "ruff check and mypy pass cleanly on scripts/",
+        "bash scripts/run-tests.sh --fast and bash scripts/harness-verify.sh pass with 100% green gates"
+      ],
+      "evidence": "Standardized 5 internal Python scripts from kebab-case to PEP 8 snake_case (credential_backend_check.py, hook_wiring_check.py, skill_frontmatter_check.py, skill_path_var_check.py, apidog_share_fetch.py). Updated callers in .claude/hooks/credential-backend-guard.sh, hook-wiring-guard.sh, skill-paths-guard.sh, harness-verify.sh, resolve_test_targets.py, and documentation in skills/apidog/. Verified 100% clean imports across all 5 modules, tests/test_resolve_test_targets.py passed (9/9), run-tests.sh --fast passed (78/78), and all 11 gates in harness-verify.sh passed.",
+      "verification": "bash scripts/harness-verify.sh"
+    },
+    {
+      "id": "feat-050",
+      "name": "Template library relocation from hooks/ to templates/hooks/",
+      "description": "Relocate external target repository hook templates from root hooks/ to templates/hooks/ to eliminate root clutter and disambiguate template libraries from active repository guard rails. Update init-repo.sh, test_init_repo.sh, test_shared_hook_templates.sh, skill_path_var_check.py, and docs.",
+      "dependencies": [
+        "feat-049"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "Root hooks/ moved to templates/hooks/ via git mv",
+        "scripts/init-repo.sh correctly resolves templates/hooks/",
+        "scripts/tests/test_init_repo.sh and test_shared_hook_templates.sh pass cleanly",
+        "scripts/skill_path_var_check.py REPO_SUBDIRS includes templates",
+        "Documentation references in README.md, docs/architecture.md, docs/harness-adoption.md, AGENTS.md updated",
+        "All 78 fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Relocated root hooks/ to templates/hooks/ via git mv. Updated hook resolution path in scripts/init-repo.sh, scripts/tests/test_init_repo.sh, scripts/tests/test_shared_hook_templates.sh, and added templates to REPO_SUBDIRS in scripts/skill_path_var_check.py. Updated references across README.md, docs/architecture.md, and AGENTS.md. Verified with test_init_repo.sh (16/16), test_shared_hook_templates.sh (20/20), run-tests.sh --fast (78/78), and all 11 gates in harness-verify.sh.",
+      "verification": "bash scripts/harness-verify.sh"
+    }
+  ]
+}
