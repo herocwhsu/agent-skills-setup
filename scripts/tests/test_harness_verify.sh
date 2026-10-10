@@ -132,7 +132,7 @@ else
   bad "delegates to hooks instead of reimplementing gates" "script calls a checker directly"
 fi
 
-# --- every gate in .claude/hooks that is a *-guard or scan runs here ---
+# --- every whole-repo gate in .claude/hooks that is a *-guard or scan runs here ---
 # A hook can be registered in settings.json yet missing from this script, in
 # which case an on-demand verify silently checks less than a Stop does.
 HOOKS_REAL="$SCRIPT_DIR/../.claude/hooks"
@@ -147,6 +147,45 @@ done
 [[ -z "$unrun" ]] \
   && ok "every whole-repo gate is wired into harness-verify" \
   || bad "every whole-repo gate is wired into harness-verify" "not run:$unrun"
+
+# --- feat-044: per-gate duration reporting in console output ---
+d=$(stub_gates 0 0 0)
+out=$(run_hv "$d"); code=$?
+if grep -qE 'OK +registry +\([0-9]+(ms|\.[0-9]+s)\)' <<<"$out"; then
+  ok "gate execution duration is displayed in console output"
+else
+  bad "gate execution duration is displayed in console output" "out: $out"
+fi
+
+# --- feat-044: --report writes structured JSON trace ---
+d=$(stub_gates 0 0 0)
+report_file="$TMPDIR/report.json"
+out=$(HARNESS_HOOKS_DIR="$d" bash "$SCRIPT" --report "$report_file" 2>&1); code=$?
+if [[ $code -eq 0 && -f "$report_file" ]] && grep -q '"status": "PASS"' "$report_file" && grep -q '"registry"' "$report_file"; then
+  ok "--report generates valid JSON trace with gate records"
+else
+  bad "--report generates valid JSON trace" "exit $code, report exists: $([[ -f "$report_file" ]] && echo yes || echo no)"
+fi
+
+# --- feat-044: --json outputs pure JSON to stdout ---
+d=$(stub_gates 0 0 0)
+json_out=$(HARNESS_HOOKS_DIR="$d" bash "$SCRIPT" --json 2>/dev/null); code=$?
+if [[ $code -eq 0 ]] && python3 -c 'import json, sys; d=json.load(sys.stdin); assert d["status"]=="PASS"; assert len(d["gates"])>=4' <<<"$json_out"; then
+  ok "--json flag outputs parseable JSON report to stdout"
+else
+  bad "--json flag outputs parseable JSON report to stdout" "exit $code, out: $json_out"
+fi
+
+# --- feat-044: slow gate detection flags slow threshold ---
+d=$(stub_gates 0 0 0)
+printf '#!/usr/bin/env bash\nsleep 0.05\nexit 0\n' > "$d/registry-guard.sh"
+slow_report="$TMPDIR/slow_report.json"
+out=$(HARNESS_HOOKS_DIR="$d" HARNESS_VERIFY_SLOW_MS=10 bash "$SCRIPT" --report "$slow_report" 2>&1); code=$?
+if [[ $code -eq 0 && -f "$slow_report" ]] && grep -q '"slow": true' "$slow_report"; then
+  ok "HARNESS_VERIFY_SLOW_MS flags slow gate in JSON report"
+else
+  bad "HARNESS_VERIFY_SLOW_MS flags slow gate in JSON report" "out: $out"
+fi
 
 echo ""
 echo "test_harness_verify: $pass passed, $fail failed"

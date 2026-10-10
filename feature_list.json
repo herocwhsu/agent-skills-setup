@@ -359,6 +359,24 @@
       ],
       "evidence": "install_python_sdk in scripts/_lib.sh isolates SDK installs into runtime venv ($rtdir/venv) without --break-system-packages. polish.py and polish_engine.py automatically discover and add runtime venv site-packages to sys.path. test_hook_wiring.sh passes with 2 new assertions verifying absence of --break-system-packages and successful venv creation/pip logging. Full fast suite run-tests.sh --fast: 72 passed; harness-verify.sh: all 10 gates passed cleanly.",
       "verification": "bash scripts/tests/test_hook_wiring.sh"
+    },
+    {
+      "id": "feat-044",
+      "name": "Per-gate execution timing and structured JSON trace reporting in harness-verify.sh",
+      "description": "Add execution duration profiling (ms/s) per gate in scripts/harness-verify.sh and support structured JSON trace reporting (--json / --report <file>) to make harness verification runtime observable and pinpoint slow gates.",
+      "dependencies": [
+        "feat-042"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "harness-verify.sh profiles duration for each executed gate in milliseconds or seconds",
+        "harness-verify.sh displays gate execution time in console output (e.g. OK gate (15ms))",
+        "harness-verify.sh supports --json / --report <file> emitting structured trace entries",
+        "scripts/tests/test_harness_verify.sh passes with assertions verifying per-gate duration reporting and JSON trace generation",
+        "macOS /bin/bash 3.2 compatibility preserved without Bash 4+ or 5+ features"
+      ],
+      "evidence": "scripts/harness-verify.sh updated with portable millisecond timing (now_ms) displaying per-gate execution durations in console (e.g. OK registry (38ms), OK tests (125.3s, slow)). Added structured JSON trace reporting via --json and --report <path> with timestamp, total_duration_ms, and per-gate records with slow gate detection (HARNESS_VERIFY_SLOW_MS). scripts/tests/test_harness_verify.sh passes 20/20 tests with 4 new assertions covering console duration display, --report JSON trace, --json stdout parsing, and slow gate detection. All 10 gates pass in scripts/harness-verify.sh.",
+      "verification": "bash scripts/tests/test_harness_verify.sh"
     }
   ]
 }
