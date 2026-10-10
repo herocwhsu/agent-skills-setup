@@ -3,11 +3,12 @@
 ## Current State
 
 **Last Updated:** 2026-10-10
-**Active Feature:** none. feat-043 closed out; Option 2 (Outside-Agent smoke test with claude & agy) and Option 4 (Position scaling experiment at ~10k tokens without read-in-full) fully verified; `./init.sh` passes all 10 gates.
-**Harness lectures:** 1–10 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 4 Exercise 3 follow-up (10k-token position scaling) documented with quantitative findings in `docs/harness-creator/lecture-04/position-experiment-scaling-10k.md`.
+**Active Feature:** none. feat-043 closed out; Option 2 (Outside-Agent smoke test with claude & agy) and Option 4 (Position scaling experiment at ~10k tokens without read-in-full) fully verified; Lecture 11 closed; `./init.sh` passes all 10 gates.
+**Harness lectures:** 1–11 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 4 Exercise 3 follow-up (10k-token position scaling) documented with quantitative findings in `docs/harness-creator/lecture-04/position-experiment-scaling-10k.md`.
 Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported and passing (5/5 tests), empirical
 evaluation demonstrated 75% false confidence rate in unit isolation, review feedback promotion documented,
 subagent adversarial audit passed.
+Lecture 11 (making the agent's runtime observable) closed: runtime_logger and test_runtime_logger ported and passing (13/13 tests, clean ruff/mypy), audit gap analysis completed across system & process layers, sprint contract & evaluator rubric documented, subagent adversarial audit passed.
 Lecture 5 open items: rebuild time never
 measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
 
@@ -170,6 +171,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] feat-043: fixed `_lib.sh` pip step under Homebrew Python (PEP 668). Replaced `--break-system-packages` with `install_python_sdk` creating/using an isolated runtime venv (`~/.agent-skills-setup/venv`). Updated `polish.py` and `polish_engine.py` to discover and load runtime venv `site-packages`. Added `test_hook_wiring.sh` assertions for absence of `--break-system-packages` and successful venv creation/pip logging.
 - [x] Option 2 — Outside-agent cross-model verification (`claude` & `agy`): hardened `scripts/outside_agent.py` to include `--dangerously-skip-permissions` for `agy` non-interactive mode so headless tool requests are not auto-denied by jetski. Verified live bidirectional reviews: `from gemini` invoking `claude` returned code 0 with PASS, and `from claude` invoking `agy` returned code 0 with PASS. Added hermetic python venv stub to `scripts/tests/test_install_source_guard.sh` eliminating ambient PyPI network stalls.
 - [x] Option 4 — Lecture 4 Exercise 3 follow-up (position bias scaled to ~10k tokens): built automated runner `docs/harness-creator/lecture-04/code/run_position_scaling_experiment.py` and executed 15 headless trials on Haiku 4.5 in ~11.8k-token monolithic context without explicit "read in full" instruction. Compliance collapsed from 100% down to 60% (Top 40%, Middle 60%, Bottom 80%), demonstrating that monolithic instruction bloat dilutes non-primary rule attention and confirming that deterministic harness guards are indispensable. Documented in `docs/harness-creator/lecture-04/position-experiment-scaling-10k.md` and `position-scaling-results.json`.
+- [x] Lecture 11 training (making the agent's runtime observable): ported and extended runtime logger and observability diagnostic module under `docs/harness-creator/lecture-11/code/` (`runtime_logger.py`, `test_runtime_logger.py`, 13/13 tests passing, clean ruff/mypy); demonstrated that structured JSON logs with trace correlation turn failure debugging from guesswork into deterministic lookups; analyzed system vs process observability gaps in current repo; authored sprint contract and evaluator rubric; independent adversarial subagent audit verified deliverables and resolved documentation/table alignment findings; authored `docs/harness-creator/lecture-11/summary.md` and `progress-detail.md`.
 
 ### What's In Progress
 
@@ -178,10 +180,10 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-1. **Smoke test verification:** Re-run live `codex-kiro` and `agy` smoke tests against feat-033 fixes; trust repo hooks in Codex on each host.
+1. **Lecture 12 training:** Implement Lecture 12 ("Why Every Session Must Leave a Clean State", https://walkinglabs.github.io/learn-harness-engineering/en/lectures/lecture-12-why-every-session-must-leave-a-clean-state/).
+2. **Smoke test verification:** Re-run live `codex-kiro` and `agy` smoke tests against feat-033 fixes; trust repo hooks in Codex on each host.
    - *Verification:* `outside-agent.sh run --purpose review` exits 0.
-2. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
-3. **Position experiment scaling:** Run follow-up experiment at ~10k tokens without "read in full" instruction (`position-experiment.md` §13).
+3. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
