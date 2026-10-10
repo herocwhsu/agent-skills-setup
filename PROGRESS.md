@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-10
-**Active Feature:** none. feat-044 closed out; Option A (per-gate timing & structured JSON trace reporting in harness-verify.sh) fully verified; `./init.sh` passes all 10 gates.
+**Active Feature:** none. feat-045 closed out; Option B (scope exclusions in feature_list.json and state-layer-guard) fully verified; `./init.sh` passes all 10 gates.
 **Harness lectures:** 1–11 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 4 Exercise 3 follow-up (10k-token position scaling) documented with quantitative findings in `docs/harness-creator/lecture-04/position-experiment-scaling-10k.md`.
 Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported and passing (5/5 tests), empirical
 evaluation demonstrated 75% false confidence rate in unit isolation, review feedback promotion documented,
@@ -173,6 +173,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] Option 4 — Lecture 4 Exercise 3 follow-up (position bias scaled to ~10k tokens): built automated runner `docs/harness-creator/lecture-04/code/run_position_scaling_experiment.py` and executed 15 headless trials on Haiku 4.5 in ~11.8k-token monolithic context without explicit "read in full" instruction. Compliance collapsed from 100% down to 60% (Top 40%, Middle 60%, Bottom 80%), demonstrating that monolithic instruction bloat dilutes non-primary rule attention and confirming that deterministic harness guards are indispensable. Documented in `docs/harness-creator/lecture-04/position-experiment-scaling-10k.md` and `position-scaling-results.json`.
 - [x] Lecture 11 training (making the agent's runtime observable): ported and extended runtime logger and observability diagnostic module under `docs/harness-creator/lecture-11/code/` (`runtime_logger.py`, `test_runtime_logger.py`, 13/13 tests passing, clean ruff/mypy); demonstrated that structured JSON logs with trace correlation turn failure debugging from guesswork into deterministic lookups; analyzed system vs process observability gaps in current repo; authored sprint contract and evaluator rubric; independent adversarial subagent audit verified deliverables and resolved documentation/table alignment findings; authored `docs/harness-creator/lecture-11/summary.md` and `progress-detail.md`.
 - [x] feat-044: per-gate execution timing and structured JSON trace reporting in `harness-verify.sh`. Added portable millisecond duration measurement (`now_ms`) to each gate (displayed in console as `OK  gate (duration)`); added `--report <path>` and `--json` flags to emit structured trace reports with timestamp, total_duration_ms, and per-gate records; added `HARNESS_VERIFY_SLOW_MS` slow gate detection. `test_harness_verify.sh` passes 20/20 tests.
+- [x] feat-045: scope exclusions in `feature_list.json` with automated `state-layer-guard` enforcement. Added optional `exclusions` list of string patterns to `feature_list.json` schema; updated `.claude/hooks/state-layer-guard.sh` to validate changed files against active feature exclusions (supporting exact paths and wildcard globs), blocking turn/commit with exit 2 and 3-part agent diagnostic (WHAT + WHY + FIX) on violation. `test_state_layer_guard.sh` passes 34/34 tests.
 
 ### What's In Progress
 
@@ -181,9 +182,8 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-1. **Option B (feat-045):** Scope exclusions in `feature_list.json` and `state-layer-guard.sh` enforcement.
-2. **Option C (feat-046):** Multidimensional evaluator rubric in `outside_agent.py` review prompts.
-3. **Lecture 12 training:** Implement Lecture 12 ("Why Every Session Must Leave a Clean State", https://walkinglabs.github.io/learn-harness-engineering/en/lectures/lecture-12-why-every-session-must-leave-a-clean-state/).
+1. **Option C (feat-046):** Multidimensional evaluator rubric in `outside_agent.py` review prompts.
+2. **Lecture 12 training:** Implement Lecture 12 ("Why Every Session Must Leave a Clean State", https://walkinglabs.github.io/learn-harness-engineering/en/lectures/lecture-12-why-every-session-must-leave-a-clean-state/).
 4. **Smoke test verification:** Re-run live `codex-kiro` and `agy` smoke tests against feat-033 fixes; trust repo hooks in Codex on each host.
    - *Verification:* `outside-agent.sh run --purpose review` exits 0.
 5. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.

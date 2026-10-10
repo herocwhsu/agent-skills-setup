@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
 # state-layer-guard.sh — Stop/SubagentStop hook: block completion if this
 # repo's own state layer (feature_list.json, PROGRESS.md, init.sh) goes
-# missing or feature_list.json stops parsing as JSON. Without this, deleting
-# the state layer regresses the repo back to the state-blind 32/100 baseline
-# from the harness-creator audit (docs/harness-creator/lecture-01/) with no
-# gate ever noticing.
+# missing, feature_list.json stops parsing as JSON, WIP limit is violated,
+# completion evidence is missing, or an active feature violates declared
+# sprint contract scope exclusions (feat-045).
 #
-# Deliberately NOT the full validate-harness.mjs scorer: that script lives in
-# a different repo, scores prose/structure (a legitimate AGENTS.md reword can
-# flip a check), and this repo already accepts capping below 100 rather than
-# writing false content to satisfy it (see lecture-01/progress-detail.md).
-# This gate only checks the mechanical, unambiguous part: do the files exist,
-# does the JSON parse. Exit 2 blocks; exit 0 allows.
+# Exit 2 blocks; exit 0 allows.
 set -euo pipefail
 
 REPO_DIR="${STATE_LAYER_GUARD_REPO_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
@@ -27,11 +21,25 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   exit 2
 fi
 
-check_out=$(python3 - <<'PYEOF' "$REPO_DIR/feature_list.json" 2>&1
-import json, sys
+# Detect changed files for exclusion checking (overridable via STATE_LAYER_GUARD_CHANGED_FILES)
+CHANGED_FILES="${STATE_LAYER_GUARD_CHANGED_FILES:-}"
+if [[ -z "${STATE_LAYER_GUARD_CHANGED_FILES+x}" ]]; then
+  if [[ -f "$REPO_DIR/scripts/get-changed-files.sh" ]]; then
+    CHANGED_FILES=$(bash "$REPO_DIR/scripts/get-changed-files.sh" 2>/dev/null || true)
+  elif git -C "$REPO_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    CHANGED_FILES=$(git -C "$REPO_DIR" diff --name-only HEAD 2>/dev/null || true)
+  fi
+fi
+
+check_out=$(python3 - <<'PYEOF' "$REPO_DIR/feature_list.json" "$CHANGED_FILES" 2>&1
+import fnmatch, json, sys
+
+feature_file = sys.argv[1]
+changed_files_raw = sys.argv[2] if len(sys.argv) > 2 else ""
+changed_files = [line.strip() for line in changed_files_raw.splitlines() if line.strip()]
 
 try:
-    with open(sys.argv[1], "r", encoding="utf-8") as f:
+    with open(feature_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 except Exception as e:
     sys.exit(f"JSON_ERROR: {e}")
@@ -39,6 +47,13 @@ except Exception as e:
 features = data.get("features", data) if isinstance(data, dict) else data
 if not isinstance(features, list):
     sys.exit("SCHEMA_ERROR: feature_list root or 'features' must be a list")
+
+# Validate exclusions schema across all features
+for f in features:
+    if isinstance(f, dict) and "exclusions" in f:
+        ex = f.get("exclusions")
+        if not isinstance(ex, list) or not all(isinstance(x, str) for x in ex):
+            sys.exit(f"SCHEMA_ERROR: 'exclusions' in feature '{f.get('id')}' must be a list of strings.")
 
 active = [f for f in features if isinstance(f, dict) and f.get("status") in ("active", "in_progress", "doing")]
 
@@ -51,6 +66,17 @@ for f in active:
     v = f.get("verification") or f.get("acceptance_criteria")
     if not v or not str(v).strip():
         sys.exit(f"EVIDENCE_ERROR: Completion evidence missing: active feature '{fid}' has no non-empty 'verification' or 'acceptance_criteria' command.")
+
+    # Scope exclusions enforcement
+    exclusions = f.get("exclusions", [])
+    if exclusions and isinstance(exclusions, list):
+        for pattern in exclusions:
+            if not isinstance(pattern, str) or not pattern.strip():
+                continue
+            pat = pattern.strip()
+            for cf in changed_files:
+                if fnmatch.fnmatch(cf, pat) or fnmatch.fnmatch(cf, f"*/{pat}"):
+                    sys.exit(f"EXCLUSION_ERROR: File '{cf}' modified in violation of exclusion pattern '{pat}' for active feature '{fid}'.")
 
 def has_text(v):
     if isinstance(v, str):
@@ -75,9 +101,19 @@ PYEOF
     echo "Blocked: feature_list.json is not valid JSON:" >&2
     echo "$check_out" | sed 's/JSON_ERROR: //' >&2
     exit 2
+  elif grep -q "SCHEMA_ERROR:" <<<"$check_out"; then
+    echo "Blocked: feature_list.json schema violation:" >&2
+    echo "$check_out" | sed 's/SCHEMA_ERROR: //' >&2
+    exit 2
   elif grep -q "WIP_ERROR:" <<<"$check_out"; then
     echo "Blocked by WIP limit: feature_list.json has multiple active features:" >&2
     echo "$check_out" | sed 's/WIP_ERROR: //' >&2
+    exit 2
+  elif grep -q "EXCLUSION_ERROR:" <<<"$check_out"; then
+    echo "Blocked: active feature scope exclusion violated:" >&2
+    echo "$check_out" | sed 's/EXCLUSION_ERROR: //' >&2
+    echo "WHY: Sprint contract in feature_list.json explicitly excluded this path to prevent scope creep." >&2
+    echo "FIX: Revert changes to excluded file, or update feature exclusions if scope expansion was authorized." >&2
     exit 2
   elif grep -q "DONE_ERROR:" <<<"$check_out"; then
     echo "Blocked: done feature lacks completion evidence:" >&2

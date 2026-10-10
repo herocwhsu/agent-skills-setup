@@ -189,6 +189,63 @@ set +e; out=$(run_hook "$d"); status=$?; set -e
   && ok "done feature with evidence passes" \
   || bad "done feature with evidence passes" "exit $status, out: $out"
 
+# --- 13. active feature with violated exclusion blocks with exit 2 ----------
+d=$(fixture_complete exclusion-violation)
+cat > "$d/feature_list.json" <<'EOF'
+{"features": [
+  {"id": "feat-a", "status": "active", "verification": "bash test.sh", "exclusions": ["forbidden.py", "scripts/outside_agent.py"]}
+]}
+EOF
+set +e; out=$(STATE_LAYER_GUARD_CHANGED_FILES="forbidden.py" run_hook "$d"); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "active feature modifying excluded file blocks with exit 2" \
+  || bad "active feature modifying excluded file blocks with exit 2" "exit $status, out: $out"
+grep -q 'forbidden.py' <<<"$out" \
+  && ok "message names the violated exclusion path" \
+  || bad "message names the violated exclusion path" "out: $out"
+grep -q 'WHY: Sprint contract' <<<"$out" \
+  && ok "message provides WHY diagnostic context" \
+  || bad "message provides WHY diagnostic context" "out: $out"
+
+# --- 14. active feature with wildcard exclusion blocks with exit 2 ----------
+d=$(fixture_complete exclusion-wildcard)
+cat > "$d/feature_list.json" <<'EOF'
+{"features": [
+  {"id": "feat-a", "status": "active", "verification": "bash test.sh", "exclusions": ["skills/infra/*"]}
+]}
+EOF
+set +e; out=$(STATE_LAYER_GUARD_CHANGED_FILES="skills/infra/kiro-gateway/proxy.py" run_hook "$d"); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "wildcard exclusion match blocks with exit 2" \
+  || bad "wildcard exclusion match blocks with exit 2" "exit $status, out: $out"
+
+# --- 15. active feature with exclusions passes when no excluded files changed
+d=$(fixture_complete exclusion-clean)
+cat > "$d/feature_list.json" <<'EOF'
+{"features": [
+  {"id": "feat-a", "status": "active", "verification": "bash test.sh", "exclusions": ["forbidden.py"]}
+]}
+EOF
+set +e; out=$(STATE_LAYER_GUARD_CHANGED_FILES="allowed.py" run_hook "$d"); status=$?; set -e
+[[ $status -eq 0 ]] \
+  && ok "active feature with non-excluded changes passes" \
+  || bad "active feature with non-excluded changes passes" "exit $status, out: $out"
+
+# --- 16. invalid exclusions schema blocks with exit 2 -----------------------
+d=$(fixture_complete exclusion-bad-schema)
+cat > "$d/feature_list.json" <<'EOF'
+{"features": [
+  {"id": "feat-a", "status": "done", "evidence": "tests pass", "exclusions": "not-a-list"}
+]}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "invalid exclusions schema blocks with exit 2" \
+  || bad "invalid exclusions schema blocks with exit 2" "exit $status, out: $out"
+grep -qi 'schema' <<<"$out" \
+  && ok "message flags schema error for invalid exclusions" \
+  || bad "message flags schema error for invalid exclusions" "out: $out"
+
 echo ""
 echo "test_state_layer_guard: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

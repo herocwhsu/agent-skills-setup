@@ -377,6 +377,24 @@
       ],
       "evidence": "scripts/harness-verify.sh updated with portable millisecond timing (now_ms) displaying per-gate execution durations in console (e.g. OK registry (38ms), OK tests (125.3s, slow)). Added structured JSON trace reporting via --json and --report <path> with timestamp, total_duration_ms, and per-gate records with slow gate detection (HARNESS_VERIFY_SLOW_MS). scripts/tests/test_harness_verify.sh passes 20/20 tests with 4 new assertions covering console duration display, --report JSON trace, --json stdout parsing, and slow gate detection. All 10 gates pass in scripts/harness-verify.sh.",
       "verification": "bash scripts/tests/test_harness_verify.sh"
+    },
+    {
+      "id": "feat-045",
+      "name": "Scope exclusions in feature_list.json with automated state-layer-guard enforcement",
+      "description": "Add optional exclusions list (files or glob patterns) to feature_list.json and enforce in state-layer-guard.sh by comparing against changed files, blocking commit/completion with exit 2 if an agent touches excluded paths.",
+      "dependencies": [
+        "feat-040",
+        "feat-044"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "feature_list.json schema supports optional 'exclusions' list of string patterns",
+        "state-layer-guard.sh checks changed files against exclusions for active feature and blocks with exit 2 if violated",
+        "state-layer-guard.sh provides 3-part agent diagnostic (WHAT + WHY + FIX) on exclusion violation",
+        "test_state_layer_guard.sh verifies exclusion enforcement, wildcard matching, schema validation, and exit 2 blocking"
+      ],
+      "evidence": "feature_list.json schema supports optional 'exclusions' list of string patterns. .claude/hooks/state-layer-guard.sh detects changed files and validates them against exclusions declared by active features (using exact and wildcard glob matching). On violation, blocks turn/commit with exit 2 and outputs a 3-part agent diagnostic (WHAT + WHY + FIX). .claude/hooks/tests/test_state_layer_guard.sh passes 34/34 tests with 7 new assertions verifying exact path blocking, wildcard matching, clean execution when only permitted files change, and schema validation. Passed bash-compat-guard.sh.",
+      "verification": "bash .claude/hooks/tests/test_state_layer_guard.sh"
     }
   ]
 }
