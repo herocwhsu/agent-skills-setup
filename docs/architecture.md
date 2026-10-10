@@ -12,7 +12,7 @@ This document describes the architectural design, subsystem boundaries, data flo
 flowchart TD
     Repo["agent-skills-setup Repo (System of Record)"] --> RulesSub["1. Rules Engine\n(agents/engineering-rules.md)"]
     Repo --> SkillsSub["2. Skills Registry\n(skills/ & registry.txt)"]
-    Repo --> HooksSub["3. Verification & Guards\n(.claude/hooks/ & harness-verify.sh)"]
+    Repo --> HooksSub["3. Verification & Guards\n(harness/guards/ & harness-verify.sh)"]
     Repo --> StateSub["4. State & Harness\n(init.sh, feature_list.json, PROGRESS.md)"]
 
     RulesSub --> HostAgents["Host Agent Runtimes\n(~/.claude, ~/.gemini, ~/.kiro, ~/.codex)"]
@@ -46,7 +46,7 @@ flowchart TD
 
 ### 2.3 Verification & Guardrails Subsystem
 - **On-Demand Entrypoint:** `scripts/harness-verify.sh` runs all repository gates (the Stop hooks below plus `hook-wiring-guard.sh`) and returns a single unified exit code (0 for pass, 1 for fail).
-- **Stop / SubagentStop Hooks:** Located in `.claude/hooks/`. Prevent agents from ending a turn or exiting subagents in an inconsistent state:
+- **Stop / SubagentStop Hooks:** Located in `harness/guards/` (with `.claude/hooks` symlink compatibility). Prevent agents from ending a turn or exiting subagents in an inconsistent state:
   - `registry-guard.sh`: Enforces `registry.txt` syntax, path resolution, and type tags.
   - `types-guard.sh`: Whole-repo `mypy` type validation against `.python-version` (3.14.7). Fails loud on version drift or broken `.venv`.
   - `tests-guard.sh`: Delegates to `scripts/run-tests.sh` to run the full test suite.
@@ -95,10 +95,12 @@ flowchart TD
 ├── docs/                      # Architectural, educational, and design documentation
 │   ├── architecture.md        # Canonical system architecture (this document)
 │   └── harness-creator/       # Harness engineering training records & audits
+├── harness/
+│   └── guards/                # Universal verification guard scripts & tests
 ├── templates/
 │   └── hooks/                 # Template hooks distributed to agent environments
 ├── .claude/
-│   ├── hooks/                 # Verification guard scripts
+│   ├── hooks -> ../harness/guards # Symlink adapter for Claude Code compatibility
 │   └── settings.json          # Permissions & hook registrations
 ├── scripts/                   # CLI tools, installer, test runners, validators
 │   ├── harness-verify.sh      # Unified verification gate runner

@@ -56,14 +56,15 @@ def resolve_targets_for_file(path_str: str, repo_root: Path) -> set[str]:
 
     targets: set[str] = set()
 
-    # 2. Hook files: .claude/hooks/<name>.sh -> .claude/hooks/tests/test_<name>.sh
-    if clean.startswith(".claude/hooks/"):
+    # 2. Hook files: harness/guards/<name>.sh or .claude/hooks/<name>.sh
+    if clean.startswith(("harness/guards/", ".claude/hooks/")):
+        prefix = "harness/guards" if clean.startswith("harness/guards/") else ".claude/hooks"
         name = os.path.basename(clean)
-        hook_test = f".claude/hooks/tests/test_{name}"
+        hook_test = f"{prefix}/tests/test_{name}"
         if (repo_root / hook_test).exists():
             targets.add(hook_test)
         # Also check underscore variant: e.g. sh-check.sh -> test_sh_check.sh
-        alt_test = f".claude/hooks/tests/test_{name.replace('-', '_')}"
+        alt_test = f"{prefix}/tests/test_{name.replace('-', '_')}"
         if (repo_root / alt_test).exists():
             targets.add(alt_test)
         return targets

@@ -110,7 +110,8 @@ code=$(run_code "$d4")
 # --- wired into Stop, deliberately NOT SubagentStop ---
 # SubagentStop feeds stderr back to the subagent; the agent that must not trust
 # the summary is the main one, so Stop is the only timing that reaches it.
-SETTINGS="$(cd "$(dirname "$0")/../.." && pwd)/settings.json"
+SETTINGS="$(cd "$(dirname "$0")/../../.." && pwd)/.claude/settings.json"
+[[ -f "$SETTINGS" ]] || SETTINGS="$(cd "$(dirname "$0")/../.." && pwd)/settings.json"
 if python3 -c "
 import json
 d = json.load(open('$SETTINGS'))

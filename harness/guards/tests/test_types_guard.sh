@@ -97,7 +97,8 @@ grep -qE 'xargs -0 "\$MYPY"' "$HOOK" \
   || bad "invokes mypy once over all files" "per-file invocation triple-counts"
 
 # --- registered in settings.json for both stop events ---
-SETTINGS="$(cd "$(dirname "$0")/../.." && pwd)/settings.json"
+SETTINGS="$(cd "$(dirname "$0")/../../.." && pwd)/.claude/settings.json"
+[[ -f "$SETTINGS" ]] || SETTINGS="$(cd "$(dirname "$0")/../.." && pwd)/settings.json"
 if python3 -c "
 import json, sys
 d = json.load(open('$SETTINGS'))

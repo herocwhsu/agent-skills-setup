@@ -213,6 +213,24 @@
       ],
       "evidence": "Partitioned 40 historical completed features (feat-001 through feat-040) into docs/archive/features/archive-feat-001-040.json, reducing feature_list.json from 513 lines to 218 lines. Extended .claude/hooks/state-layer-guard.sh to validate archive_references, checking file existence, JSON validity, features schema, and unevidenced completion across both active and archived features with 3-part diagnostics. Added 4 new test cases to .claude/hooks/tests/test_state_layer_guard.sh (40/40 passed under both bash 5 and macOS /bin/bash 3.2). Verified run-tests.sh --fast (79/79 passed) and all 11 gates in harness-verify.sh.",
       "verification": "bash scripts/harness-verify.sh"
+    },
+    {
+      "id": "feat-053",
+      "name": "Elevate active repo guard rails to universal harness/guards/",
+      "description": "Elevate active repository guard rails from .claude/hooks/ to agent-agnostic harness/guards/ with backward-compatible .claude/hooks symlink. Update harness-verify.sh, setup-git-hooks.sh, .agents/hooks.json, .codex/hooks.json, .claude/settings.json, run-tests.sh, resolve_test_targets.py, and documentation.",
+      "dependencies": [
+        "feat-052"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "Guard scripts and tests relocated to harness/guards/ and harness/guards/tests/",
+        "Backward-compatible symlink .claude/hooks -> ../harness/guards maintained",
+        "harness-verify.sh, setup-git-hooks.sh, .agents/hooks.json, .codex/hooks.json, and .claude/settings.json reference canonical harness/guards/",
+        "run-tests.sh and resolve_test_targets.py discover tests from harness/guards/tests/",
+        "All 79 fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Elevated all 16 guard rails and 12 guard test suites from .claude/hooks/ to agent-agnostic harness/guards/ with backward-compatible relative symlink .claude/hooks -> ../harness/guards. Updated harness-verify.sh, setup-git-hooks.sh, .agents/hooks.json, .codex/hooks.json, run-tests.sh, resolve_test_targets.py, and documentation in docs/architecture.md. Added harness/ to REPO_SUBDIRS in skill_path_var_check.py. Verified run-tests.sh --fast (79/79 passed) and all 11 gates in harness-verify.sh.",
+      "verification": "bash scripts/harness-verify.sh"
     }
   ]
 }

@@ -38,6 +38,8 @@ def test_script_resolves_to_script_test():
 def test_hook_resolves_to_hook_test():
     targets = resolve_all_targets([".claude/hooks/sh-check.sh"])
     assert ".claude/hooks/tests/test_sh_check.sh" in targets
+    targets_guard = resolve_all_targets(["harness/guards/sh-check.sh"])
+    assert "harness/guards/tests/test_sh_check.sh" in targets_guard
 
 
 def test_test_file_resolves_to_itself():

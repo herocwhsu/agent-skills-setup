@@ -41,7 +41,7 @@ from pathlib import Path
 
 # Directories that only exist inside this repo. A path built into one of these
 # is addressing the setup tree, so its root variable has to resolve.
-REPO_SUBDIRS = ("scripts", "skills", "lib", "hooks", "templates", "agents", "prompts", "config", "tests")
+REPO_SUBDIRS = ("scripts", "skills", "lib", "hooks", "templates", "agents", "prompts", "config", "tests", "harness")
 
 BLOCK = re.compile(r"```(?:bash|sh|shell)\n(.*?)```", re.S)
 ASSIGN = re.compile(

@@ -25,7 +25,7 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # Overridable so tests can point at stub gates. A test cannot exercise the real
 # gates: tests-guard.sh runs run-tests.sh, which runs the tests, so a test that
 # invoked this script directly would recurse until it ran out of processes.
-HOOKS="${HARNESS_HOOKS_DIR:-$REPO_DIR/.claude/hooks}"
+HOOKS="${HARNESS_HOOKS_DIR:-$REPO_DIR/harness/guards}"
 
 # Parse command line options
 REPORT_FILE="${HARNESS_VERIFY_REPORT:-}"

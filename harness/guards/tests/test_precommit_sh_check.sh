@@ -92,7 +92,8 @@ run_agy_case "AGY chained add && commit denies" "deny" 'git add script.sh && git
 settings_valid_test() {
   local name="$1"
   local settings
-  settings="$(cd "$(dirname "$0")/../.." && pwd)/settings.json"
+  settings="$(cd "$(dirname "$0")/../../.." && pwd)/.claude/settings.json"
+  [[ -f "$settings" ]] || settings="$(cd "$(dirname "$0")/../.." && pwd)/settings.json"
   if [[ -f "$settings" ]] \
      && python3 -c "import json,sys; d=json.load(open('$settings')); h=d['hooks']['PreToolUse']; assert any(x.get('matcher')=='Bash' and 'precommit-sh-check.sh' in json.dumps(x) for x in h)" 2>/dev/null; then
     echo "PASS: $name"; PASS=$((PASS+1))

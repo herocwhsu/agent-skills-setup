@@ -117,9 +117,9 @@ else
 fi
 
 # --- default hooks dir points at the repo's real gates ---
-grep -q 'HARNESS_HOOKS_DIR:-$REPO_DIR/.claude/hooks' "$SCRIPT" \
-  && ok "defaults to the repo's .claude/hooks" \
-  || bad "defaults to the repo's .claude/hooks" "default seam changed"
+grep -q 'HARNESS_HOOKS_DIR:-$REPO_DIR/harness/guards' "$SCRIPT" \
+  && ok "defaults to the repo's harness/guards" \
+  || bad "defaults to the repo's harness/guards" "default seam changed"
 
 # --- it delegates rather than reimplementing the checks ---
 # Duplicated logic here would drift from the Stop hooks silently.
@@ -132,10 +132,10 @@ else
   bad "delegates to hooks instead of reimplementing gates" "script calls a checker directly"
 fi
 
-# --- every whole-repo gate in .claude/hooks that is a *-guard or scan runs here ---
+# --- every whole-repo gate in harness/guards that is a *-guard or scan runs here ---
 # A hook can be registered in settings.json yet missing from this script, in
 # which case an on-demand verify silently checks less than a Stop does.
-HOOKS_REAL="$SCRIPT_DIR/../.claude/hooks"
+HOOKS_REAL="$SCRIPT_DIR/../harness/guards"
 unrun=""
 for h in "$HOOKS_REAL"/*-guard.sh "$HOOKS_REAL"/secret-scan.sh; do
   [[ -f "$h" ]] || continue

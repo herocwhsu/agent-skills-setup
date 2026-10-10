@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/precommit-sh-check.sh"
+            "command": "bash harness/guards/precommit-sh-check.sh"
           }
         ]
       }
@@ -17,11 +17,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/sh-check.sh"
+            "command": "bash harness/guards/sh-check.sh"
           },
           {
             "type": "command",
-            "command": "bash .claude/hooks/py-check.sh"
+            "command": "bash harness/guards/py-check.sh"
           }
         ]
       }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/stop-verify.sh"
+            "command": "bash harness/guards/stop-verify.sh"
           }
         ]
       }
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/stop-verify.sh"
+            "command": "bash harness/guards/stop-verify.sh"
           }
         ]
       }

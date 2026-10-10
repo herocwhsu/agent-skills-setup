@@ -139,7 +139,9 @@ for f in "$REPO_DIR/scripts/tests"/test_*.sh; do
   [[ -f "$f" ]] || continue
   run_bash "$f"
 done
-for f in "$REPO_DIR/.claude/hooks/tests"/test_*.sh; do
+HOOK_TESTS_DIR="$REPO_DIR/harness/guards/tests"
+[[ -d "$HOOK_TESTS_DIR" ]] || HOOK_TESTS_DIR="$REPO_DIR/.claude/hooks/tests"
+for f in "$HOOK_TESTS_DIR"/test_*.sh; do
   [[ -f "$f" ]] || continue
   run_bash "$f"
 done

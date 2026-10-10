@@ -23,8 +23,8 @@ fixture_repo() {
   echo '#!/usr/bin/env bash' > "$d/init.sh"
 
   # Copy guards
-  cp "$REPO_DIR/.claude/hooks/clean-state-guard.sh" "$d/.claude/hooks/"
-  cp "$REPO_DIR/.claude/hooks/state-layer-guard.sh" "$d/.claude/hooks/"
+  cp "$REPO_DIR/harness/guards/clean-state-guard.sh" "$d/.claude/hooks/"
+  cp "$REPO_DIR/harness/guards/state-layer-guard.sh" "$d/.claude/hooks/"
   chmod +x "$d/.claude/hooks/"*.sh
   git -C "$d" init -q
   git -C "$d" add .

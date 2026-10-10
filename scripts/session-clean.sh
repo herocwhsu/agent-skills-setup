@@ -48,7 +48,8 @@ fi
 echo "==> [3/3] Validating 5 Clean-State Invariants..."
 
 # Invariant 4: No Stale Artifacts
-clean_state_hook="$REPO_DIR/.claude/hooks/clean-state-guard.sh"
+clean_state_hook="$REPO_DIR/harness/guards/clean-state-guard.sh"
+[[ -f "$clean_state_hook" ]] || clean_state_hook="$REPO_DIR/.claude/hooks/clean-state-guard.sh"
 if [[ -f "$clean_state_hook" ]]; then
   if ! out=$(CLEAN_STATE_GUARD_REPO_DIR="$REPO_DIR" bash "$clean_state_hook" 2>&1); then
     echo "" >&2
@@ -59,7 +60,8 @@ if [[ -f "$clean_state_hook" ]]; then
 fi
 
 # Invariant 3: State Layer
-state_layer_hook="$REPO_DIR/.claude/hooks/state-layer-guard.sh"
+state_layer_hook="$REPO_DIR/harness/guards/state-layer-guard.sh"
+[[ -f "$state_layer_hook" ]] || state_layer_hook="$REPO_DIR/.claude/hooks/state-layer-guard.sh"
 if [[ -f "$state_layer_hook" ]]; then
   if ! out=$(STATE_LAYER_GUARD_REPO_DIR="$REPO_DIR" bash "$state_layer_hook" 2>&1); then
     echo "" >&2

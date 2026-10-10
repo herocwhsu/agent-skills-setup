@@ -22,13 +22,13 @@ set -euo pipefail
 REPO_DIR="$(git rev-parse --show-toplevel)"
 
 echo "==> [git pre-commit] checking bash compatibility..."
-bash "$REPO_DIR/.claude/hooks/bash-compat-guard.sh"
+bash "$REPO_DIR/harness/guards/bash-compat-guard.sh"
 
 echo "==> [git pre-commit] checking state layer..."
-bash "$REPO_DIR/.claude/hooks/state-layer-guard.sh"
+bash "$REPO_DIR/harness/guards/state-layer-guard.sh"
 
 echo "==> [git pre-commit] checking clean state..."
-bash "$REPO_DIR/.claude/hooks/clean-state-guard.sh"
+bash "$REPO_DIR/harness/guards/clean-state-guard.sh"
 EOF
 chmod +x "$HOOKS_DIR/pre-commit"
 

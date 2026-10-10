@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Tests for sh-check.sh (PostToolUse *.sh syntax + shellcheck gate) — no bats.
+# Tests for py-check.sh (PostToolUse *.py syntax gate) — no bats.
 set -euo pipefail
 
-HOOK="$(cd "$(dirname "$0")/.." && pwd)/sh-check.sh"
+HOOK="$(cd "$(dirname "$0")/.." && pwd)/py-check.sh"
 PASS=0
 FAIL=0
 
@@ -26,25 +26,31 @@ run_case() {
   rm -rf "$tmp"
 }
 
-run_case "clean sh allows"              0 script.sh $'#!/usr/bin/env bash\necho ok\n'
-run_case "syntax error blocks"          2 script.sh $'#!/usr/bin/env bash\nif then fi\n'
-run_case "unterminated quote blocks"    2 script.sh $'#!/usr/bin/env bash\necho "unclosed\n'
-run_case "non-sh file ignored"          0 notes.md  $'if then fi\n'
-run_case "python file ignored"          0 thing.py  $'def (:\n'
-run_case "empty file_path allows"       0 ""        ''
+run_case "clean py allows"            0 mod.py $'def f():\n    return 1\n'
+run_case "syntax error blocks"        2 mod.py $'def f(:\n    return 1\n'
+run_case "bad indent blocks"          2 mod.py $'def f():\nreturn 1\n'
+run_case "unterminated string blocks" 2 mod.py $'x = "unclosed\n'
+run_case "non-py file ignored"        0 notes.md $'def f(:\n'
+run_case "shell file ignored"         0 s.sh     $'if then fi\n'
+run_case "empty file_path allows"     0 ""       ''
+
+# Syntax-only by design: a lint-level problem (unused import, no explicit
+# subprocess check=) must NOT block, or the hook would gate on the
+# pre-existing ruff findings this repo carries.
+run_case "lint-level issue allows" \
+  0 mod.py $'import os\nimport json\n\n\ndef f():\n    return 1\n'
 
 # Missing file must not block (the edit may have been a delete/rename).
 missing_case() {
   local tmp; tmp=$(mktemp -d); local code=0
-  json_for "$tmp/gone.sh" | bash "$HOOK" >/dev/null 2>&1 || code=$?
+  json_for "$tmp/gone.py" | bash "$HOOK" >/dev/null 2>&1 || code=$?
   if [[ "$code" -eq 0 ]]; then echo "PASS: nonexistent file allows"; PASS=$((PASS+1))
   else echo "FAIL: nonexistent file allows (got $code)"; FAIL=$((FAIL+1)); fi
   rm -rf "$tmp"
 }
 missing_case
 
-# Fail-open posture: unparseable stdin must not block, matching
-# precommit-sh-check.sh.
+# Fail-open posture: unparseable stdin must not block.
 fail_open_case() {
   local code=0
   printf 'not json at all' | bash "$HOOK" >/dev/null 2>&1 || code=$?
@@ -56,9 +62,8 @@ fail_open_case
 # The hook accepts `path` as well as `file_path`.
 path_key_case() {
   local tmp; tmp=$(mktemp -d); local code=0
-  printf '%s' "$tmp/s.sh" > /dev/null
-  printf '#!/usr/bin/env bash\nif then fi\n' > "$tmp/s.sh"
-  printf '%s' "$tmp/s.sh" \
+  printf 'def f(:\n' > "$tmp/m.py"
+  printf '%s' "$tmp/m.py" \
     | python3 -c 'import json,sys; print(json.dumps({"tool_input":{"path":sys.stdin.read()}}))' \
     | bash "$HOOK" >/dev/null 2>&1 || code=$?
   if [[ "$code" -eq 2 ]]; then echo "PASS: path key is honored"; PASS=$((PASS+1))
@@ -70,17 +75,17 @@ path_key_case
 # The hook accepts AGY `TargetFile` via `toolCall.args`.
 agy_target_file_case() {
   local tmp; tmp=$(mktemp -d); local code=0
-  printf '#!/usr/bin/env bash\nif then fi\n' > "$tmp/s.sh"
-  printf '%s' "$tmp/s.sh" \
+  printf 'def f(:\n' > "$tmp/m.py"
+  printf '%s' "$tmp/m.py" \
     | python3 -c 'import json,sys; print(json.dumps({"toolCall":{"name":"write_to_file","args":{"TargetFile":sys.stdin.read()}}}))' \
     | bash "$HOOK" >/dev/null 2>&1 || code=$?
   if [[ "$code" -eq 2 ]]; then echo "PASS: AGY TargetFile key is honored"; PASS=$((PASS+1))
   else echo "FAIL: AGY TargetFile key is honored (expected 2, got $code)"; FAIL=$((FAIL+1)); fi
 
   # AGY clean file returns exit 0 with {}
-  printf '#!/usr/bin/env bash\necho ok\n' > "$tmp/clean.sh"
+  printf 'def f():\n    return 1\n' > "$tmp/clean.py"
   local out
-  out=$(printf '%s' "$tmp/clean.sh" \
+  out=$(printf '%s' "$tmp/clean.py" \
     | python3 -c 'import json,sys; print(json.dumps({"toolCall":{"name":"write_to_file","args":{"TargetFile":sys.stdin.read()}}}))' \
     | bash "$HOOK" 2>/dev/null)
   if [[ "$out" == "{}" ]]; then echo "PASS: AGY clean file outputs {}"; PASS=$((PASS+1))
@@ -89,26 +94,49 @@ agy_target_file_case() {
 }
 agy_target_file_case
 
-if command -v shellcheck >/dev/null 2>&1; then
-  run_case "shellcheck error blocks" 2 script.sh $'#!/usr/bin/env bash\necho "$(\n'
-  # Severity boundary: the repo carries warning/info-level diagnostics, so a
-  # sub-error finding (here SC2086, unquoted expansion) must NOT block.
-  run_case "sub-error shellcheck finding allows" \
-    0 script.sh $'#!/usr/bin/env bash\nv=1\necho $v\n'
-fi
+# Regression: the hook must not write __pycache__ beside the checked file.
+# This is why it uses ast.parse rather than py_compile — a hook firing on
+# every edit must not litter the tree.
+no_pycache_case() {
+  local tmp; tmp=$(mktemp -d)
+  printf 'def f():\n    return 1\n' > "$tmp/mod.py"
+  json_for "$tmp/mod.py" | bash "$HOOK" >/dev/null 2>&1 || true
+  if [[ -z "$(find "$tmp" -name '__pycache__' -o -name '*.pyc' 2>/dev/null)" ]]; then
+    echo "PASS: no __pycache__ or .pyc written"; PASS=$((PASS+1))
+  else
+    echo "FAIL: no __pycache__ or .pyc written (found artifacts)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmp"
+}
+no_pycache_case
+
+# The blocking message must name the file and report the line.
+message_case() {
+  local tmp out; tmp=$(mktemp -d)
+  printf 'x = 1\ndef f(:\n' > "$tmp/m.py"
+  out=$(json_for "$tmp/m.py" | bash "$HOOK" 2>&1 >/dev/null || true)
+  if [[ "$out" == *"m.py"* && "$out" == *"line 2"* ]]; then
+    echo "PASS: error message names file and line"; PASS=$((PASS+1))
+  else
+    echo "FAIL: error message names file and line (got: $out)"; FAIL=$((FAIL+1))
+  fi
+  rm -rf "$tmp"
+}
+message_case
 
 settings_case() {
   local settings
-  settings="$(cd "$(dirname "$0")/../.." && pwd)/settings.json"
+  settings="$(cd "$(dirname "$0")/../../.." && pwd)/.claude/settings.json"
+  [[ -f "$settings" ]] || settings="$(cd "$(dirname "$0")/../.." && pwd)/settings.json"
   if [[ -f "$settings" ]] && python3 -c "
 import json
 d = json.load(open('$settings'))
 h = d['hooks']['PostToolUse']
-assert any('sh-check.sh' in json.dumps(x) and 'Edit' in x.get('matcher','') for x in h)
+assert any('py-check.sh' in json.dumps(x) and 'Edit' in x.get('matcher','') for x in h)
 " 2>/dev/null; then
-    echo "PASS: settings.json registers the PostToolUse sh hook"; PASS=$((PASS+1))
+    echo "PASS: settings.json registers the PostToolUse py hook"; PASS=$((PASS+1))
   else
-    echo "FAIL: settings.json registers the PostToolUse sh hook"; FAIL=$((FAIL+1))
+    echo "FAIL: settings.json registers the PostToolUse py hook"; FAIL=$((FAIL+1))
   fi
 }
 settings_case
@@ -120,11 +148,11 @@ agents_case() {
 import json
 d = json.load(open('$hooks_file'))
 h = d.get('syntax-check', {}).get('PostToolUse', [])
-assert any('sh-check.sh' in json.dumps(x) for x in h)
+assert any('py-check.sh' in json.dumps(x) for x in h)
 " 2>/dev/null; then
-    echo "PASS: .agents/hooks.json registers the PostToolUse sh hook"; PASS=$((PASS+1))
+    echo "PASS: .agents/hooks.json registers the PostToolUse py hook"; PASS=$((PASS+1))
   else
-    echo "FAIL: .agents/hooks.json registers the PostToolUse sh hook"; FAIL=$((FAIL+1))
+    echo "FAIL: .agents/hooks.json registers the PostToolUse py hook"; FAIL=$((FAIL+1))
   fi
 }
 agents_case
@@ -136,11 +164,11 @@ codex_case() {
 import json
 d = json.load(open('$hooks_file'))
 h = d['hooks']['PostToolUse']
-assert any('sh-check.sh' in json.dumps(x) for x in h)
+assert any('py-check.sh' in json.dumps(x) for x in h)
 " 2>/dev/null; then
-    echo "PASS: .codex/hooks.json registers the PostToolUse sh hook"; PASS=$((PASS+1))
+    echo "PASS: .codex/hooks.json registers the PostToolUse py hook"; PASS=$((PASS+1))
   else
-    echo "FAIL: .codex/hooks.json registers the PostToolUse sh hook"; FAIL=$((FAIL+1))
+    echo "FAIL: .codex/hooks.json registers the PostToolUse py hook"; FAIL=$((FAIL+1))
   fi
 }
 codex_case
@@ -162,37 +190,12 @@ codex_case() {  # <name> <expected_exit> <tmpdir> <patch lines...>
   rm -rf "$tmp"
 }
 
-t=$(mktemp -d); printf '#!/usr/bin/env bash\nif then fi\n' > "$t/a.sh"
-codex_case "codex apply_patch Add File with syntax error blocks" 2 "$t" "*** Add File: $t/a.sh" "+x"
-t=$(mktemp -d); printf '#!/usr/bin/env bash\necho ok\n' > "$t/a.sh"
-codex_case "codex apply_patch Update File clean allows" 0 "$t" "*** Update File: $t/a.sh" "@@" "+x"
-t=$(mktemp -d); printf '#!/usr/bin/env bash\nif then fi\n' > "$t/rel.sh"
-codex_case "codex apply_patch relative path resolves against cwd" 2 "$t" "*** Add File: rel.sh" "+x"
-t=$(mktemp -d); printf '#!/usr/bin/env bash\necho ok\n' > "$t/ok.sh"; printf '#!/usr/bin/env bash\nif then fi\n' > "$t/bad.sh"
-codex_case "codex apply_patch checks every file in the patch" 2 "$t" "*** Add File: $t/ok.sh" "+x" "*** Update File: $t/bad.sh" "@@" "+x"
-t=$(mktemp -d); printf '#!/usr/bin/env bash\nif then fi\n' > "$t/new.sh"
-codex_case "codex apply_patch Move to checks the new path" 2 "$t" "*** Update File: $t/old.sh" "*** Move to: $t/new.sh" "@@" "+x"
-t=$(mktemp -d)
-codex_case "codex apply_patch Delete File allows" 0 "$t" "*** Delete File: $t/gone.sh"
-
-
-# Codex names its edit tool apply_patch (live capture, 2026-10-02), so the
-# PostToolUse matcher must include it or the edit checks never run.
-codex_matcher_case() {
-  local hooks_file
-  hooks_file="$(cd "$(dirname "$0")/../../.." && pwd)/.codex/hooks.json"
-  if python3 -c "
-import json, re
-d = json.load(open('$hooks_file'))['hooks']
-g = [x for x in d['PostToolUse'] if 'sh-check.sh' in json.dumps(x)]
-assert g and all(re.fullmatch(x['matcher'], 'apply_patch') for x in g)
-" 2>/dev/null; then
-    echo "PASS: .codex/hooks.json edit matcher covers apply_patch"; PASS=$((PASS+1))
-  else
-    echo "FAIL: .codex/hooks.json edit matcher covers apply_patch"; FAIL=$((FAIL+1))
-  fi
-}
-codex_matcher_case
+t=$(mktemp -d); printf 'def (:\n' > "$t/a.py"
+codex_case "codex apply_patch Add File with python syntax error blocks" 2 "$t" "*** Add File: $t/a.py" "+x"
+t=$(mktemp -d); printf 'x = 1\n' > "$t/a.py"
+codex_case "codex apply_patch clean python allows" 0 "$t" "*** Update File: $t/a.py" "@@" "+x"
+t=$(mktemp -d); printf 'x = 1\n' > "$t/ok.py"; printf 'def (:\n' > "$t/bad.py"
+codex_case "codex apply_patch checks every python file in the patch" 2 "$t" "*** Add File: $t/ok.py" "+x" "*** Update File: $t/bad.py" "@@" "+x"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
