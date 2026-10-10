@@ -2,10 +2,10 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-09
-**Active Feature:** none. feat-043 closed out; `./init.sh` passes all gates.
-**Harness lectures:** 1–10 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 10
-(why end-to-end testing changes results) closed: e2e_runner ported and passing (5/5 tests), empirical
+**Last Updated:** 2026-10-10
+**Active Feature:** none. feat-043 closed out; Option 2 (Outside-Agent smoke test with claude & agy) and Option 4 (Position scaling experiment at ~10k tokens without read-in-full) fully verified; `./init.sh` passes all 10 gates.
+**Harness lectures:** 1–10 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 4 Exercise 3 follow-up (10k-token position scaling) documented with quantitative findings in `docs/harness-creator/lecture-04/position-experiment-scaling-10k.md`.
+Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported and passing (5/5 tests), empirical
 evaluation demonstrated 75% false confidence rate in unit isolation, review feedback promotion documented,
 subagent adversarial audit passed.
 Lecture 5 open items: rebuild time never
@@ -168,6 +168,8 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] Lecture 10 training (why end-to-end testing changes results): ported `e2e_runner.py` and `test_e2e_runner.py` under `docs/harness-creator/lecture-10/code/` (5/5 tests passing, clean ruff/mypy); demonstrated that mock unit tests suffer a 75% false confidence rate on component boundaries; formulated 3-part agent-oriented error diagnostics (WHAT + WHY + FIX); audited repository review feedback promotion history; independent adversarial subagent audit verified deliverables; authored `docs/harness-creator/lecture-10/summary.md` and `progress-detail.md`.
 - [x] feat-042: scoped Stop gate tests to changed files and installed repo git hooks. Added `scripts/get-changed-files.sh` (detects staged/unstaged/untracked files; 6/6 tests), `scripts/resolve_test_targets.py` (maps changed paths to targeted test files, falls back to ALL on shared infra; 7/7 tests), `scripts/run-tests.sh` `--changed` flag (3/3 tests), and wired `.claude/hooks/tests-guard.sh` to run `--changed` unless in harness-verify/full mode. Created `scripts/setup-git-hooks.sh` installing `pre-commit` (bash compat + state layer) and `pre-push` (harness verify) hooks (2/2 tests), wired into `init.sh`. All 72 tests pass, all 10 harness gates pass.
 - [x] feat-043: fixed `_lib.sh` pip step under Homebrew Python (PEP 668). Replaced `--break-system-packages` with `install_python_sdk` creating/using an isolated runtime venv (`~/.agent-skills-setup/venv`). Updated `polish.py` and `polish_engine.py` to discover and load runtime venv `site-packages`. Added `test_hook_wiring.sh` assertions for absence of `--break-system-packages` and successful venv creation/pip logging.
+- [x] Option 2 — Outside-agent cross-model verification (`claude` & `agy`): hardened `scripts/outside_agent.py` to include `--dangerously-skip-permissions` for `agy` non-interactive mode so headless tool requests are not auto-denied by jetski. Verified live bidirectional reviews: `from gemini` invoking `claude` returned code 0 with PASS, and `from claude` invoking `agy` returned code 0 with PASS. Added hermetic python venv stub to `scripts/tests/test_install_source_guard.sh` eliminating ambient PyPI network stalls.
+- [x] Option 4 — Lecture 4 Exercise 3 follow-up (position bias scaled to ~10k tokens): built automated runner `docs/harness-creator/lecture-04/code/run_position_scaling_experiment.py` and executed 15 headless trials on Haiku 4.5 in ~11.8k-token monolithic context without explicit "read in full" instruction. Compliance collapsed from 100% down to 60% (Top 40%, Middle 60%, Bottom 80%), demonstrating that monolithic instruction bloat dilutes non-primary rule attention and confirming that deterministic harness guards are indispensable. Documented in `docs/harness-creator/lecture-04/position-experiment-scaling-10k.md` and `position-scaling-results.json`.
 
 ### What's In Progress
 

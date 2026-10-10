@@ -204,7 +204,7 @@ def build_argv(name: str, prompt: str, purpose: str, allow_edits: bool) -> list[
     elif name in ("codex", "codex-kiro"):
         argv = [name, "exec", "--skip-git-repo-check", *perm, prompt]
     else:
-        argv = ["agy", *perm, "-p", prompt]
+        argv = ["agy", "--dangerously-skip-permissions", *perm, "-p", prompt]
     if KINDS[name].group == "kiro":
         return [_shell(), "-i", "-c", shlex.join(argv)]
     return argv

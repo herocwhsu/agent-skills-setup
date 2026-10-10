@@ -34,6 +34,23 @@ for tool in curl wget npm claude pip pip3 codex kiro-cli hermes agy; do
   chmod +x "$STUBS/$tool"
 done
 
+REAL_PYTHON="$(command -v python3)"
+cat > "$STUBS/python3" << STUB_PY
+#!/bin/sh
+if [ "\$1" = "-m" ] && [ "\$2" = "venv" ]; then
+  target="\$3"
+  mkdir -p "\$target/bin"
+  cat > "\$target/bin/pip" << 'STUB_PIP'
+#!/bin/sh
+exit 0
+STUB_PIP
+  chmod +x "\$target/bin/pip"
+  exit 0
+fi
+exec "$REAL_PYTHON" "\$@"
+STUB_PY
+chmod +x "$STUBS/python3"
+
 # make_repo <name> — a git repo holding the current working tree, committed on main.
 # .mypy_cache is excluded because the types-guard Stop hook runs mypy in parallel
 # with this test; copying a cache whose sqlite -wal/-shm files appear and vanish

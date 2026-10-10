@@ -1,0 +1,216 @@
+{
+  "timestamp": "2026-10-10T03:01:25Z",
+  "model": "haiku",
+  "est_tokens": 11776,
+  "summary": {
+    "top": {
+      "depth_pct": 15,
+      "followed": 2,
+      "total": 5,
+      "followed_pct": 40.0,
+      "exec_count": 0,
+      "py_count": 5,
+      "avg_duration_s": 26.07
+    },
+    "middle": {
+      "depth_pct": 50,
+      "followed": 3,
+      "total": 5,
+      "followed_pct": 60.0,
+      "exec_count": 0,
+      "py_count": 5,
+      "avg_duration_s": 22.19
+    },
+    "bottom": {
+      "depth_pct": 85,
+      "followed": 4,
+      "total": 5,
+      "followed_pct": 80.0,
+      "exec_count": 0,
+      "py_count": 5,
+      "avg_duration_s": 23.82
+    }
+  },
+  "runs": [
+    {
+      "condition": "top",
+      "run_idx": 1,
+      "rule_followed": true,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 22.02,
+      "line2_content": "# owner: harness-team",
+      "error": ""
+    },
+    {
+      "condition": "top",
+      "run_idx": 2,
+      "rule_followed": false,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 23.02,
+      "line2_content": "set -euo pipefail",
+      "error": ""
+    },
+    {
+      "condition": "top",
+      "run_idx": 3,
+      "rule_followed": true,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 40.22,
+      "line2_content": "# owner: harness-team",
+      "error": ""
+    },
+    {
+      "condition": "top",
+      "run_idx": 4,
+      "rule_followed": false,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 21.61,
+      "line2_content": "set -euo pipefail",
+      "error": ""
+    },
+    {
+      "condition": "top",
+      "run_idx": 5,
+      "rule_followed": false,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 23.48,
+      "line2_content": "python3 \"$(dirname \"$0\")/export_stats.py\"",
+      "error": ""
+    },
+    {
+      "condition": "middle",
+      "run_idx": 1,
+      "rule_followed": true,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 22.65,
+      "line2_content": "# owner: harness-team",
+      "error": ""
+    },
+    {
+      "condition": "middle",
+      "run_idx": 2,
+      "rule_followed": false,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 22.04,
+      "line2_content": "set -euo pipefail",
+      "error": ""
+    },
+    {
+      "condition": "middle",
+      "run_idx": 3,
+      "rule_followed": true,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 22.53,
+      "line2_content": "# owner: harness-team",
+      "error": ""
+    },
+    {
+      "condition": "middle",
+      "run_idx": 4,
+      "rule_followed": true,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 22.17,
+      "line2_content": "# owner: harness-team",
+      "error": ""
+    },
+    {
+      "condition": "middle",
+      "run_idx": 5,
+      "rule_followed": false,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 21.55,
+      "line2_content": "set -euo pipefail",
+      "error": ""
+    },
+    {
+      "condition": "bottom",
+      "run_idx": 1,
+      "rule_followed": true,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 22.97,
+      "line2_content": "# owner: harness-team",
+      "error": ""
+    },
+    {
+      "condition": "bottom",
+      "run_idx": 2,
+      "rule_followed": true,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 24.03,
+      "line2_content": "# owner: harness-team",
+      "error": ""
+    },
+    {
+      "condition": "bottom",
+      "run_idx": 3,
+      "rule_followed": true,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 23.65,
+      "line2_content": "# owner: harness-team",
+      "error": ""
+    },
+    {
+      "condition": "bottom",
+      "run_idx": 4,
+      "rule_followed": false,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 22.18,
+      "line2_content": "",
+      "error": ""
+    },
+    {
+      "condition": "bottom",
+      "run_idx": 5,
+      "rule_followed": true,
+      "sh_exists": true,
+      "sh_executable": false,
+      "python_valid": true,
+      "exit_code": 0,
+      "duration_s": 26.25,
+      "line2_content": "# owner: harness-team",
+      "error": ""
+    }
+  ]
+}
