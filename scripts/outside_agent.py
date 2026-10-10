@@ -53,6 +53,23 @@ SHORT = 80
 AUTH_DEMOTE = timedelta(days=7)
 SUB_COOLDOWN = timedelta(hours=5)
 
+EVALUATOR_RUBRIC = """## Evaluator Rubric (Score each dimension 1-5):
+1. Rule Conformance (1-5): Adherence to Karpathy's 12 rules and repo invariants.
+2. Surgical Precision (1-5): Minimal necessary diff without refactoring adjacent code.
+3. Test Verifiability (1-5): Automated tests verify business intent, not just trivial mocks.
+4. Evidence Grounding (1-5): Verifiable proof in state layer (feature_list.json, PROGRESS.md).
+
+Required Evaluation Output:
+- Dimension Scores (1-5 for each dimension with concise rationale)
+- Identified Risks / Blind Spots / Regressions
+- Concrete Failure Scenarios (inputs or conditions where the solution fails)
+- Final Verdict: PASS, CONDITIONAL, or REJECT"""
+
+
+def apply_rubric(prompt: str) -> str:
+    """Append multidimensional evaluator rubric instructions to a review prompt."""
+    return f"{prompt.rstrip()}\n\n{EVALUATOR_RUBRIC}"
+
 
 def classify(rc: int, output: str) -> str:
     text = output.strip()
@@ -358,6 +375,9 @@ def _earliest_reset(state: dict, now: datetime) -> str | None:
 
 
 def cmd_run(a: argparse.Namespace) -> int:
+    if getattr(a, "rubric", False) and a.purpose != "review":
+        _say("--rubric is only supported when --purpose is review")
+        return 2
     if a.cwd and not os.path.isdir(a.cwd):
         _say(f"--cwd {a.cwd} is not a directory")
         return 2
@@ -374,6 +394,7 @@ def cmd_run(a: argparse.Namespace) -> int:
         reset = _earliest_reset(state, now) or "n/a"
         _say(f"no candidate available; skipped={','.join(notes)}; earliest reset {reset}")
         return 2
+    prompt = apply_rubric(a.prompt) if getattr(a, "rubric", False) else a.prompt
     env = dict(os.environ)
     limited: set[str] = set()
     for name in order:
@@ -384,7 +405,7 @@ def cmd_run(a: argparse.Namespace) -> int:
         if why:
             notes.append(f"{name}(precheck: {why})")
             continue
-        cls, out = run_one(name, a.prompt, a.purpose, a.allow_edits, a.timeout, a.cwd)
+        cls, out = run_one(name, prompt, a.purpose, a.allow_edits, a.timeout, a.cwd)
         if cls == "ok":
             print(out)
             if state["auth"].pop(name, None) is not None:
@@ -528,6 +549,7 @@ def main(argv: list[str]) -> int:
     r.add_argument("--timeout", type=_positive_int, default=110)
     r.add_argument("--cwd")
     r.add_argument("--allow-edits", action="store_true")
+    r.add_argument("--rubric", action="store_true", help="Append multidimensional evaluator rubric to review prompt")
     r.add_argument("prompt")
     i = sub.add_parser("init")
     i.add_argument("--force", action="store_true")

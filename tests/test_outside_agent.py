@@ -558,6 +558,55 @@ def test_init_unwritable_dir_still_exits_0(stubenv, tmp_path, monkeypatch):
     assert "WARNING: could not write" in r.stdout
 
 
+def test_apply_rubric_structure():
+    base = "Review this pull request."
+    formatted = oa.apply_rubric(base)
+    assert formatted.startswith(base)
+    assert "## Evaluator Rubric (Score each dimension 1-5):" in formatted
+    assert "1. Rule Conformance (1-5)" in formatted
+    assert "2. Surgical Precision (1-5)" in formatted
+    assert "3. Test Verifiability (1-5)" in formatted
+    assert "4. Evidence Grounding (1-5)" in formatted
+    assert "Required Evaluation Output:" in formatted
+    assert "Concrete Failure Scenarios" in formatted
+    assert "Final Verdict: PASS, CONDITIONAL, or REJECT" in formatted
+
+
+def test_cli_rubric_rejected_for_non_review_purpose(stubenv):
+    r = cli("run", "--purpose", "delegate", "--from", "claude", "--rubric", "--", "p")
+    assert r.returncode == 2
+    assert "--rubric is only supported when --purpose is review" in r.stderr
+
+
+def test_cli_rubric_augments_prompt_to_agent(stubenv):
+    bin_, home = stubenv
+    argsfile = home / "args.txt"
+    _stub(bin_, "agy", f'printf "%s\\n" "$@" > "{argsfile}"\necho OK')
+    _conf(home, "agy")
+    r = cli("run", "--purpose", "review", "--from", "claude", "--rubric", "--", "Review feature X")
+    assert r.returncode == 0
+    passed_args = argsfile.read_text()
+    assert "Review feature X" in passed_args
+    assert "## Evaluator Rubric (Score each dimension 1-5):" in passed_args
+    assert "Rule Conformance (1-5)" in passed_args
+    assert "Surgical Precision (1-5)" in passed_args
+    assert "Test Verifiability (1-5)" in passed_args
+    assert "Evidence Grounding (1-5)" in passed_args
+    assert "Concrete Failure Scenarios" in passed_args
+
+
+def test_cli_review_without_rubric_leaves_prompt_unmodified(stubenv):
+    bin_, home = stubenv
+    argsfile = home / "args.txt"
+    _stub(bin_, "agy", f'printf "%s\\n" "$@" > "{argsfile}"\necho OK')
+    _conf(home, "agy")
+    r = cli("run", "--purpose", "review", "--from", "claude", "--", "Review feature X")
+    assert r.returncode == 0
+    passed_args = argsfile.read_text()
+    assert "Review feature X" in passed_args
+    assert "## Evaluator Rubric" not in passed_args
+
+
 @pytest.mark.skipif(
     os.environ.get("RUN_INTEGRATION") != "1", reason="live agents; RUN_INTEGRATION=1"
 )

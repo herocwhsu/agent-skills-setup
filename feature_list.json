@@ -395,6 +395,24 @@
       ],
       "evidence": "feature_list.json schema supports optional 'exclusions' list of string patterns. .claude/hooks/state-layer-guard.sh detects changed files and validates them against exclusions declared by active features (using exact and wildcard glob matching). On violation, blocks turn/commit with exit 2 and outputs a 3-part agent diagnostic (WHAT + WHY + FIX). .claude/hooks/tests/test_state_layer_guard.sh passes 34/34 tests with 7 new assertions verifying exact path blocking, wildcard matching, clean execution when only permitted files change, and schema validation. Passed bash-compat-guard.sh.",
       "verification": "bash .claude/hooks/tests/test_state_layer_guard.sh"
+    },
+    {
+      "id": "feat-046",
+      "name": "Multidimensional evaluator rubric in outside_agent.py review prompts",
+      "description": "Add --rubric support and standardized 4-dimension evaluator scoring (Rule Conformance, Surgical Precision, Test Verifiability, Evidence Grounding) into scripts/outside_agent.py review prompts.",
+      "dependencies": [
+        "feat-045"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "outside_agent.py run supports --rubric flag",
+        "Evaluator rubric defines 4 core dimensions (Rule Conformance, Surgical Precision, Test Verifiability, Evidence Grounding) scored 1-5",
+        "Review prompt appends structured rubric instructions and required output format when --rubric is passed",
+        "outside_agent.py rejects --rubric when --purpose is not review",
+        "tests/test_outside_agent.py passes with unit tests verifying rubric formatting and argument validation"
+      ],
+      "evidence": "Added --rubric flag to outside_agent.py run and EVALUATOR_RUBRIC defining the 4 core dimensions (Rule Conformance, Surgical Precision, Test Verifiability, Evidence Grounding scored 1-5) along with required output schema (Dimension Scores, Identified Risks, Concrete Failure Scenarios, Final Verdict). Validates --rubric usage only under --purpose review, exiting 2 on misuse. tests/test_outside_agent.py passes with 4 new tests covering rubric structure, CLI validation, agent prompt augmentation, and unmodified behavior when omitted. Synced runtime copy to ~/.agent-skills-setup and verified all 10 gates in harness-verify.sh.",
+      "verification": ".venv/bin/pytest tests/test_outside_agent.py -k rubric"
     }
   ]
 }
