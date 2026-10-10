@@ -3,14 +3,12 @@
 ## Current State
 
 **Last Updated:** 2026-10-10
-**Active Feature:** none. feat-046 closed out; Option C (multidimensional evaluator rubric in outside_agent.py review prompts) fully verified; `./init.sh` passes all 10 gates.
-**Harness lectures:** 1–11 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 4 Exercise 3 follow-up (10k-token position scaling) documented with quantitative findings in `docs/harness-creator/lecture-04/position-experiment-scaling-10k.md`.
-Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported and passing (5/5 tests), empirical
-evaluation demonstrated 75% false confidence rate in unit isolation, review feedback promotion documented,
-subagent adversarial audit passed.
+**Active Feature:** none. feat-046 closed out; Lecture 12 closed out; `./init.sh` passes all 10 gates.
+**Harness lectures:** 1–12 closed (`docs/harness-creator/lecture-0N/summary.md`). Lecture 4 Exercise 3 follow-up (10k-token position scaling) documented with quantitative findings in `docs/harness-creator/lecture-04/position-experiment-scaling-10k.md`.
+Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported and passing (5/5 tests), empirical evaluation demonstrated 75% false confidence rate in unit isolation, review feedback promotion documented, subagent adversarial audit passed.
 Lecture 11 (making the agent's runtime observable) closed: runtime_logger and test_runtime_logger ported and passing (13/13 tests, clean ruff/mypy), audit gap analysis completed across system & process layers, sprint contract & evaluator rubric documented, subagent adversarial audit passed.
-Lecture 5 open items: rebuild time never
-measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
+Lecture 12 (why every session must leave a clean state) closed: cleanup_scanner and benchmark_runner ported and passing (22/22 tests, clean ruff/mypy), 5 Invariants audited against target repo, Invariant 4 (stale artifacts) identified as open harness gap, subagent adversarial audit passed.
+Lecture 5 open items: rebuild time never measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-creator/lecture-05/summary.md`).
 
 ## Status
 
@@ -175,6 +173,7 @@ measured, no staleness guard, `What's Done` still ~140 lines (`docs/harness-crea
 - [x] feat-044: per-gate execution timing and structured JSON trace reporting in `harness-verify.sh`. Added portable millisecond duration measurement (`now_ms`) to each gate (displayed in console as `OK  gate (duration)`); added `--report <path>` and `--json` flags to emit structured trace reports with timestamp, total_duration_ms, and per-gate records; added `HARNESS_VERIFY_SLOW_MS` slow gate detection. `test_harness_verify.sh` passes 20/20 tests.
 - [x] feat-045: scope exclusions in `feature_list.json` with automated `state-layer-guard` enforcement. Added optional `exclusions` list of string patterns to `feature_list.json` schema; updated `.claude/hooks/state-layer-guard.sh` to validate changed files against active feature exclusions (supporting exact paths and wildcard globs), blocking turn/commit with exit 2 and 3-part agent diagnostic (WHAT + WHY + FIX) on violation. `test_state_layer_guard.sh` passes 34/34 tests.
 - [x] feat-046: multidimensional evaluator rubric in `outside_agent.py` review prompts. Added `--rubric` CLI flag and `EVALUATOR_RUBRIC` defining 4 core dimensions (Rule Conformance, Surgical Precision, Test Verifiability, Evidence Grounding scored 1-5) and required structured output format (Dimension Scores, Identified Risks, Concrete Failure Scenarios, Final Verdict). Enforces review-only usage (exits 2 on non-review). Unit tests in `test_outside_agent.py` verify rubric formatting, agent prompt augmentation, and CLI validation (91 passed).
+- [x] Lecture 12 training (why every session must leave a clean state): ported and hardened `cleanup_scanner.py` and `benchmark_runner.py` under `docs/harness-creator/lecture-12/code/` (22/22 tests passing, clean ruff/mypy); audited 5 Invariants of clean state against target repo and identified Invariant 4 (stale artifacts/WIP files) as an open gap in current verification gates; added benchmark comparison and regression delta calculator; independent adversarial subagent audit passed; authored `docs/harness-creator/lecture-12/summary.md` and `progress-detail.md`.
 
 ### What's In Progress
 
