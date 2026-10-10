@@ -48,6 +48,28 @@ features = data.get("features", data) if isinstance(data, dict) else data
 if not isinstance(features, list):
     sys.exit("SCHEMA_ERROR: feature_list root or 'features' must be a list")
 
+# Validate archive_references if present
+archived_features = []
+if isinstance(data, dict) and "archive_references" in data:
+    arch_refs = data["archive_references"]
+    if not isinstance(arch_refs, list) or not all(isinstance(r, str) and r.strip() for r in arch_refs):
+        sys.exit("ARCHIVE_ERROR: 'archive_references' must be a list of non-empty string file paths.")
+    from pathlib import Path
+    repo_root = Path(feature_file).resolve().parent
+    for ref in arch_refs:
+        ref_path = (repo_root / ref).resolve()
+        if not ref_path.is_file():
+            sys.exit(f"ARCHIVE_ERROR: Referenced archive file does not exist: '{ref}'.")
+        try:
+            with open(ref_path, "r", encoding="utf-8") as rf:
+                ref_data = json.load(rf)
+        except Exception as e:
+            sys.exit(f"ARCHIVE_ERROR: Archive file '{ref}' is not valid JSON: {e}.")
+        ref_feats = ref_data.get("features", ref_data) if isinstance(ref_data, dict) else ref_data
+        if not isinstance(ref_feats, list):
+            sys.exit(f"ARCHIVE_ERROR: Archive file '{ref}' must contain a list of features.")
+        archived_features.extend(ref_feats)
+
 # Validate exclusions schema across all features
 for f in features:
     if isinstance(f, dict) and "exclusions" in f:
@@ -87,9 +109,10 @@ def has_text(v):
         return any(has_text(x) for x in v.values())
     return False
 
+all_features = features + archived_features
 unevidenced = [
     f.get("id", "unknown")
-    for f in features
+    for f in all_features
     if isinstance(f, dict) and f.get("status") == "done" and not has_text(f.get("evidence"))
 ]
 if unevidenced:
@@ -104,6 +127,12 @@ PYEOF
   elif grep -q "SCHEMA_ERROR:" <<<"$check_out"; then
     echo "Blocked: feature_list.json schema violation:" >&2
     echo "$check_out" | sed 's/SCHEMA_ERROR: //' >&2
+    exit 2
+  elif grep -q "ARCHIVE_ERROR:" <<<"$check_out"; then
+    echo "Blocked: state layer archive reference error:" >&2
+    echo "$check_out" | sed 's/ARCHIVE_ERROR: //' >&2
+    echo "WHY: feature_list.json references an archive file that is missing, invalid, or violates schema." >&2
+    echo "FIX: Ensure all files in 'archive_references' exist and contain valid JSON features." >&2
     exit 2
   elif grep -q "WIP_ERROR:" <<<"$check_out"; then
     echo "Blocked by WIP limit: feature_list.json has multiple active features:" >&2

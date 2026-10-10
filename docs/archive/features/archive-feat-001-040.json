@@ -1,0 +1,369 @@
+{
+  "archive_version": 1,
+  "description": "Historical completed features feat-001 through feat-040",
+  "archived_at": "2026-10-10",
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "Pin external skill sources to a commit SHA",
+      "description": "github/github-skill registry entries fetched archive/HEAD.zip unconditionally, so every install.sh/update.sh run silently picked up whatever landed on the upstream default branch. Added optional owner/repo@ref pinning in scripts/_lib.sh; pinned superpowers, webapp-testing, kanban-skill, and linear to a specific commit in registry.txt.",
+      "status": "done",
+      "evidence": "commit 5b023f3 on main. scripts/run-tests.sh --fast: 52 passed, 0 failed, including scripts/tests/test_registry_types.sh (24 cases covering @ref parsing, HEAD fallback, and validator acceptance/rejection)."
+    },
+    {
+      "id": "feat-002",
+      "name": "Suppress Claude Code attribution trailers repo-wide",
+      "description": "Set attribution.commit and attribution.pr to empty strings in .claude/settings.json so commits and PR descriptions authored in this repo never carry a Co-Authored-By or Generated-with trailer, regardless of any session-level default.",
+      "status": "done",
+      "evidence": "commit 5b023f3 on main. jq -e '.attribution' .claude/settings.json returns {\"commit\": \"\", \"pr\": \"\"}."
+    },
+    {
+      "id": "feat-003",
+      "name": "Fix mypy type-annotation error in scripts/_settings_merge.py",
+      "description": "scripts/_settings_merge.py:85 \u2014 mypy: \"Need type annotation for 'changed'\". Pre-existing (introduced in b420ae3, well before this feature list existed); surfaced when init.sh (this harness's verification entrypoint) was run for the first time. Blocks the types-guard.sh Stop hook and scripts/harness-verify.sh from passing clean.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "Annotated `changed: list[tuple[str, str, str]] = []` (matches the 3-tuples appended at line 109). `python3 -m mypy --config-file mypy.ini .` -> Success: no issues found in 27 source files. `bash init.sh` -> all 7 gates (registry, types, tests, skill paths, cred backends, hook wiring, secret scan) pass."
+    },
+    {
+      "id": "feat-004",
+      "name": "Verification-gap exercise: 5 independently-checked cleanup tasks",
+      "description": "Dispatched 5 bounded cleanup tasks to isolated-worktree subagents and independently re-verified each claim. 2 produced real diffs (README @ref consistency fix; a corrected uninstall @ref test that a second-opinion review + mutation testing caught passing regardless of whether the feature it tested actually worked). Full writeup: docs/harness-creator/lecture-01/progress-detail.md.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "Both real diffs (README.md @ref fix; scripts/tests/test_registry_types.sh Test 23 rewritten, Test 24 added) merged into main. `bash scripts/run-tests.sh --fast` -> 52 passed, 0 failed."
+    },
+    {
+      "id": "feat-005",
+      "name": "polish-input default-install; pin + populate .python-version (3.14.7)",
+      "description": "Two changes: (1) polish-input's hook was opt-in via install.sh/uninstall.sh --with-hook; removed the flag and HOOK_SKILLS mechanism entirely (its only consumer) so the hook always wires/unwires alongside every install/uninstall, no flag needed. (2) Started the Lecture 2 Environment-subsystem investigation: pinned .python-version to 3.14.7 (newest stable, installed via pyenv, repo-local -- confirmed it does not leak to other repos' cwd). This surfaced that mypy's prior clean status rested on ambient packages in the old interpreter (3.13.4), not real reproducibility -- installing mypy/ruff/pytest/lxml/google-generativeai under 3.14.7 was required to restore green.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "scripts/install.sh, scripts/uninstall.sh, scripts/_lib.sh, scripts/update.sh, scripts/tests/test_hook_wiring.sh, README.md, docs/migration.md, skills/utils/SKILL.md, skills/utils/polish-input/README.md updated; no --with-hook/HOOK_SKILLS references remain outside archived docs (grep confirmed). `bash scripts/tests/test_hook_wiring.sh` -> 18/18 passed. `bash scripts/run-tests.sh --fast` -> 53 passed, 0 failed (was 52 passed before .python-version pin surfaced 8 regressions from missing packages under the new interpreter; all resolved by installing them)."
+    },
+    {
+      "id": "feat-006",
+      "name": "Lecture 2 (harness-creator): Tools subsystem permissions block",
+      "description": "Lecture 2's five-subsystem model (Instructions/Tools/Environment/State/Feedback) has two subsystems the Lecture 1 scorer never measured: Tools and Environment. Added a .claude/settings.json permissions.deny rule enforcing one of AGENTS.md's four 'Boundaries' (never write AGENTS.override.md). First draft used a single-* glob and an ask-rule on install.sh/install-agents-md.sh; codex-kiro (a genuinely different model, not another Claude instance) reviewed it and found both broken -- the glob does not cross path segments, and the ask-rule is trivially bypassed by any invocation form other than the exact literal matched (compounded by this host's permissions.defaultMode=auto). Both findings independently confirmed (a local glob fixture test, not accepted on say-so) before fixing: widened to **, and removed the ask-rule entirely in favor of documenting that boundary as advisory-only in AGENTS.md, rather than pretending an unenforceable rule enforces it. Full writeup: docs/harness-creator/lecture-02/.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "jq -e '.permissions' .claude/settings.json -> valid, deny-only. `bash scripts/run-tests.sh --fast` -> 53 passed, 0 failed, both before and after the codex-kiro-driven fix. Environment subsystem (.python-version, dependency-manifest/osv-scanner question) explicitly left open -- see docs/harness-creator/lecture-02/summary.md."
+    },
+    {
+      "id": "feat-007",
+      "name": "Resolve Lecture 2's two open findings: real dependency manifest + stale mypy.ini comment",
+      "description": "Built an isolated .venv (from the already-pinned 3.14.7 interpreter, not the shared ambient pyenv environment) with only this repo's actual dev deps (mypy, ruff, pytest, lxml, anthropic, google-generativeai). Generated requirements-dev.txt via `.venv/bin/pip freeze` -- osv-scanner now genuinely scans it (confirmed via verbose output: 'found 51 packages') and reports clean, no CVE fixes needed (the earlier CVE list came from the polluted ambient environment's older pins, not this repo's real deps). Rewired only the two real gates that need third-party packages (types-guard.sh, run-tests.sh) to prefer .venv/bin/* with a bare-interpreter fallback; confirmed via a full call-site audit that every other python3 invocation in the repo either ships to other people's machines (must stay on ambient PATH) or only needs stdlib (no change needed). Fixed test_types_guard.sh's literal-string assertion for the new invocation form. Updated mypy.ini's comment and AGENTS.md's osv-scanner section to describe the new real state. Also resolved codex-kiro's third Lecture-2 finding (python-version-vs-mypy.ini tension): the two settings were never actually in conflict -- mypy still infers from whichever interpreter runs it, pinned or not -- the original comment's portability rationale was just less load-bearing now that .venv standardizes contributors on one interpreter. docs/harness-creator/lecture-02/ updated to record both findings as resolved rather than parked.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "`osv-scanner scan source --recursive . --verbosity error` -> No issues found (verbose form confirms requirements-dev.txt was actually scanned, 51 packages, not the 'no package sources found' bypass). `bash .claude/hooks/tests/test_types_guard.sh` -> 9/9 passed. `bash scripts/run-tests.sh --fast` -> 53 passed, 0 failed. `.venv/bin/mypy` and bare `mypy` (ambient PATH, still resolves 3.14.7 via .python-version) give identical clean results, confirming the fallback doesn't silently change behavior. `bash .claude/hooks/secret-scan.sh` run manually end-to-end (the one path with zero prior test coverage) -> exit 0, both gitleaks and osv-scanner OK."
+    },
+    {
+      "id": "feat-008",
+      "name": "Close the version-drift/silent-fallback gap in feat-007's .venv preference logic (multi-model review)",
+      "description": "Reviewed feat-007's fallback pattern with codex-kiro (failed once with a hard stream error, succeeded on retry) and agy (a third, genuinely different model family -- brought in specifically because codex-kiro had just failed once). codex-kiro found a real gap: '[[ -x \"$MYPY\" ]] || MYPY=\"mypy\"' only proves executability, not that the venv is the right Python version -- a stale/rebuilt .venv would silently be used with zero warning. Fixed in types-guard.sh and run-tests.sh: both now compare .venv's actual python3 --version against .python-version and fail loud (exit 2 for the Stop-hook gate, exit 1 for the CLI) on any mismatch or broken binary, instead of silently falling back to ambient tooling. Confirmed by actually simulating drift (echo 9.9.9 > .python-version) and watching it block, not just reading the code. agy required --dangerously-skip-permissions to run at all in headless mode; its review then produced two confident but FALSE claims (Python 3.14.7 'does not exist' -- installed and used all session; httpx2/httpcore2 are 'potential typosquats' -- both real PyPI packages, a legit anthropic transitive dep per pip show/pipdeptree) which were checked and refuted, not accepted. One claim converged across both models and checked out against PyPI directly: google-generativeai is genuinely deprecated (legacy, support ended 2025-11-30, successor google-genai) -- flagged as a real, confirmed, NOT-yet-actioned finding since migrating it touches shipped code (polish_engine.py), a different-shaped change than this session's scope.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "Simulated version drift (`echo 9.9.9 > .python-version`) -> `bash .claude/hooks/types-guard.sh` exits 2 with rebuild instructions, `bash scripts/run-tests.sh --fast` exits 1 with the same, both correctly refusing to silently fall back; restored the pin, reran clean. `bash scripts/run-tests.sh --fast` -> 53 passed, 0 failed after the fix. `pip show httpx2`/`pipdeptree --reverse -p httpx2` confirmed agy's typosquat claim false. WebFetch on pypi.org/project/google-generativeai/ confirmed the deprecation claim true. google-generativeai -> google-genai migration explicitly NOT done -- open finding for a future session, recorded in docs/harness-creator/lecture-02/summary.md and progress-detail.md Part 8."
+    },
+    {
+      "id": "feat-009",
+      "name": "Lecture 2: controlled variable exclusion test, attempt 2 (non-null result)",
+      "description": "Attempt 1 (mirror a 20-line sibling file, strip Instructions/State/Feedback across 4 fresh general-purpose subagents) came back null -- all 4 conditions succeeded identically because the task was fully answerable from the sibling file alone. Attempt 2 used a harder task (add a whole new shellcheck verification gate across 4 real integration points: guard script, harness-verify.sh wiring, two hook arrays, a test file) against the same baseline-plus-3-ablations method (one git-archive baseline, 3 variants each missing exactly one of AGENTS.md/state files/test-running capability, never built independently). Result: non-null. All 4 conditions completed the core task, but only the condition with AGENTS.md present (baseline) went from finding a genuine pre-existing shellcheck bug (test_install_agents_md.sh:210, SC1087) to fixing it; the two conditions without AGENTS.md (no-instructions, no-state) found the identical bug independently in separate sandboxes and explicitly flagged it as out of scope instead of fixing it. The fourth condition (no-feedback) had a confound caught after all 4 results were in: its ablation deleted scripts/tests/ wholesale to remove the Feedback subsystem, which happened to delete the exact file the bug lived in -- so its silence on the bug is a byproduct of the ablation, not a finding, and it was excluded from this specific comparison. The correlation (AGENTS.md present -> fixed rather than flagged) is real and cross-validated (3 independent sandboxes found the identical bug on their own), but AGENTS.md contains no instruction resembling 'fix incidental bugs you find' (grepped directly, no match) -- so the causal mechanism is explicitly recorded as unconfirmed, not overclaimed as proven.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "4 fresh general-purpose subagents dispatched concurrently, one per variant directory under /tmp/exclusion-test-v2/ (baseline/no-instructions/no-state/no-feedback), each given only its directory and the task text, no mention of the experiment. Read .claude/settings.json directly in each variant afterward -- confirmed the new hook entry landed in both Stop and SubagentStop arrays in all 4 with the same shape as sibling entries. Read (not just re-ran) the no-feedback and no-state test files to resolve two apparent discrepancies (a scenario/assertion-count mismatch, a harness scanner false-positive flag on settings.json) -- both confirmed as false alarms by reading the full file content. Checked all 4 variants' new guard scripts for bash-4+-only constructs (mapfile, declare -A) against AGENTS.md's documented bash-3.2 floor -- none used them, including the 3 conditions that never saw that constraint stated anywhere (a mechanically-checked negative result). Confirmed the no-feedback confound directly via `ls` for the buggy file's existence in that checkout, rather than accepting the 'not applicable' cell at face value. Full method and results: docs/harness-creator/lecture-02/progress-detail.md Part 9."
+    },
+    {
+      "id": "feat-010",
+      "name": "Lecture 2: affordance analysis (Gulf of Execution / Gulf of Evaluation) -- Lecture 2 now fully closed",
+      "description": "Classified two real cases from this training session into Norman's two gulfs, no synthetic cases needed. Case 1 (polish-input hook repeatedly fabricating fake refusals/identities instead of a genuine paraphrase, across this same session) is Gulf of Evaluation: the hook has no feedback loop on its own output (no schema/shape/confidence check before injecting the polish model's response as context), so distinguishing genuine paraphrase from hallucinated tangent fell entirely on ad hoc content-level judgment, redone from scratch each occurrence. Case 2 (all 4 feat-009 exclusion-test subagents independently hitting the same spurious exit-128 types-guard.sh failure in their git-archive'd sandboxes with no .git directory) is Gulf of Execution: the feedback itself was clear (an unambiguous git error), but harness-verify.sh offers only one action -- run all 8 gates -- with no way to express 'run just the gate relevant to my change,' so every agent paid the same diagnostic cost independently. Neither gap was fixed as part of this exercise -- it is a classification exercise, not a remediation task. This closes out Lecture 2's last open item: both subsystems (Tools, Environment) and both exercises (exclusion test, affordance analysis) are now done.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "Both cases drawn from this session's own real events (the polish-input hook malfunctions and the feat-009 exit-128 failures), not invented. Full classification writeup: docs/harness-creator/lecture-02/progress-detail.md Part 10, docs/harness-creator/lecture-02/summary.md."
+    },
+    {
+      "id": "feat-011",
+      "name": "Antigravity (agy) full skill compatibility and frontmatter normalization",
+      "description": "Audited all 15 skills and 46 sub-skills across the repository for complete Antigravity CLI (agy) compatibility. Normalized frontmatter across all 31 Format A IMPL.md sub-skills by adding standardized name and description fields alongside existing slash/subcommand metadata. Verified all top-level SKILL.md files comply with YAML frontmatter standards for progressive disclosure.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "All 15 SKILL.md and 46 IMPL.md files verified to contain valid name and description frontmatter. bash scripts/harness-verify.sh passed clean across all 8 gates (registry, types, tests, skill paths, cred backends, hook wiring, state layer, secret scan)."
+    },
+    {
+      "id": "feat-012",
+      "name": "Stop wiring kiro hooks into Claude Code's settings.json",
+      "description": "wire_hook and rewire_hooks mapped kiro to ~/.claude/settings.json, so a kiro (or all-agent) install merged a second polish-input entry pointing at ~/.kiro/skills into Claude Code and every prompt was polished twice. Kiro is now skipped like codex; unwire_hook keeps the mapping so uninstall still removes legacy entries.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "Two new checks in scripts/tests/test_hook_wiring.sh failed before the fix and pass after. All 52 other test files and the 7 non-test gates pass. test_kiro_gateway.sh was not run: the local Docker daemon is hung (docker version times out), unrelated to this change."
+    },
+    {
+      "id": "feat-013",
+      "name": "install.sh source guard and saved-selection default",
+      "description": "install.sh symlinks local skills to the checkout it runs from, so a run from a linked worktree or non-default branch pointed every agent on the host at unmerged skill code. It now refuses both unless --allow-non-main is passed (CI passes it: PR checkouts are detached). A bare re-run replays the saved agent selection instead of prompting, so it can no longer narrow later update.sh runs. This lets agents run install.sh without asking (AGENTS.md updated).",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "scripts/tests/test_install_source_guard.sh (13 checks, offline sandbox installs into a temp HOME): 9 failed before the change, all pass after, under bash 3.2 and 5. All 53 test files and 7 non-test gates pass. test_kiro_gateway.sh not run: local Docker daemon hung, unrelated."
+    },
+    {
+      "id": "feat-014",
+      "name": "Lecture 3 (harness-creator): Repository as System of Record & Discoverability Grade A",
+      "description": "Advanced repository to Lecture 3 standards from learn-harness-engineering. Brought repo-reader.ts discoverability score from 60/100 (Grade C) to 100/100 (Grade A) by authoring docs/architecture.md, upgrading directly to canonical uppercase PROGRESS.md (with state-layer-guard.sh and test_state_layer_guard.sh updated with backward-compatibility fallback), and adding standard PEP 621 pyproject.toml manifest \u2014 eliminating fragile root symlinks. Documented Lecture 3 exercises (Fresh Session Test, Knowledge Visibility Gap audit of 20 constraints at 5.0%, and ACID assessment) under docs/harness-creator/lecture-03/.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "bun repo-reader.ts scored 100/100 (Grade A, all 8 criteria PASS, zero root symlinks). bash scripts/harness-verify.sh passed clean across all 8 gates (registry, types, tests, skill paths, cred backends, hook wiring, state layer, secret scan)."
+    },
+    {
+      "id": "feat-015",
+      "name": "Lecture 4 (harness-creator): Split Instructions Across Files & SNR Audit",
+      "description": "Advanced repository to Lecture 4 standards from learn-harness-engineering. Elevated root AGENTS.md to an explicit router file (82 lines) with a dedicated ## Topic Docs routing section (docs/architecture.md, agents/engineering-rules.md, skills/README.md, docs/harness-creator/, docs/migration.md). Created standalone audit/simulation tool docs/harness-creator/lecture-04/code/split_simulation.py demonstrating 23.2% average SNR across 5 canonical tasks (76.8% noise in monolithic context), 67.7% context token savings via router+topic splitting, and mapped 'Lost in the Middle' position depth (30%-70% danger window) confirming middle invariants must be backed by deterministic guard hooks. Documented full analysis under docs/harness-creator/lecture-04/.",
+      "dependencies": [
+        "feat-014"
+      ],
+      "status": "done",
+      "evidence": "python3 docs/harness-creator/lecture-04/code/split_simulation.py passed clean (exit 0). bash scripts/run-tests.sh --fast passed 54/54. bash scripts/harness-verify.sh passed clean across all 8 gates (registry, types, tests, skill paths, cred backends, hook wiring, state layer, secret scan)."
+    },
+    {
+      "id": "feat-016",
+      "name": "Lecture 4 completion: bash 3.2 guard, corrected SNR audit, rule metadata, exercise 3",
+      "description": "Review of feat-015 found it overclaimed. Its guards did not enforce what it said, its savings figure left the always-loaded engineering-rules.md off the split side (67.7% -> 26.6%), and exercise 3 was never run. Added .claude/hooks/bash-compat-guard.sh (mapfile/readarray, declare|local|typeset -A, ;& / ;;& in command position across every *.sh), wired into harness-verify.sh and Stop/SubagentStop. Fixed split_simulation.py (heading-based line lookup, enforcing files resolved on disk). Added a Source/Applies/Expires line per AGENTS.md incident section (sources restored from ee34b0a) and Load-when conditions on Topic Docs; AGENTS.md is 96 lines. Ran exercise 3: made-up rule at 15%/57%/98% depth, 5 Haiku 4.5 runs each, 15/15 compliance, a null result at this size (ceiling effects recorded). Corrections table in docs/harness-creator/lecture-04/summary.md section 4.",
+      "dependencies": [
+        "feat-015"
+      ],
+      "status": "done",
+      "evidence": "bash .claude/hooks/tests/test_bash_compat_guard.sh -> 15 passed under /bin/bash 3.2.57 and bash 5.3. Experiment scored from files (sed -n 2p, each script run under /bin/bash 3.2, guard pointed at each sandbox): top 5/5, middle 5/5, bottom 5/5, 0 invalid. .venv rebuilt from requirements-dev.txt so types-guard ran real mypy (clean). bash scripts/harness-verify.sh -> 9/9 gates pass."
+    },
+    {
+      "id": "feat-017",
+      "name": "harness-verify prints OK for a gate that skipped",
+      "description": "types-guard.sh exits 0 with 'SKIP mypy not installed' when there is no .venv and no mypy, and harness-verify.sh reports that as 'OK types'. On 2026-09-28 the 'all 8 gates pass' evidence for feat-015 was produced this way. Needs harness-verify to distinguish SKIP from OK (or the gate to fail when .venv is absent).",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "Fixed in harness-verify.sh: a gate that exits 0 but prints a SKIP line is reported as SKIP with its reason, and the summary says 'Passed, but SKIPPED: ...' instead of 'All gates passed.' (exit stays 0, matching a missing gate script). test_harness_verify.sh: 3 new cases failed first, then 16/16 under /bin/bash 3.2 and bash 5. Reproduced for real by moving .venv aside: types AND secret scan both reported SKIP. The second was previously unknown: gitleaks and osv-scanner were not installed, so every 'OK secret scan' this session scanned nothing. Installed both via brew; real scans clean; harness-verify 9/9 with no skips."
+    },
+    {
+      "id": "feat-018",
+      "name": "Split global engineering rules: host-general core + on-demand spec-workflow skill",
+      "description": "agents/engineering-rules.md is installed into all four hosts and loaded on every task, but Part IV (65 lines) was the Jira/OpenSpec production procedure. It used Claude-only slash commands (/progress-status, /review-amend, /opsx:*) and ~/.claude/docs paths that do not exist. Moved the procedure verbatim (29/29 lines checked) into new required skill skills/spec-workflow/SKILL.md (registry: local). Replaced Part IV with two host-neutral trigger lines (production -> spec-workflow; exploratory -> repo learning charter / experiment-iteration where installed). Trigger kept global rather than per-repo opt-in (user decision) so production repos need no setup. Repo AGENTS.md files stay repo-specific.",
+      "dependencies": [
+        "feat-016"
+      ],
+      "status": "done",
+      "evidence": "scripts/tests/test_engineering_rules_scope.sh: 0/6 before the change, 6/6 after (no .claude/ paths, no slash commands, trigger names spec-workflow, skill registered local and present, gate text absent from global). split_simulation.py: engineering-rules 147->86 lines (~2765->~1800 tokens), baseline context 243->182 lines, avg SNR 22.9%->30.2%. install.sh symlinked spec-workflow into ~/.claude, ~/.codex, ~/.gemini/antigravity-cli, ~/.kiro skills. harness-verify 9/9; run-tests --fast 56 passed. install-agents-md.sh re-run 2026-09-28 with user approval, after confirming each host file held only the managed block and it matched the pre-split version: ~/.claude/CLAUDE.md, ~/.gemini/GEMINI.md, ~/.codex/AGENTS.md now 88 lines, Kiro steering 86; each has the spec-workflow trigger and no old gate text."
+    },
+    {
+      "id": "feat-019",
+      "name": "Migrate polish-input Gemini backend from google-generativeai to google-genai (API key only)",
+      "description": "google-generativeai is deprecated (flagged in feat-008). Live check before migrating: this machine's only Gemini credential was the Antigravity OAuth session, and it already failed with 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT under the old SDK. google-genai cannot use OAuth for the Gemini API at all: Client() raises 'No API key was provided' without a key, and bearer tokens are attached only in Vertex mode (_api_client.py:1463). Per user decision, ported _polish_gemini to genai.Client(api_key=...).models.generate_content with timeout in ms (the old SDK took seconds), removed GeminiAntigravityProvider and _read_antigravity_keychain_value, and log one hint (set GEMINI_API_KEY) when a Gemini provider had no key and nothing else succeeded. Default model changed from gemini-1.5-flash (no longer listed by Google, checked at ai.google.dev/gemini-api/docs/models) to gemini-3.5-flash-lite. requirements-dev.txt regenerated from a clean venv (51 -> 43 packages; gRPC/protobuf gone); pyproject, _lib.sh pip package, README updated.",
+      "dependencies": [
+        "feat-008"
+      ],
+      "status": "done",
+      "evidence": "New tests failed first (2/3), then polish-input 40 passed. mypy clean; gitleaks + osv-scanner clean on the new manifest; harness-verify 9/9; run-tests --fast 56 passed. Live-verified 2026-10-05: GeminiKeychainProvider resolved the agent-skills-setup:gemini key (account from GEMINI_USER) and gemini-3.5-flash-lite returned a valid rewrite. Pre-existing installer gap: Homebrew python3 refuses global pip (PEP 668), so _lib.sh's pip step for polish-input fails here; ambient python still has only the old SDK. Not forced with --break-system-packages."
+    },
+    {
+      "id": "feat-020",
+      "name": "Custom L1\u2013L4 harness for hangar and atelier; refresh shared hook templates",
+      "description": "hangar and atelier already had hooks that were ahead of hooks/ (turn-scope gating, stderr and exit 2), so the work went the other way: promoted their five shared hooks into hooks/common and hooks/k8s with neutral config blocks, then added AGENTS.md router, init.sh, PROGRESS.md and docs/hooks.md to both, plus feature_list.json and a mutation-checked scripts/test-hooks.sh (wired into CI) to atelier. Applied to the real repos on branch harness/l1-l4 (not pushed, main untouched); auto-merge and agent push behaviour untouched, per user decision. Also fixed the two defects review found: gitleaks --source . in all three secret-scan copies, and atelier py-guard/ts-guard now gate on the merge-base and count untracked files.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "This repo: ./init.sh 9/9 gates; scripts/run-tests.sh --fast 57 passed, 0 failed; template test (17 cases): gate, merge-base, exit-code, placeholder and gitleaks-argument mutations all killed. hangar scratch: ./init.sh exit 0 (validate.sh + 30 hook tests, merge-base and hook mutations killed), exit 1 with PROGRESS.md missing and with test-hooks.sh forced to fail. atelier scratch: ./init.sh exit 0, exit 1 on bad feature_list.json and on a broken overlay; scripts/test-hooks.sh 29 cases, hook mutations all killed, and the old py-guard/ts-guard fail 4 of the new cases. pre-commit run --all-files passes in both scratch repos. Fresh-session test (5 questions) answered correctly from the files in both. Canary: Claude Code reads AGENTS.md alone and via @AGENTS.md; agy, kiro-cli, gemini untestable (not logged in). Real repos: hangar and atelier ./init.sh exit 0 on harness/l1-l4, pre-commit run --all-files clean in both. agy verified headless 2026-10-02 (reads AGENTS.md alone and via @AGENTS.md); an agy review of the tests found one real gap (shellcheck step in sh-check never exercised) and one weak case (benign edit to a file with a committed IP), both fixed on harness/test-gaps branches in hangar and atelier and in the template test; 3 other agy findings were refuted or pre-existing. Merged and pushed to main in hangar (7f6e57b contains 6b61b30) and atelier (24d9188); CI succeeded on both, and on agent-skills-setup f360125, as checked 2026-10-02."
+    },
+    {
+      "id": "feat-021",
+      "name": "Register pip google-genai dependency, bump superpowers, wire statusline in install.sh, and update host agents",
+      "description": "Registered pip google-genai>=2.25.0 in registry.txt and added pip/npm validation to validate-registry.sh so install.sh installs runtime SDK automatically. Bumped obra/superpowers to 8ca22dba. Added install_statusline in _lib.sh and wired into install.sh to automatically ensure statusline is configured for supported agents (claude, gemini) without overwriting existing configurations. Deployed updated rules with prompt polish side-channel to all agents, configured statusline on host, and updated agent CLIs.",
+      "dependencies": [
+        "feat-019"
+      ],
+      "status": "done",
+      "evidence": "registry.txt now includes pip google-genai>=2.25.0 and superpowers@8ca22dba; validate-registry.sh passes (26/26 registry tests pass). install_statusline safely configures statusline for claude and gemini if absent. Installed google-genai in .venv and pyenv global python; mypy clean across 28 files; install-agents-md.sh deployed to all 4 host files; update-agents.sh applied; ./init.sh passes all 9 gates clean."
+    },
+    {
+      "id": "feat-022",
+      "name": "Add native Codex CLI hook wiring support and correct outdated documentation",
+      "description": "Modern Codex CLI (v0.150+) supports native lifecycle hooks (UserPromptSubmit, PreToolUse, etc.). Removed outdated claim that Codex has no hook support. Updated scripts/_lib.sh (wire_hook, rewire_hooks, unwire_hook) and agent_skills_dir to support Codex targeting ${CODEX_HOME:-$HOME/.codex}/hooks.json using _settings_merge.py. Updated polish.py detect_agent() to recognize /.codex/. Added codex hooks.json check in harness-verify.sh and updated install.sh, update.sh, and README.md. Added unit tests in test_polish.py and test_hook_wiring.sh.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "bash scripts/tests/test_hook_wiring.sh -> all checks passed including 6 new codex hook wiring/rewiring/unwiring assertions. pytest skills/utils/polish-input/tests/test_polish.py -> 25 passed including new test_detect_agent_supports_codex_claude_gemini. bash scripts/run-tests.sh --fast -> 56 passed, 0 failed. ./init.sh (scripts/harness-verify.sh) -> all 9 gates passed clean."
+    },
+    {
+      "id": "feat-023",
+      "name": "Migrate AGY prompt polish to native PreInvocation hook and remove prompt rule from engineering rules",
+      "description": "Prompt polishing via system prompt rule in GEMINI.md caused 8-15s response latency on reasoning models (Gemini Flash Thinking / Claude Thinking) because thinking tokens and tool executions occur before response text generation. Replaced the system prompt rule with AGY's native PreInvocation lifecycle hook (~/.gemini/config/hooks.json). Updated skills/utils/polish-input/lib/polish.py to parse AGY PreInvocation payloads, extract prompt from transcript.jsonl, output immediate feedback to stderr, and return JSON. Added PreInvocation to hook.json, updated scripts/_settings_merge.py to support AGY hooks format, updated scripts/_lib.sh (wire_hook, rewire_hooks, unwire_hook), updated hook-wiring-check.py and harness-verify.sh. Removed Prompt polish rule from agents/engineering-rules.md and split_simulation.py.",
+      "dependencies": [
+        "feat-022"
+      ],
+      "status": "done",
+      "evidence": "pytest skills/utils/polish-input/tests/test_polish.py -> 29 passed (4 new AGY PreInvocation tests). bash scripts/tests/test_hook_wiring.sh -> 37 checks passed (7 new Gemini hook wiring/rewiring/unwiring assertions). python3 docs/harness-creator/lecture-04/code/split_simulation.py -> passed. bash scripts/run-tests.sh --fast -> 56 passed, 0 failed. ./init.sh -> all 9 gates passed clean."
+    },
+    {
+      "id": "feat-024",
+      "name": "Multi-agent workspace hook support (AGY and Codex CLI) with cross-agent payload handling",
+      "description": "Configured repository-level lifecycle hooks for AGY (.agents/hooks.json) and Codex CLI (.codex/hooks.json), mirroring Claude Code (.claude/settings.json). Updated precommit-sh-check.sh to support both Claude/Codex (tool_input.command) and AGY (toolCall.args.CommandLine) payloads, returning {\"decision\": \"allow\"|\"deny\"} for AGY and exit 0/2 for Claude/Codex. Updated sh-check.sh and py-check.sh (in .claude/hooks/ and templates in hooks/) to recognize AGY TargetFile and AbsolutePath arguments. Implemented .claude/hooks/stop-verify.sh as universal Stop hook wrapper running harness-verify across all agent formats. Added unit and integration tests across all modified and new hooks.",
+      "dependencies": [
+        "feat-023"
+      ],
+      "status": "done",
+      "evidence": "bash .claude/hooks/tests/test_precommit_sh_check.sh -> 14 passed. bash .claude/hooks/tests/test_sh_check.sh -> 16 passed. bash .claude/hooks/tests/test_py_check.sh -> 18 passed. bash .claude/hooks/tests/test_stop_verify.sh -> 6 passed. bash scripts/run-tests.sh --fast -> 57 passed, 0 failed. ./init.sh -> all 9 gates passed clean. Live AGY execution confirmed PreToolUse, PostToolUse, and Stop hook triggering and enforcement."
+    },
+    {
+      "id": "feat-025",
+      "name": "AGY statusline timeout resolution and polish-input streaming squeeze",
+      "description": "Resolved recurring AGY statusLine timeout errors (killed signal) by optimizing statusline-command.sh into a single jq pass (reducing runtime from ~250ms to ~21ms) and updating AGY settings to use statusline-command.sh. Squeezed polish-input hook memory and I/O consumption by seeking to the tail 64KB of transcript.jsonl instead of loading entire multi-megabyte files into memory. Hardened hook payload parsing to support camelCase and generic prompt payloads, gracefully handled null content in transcript steps, and updated standalone _settings_merge.py to detect .agents paths.",
+      "dependencies": [
+        "feat-024"
+      ],
+      "status": "done",
+      "evidence": "Commit 112acf5 on main. pytest skills/utils/polish-input/tests/test_polish.py -> 32 passed (including large transcript tail-read, null content handling, and payload variations). bash scripts/run-tests.sh --fast -> 57 passed, 0 failed. ./init.sh -> all 9 gates passed clean. Live AGY statusline renders cleanly without timeout errors."
+    },
+    {
+      "id": "feat-026",
+      "name": "AGY-only prompt polish rule and AGY statusline stdin fix",
+      "description": "Moved the prompt polish rule out of the shared engineering rules into agents/antigravity-rules.md, appended only to the Gemini/AGY block by install-agents-md.sh. Fixed the blank AGY statusline: AGY never closes the statusline command's stdin, so statusline-command.sh now stops reading once the top-level JSON object closes. install_statusline keeps the object-form statusLine for AGY and refreshes the installed script copy when settings already point at it.",
+      "dependencies": [
+        "feat-025"
+      ],
+      "status": "done",
+      "evidence": "bash scripts/tests/test_statusline_command.sh -> 8 passed (old script fails: 3.1s with stdin open). bash scripts/tests/test_install_agents_md.sh -> 17 passed. Live AGY session renders the statusline with no 'signal: killed' in the new log. After install-agents-md.sh, [polish] appears only in ~/.gemini/GEMINI.md. ./init.sh -> all gates passed."
+    },
+    {
+      "id": "feat-027",
+      "name": "codex-kiro runs on ~/.codex like claude-kiro",
+      "description": "The codex-kiro alias now runs plain codex on the normal ~/.codex home with the kiro gateway passed as -c overrides, instead of a separate CODEX_HOME (~/.codex-kiro) that hid the rules, hooks and skills installed into ~/.codex. setup-codex writes only the alias; remove-codex never deletes a Codex home; status reads the alias. ~/.codex-kiro removed. Default model gpt-5.6-sol at medium reasoning.",
+      "dependencies": [
+        "feat-026"
+      ],
+      "status": "done",
+      "evidence": "Commit 0943b0f. test_kiro_gateway.sh -> 40 passed (4 new codex tests failed on the old code first). Live codex-kiro via interactive zsh -> provider kiro, answered, ~/.codex rules loaded. ./init.sh -> all gates passed."
+    },
+    {
+      "id": "feat-028",
+      "name": "polish-input rewrites instead of replying behind the kiro gateway",
+      "description": "Under claude-kiro the hook polishes through the kiro gateway, whose system prompt made the model answer short prompts as chat. The engine wraps the prompt in <text> tags with a copy-editor system prompt and unwraps the reply. polish.py drops multi-line, too-long or low-overlap outputs and always logs them as rejected.",
+      "dependencies": [
+        "feat-027"
+      ],
+      "status": "done",
+      "evidence": "pytest skills/utils/polish-input/tests -> 59 passed (9 new cases from real 2026-10-01 outputs failed first). Live hook through the gateway: 'yes' silent, today's failing prompts now rewritten with meaning kept. ./init.sh -> all gates passed."
+    },
+    {
+      "id": "feat-029",
+      "name": "macOS tmux leaves SSH_CONNECTION out of update-environment",
+      "description": "agy (build of 2026-10-01) uses file token storage when SSH_CONNECTION is set and then reports 'not logged in' though the login is in the keychain. tmux copies SSH_CONNECTION into the session on any SSH attach, so every new pane inherited it. setup-host.sh's tmux step moved to scripts/setup-tmux-conf.sh, which on Darwin also appends update-environment without SSH_CONNECTION; Linux keeps tmux's default, where agy's SSH rule is right.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "scripts/tests/test_setup_tmux_conf.sh -> 10 OK under bash 5 and /bin/bash 3.2 (failed first: script missing); moving the line out of the Darwin branch fails 'linux: update-environment not set'. macmini: session env had SSH_CONNECTION=192.168.123.188 ... 22; with it cleared, agy -p authenticated via keyring and answered."
+    },
+    {
+      "id": "feat-030",
+      "name": "polish-input supports the agy pre-invocation hook and keychain credentials",
+      "description": "Commit 83748b3 (made in a separate session): polish.py and polish_engine.py accept the agy PreInvocation payload and read credentials from the keychain.",
+      "dependencies": [
+        "feat-028"
+      ],
+      "status": "done",
+      "evidence": "Recorded after the fact on 2026-10-04. pytest skills/utils/polish-input/tests -> 60 passed. Not re-run against a live agy session in this entry."
+    },
+    {
+      "id": "feat-031",
+      "name": "Lecture 5: cold-start continuity audit and state-file fixes",
+      "description": "Cold-start rebuilds by three subagents and agy found state files lagging git in all three repos and the auto-merge decision missing from them. Fixed in hangar and atelier, recorded it in their AGENTS.md/PROGRESS.md, moved frozen PROGRESS sections to docs/progress-archive.md, wrote docs/harness-creator/lecture-05/.",
+      "dependencies": [
+        "feat-020",
+        "feat-030"
+      ],
+      "status": "done",
+      "evidence": "agy re-run on the fixed state matched the files in all three repos with HEAD and dirty count unchanged; ./init.sh -> all gates passed. Not done: rebuild time in seconds, exercises 2 and 3, a staleness guard (see docs/harness-creator/lecture-05/summary.md)."
+    },
+    {
+      "id": "feat-032",
+      "name": "agy loads apidog, progress and testing skills; frontmatter guard",
+      "description": "agy's cli log showed 'failed to parse frontmatter: mapping values are not allowed' for skills/apidog, progress and testing: an unquoted ': ' in description. Quoted the three values and added scripts/skill-frontmatter-check.py, run by skill-paths-guard.sh, so an unquoted ': ' or ' #' blocks with exit 2.",
+      "dependencies": [
+        "feat-031"
+      ],
+      "status": "done",
+      "evidence": "Before: 16/16/11 parse errors for testing/apidog/progress in one agy log. After: a headless agy run logged 0 'Failed to parse skill'. test_skill_paths_guard.sh -> 11 passed (2 new cases); unquoting skills/testing again made the guard exit 2, restoring it exit 0. Follow-up: agy headless allow rules work as exact-prefix command(<binary subcommand>) entries, not with '*' (tested; documented in docs/harness-adoption.md). Installed in the user's agy settings: git status, git rev-parse, git merge-base, grep, wc, ls, head, tail, cat."
+    },
+    {
+      "id": "feat-033",
+      "name": "Live Codex/AGY hook smoke test and the fixes it drove",
+      "description": "Ran codex-kiro and agy live in throwaway clones with tracer hooks (2026-10-02). Fixed: precommit-sh-check missed commits chained after other commands and scripts staged by the same command (git add x && git commit, commit -a); polish ran on AGY's second PreInvocation (AGY counts from 0); rewire/merge left duplicate hook entries (Claude polish ran twice); AGY killed the Stop gate at its 30s default (now timeout 900); sh-check/py-check ignored Codex apply_patch edits and .codex/hooks.json did not match apply_patch; the no-clobber key test stored and printed an inherited KIRO_PROXY_KEY.",
+      "dependencies": [
+        "feat-032"
+      ],
+      "status": "done",
+      "evidence": "Each fix has a test that fails on the old code (mutation-checked) and passes on the new: precommit 26/26, sh-check 23/23, py-check 21/21, stop-verify 7/7, settings_merge 13/13, polish 60/60, kiro-gateway 41/41. update.sh on this host collapsed the duplicate Claude polish entry to 1. Live runs showed Codex repo hooks fire only once trusted (needs per-host trust). NOT re-run live after the fixes."
+    },
+    {
+      "id": "feat-034",
+      "name": "Pin claude-kiro and hermes-kiro to claude-sonnet-5.5",
+      "description": "Kiro started rejecting claude-sonnet-5 with HTTP 400 'Invalid model ID or insufficient subscription level' while the gateway's /v1/models still listed it (cache from container start plus FALLBACK_MODELS). Both aliases pinned it, so hermes-kiro failed. Re-pinned to claude-sonnet-5.5.",
+      "dependencies": [
+        "feat-027"
+      ],
+      "status": "done",
+      "evidence": "Direct probes 2026-10-05: claude-sonnet-5.5, claude-opus-5.5, claude-haiku-4.5, gpt-5.6-sol -> 200; claude-sonnet-5, auto-kiro, gpt-6-sol -> 400. test_kiro_gateway.sh 41/41 (2 new alias tests failed first). setup-alias regenerated ~/.zshrc; live hermes-kiro chat -q answered with HTTP 200 through the gateway."
+    },
+    {
+      "id": "feat-035",
+      "name": "outside-agent.sh fallback runner and the Outside agents rule",
+      "description": "scripts/outside-agent.sh (wrapper for scripts/outside_agent.py) runs a prompt through the first working agent in the per-machine ~/.agent-skills-setup/outside-agents.conf, records failures, and for --purpose review prefers a different model family. Exit 0 success, 2 nothing worked or error, 3 review answered only by the caller's own family. Commands: run, init, status, reset. install_runtime_dir copies both files, install.sh runs init, runtime-drift-guard.sh blocks copy drift. engineering-rules.md Part III gains '### Outside agents'.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "tests/test_outside_agent.py 67 passed, 1 skipped (live). test_engineering_rules_scope.sh 10/10 (2 new checks failed first). run-tests.sh --fast 62 passed; mypy clean. First live init (2026-10-05, worktree script, cwd = worktree) kept only codex-kiro: claude-kiro 'timed out after 60s' and agy rejected its argv ('-p took \"--mode\" as its prompt'). Fixed: build_argv now emits 'agy --mode plan -p <prompt>' (test failed first). Re-run from the worktree: agy then timed out too, because it answers OK and then likely runs this repo's agy Stop gate (cwd-dependent hang measured; .agents/hooks.json harness-verify, 900s); from /tmp it exits in ~10s. Fixed: init probes run from runtime_dir() (tempfile.gettempdir() fallback), covered by test_init_probes_from_runtime_dir_not_caller_cwd (failed first); run keeps the caller's cwd. 'init --force' from the worktree then wrote 'claude-kiro codex-kiro agy' (claude 'no Claude Code login', codex 'no ~/.codex/auth.json'); status: 'conf: claude-kiro codex-kiro agy'. RUN_INTEGRATION=1 pytest -k live_review: 1 passed. run --purpose review --from claude: '[outside-agent] used=codex-kiro skipped=-', stdout OK, exit 0. harness-verify: 9 gates OK, runtime drift FAIL as expected (installed copies predate this branch). The harness-verify and live evidence above were recorded on 2026-10-05 before the final review fixes. Final review fixes: classify on rc 0 reads output as a status message only when it is 80 chars or fewer and starts with a status phrase (short answers mentioning quota, /login or 401 were misread as rate_limit/auth); run_one kills the agent's process group on SIGTERM/SIGINT/SIGHUP (exit 128+signum) and on any exception, tested by SIGTERM to the wrapper; default --timeout lowered 300 -> 110s; an ok result clears the agent's auth demotion; exit 3 prints one stderr line; _active accepts naive timestamps. tests/test_outside_agent.py 76 passed, 1 skipped (new tests failed first). 2026-10-06 (f083eaf): rc-0 classify reads only a complete status message, anchored at start and end, so 'Error path checks quota correctly.', 'Usage limit check is fine.' and '401 is returned correctly.' are ok (6 new cases failed first); tests/test_outside_agent.py 90 passed, 1 skipped; run-tests --fast 62 passed. Cross-model review through outside-agent.sh itself (used=codex-kiro, exit 0) found a missing end anchor, fixed; second pass reported only that spaces count as a separator."
+    },
+    {
+      "id": "feat-036",
+      "name": "Two-reviewer rule, branch cleanup rule, README outside-agent flow charts, and a repo-wide cleanup",
+      "description": "engineering-rules.md: reviews use a fresh-context subagent plus another model family via outside-agent.sh; a one-pass cleanup over each branch's diff before finishing. README gains an Outside Agents section with an agent-selection and a review flow chart; architecture.md lists outside agents and the runtime drift guard and corrects commit-evidence.sh to a Stop hook. A repo-wide cleanup then ran as four parallel fixers in isolated worktrees (scripts, hooks, skills/utils+infra, remaining skills and docs): restating and history comments removed, doc facts corrected against code, duplicates merged where one copy was canonical (lib/lib.sh _own_repo_id; upload_resume.py placeholder; host-optimization main.py lib_dir).",
+      "dependencies": [
+        "feat-035"
+      ],
+      "status": "done",
+      "evidence": "65 files, +213/-315 over ba699a2. run-tests.sh --fast 62 passed, 0 failed; mypy clean; bash-compat, hook-wiring, skill-paths and registry guards pass; test_engineering_rules_scope.sh 10/10. Two reviews: a fresh-context subagent verified 24 facts and call sites (_own_repo_id at all three call sites, slugify sed under BSD sed, 16 groups, 46 subcommands, 12 rules, service lists, init-repo FORCE=1, hook events) and found no behavior change, no wrong doc fix and no scope violation; outside-agent.sh run --purpose review (used=codex-kiro, exit 0) checked every changed non-comment shell and Python line and reported NONE. Its four follow-ups were applied (pip-guard WHY restored, change-eval added to utils description, remaining migration-note tables dropped since docs/migration.md keeps them, one comment rewrapped). Known: lib/lib.sh changed, so runtime-drift-guard flags lib.sh too until install.sh runs from main."
+    },
+    {
+      "id": "feat-037",
+      "name": "Default claude-kiro to claude-sonnet-5.5 and warn that open shells keep old aliases",
+      "description": "claude-kiro failed with HTTP 400 'Invalid model ID' from a tmux pane started 2026-10-01: its live environment still held ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5 from 0771014, because a running shell never re-reads ~/.zshrc after 1feec92 rewrote the alias. Not caused by install.sh, update.sh or the feat-036 cleanup (none touch the alias line). claude-kiro now sets ANTHROPIC_MODEL=claude-sonnet-5.5 (a literal ID, like hermes-kiro's --model), so the default no longer follows the opus alias in settings.json, and pins ANTHROPIC_DEFAULT_OPUS/SONNET/HAIKU_MODEL to claude-opus-5.5/claude-sonnet-5.5/claude-haiku-4.5. setup-alias now prints that shells and tmux panes already open must re-source the rc file.",
+      "dependencies": [
+        "feat-034"
+      ],
+      "status": "done",
+      "evidence": "Failing process 90223 (parent: tmux pane 0:2.1 zsh, started 2026-10-01 14:44) had ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5 in its environment; a shell started later had claude-sonnet-5.5. Gateway log shows claude-sonnet-5 400s only at 2026-10-05 12:30 and 2026-10-07 00:06-00:14 UTC. With this change stashed, the committed alias from a fresh shell sent claude-opus-5-5 (settings.json opus) and --model sonnet sent claude-sonnet-5.5, both 200. After: claude-kiro sent claude-sonnet-5.5 (200); claude-kiro --model opus sent claude-opus-5.5 (200). test_kiro_gateway.sh 46/46 (two new tests failed first). ./init.sh: all gates passed. setup-alias regenerated ~/.zshrc."
+    },
+    {
+      "id": "feat-038",
+      "name": "Lecture 6: init.sh builds .venv on a fresh clone, contributor docs, free ports for mock-server tests",
+      "description": "Lecture 6 training (docs/harness-creator/lecture-06/) found that the first ./init.sh on a fresh clone fails the types gate because the .venv creation command lived only in error strings. init.sh now builds .venv from requirements-dev.txt when the directory is missing and removes a half-built one on failure. README Quick Start points contributors at AGENTS.md and ./init.sh. AGENTS.md states the ~5 minute run and that a SKIP is not a pass. docs/architecture.md now describes the ambient-python fallback as it is (only when no .venv exists; CI runs that way). The four confluence-tree mock-server tests take a kernel-assigned port for all 11 picks (tests/free_port.sh) instead of a random pick from a fixed range. init.sh also refuses to build when python3 differs from .python-version (names both versions, builds nothing) and removes a half-built .venv on INT/TERM/HUP. Left open on purpose: unordered What's Next and no acceptance-criteria field in feature_list.json, since an order or criteria for 37 finished entries would be invented.",
+      "dependencies": [
+        "feat-037"
+      ],
+      "status": "done",
+      "evidence": "Reproduced on a clean clone before the fix: types-guard.sh failed with 'Cannot find implementation or library stub for module anthropic'. Port flake reproduced: limactl (49906) and wsagent (49706) listen inside test_tree_upload.sh's 49000-49999 range and a Python HTTPServer bind on either fails with 'Address already in use'. scripts/tests/test_init_sh.sh 8 passed (failed first, before init.sh changed). test_tree_upload, test_push, test_attach, test_tree_fetch all exit 0 with kernel-assigned ports. Follow-up: test_init_sh.sh 12 passed (version-mismatch and terminated-mid-build cases failed first; removing the trap from init.sh turns the interrupt case red). Clean copy of the working tree without .venv, HOME redirected to a temp dir: ./init.sh built the venv and ran in 4m26s, 9 gates OK and 1 SKIP (runtime drift, no runtime installed under the temp HOME)."
+    },
+    {
+      "id": "feat-039",
+      "name": "Review rule: one review per branch, reviewers scaled to risk, reviewers get repo access",
+      "description": "The Reviewing rule in agents/engineering-rules.md said 'use two reviewers' with no trigger and gave the fresh subagent only the diff and requirements. It now says: review once per branch on the cumulative diff, right before finishing it (next to the cleanup pass); no reviewer for docs, wording, state files and test-only changes, one fresh-context subagent for ordinary code, two (subagent plus another model family) for hooks and gates, shipped rules, install scripts, and permission, security, data or contract changes. Reviewers get read access to the repo at the post-change commit, the user's original request and acceptance checks, and the test and gate commands, and never the author's conversation, reasoning or verified-claims. README and docs/architecture.md describe the tiers. install-agents-md.sh was run on 2026-10-07 after owner approval: Claude Code, Antigravity, Codex and Kiro host files were refreshed, and a diff against backups showed only the Reviewing line changed in each.",
+      "dependencies": [
+        "feat-035",
+        "feat-036"
+      ],
+      "status": "done",
+      "evidence": "test_engineering_rules_scope.sh: two new checks (trigger wording, repo access) failed first, 12/12 after. Reasoning for repo access: the feat-036 subagent review verified 24 facts and call sites, which a diff alone cannot show; this session's docs claim about the ambient-Python fallback needed run-tests.sh, types-guard.sh and test.yml, none in the diff. Yield data is thin (two cases: Lecture 2 cross-model review found one real bug and one false claim, feat-036 review of 65 files found no defect), so the tiers are a starting guess. Open: record 'review found a real defect yes/no' in evidence for about ten reviews, then check the tier thresholds."
+    },
+    {
+      "id": "feat-040",
+      "name": "Lecture 7: enforce WIP=1 and completion evidence in state-layer guard, close lecture 7",
+      "description": "Lecture 7 training (docs/harness-creator/lecture-07/) addressed agent overreach and under-finish. Upgraded .claude/hooks/state-layer-guard.sh to mechanically enforce WIP<=1 and non-empty verification/acceptance_criteria on active features. Added 4 test cases to test_state_layer_guard.sh (17 passed). Codified WIP=1 in AGENTS.md Startup Workflow. Restructured PROGRESS.md What's Next into a prioritized queue with verification commands, resolving the open items from Lecture 6. Ran comparison experiment in /tmp/l7 showing WIP=1 yields 31% fewer lines with zero scope creep while passing all 5 hidden acceptance tests.",
+      "dependencies": [
+        "feat-038"
+      ],
+      "status": "done",
+      "evidence": "test_state_layer_guard.sh: 17 passed, 0 failed (WIP limit violation and missing evidence cases failed first). test_scope_tracker.py passed. scope_tracker.py verified clean on feature_list.json (40 completed, 0 active). Comparison experiment: /tmp/l7/exp-b passed 5/5 hidden checks in 86 LOC vs 125 LOC in exp-a. bash-compat-guard.sh OK. test_engineering_rules_scope.sh 12/12."
+    }
+  ]
+}

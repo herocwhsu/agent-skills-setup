@@ -246,6 +246,80 @@ grep -qi 'schema' <<<"$out" \
   && ok "message flags schema error for invalid exclusions" \
   || bad "message flags schema error for invalid exclusions" "out: $out"
 
+# --- 17. valid archive_references passes -------------------------------------
+d=$(fixture_complete archive-valid)
+mkdir -p "$d/docs/archive/features"
+cat > "$d/docs/archive/features/archive-001.json" <<'EOF'
+{"features": [
+  {"id": "feat-001", "status": "done", "evidence": "tests pass"}
+]}
+EOF
+cat > "$d/feature_list.json" <<'EOF'
+{
+  "archive_references": ["docs/archive/features/archive-001.json"],
+  "features": [
+    {"id": "feat-002", "status": "done", "evidence": "more tests pass"}
+  ]
+}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 0 ]] \
+  && ok "valid archive_references passes" \
+  || bad "valid archive_references passes" "exit $status, out: $out"
+
+# --- 18. missing archive_references file blocks with exit 2 ------------------
+d=$(fixture_complete archive-missing)
+cat > "$d/feature_list.json" <<'EOF'
+{
+  "archive_references": ["docs/archive/features/nonexistent.json"],
+  "features": []
+}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "missing archive_references file blocks with exit 2" \
+  || bad "missing archive_references file blocks with exit 2" "exit $status, out: $out"
+grep -q 'nonexistent.json' <<<"$out" \
+  && ok "message names the missing archive file" \
+  || bad "message names the missing archive file" "out: $out"
+
+# --- 19. malformed archive_references file blocks with exit 2 ----------------
+d=$(fixture_complete archive-malformed)
+mkdir -p "$d/docs/archive/features"
+echo "not valid json {" > "$d/docs/archive/features/bad.json"
+cat > "$d/feature_list.json" <<'EOF'
+{
+  "archive_references": ["docs/archive/features/bad.json"],
+  "features": []
+}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "malformed archive_references file blocks with exit 2" \
+  || bad "malformed archive_references file blocks with exit 2" "exit $status, out: $out"
+
+# --- 20. unevidenced done feature in archive blocks with exit 2 --------------
+d=$(fixture_complete archive-unevidenced)
+mkdir -p "$d/docs/archive/features"
+cat > "$d/docs/archive/features/archive-unevidenced.json" <<'EOF'
+{"features": [
+  {"id": "feat-old", "status": "done", "evidence": ""}
+]}
+EOF
+cat > "$d/feature_list.json" <<'EOF'
+{
+  "archive_references": ["docs/archive/features/archive-unevidenced.json"],
+  "features": []
+}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "unevidenced done feature in archive blocks with exit 2" \
+  || bad "unevidenced done feature in archive blocks with exit 2" "exit $status, out: $out"
+grep -q 'feat-old' <<<"$out" \
+  && ok "message names the unevidenced archived feature" \
+  || bad "message names the unevidenced archived feature" "out: $out"
+
 echo ""
 echo "test_state_layer_guard: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]
