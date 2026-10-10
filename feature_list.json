@@ -94,6 +94,24 @@
       ],
       "evidence": "Integrated scripts/trace-evaluation.sh into scripts/session-clean.sh with automated snapshot recording and --trend table rendering on handoff, plus state layer threshold checking. Extended scripts/tests/test_session_clean.sh with 8/8 tests passing (including telemetry trace execution). Documented trace-evaluation.sh commands and session telemetry in AGENTS.md quick reference table, Verify section, and End of Session guidelines. Verified run-tests.sh --fast (80/80 passed) and all 11 harness gates clean.",
       "verification": "bash scripts/session-clean.sh --dry-run && bash scripts/tests/test_session_clean.sh"
+    },
+    {
+      "id": "feat-056",
+      "name": "Auto duration delta calculation, process tree agent detection, and Markdown trace dashboard",
+      "description": "Upgrade scripts/trace_evaluation.py with automated duration delta calculation from previous trace snapshots when --duration-ms is omitted, process tree ancestry inspection in detect_agent() eliminating ambiguous directory checks, and automatic generation of docs/telemetry/SUMMARY.md Markdown dashboard.",
+      "dependencies": [
+        "feat-055"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "trace_evaluation.py auto-calculates duration_ms from previous trace timestamp when omitted",
+        "detect_agent() inspects process tree ancestry (PPID/ancestors) to identify active agent runtime",
+        "record_snapshot() automatically updates docs/telemetry/SUMMARY.md Markdown table",
+        "scripts/tests/test_trace_evaluation.sh passes with new test coverage for auto duration, process tree detection, and Markdown rendering",
+        "All fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Upgraded scripts/trace_evaluation.py with auto duration calculation (auto_detect_duration_ms), process tree ancestry inspection in detect_agent() via get_process_ancestors(), human-friendly time formatting in format_duration() (ms, s, m, h), and automatic Markdown dashboard generation in docs/telemetry/SUMMARY.md via render_markdown_dashboard(). Added unit tests in scripts/tests/test_trace_evaluation.sh (12/12 passed). Verified run-tests.sh --fast (80/80 passed) and all 11 harness gates clean.",
+      "verification": "bash scripts/tests/test_trace_evaluation.sh && bash scripts/trace-evaluation.sh --trend"
     }
   ]
 }

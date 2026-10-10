@@ -106,6 +106,28 @@ set +e; out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --trend "$trace_agent" 2>&1);
   && ok "trend table displays Agent and Spent Time columns" \
   || bad "trend table displays Agent and Spent Time columns" "status: $status, out: $out"
 
+# --- 10. Auto duration delta calculated when --duration-ms omitted ------------
+# Add a record with explicit past timestamp, then record again without --duration-ms
+trace_auto="$d/docs/telemetry/auto-trace.jsonl"
+echo '{"commit": "init", "timestamp": "2026-10-10T10:00:00.000000+00:00", "agent": "claude", "duration_ms": 1000, "duration_str": "1.0s", "state_layer": {}, "test_metrics": {}, "thresholds": {"status": "OK", "warnings": []}}' > "$trace_auto"
+set +e; out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --record "$trace_auto" 2>&1); status=$?; set -e
+second_line=$(tail -n 1 "$trace_auto")
+has_auto_dur=$(echo "$second_line" | python3 -c "import json, sys; d=json.load(sys.stdin); print('VALID' if d.get('duration_ms', 0) > 0 and d.get('duration_str') != '-' else 'INVALID')" 2>/dev/null || echo "ERROR")
+[[ $status -eq 0 && "$has_auto_dur" == "VALID" ]] \
+  && ok "auto duration delta calculated when --duration-ms is omitted" \
+  || bad "auto duration delta calculated when --duration-ms is omitted" "status: $status, auto_dur: $has_auto_dur, out: $out"
+
+# --- 11. Markdown dashboard generated on record and viewable via --markdown ---
+summary_md="$d/docs/telemetry/SUMMARY.md"
+[[ -f "$summary_md" ]] && grep -q "Repository Evaluation & Telemetry Dashboard" "$summary_md" \
+  && ok "SUMMARY.md markdown dashboard generated automatically on record" \
+  || bad "SUMMARY.md markdown dashboard generated automatically on record" "file missing or invalid header"
+
+set +e; md_out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --markdown "$trace_auto" 2>&1); md_status=$?; set -e
+[[ $md_status -eq 0 && "$md_out" =~ "| Commit |" && "$md_out" =~ "Status" ]] \
+  && ok "--markdown renders formatted markdown table" \
+  || bad "--markdown renders formatted markdown table" "status: $md_status, out: $md_out"
+
 # --- Summary ------------------------------------------------------------------
 echo ""
 echo "test_trace_evaluation.sh: $pass passed, $fail failed"

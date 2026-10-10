@@ -38,10 +38,55 @@ def get_git_commit(repo_dir: Path) -> str:
         return "unknown"
 
 
+def get_process_ancestors(max_depth: int = 6) -> list[str]:
+    """Return command/process names of ancestors up to max_depth."""
+    ancestors: list[str] = []
+    pid = os.getpid()
+    try:
+        for _ in range(max_depth):
+            res = subprocess.run(
+                ["ps", "-o", "ppid=,comm=", "-p", str(pid)],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            line = res.stdout.strip()
+            if not line:
+                break
+            parts = line.split(None, 1)
+            if not parts:
+                break
+            ppid_str = parts[0]
+            comm = parts[1] if len(parts) > 1 else ""
+            if comm:
+                ancestors.append(comm.lower())
+            ppid = int(ppid_str)
+            if ppid <= 1:
+                break
+            pid = ppid
+    except (subprocess.SubprocessError, OSError, ValueError):
+        pass
+    return ancestors
+
+
 def detect_agent(explicit_agent: str | None = None) -> str:
     """Detect current AI agent runtime environment or use explicit parameter."""
     if explicit_agent and explicit_agent not in ("auto", "none", ""):
         return explicit_agent.lower()
+
+    # 1. Inspect parent process ancestry
+    for comm in get_process_ancestors():
+        base = Path(comm).name.lower()
+        if "agy" in base or "antigravity" in base:
+            return "agy"
+        if "claude" in base:
+            return "claude"
+        if "codex" in base:
+            return "codex"
+        if "kiro" in base:
+            return "kiro"
+
+    # 2. Inspect active environment variables
     env = os.environ
     if (
         "GEMINI_CONFIG_DIR" in env
@@ -56,12 +101,52 @@ def detect_agent(explicit_agent: str | None = None) -> str:
         return "codex"
     if "KIRO_HOME" in env or "KIRO_IDE" in env:
         return "kiro"
-    # Fallback checks: check presence of active antigravity or claude configs
-    if Path(os.path.expanduser("~/.gemini/antigravity-cli")).is_dir():
-        return "agy"
-    if Path(os.path.expanduser("~/.claude")).is_dir():
-        return "claude"
+
     return "unknown"
+
+
+def auto_detect_duration_ms(trace_path: Path, repo_dir: Path) -> float | None:
+    """Auto-detect elapsed time since previous trace entry or commit."""
+    if trace_path.is_file():
+        try:
+            last_line = ""
+            with open(trace_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        last_line = line.strip()
+            if last_line:
+                data = json.loads(last_line)
+                prev_ts_str = data.get("timestamp")
+                if prev_ts_str:
+                    prev_dt = datetime.fromisoformat(prev_ts_str)
+                    now_dt = datetime.now(UTC)
+                    delta_sec = (now_dt - prev_dt).total_seconds()
+                    # Sanity check: between 0 and 7 days
+                    if 0 < delta_sec < 86400 * 7:
+                        return delta_sec * 1000
+        except (json.JSONDecodeError, ValueError, OSError):
+            pass
+
+    try:
+        res = subprocess.run(
+            ["git", "-C", str(repo_dir), "log", "-2", "--format=%ct"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        lines = [
+            int(x.strip())
+            for x in res.stdout.strip().split()
+            if x.strip().isdigit()
+        ]
+        if len(lines) >= 2:
+            delta_sec = lines[0] - lines[1]
+            if 0 < delta_sec < 86400 * 7:
+                return float(delta_sec * 1000)
+    except (subprocess.SubprocessError, OSError, ValueError):
+        pass
+
+    return None
 
 
 def format_duration(ms: float | None) -> str:
@@ -70,7 +155,16 @@ def format_duration(ms: float | None) -> str:
         return "-"
     if ms < 1000:
         return f"{int(ms)}ms"
-    return f"{ms / 1000:.1f}s"
+    sec = ms / 1000
+    if sec < 60:
+        return f"{sec:.1f}s"
+    minutes = int(sec // 60)
+    remaining_sec = int(sec % 60)
+    if minutes < 60:
+        return f"{minutes}m {remaining_sec}s"
+    hours = int(minutes // 60)
+    rem_min = int(minutes % 60)
+    return f"{hours}h {rem_min}m"
 
 
 def count_lines(file_path: Path) -> int:
@@ -97,6 +191,7 @@ def estimate_tokens(file_path: Path) -> int:
 
 def collect_snapshot(
     repo_dir: Path,
+    trace_path: Path | None = None,
     explicit_agent: str | None = None,
     duration_ms: float | None = None,
 ) -> dict[str, Any]:
@@ -104,6 +199,10 @@ def collect_snapshot(
     commit = get_git_commit(repo_dir)
     now_iso = datetime.now(UTC).isoformat()
     agent_name = detect_agent(explicit_agent)
+
+    if (duration_ms is None or duration_ms <= 0) and trace_path is not None:
+        duration_ms = auto_detect_duration_ms(trace_path, repo_dir)
+
     dur_str = format_duration(duration_ms)
 
     feature_file = repo_dir / "feature_list.json"
@@ -195,19 +294,91 @@ def collect_snapshot(
     }
 
 
+def render_markdown_dashboard(trace_path: Path, output_md: Path | None = None) -> str:
+    """Render a GitHub-flavored Markdown dashboard table from trace history."""
+    if not trace_path.is_file():
+        return ""
+
+    records: list[dict[str, Any]] = []
+    with open(trace_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+    if not records:
+        return ""
+
+    md_lines = [
+        "# Repository Evaluation & Telemetry Dashboard",
+        "",
+        "*Automated execution telemetry, multi-agent state evolution, and state layer tracking.*",
+        "",
+        "| Commit | Timestamp (UTC) | Agent | Spent Time | Est. Tokens | `feature_list.json` | `PROGRESS.md` | Done (Active) | Status |",
+        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+    ]
+
+    latest_warnings: list[str] = []
+    for rec in records[-20:]:
+        commit = rec.get("commit", "unknown")
+        ts = rec.get("timestamp", "")[:19].replace("T", " ")
+        ag = rec.get("agent", "unknown")
+        dur = rec.get("duration_str") or format_duration(rec.get("duration_ms", 0))
+        sl = rec.get("state_layer", {})
+        tok = f"~{sl.get('total_state_tokens_est', 0):,} tok"
+        feat_l = f"{sl.get('feature_list_lines', 0)} lines"
+        prog_l = f"{sl.get('progress_lines', 0)} lines"
+        comp = sl.get("completed_features", 0)
+        act = sl.get("active_features", 0)
+        done_active = f"{comp} ({act} act)"
+        st = rec.get("thresholds", {}).get("status", "OK")
+        latest_warnings = rec.get("thresholds", {}).get("warnings", [])
+        md_lines.append(
+            f"| `{commit}` | {ts} | `{ag}` | {dur} | {tok} | {feat_l} | {prog_l} | {done_active} | **{st}** |"
+        )
+
+    md_lines.append("")
+    if latest_warnings:
+        md_lines.append("### Actionable Remediation & Suggestions")
+        for w in latest_warnings:
+            md_lines.append(f"- ⚠️ **[ACTION]** {w}")
+    else:
+        md_lines.append("✅ **Status:** All state layer metrics are within clean-state limits.")
+    md_lines.append("")
+
+    content = "\n".join(md_lines)
+    if output_md:
+        output_md.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_md, "w", encoding="utf-8") as f:
+            f.write(content)
+
+    return content
+
+
 def record_snapshot(
     repo_dir: Path,
     trace_path: Path,
     explicit_agent: str | None = None,
     duration_ms: float | None = None,
 ) -> dict[str, Any]:
-    """Record current snapshot to JSONL file."""
+    """Record current snapshot to JSONL file and update Markdown dashboard."""
     snapshot = collect_snapshot(
-        repo_dir, explicit_agent=explicit_agent, duration_ms=duration_ms
+        repo_dir,
+        trace_path=trace_path,
+        explicit_agent=explicit_agent,
+        duration_ms=duration_ms,
     )
     trace_path.parent.mkdir(parents=True, exist_ok=True)
     with open(trace_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(snapshot) + "\n")
+
+    summary_path = trace_path.parent / "SUMMARY.md"
+    render_markdown_dashboard(trace_path, output_md=summary_path)
+
     return snapshot
 
 
@@ -307,6 +478,13 @@ def main() -> int:
         help="Render history table from target trace file",
     )
     parser.add_argument(
+        "--markdown",
+        nargs="?",
+        const="DEFAULT",
+        default=None,
+        help="Render Markdown dashboard from target trace file",
+    )
+    parser.add_argument(
         "--check-thresholds",
         action="store_true",
         help="Evaluate warning thresholds and exit non-zero if bloat detected",
@@ -323,14 +501,20 @@ def main() -> int:
 
     if args.json:
         snapshot = collect_snapshot(
-            repo_dir, explicit_agent=args.agent, duration_ms=args.duration_ms
+            repo_dir,
+            trace_path=default_trace_file,
+            explicit_agent=args.agent,
+            duration_ms=args.duration_ms,
         )
         print(json.dumps(snapshot, indent=2))
         return 0
 
     if args.check_thresholds:
         snapshot = collect_snapshot(
-            repo_dir, explicit_agent=args.agent, duration_ms=args.duration_ms
+            repo_dir,
+            trace_path=default_trace_file,
+            explicit_agent=args.agent,
+            duration_ms=args.duration_ms,
         )
         warnings = snapshot.get("thresholds", {}).get("warnings", [])
         if warnings:
@@ -344,6 +528,15 @@ def main() -> int:
     if args.trend is not None:
         target = default_trace_file if args.trend == "DEFAULT" else Path(args.trend)
         render_trend_table(target)
+        return 0
+
+    if args.markdown is not None:
+        target = default_trace_file if args.markdown == "DEFAULT" else Path(args.markdown)
+        md = render_markdown_dashboard(target)
+        if md:
+            print(md)
+        else:
+            print(f"No records found in {target}")
         return 0
 
     # Default action or --record
