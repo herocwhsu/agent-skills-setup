@@ -17,7 +17,7 @@ bad() { echo "  FAIL  $1: $2"; fail=$((fail + 1)); }
 d="$TMP/repo"
 mkdir -p "$d/scripts"
 cp "$REPO_DIR/scripts/trace-evaluation.sh" "$REPO_DIR/scripts/trace_evaluation.py" "$d/scripts/"
-printf '{"features": [{"id":"feat-001","status": "completed"}]}\n' > "$d/feature_list.json"
+printf '{"features": [{"id":"feat-001","status": "completed","verification":"bash scripts/trace-evaluation.sh && pytest tests/gone.py"}]}\n' > "$d/feature_list.json"
 printf '# P\n\n### What'"'"'s Next\n\n1. Do the thing\n\n## Blockers\n' > "$d/PROGRESS.md"
 git -C "$d" init -q
 git -C "$d" add .
@@ -32,6 +32,8 @@ grep -q 'feat: first change' "$report" && ok "lists commits in window" || bad "l
 grep -q 'Do the thing' "$report" && ok "includes What's Next queue" || bad "queue" "missing"
 grep -q 'Blockers' "$report" && bad "queue stops at next heading" "leaked Blockers" || ok "queue stops at next heading"
 grep -q 'completed' "$report" && ok "counts feature status" || bad "feature status" "missing"
+grep -q 'feat-001: tests/gone.py' "$report" && ok "flags missing verification path" || bad "missing verification path" "not flagged"
+grep -q 'feat-001: scripts/trace-evaluation.sh' "$report" && bad "existing path not flagged" "false positive" || ok "existing path not flagged"
 grep -q 'weekly-review:plan' "$report" && ok "leaves plan marker" || bad "plan marker" "missing"
 
 set +e; WEEKLY_REVIEW_REPO_DIR="$d" bash "$SCRIPT" --days abc >/dev/null 2>&1; s=$?; set -e

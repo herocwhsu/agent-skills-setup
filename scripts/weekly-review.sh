@@ -64,6 +64,22 @@ commit_count=$(git log --since="$SINCE" --oneline | wc -l | tr -d ' ')
   grep -o '"status": *"[a-z_-]*"' feature_list.json | sort | uniq -c || true
   echo '```'
   echo
+  echo "## Verification command paths"
+  echo
+  echo "Paths named by a feature's \`verification\` command that no longer exist:"
+  echo
+  echo '```'
+  python3 - <<'PY'
+import json, os, re
+missing = []
+for f in json.load(open("feature_list.json"))["features"]:
+    for tok in re.findall(r"(?:scripts|tests|docs)/[\w./-]+", f.get("verification", "")):
+        if not os.path.exists(tok):
+            missing.append(f"{f['id']}: {tok}")
+print("\n".join(missing) if missing else "none")
+PY
+  echo '```'
+  echo
   echo "## Queue from PROGRESS.md"
   echo
   awk '/^### What.s Next/{f=1; next} f && /^(## |### )/{exit} f' PROGRESS.md

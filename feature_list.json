@@ -44,21 +44,21 @@
     {
       "id": "feat-058",
       "name": "Autonomous ratchet loop runner, goal specifications, and review iteration flow",
-      "description": "Standardize goal specifications under docs/goals/, promote ratchet_loop into scripts/ratchet_loop.py and scripts/ratchet-loop.sh CLI runner supporting goal-based iteration, automated test verification, independent review evaluation, and automatic rollback on regression.",
+      "description": "Standardize goal specifications under docs/goals/, promote ratchet_loop into scripts/ratchet_loop_runner.py and scripts/ratchet-loop.sh CLI runner supporting goal-based iteration, automated test verification, independent review evaluation, and automatic rollback on regression.",
       "dependencies": [
         "feat-057"
       ],
       "status": "completed",
       "acceptance_criteria": [
         "docs/goals/TEMPLATE.md provides standardized goal loop specification with scopes and criteria",
-        "scripts/ratchet_loop.py and scripts/ratchet-loop.sh implement autonomous ratchet runner with --goal, --review, and --demo modes",
+        "scripts/ratchet_loop_runner.py and scripts/ratchet-loop.sh implement autonomous ratchet runner with --goal, --review, and --demo modes",
         "Automated verification and rollback on regression via git reset when tests or checker review fails",
         "Circuit breakers halt loop on max rounds, consecutive failures, or goal threshold met",
-        "scripts/tests/test_ratchet_loop.sh and tests/test_ratchet_loop.py pass with 100% clean status",
+        "scripts/tests/test_ratchet_loop.sh and tests/test_ratchet_loop_runner.py pass with 100% clean status",
         "All fast tests and 11 harness gates pass"
       ],
-      "evidence": "Promoted autonomous ratchet loop engine into scripts/ratchet_loop.py and scripts/ratchet-loop.sh CLI runner with support for --goal-file, --active-feature, --review-diff, and --demo modes. Created standardized goal loop specification template in docs/goals/TEMPLATE.md defining machine-verifiable acceptance criteria, fair-game and hands-off scopes, and stopping conditions. Implemented automated verification, independent Checker review integration (via outside-agent.sh or custom checkers), and automated rollback on regression with circuit breakers halting on consecutive failures or max rounds. Added automated test coverage in tests/test_ratchet_loop.py (5/5 passed) and scripts/tests/test_ratchet_loop.sh (6/6 passed across macOS system Python 3.9 and Python 3.14). All fast test suites and 11 harness gates pass.",
-      "verification": "bash scripts/tests/test_ratchet_loop.sh && .venv/bin/pytest tests/test_ratchet_loop.py"
+      "evidence": "Promoted autonomous ratchet loop engine into scripts/ratchet_loop_runner.py and scripts/ratchet-loop.sh CLI runner with support for --goal-file, --active-feature, --review-diff, and --demo modes. Created standardized goal loop specification template in docs/goals/TEMPLATE.md defining machine-verifiable acceptance criteria, fair-game and hands-off scopes, and stopping conditions. Implemented automated verification, independent Checker review integration (via outside-agent.sh or custom checkers), and automated rollback on regression with circuit breakers halting on consecutive failures or max rounds. Added automated test coverage in tests/test_ratchet_loop_runner.py (5/5 passed) and scripts/tests/test_ratchet_loop.sh (6/6 passed across macOS system Python 3.9 and Python 3.14). All fast test suites and 11 harness gates pass.",
+      "verification": "bash scripts/tests/test_ratchet_loop.sh && .venv/bin/pytest tests/test_ratchet_loop_runner.py"
     },
     {
       "id": "feat-059",
@@ -97,6 +97,23 @@
       ],
       "evidence": "Authored comprehensive Lecture 14 study materials (summary.md, progress-detail.md, code/graph.md). Implemented zero-dependency StateGraph engine in docs/harness-creator/lecture-14/code/graph_engine.py with checkpointer persistence, human-in-the-loop pause, and conditional rollback routing. Promoted to production CLI runner in scripts/graph_runner.py and scripts/graph-runner.sh. Added automated unit tests in docs/harness-creator/lecture-14/code/test_graph_engine.py (5/5 passed), tests/test_graph_runner.py (3/3 passed), and scripts/tests/test_graph_runner.sh (3/3 passed). Audited by independent adversarial subagent with CLEAN PASS verdict. Verified with run-tests.sh --fast (86/86 passed) and all 11 gates in harness-verify.sh.",
       "verification": "bash scripts/tests/test_graph_runner.sh && .venv/bin/pytest tests/test_graph_runner.py docs/harness-creator/lecture-14/code/test_graph_engine.py"
+    },
+    {
+      "id": "feat-061",
+      "name": "Weekly review report and first self fine-tune",
+      "description": "Add scripts/weekly-review.sh producing docs/weekly/YYYY-Www.md (commits, churn, thresholds, feature status, stale verification paths, queue) for a scheduled weekly review; fix feat-058 references broken by the feat-059 rename.",
+      "dependencies": [
+        "feat-060"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "weekly-review.sh writes docs/weekly/YYYY-Www.md and leaves a plan marker",
+        "report flags verification-command paths that no longer exist",
+        "every completed feature's verification command resolves to existing paths",
+        "scripts/tests/test_weekly_review.sh passes and all 11 harness gates pass"
+      ],
+      "evidence": "Added scripts/weekly-review.sh and scripts/tests/test_weekly_review.sh (9/9). First weekly review (2026-W41) found feat-058 verification pointed at renamed tests/test_ratchet_loop.py; fixed to test_ratchet_loop_runner.py and added the path check so it cannot recur silently.",
+      "verification": "bash scripts/tests/test_weekly_review.sh"
     }
   ]
 }

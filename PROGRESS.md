@@ -24,6 +24,8 @@
 - [x] feat-059: State layer context bloat remediation and feature archival (feat-051 through feat-055). Partitioned completed features feat-051 through feat-055 into docs/archive/features/archive-feat-051-055.json, updated feature_list.json archive_references, and pruned historical training decisions from PROGRESS.md into docs/progress-archive.md. State layer tokens reduced below 6,000 threshold (OK status in trace evaluation).
 - [x] feat-060: Graph Engineering DAG runner, state machine orchestration, and Lecture 14 closing. Authored comprehensive Lecture 14 study materials (summary.md, progress-detail.md, code/graph.md). Implemented zero-dependency StateGraph engine in docs/harness-creator/lecture-14/code/graph_engine.py with checkpointer persistence, human-in-the-loop pause, and conditional rollback routing. Promoted to production CLI runner in scripts/graph_runner.py and scripts/graph-runner.sh. Added automated unit tests in docs/harness-creator/lecture-14/code/test_graph_engine.py (5/5 passed), tests/test_graph_runner.py (3/3 passed), and scripts/tests/test_graph_runner.sh (3/3 passed). Audited by independent adversarial subagent with CLEAN PASS verdict. Verified with run-tests.sh --fast (86/86 passed) and all 11 gates in harness-verify.sh.
 
+- [x] feat-061: Weekly review report (`scripts/weekly-review.sh` → `docs/weekly/YYYY-Www.md`) and first self fine-tune. Found feat-058's verification command broken by the feat-059 rename (`tests/test_ratchet_loop.py` → `test_ratchet_loop_runner.py`), fixed it, added a stale-verification-path check to the weekly report, and listed the new runners in the README script table. Tests 9/9.
+
 ### What's In Progress
 
 - Nothing active (WIP=0, clean state).

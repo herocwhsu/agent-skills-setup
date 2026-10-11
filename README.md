@@ -205,6 +205,11 @@ since a PR checkout is a detached merge ref). A copy with no `.git` is not check
 | `init.sh` | macOS / Linux | One-command harness startup & verification entrypoint (builds `.venv` on a fresh clone) |
 | `scripts/harness-verify.sh` | macOS / Linux | Run every verification gate (registry, types, tests, hooks, runtime drift, secrets) |
 | `scripts/outside-agent.sh` | macOS / Linux | Pick a working outside agent for delegation or cross-family review (see [Outside Agents](#outside-agents)) |
+| `scripts/session-clean.sh` | macOS / Linux | End-of-session cleanup: purge caches, sync runtime copies, record a telemetry snapshot, verify clean-state invariants |
+| `scripts/trace-evaluation.sh` | macOS / Linux | Evaluation trace: `--trend` history, `--check-thresholds` state-layer limits |
+| `scripts/ratchet-loop.sh` | macOS / Linux | Autonomous ratchet loop against a goal spec in `docs/goals/` (verify, independent review, rollback on regression) |
+| `scripts/graph-runner.sh` | macOS / Linux | Run a multi-agent DAG workflow with checkpointing and rollback routing |
+| `scripts/weekly-review.sh` | macOS / Linux | Generate the weekly review facts into `docs/weekly/YYYY-Www.md` |
 | `scripts/run-tests.sh` | macOS / Linux | Run all skill + script tests (`--fast` skips integration tests) |
 | `scripts/setup-host.sh` | macOS / Linux | Configure host environment (statusline HUD, push notifications, Playwright MCP, tmux) |
 | `scripts/setup-credentials.sh` | macOS / Linux | Store service credentials in keychain |
