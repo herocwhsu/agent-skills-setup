@@ -28,7 +28,7 @@ OUT="$OUT_DIR/$WEEK.md"
 SINCE="$DAYS days ago"
 mkdir -p "$OUT_DIR"
 
-commit_count=$(git log --since="$SINCE" --oneline | wc -l | tr -d ' ')
+commit_count=$(git log --since="$SINCE" --oneline 2>/dev/null | wc -l | tr -d ' ' || true)
 
 {
   echo "# Weekly review $WEEK"
@@ -46,9 +46,10 @@ commit_count=$(git log --since="$SINCE" --oneline | wc -l | tr -d ' ')
   echo "## Files changed"
   echo
   echo '```'
-  first=$(git log --since="$SINCE" --format=%H | tail -1)
+  first=$(git log --since="$SINCE" --format=%H 2>/dev/null | tail -1 || true)
   if [[ -n "$first" ]]; then
-    git diff --stat "$first^" HEAD 2>/dev/null | tail -15 || true
+    base=$(git rev-parse -q --verify "$first^" || git hash-object -t tree /dev/null)
+    git diff --stat "$base" HEAD | tail -15 || true
   fi
   echo '```'
   echo
@@ -61,7 +62,7 @@ commit_count=$(git log --since="$SINCE" --oneline | wc -l | tr -d ' ')
   echo "## Feature status"
   echo
   echo '```'
-  grep -o '"status": *"[a-z_-]*"' feature_list.json | sort | uniq -c || true
+  grep -o '"status": *"[a-z_-]*"' feature_list.json 2>/dev/null | sort | uniq -c || true
   echo '```'
   echo
   echo "## Verification command paths"
@@ -72,17 +73,23 @@ commit_count=$(git log --since="$SINCE" --oneline | wc -l | tr -d ' ')
   python3 - <<'PY'
 import json, os, re
 missing = []
-for f in json.load(open("feature_list.json"))["features"]:
-    for tok in re.findall(r"(?:scripts|tests|docs)/[\w./-]+", f.get("verification", "")):
-        if not os.path.exists(tok):
-            missing.append(f"{f['id']}: {tok}")
+try:
+    features = json.load(open("feature_list.json"))["features"]
+except (OSError, ValueError, KeyError) as e:
+    features = []
+    missing.append(f"feature_list.json unreadable: {e}")
+for f in features:
+    for tok in re.findall(r"(?:scripts|tests|docs)/[\w./*-]+", f.get("verification") or ""):
+        tok = tok.rstrip(".,;:")
+        if "*" not in tok and not os.path.exists(tok):
+            missing.append(f"{f.get('id', '?')}: {tok}")
 print("\n".join(missing) if missing else "none")
 PY
   echo '```'
   echo
   echo "## Queue from PROGRESS.md"
   echo
-  awk '/^### What.s Next/{f=1; next} f && /^(## |### )/{exit} f' PROGRESS.md
+  awk '/^### What.s Next/{f=1; next} f && /^(## |### )/{exit} f' PROGRESS.md 2>/dev/null || true
   echo
   echo "## Plan for next week"
   echo
