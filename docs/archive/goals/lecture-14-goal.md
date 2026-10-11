@@ -8,25 +8,25 @@ Study and close Lecture 14 ("From Single Loops to Graph Engineering"), porting t
 
 ## Acceptance Criteria
 
-- [ ] Comprehensive Lecture 14 study materials created:
+- [x] Comprehensive Lecture 14 study materials created:
   - `docs/harness-creator/lecture-14/summary.md` (Concepts: 4 stacked layers, Loop vs Graph, 3 structural loop failures, Graph != Workflow, Anchors, Orchestration Tax, 5 graph criteria)
   - `docs/harness-creator/lecture-14/progress-detail.md` (Exercise log, measurements, and audit trails)
   - `docs/harness-creator/lecture-14/code/graph.md` (Blueprint of maker-checker graph with explicit node table, edge table, shared state, and routing rules)
-- [ ] Standalone, zero-dependency Graph Engine implementation:
+- [x] Standalone, zero-dependency Graph Engine implementation:
   - `docs/harness-creator/lecture-14/code/graph_engine.py` (StateGraph, nodes, edges, conditional router, checkpointer, and pause-for-human approval)
   - `docs/harness-creator/lecture-14/code/test_graph_engine.py` (100% test coverage)
-- [ ] Production Harness Promotion:
+- [x] Production Harness Promotion:
   - Promote engine to `scripts/graph_runner.py` and `scripts/graph-runner.sh` CLI wrapper
   - Add test suites in `tests/test_graph_runner.py` and `scripts/tests/test_graph_runner.sh`
-- [ ] Zero Type or Lint Regressions:
+- [x] Zero Type or Lint Regressions:
   - `.venv/bin/mypy --config-file mypy.ini` clean across all files
   - `.venv/bin/ruff check` clean
-- [ ] All 11 Harness Verification Gates Clean:
+- [x] All 11 Harness Verification Gates Clean:
   - `bash scripts/run-tests.sh --fast` passes with zero failures
   - `bash scripts/harness-verify.sh` passes all 11 gates cleanly
-- [ ] Adversarial Checker Verification:
+- [x] Adversarial Checker Verification:
   - Independent subagent review confirming Worker/Checker separation, rollback edges, and no fake success
-- [ ] Telemetry & State Invariants:
+- [x] Telemetry & State Invariants:
   - `feature_list.json` registers and completes `feat-060` with `WIP <= 1`
   - `python3 scripts/trace_evaluation.py --check-thresholds` passes `OK` (<6,000 state tokens)
 
