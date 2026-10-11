@@ -18,6 +18,7 @@
 | `63225ae` | 2026-10-10 10:20:22 | `agy` | - | 11m 25s | ~4,810 tok | 98 lines | 140 lines | 5 (0 act) | **OK** |
 | `469c2b2` | 2026-10-10 12:01:09 | `agy` | - | 8m 12s | ~5,435 tok | 117 lines | 141 lines | 6 (0 act) | **OK** |
 | `0f959cc` | 2026-10-10 13:46:36 | `agy` | 8 self, 1 out (claude) | - | ~6,224 tok | 135 lines | 142 lines | 7 (0 act) | **WARN** |
+| `9fa9e6e` | 2026-10-11 01:52:51 | `agy` | 1 self | - | ~6,263 tok | 135 lines | 143 lines | 7 (0 act) | **WARN** |
 
 ### Actionable Remediation & Suggestions
-- ⚠️ **[ACTION]** State layer tokens exceed 6000 tokens (~6,224 tokens) — context bloat detected.
+- ⚠️ **[ACTION]** State layer tokens exceed 6000 tokens (~6,263 tokens) — context bloat detected.

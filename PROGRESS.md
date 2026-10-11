@@ -4,10 +4,11 @@
 
 **Last Updated:** 2026-10-10
 **Active Feature:** none
-**Harness lectures:** 1–12 closed (`docs/harness-creator/lecture-0N/summary.md`).
+**Harness lectures:** 1–13 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
 - Lecture 11 (making the agent's runtime observable) closed: runtime_logger ported (13/13 tests, clean ruff/mypy), sprint contract & evaluator rubric documented.
 - Lecture 12 (why every session must leave a clean state) closed: cleanup_scanner and benchmark_runner ported (22/22 tests, clean ruff/mypy), Invariant 4 enforced via Gate 11.
+- Lecture 13 (from manual prompting to autonomous loops) closed: ratchet_loop ported (9/9 tests, clean ruff/mypy), goal and loop state templates documented.
 - Historical progress log pruned: `feat-001` through `feat-050` archived in `docs/progress-archive.md`.
 
 ## Status
