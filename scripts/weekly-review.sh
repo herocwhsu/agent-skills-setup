@@ -23,7 +23,8 @@ done
 [[ "$DAYS" =~ ^[0-9]+$ ]] || { echo "weekly-review.sh: --days must be an integer" >&2; exit 2; }
 
 cd "$REPO_DIR"
-WEEK="$(date +%G-W%V)"
+# Label by yesterday so a Monday-morning run names the week it reports on.
+WEEK="$(python3 -c 'import datetime as d; print((d.date.today() - d.timedelta(days=1)).strftime("%G-W%V"))')"
 OUT="$OUT_DIR/$WEEK.md"
 SINCE="$DAYS days ago"
 mkdir -p "$OUT_DIR"

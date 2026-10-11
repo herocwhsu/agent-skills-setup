@@ -28,6 +28,8 @@ report="$out"
 [[ $status -eq 0 && -f "$report" && "$report" =~ docs/weekly/[0-9]{4}-W[0-9]{2}\.md$ ]] \
   && ok "writes docs/weekly/YYYY-Www.md" || bad "writes report" "exit $status, out: $out"
 
+want=$(python3 -c 'import datetime as d; print((d.date.today() - d.timedelta(days=1)).strftime("%G-W%V"))')
+[[ "$(basename "$report")" == "$want.md" ]] && ok "names the report by yesterday's ISO week" || bad "week label" "got $(basename "$report"), want $want.md"
 grep -q 'feat: first change' "$report" && ok "lists commits in window" || bad "lists commits" "missing"
 grep -q 'Do the thing' "$report" && ok "includes What's Next queue" || bad "queue" "missing"
 grep -q 'Blockers' "$report" && bad "queue stops at next heading" "leaked Blockers" || ok "queue stops at next heading"
