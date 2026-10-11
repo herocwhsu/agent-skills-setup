@@ -1,0 +1,180 @@
+"""Unit tests for repository ratchet loop engine (feat-058)."""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from ratchet_loop import (
+    LoopGoal,
+    RatchetLoopRunner,
+    load_active_feature_goal,
+    parse_goal_markdown,
+    render_state_markdown,
+)
+
+
+def test_parse_goal_markdown(tmp_path: Path) -> None:
+    goal_file = tmp_path / "sample_goal.md"
+    goal_file.write_text(
+        """# Goal: Optimize Memory
+
+## Goal
+Reduce peak RSS usage by 20%.
+
+## Acceptance Criteria
+- [ ] Memory benchmark passes
+- [ ] No regressions in test suite
+
+## Scope
+
+### Fair Game
+- `scripts/worker.py`
+- `tests/test_worker.py`
+
+### Hands Off
+- `scripts/_lib.sh`
+- `AGENTS.md`
+
+## Verification Method
+1. `pytest tests/test_worker.py`
+- `python scripts/bench_mem.py`
+$ python scripts/verify_rss.py
+""",
+        encoding="utf-8",
+    )
+    goal = parse_goal_markdown(goal_file.read_text(encoding="utf-8"))
+    assert goal.name == "Goal: Optimize Memory"
+    assert "Reduce peak RSS usage" in goal.description
+    assert len(goal.acceptance_criteria) == 2
+    assert "scripts/worker.py" in goal.fair_game_scope
+    assert "scripts/_lib.sh" in goal.hands_off_scope
+    assert len(goal.verification_commands) == 3
+    assert "pytest tests/test_worker.py" in goal.verification_commands[0]
+    assert "python scripts/verify_rss.py" in goal.verification_commands[2]
+
+
+def test_load_active_feature_goal(tmp_path: Path) -> None:
+    # 1. Feature list with active feature
+    feat_file = tmp_path / "feature_list.json"
+    feat_file.write_text(
+        json.dumps(
+            {
+                "features": [
+                    {
+                        "id": "feat-001",
+                        "status": "completed",
+                        "name": "First feat",
+                    },
+                    {
+                        "id": "feat-002",
+                        "status": "in_progress",
+                        "name": "Second feat",
+                        "description": "Improve performance",
+                        "acceptance_criteria": ["All tests pass"],
+                        "verification": "pytest tests/test_feat2.py",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    goal = load_active_feature_goal(tmp_path)
+    assert goal is not None
+    assert goal.name == "feat-002: Second feat"
+    assert "Improve performance" in goal.description
+    assert len(goal.acceptance_criteria) == 1
+    assert "pytest tests/test_feat2.py" in goal.verification_commands
+
+    # 2. No active feature
+    feat_file.write_text(
+        json.dumps({"features": [{"id": "feat-001", "status": "completed"}]}),
+        encoding="utf-8",
+    )
+    assert load_active_feature_goal(tmp_path) is None
+
+
+def test_ratchet_loop_decisions(tmp_path: Path) -> None:
+    state_file = tmp_path / "state.md"
+    tsv_file = tmp_path / "results.tsv"
+    goal = LoopGoal(
+        name="Ratchet Decisions",
+        description="",
+        target_metric_threshold=0.10,
+        max_rounds=5,
+        max_consecutive_failures=2,
+    )
+    runner = RatchetLoopRunner(goal, state_file=state_file, results_tsv_file=tsv_file)
+
+    rollbacks: list[int] = []
+
+    def rollback() -> None:
+        rollbacks.append(runner.state.current_round)
+
+    # Round 1: Successful improvement (0.30) -> KEEP
+    r1 = runner.execute_round(
+        maker_action=lambda: ("First improvement", 0.30),
+        checker_eval=lambda desc, m, v: ("PASS", []),
+        rollback_action=rollback,
+    )
+    assert r1.action_taken == "KEEP"
+    assert runner.state.best_metric == 0.30
+    assert len(rollbacks) == 0
+
+    # Round 2: Metric regression (0.35 > 0.30) -> REVERT
+    r2 = runner.execute_round(
+        maker_action=lambda: ("Regression", 0.35),
+        checker_eval=lambda desc, m, v: ("PASS", []),
+        rollback_action=rollback,
+    )
+    assert r2.action_taken == "REVERT"
+    assert runner.state.best_metric == 0.30
+    assert runner.state.consecutive_failures == 1
+    assert len(rollbacks) == 1
+
+    # Round 3: Checker rejects -> REVERT & trips consecutive failures breaker
+    r3 = runner.execute_round(
+        maker_action=lambda: ("Checker fail", 0.20),
+        checker_eval=lambda desc, m, v: ("FAIL", ["Critical defect"]),
+        rollback_action=rollback,
+    )
+    assert r3.action_taken == "REVERT"
+    assert runner.state.status == "BLOCKED"
+    assert len(runner.state.blockers) > 0
+
+
+def test_terminal_state_guard() -> None:
+    goal = LoopGoal(name="Guard Test", description="", max_rounds=1)
+    runner = RatchetLoopRunner(goal)
+
+    runner.execute_round(
+        maker_action=lambda: ("R1", 0.5),
+        checker_eval=lambda d, m, v: ("PASS", []),
+    )
+    assert runner.state.status == "MAX_ROUNDS_REACHED"
+
+    with pytest.raises(RuntimeError, match="already in terminal state"):
+        runner.execute_round(
+            maker_action=lambda: ("R2", 0.4),
+            checker_eval=lambda d, m, v: ("PASS", []),
+        )
+
+
+def test_render_state_markdown(tmp_path: Path) -> None:
+    goal = LoopGoal(name="Markdown Test", description="")
+    runner = RatchetLoopRunner(goal)
+    runner.execute_round(
+        maker_action=lambda: ("R1 attempt", 0.15),
+        checker_eval=lambda d, m, v: ("PASS", []),
+    )
+    md = render_state_markdown(runner.state)
+    assert "Markdown Test" in md
+    assert "Verification" in md
+    assert "Checker" in md
+    assert "0.1500" in md

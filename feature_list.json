@@ -130,6 +130,25 @@
       ],
       "evidence": "Added execution logging (_log_outside_run) in scripts/outside_agent.py recording timestamps, agent name, family, purpose, caller family, exit code, independence status, and repo path to both ~/.agent-skills-setup/state/outside-agent-runs.jsonl and docs/telemetry/outside-agent-runs.jsonl (gitignored). Implemented subagent metrics tracking in scripts/trace_evaluation.py (format_subagents, auto_detect_outside_runs, format_table, render_markdown_dashboard, CLI flags --self-subagents and --outside-subagents). Hardened parsing defensively against malformed jsonl lines, None values, and timezone naive/aware datetimes with cross-platform Python 3.9+ compatibility. Added unit tests in scripts/tests/test_trace_evaluation.sh (16/16 passed across UTC, Asia/Taipei, and America/Los_Angeles timezones) and tests/test_outside_agent.py (92 passed, 1 skipped). Adversarially reviewed across 5 iterative rounds with both self subagents and outside independent agents (Claude Code outside-agent.sh) achieving CLEAN PASS.",
       "verification": "bash scripts/tests/test_trace_evaluation.sh && .venv/bin/pytest tests/test_outside_agent.py"
+    },
+    {
+      "id": "feat-058",
+      "name": "Autonomous ratchet loop runner, goal specifications, and review iteration flow",
+      "description": "Standardize goal specifications under docs/goals/, promote ratchet_loop into scripts/ratchet_loop.py and scripts/ratchet-loop.sh CLI runner supporting goal-based iteration, automated test verification, independent review evaluation, and automatic rollback on regression.",
+      "dependencies": [
+        "feat-057"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "docs/goals/TEMPLATE.md provides standardized goal loop specification with scopes and criteria",
+        "scripts/ratchet_loop.py and scripts/ratchet-loop.sh implement autonomous ratchet runner with --goal, --review, and --demo modes",
+        "Automated verification and rollback on regression via git reset when tests or checker review fails",
+        "Circuit breakers halt loop on max rounds, consecutive failures, or goal threshold met",
+        "scripts/tests/test_ratchet_loop.sh and tests/test_ratchet_loop.py pass with 100% clean status",
+        "All fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Promoted autonomous ratchet loop engine into scripts/ratchet_loop.py and scripts/ratchet-loop.sh CLI runner with support for --goal-file, --active-feature, --review-diff, and --demo modes. Created standardized goal loop specification template in docs/goals/TEMPLATE.md defining machine-verifiable acceptance criteria, fair-game and hands-off scopes, and stopping conditions. Implemented automated verification, independent Checker review integration (via outside-agent.sh or custom checkers), and automated rollback on regression with circuit breakers halting on consecutive failures or max rounds. Added automated test coverage in tests/test_ratchet_loop.py (5/5 passed) and scripts/tests/test_ratchet_loop.sh (6/6 passed across macOS system Python 3.9 and Python 3.14). All fast test suites and 11 harness gates pass.",
+      "verification": "bash scripts/tests/test_ratchet_loop.sh && .venv/bin/pytest tests/test_ratchet_loop.py"
     }
   ]
 }
