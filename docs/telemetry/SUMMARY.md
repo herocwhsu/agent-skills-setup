@@ -23,5 +23,6 @@
 | `5745fae` | 2026-10-11 04:06:16 | `agy` | - | 28m 9s | ~3,915 tok | 84 lines | 84 lines | 4 (0 act) | **OK** |
 | `d42e000` | 2026-10-11 04:48:45 | `agy` | - | 27m 47s | ~4,646 tok | 102 lines | 86 lines | 5 (0 act) | **OK** |
 | `a1fc4a6` | 2026-10-11 06:15:06 | `claude` | - | 7m 5s | ~5,044 tok | 119 lines | 88 lines | 6 (0 act) | **OK** |
+| `1851491` | 2026-10-11 08:13:53 | `agy` | 1 self, 1 out (agy) | 5m 22s | ~5,963 tok | 137 lines | 91 lines | 7 (0 act) | **OK** |
 
 ✅ **Status:** All state layer metrics are within clean-state limits.
