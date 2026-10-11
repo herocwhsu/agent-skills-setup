@@ -112,7 +112,7 @@
         "every completed feature's verification command resolves to existing paths",
         "scripts/tests/test_weekly_review.sh passes and all 11 harness gates pass"
       ],
-      "evidence": "Added scripts/weekly-review.sh and scripts/tests/test_weekly_review.sh (9/9). First weekly review (2026-W41) found feat-058 verification pointed at renamed tests/test_ratchet_loop.py; fixed to test_ratchet_loop_runner.py and added the path check so it cannot recur silently.",
+      "evidence": "Added scripts/weekly-review.sh and scripts/tests/test_weekly_review.sh (9/9). First weekly review (2026-W41) found feat-058 verification pointed at renamed tests/test_ratchet_loop.py; fixed to test_ratchet_loop_runner.py and added the path check so it cannot recur silently. Independently reviewed: self subagent (fresh context) found 5 reproducible defects (empty repo abort, missing PROGRESS.md truncation, root-commit empty diff, null verification crash, glob/punctuation false positives), all reproduced by hand and fixed with tests (14/14); outside agent (agy, via outside-agent.sh, exit 0) reported CLEAN on the pre-fix diff. Fixes were guards only, so no re-review.",
       "verification": "bash scripts/tests/test_weekly_review.sh"
     }
   ]
