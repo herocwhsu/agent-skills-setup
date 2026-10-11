@@ -11,7 +11,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-from ratchet_loop import (
+from ratchet_loop_runner import (
     LoopGoal,
     RatchetLoopRunner,
     load_active_feature_goal,

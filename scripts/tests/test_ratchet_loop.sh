@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_ratchet_loop.sh — Unit tests for scripts/ratchet_loop.py and ratchet-loop.sh (feat-058)
+# test_ratchet_loop.sh — Unit tests for scripts/ratchet_loop_runner.py and ratchet-loop.sh (feat-058)
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -69,13 +69,13 @@ else
   fail "ratchet-loop.sh failed to handle non-existent goal file"
 fi
 
-# Test 6: Python 3.9 compatibility for scripts/ratchet_loop.py
+# Test 6: Python 3.9 compatibility for scripts/ratchet_loop_runner.py
 if [[ -x "/usr/bin/python3" ]]; then
-  sys_py_out=$(/usr/bin/python3 "$REPO_DIR/scripts/ratchet_loop.py" --demo)
+  sys_py_out=$(/usr/bin/python3 "$REPO_DIR/scripts/ratchet_loop_runner.py" --demo)
   if echo "$sys_py_out" | grep -q "COMPLETED"; then
-    pass "scripts/ratchet_loop.py runs cleanly on macOS system python3 (3.9)"
+    pass "scripts/ratchet_loop_runner.py runs cleanly on macOS system python3 (3.9)"
   else
-    fail "scripts/ratchet_loop.py failed on macOS system python3"
+    fail "scripts/ratchet_loop_runner.py failed on macOS system python3"
   fi
 else
   pass "macOS system python3 check skipped (not available)"

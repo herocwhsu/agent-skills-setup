@@ -287,4 +287,68 @@ feat-011 to feat-022; its early numbers (8 gates, 53 tests) are from when they w
 - [x] feat-048: live harness self-benchmark runner and baseline suite. Created `benchmarks/harness-suite.json` (7 tasks with SLA latency targets), implemented `scripts/harness_benchmark.py` and `scripts/harness-benchmark.sh` supporting multi-iteration timing, SLA checking, and `--compare` delta regression tracking (+15% threshold; 10/10 tests pass), added `--dry-run` to `session-clean.sh` (7/7 tests pass), and generated canonical `benchmarks/baseline.json` with 100% SLA compliance (7/7 tasks PASS in 8129ms).
 - [x] feat-049: Python module naming standardization to PEP 8 snake_case. Standardized 5 internal Python scripts from kebab-case to snake_case (`credential_backend_check.py`, `hook_wiring_check.py`, `skill_frontmatter_check.py`, `skill_path_var_check.py`, `apidog_share_fetch.py`). Updated callers in `.claude/hooks/credential-backend-guard.sh`, `hook-wiring-guard.sh`, `skill-paths-guard.sh`, `harness-verify.sh`, `resolve_test_targets.py`, and documentation in `skills/apidog/`. Verified 100% clean imports across all 5 modules, `tests/test_resolve_test_targets.py` passed (9/9), `run-tests.sh --fast` passed (78/78), and all 11 gates in `harness-verify.sh` passed.
 - [x] feat-050: Template library relocation from hooks/ to templates/hooks/. Relocated root hooks/ to templates/hooks/ via git mv. Updated hook resolution path in scripts/init-repo.sh, scripts/tests/test_init_repo.sh, scripts/tests/test_shared_hook_templates.sh, and added templates to REPO_SUBDIRS in scripts/skill_path_var_check.py. Updated references across README.md, docs/architecture.md, and AGENTS.md. Verified with test_init_repo.sh (16/16), test_shared_hook_templates.sh (20/20), run-tests.sh --fast (78/78), and all 11 gates in harness-verify.sh.
+- [x] feat-051: Relocate Kiro workflow prompts from prompts/ to agents/kiro/prompts/. Relocated root prompts/ to agents/kiro/prompts/ via git mv. Atomically updated install_kiro_prompts and uninstall_kiro_prompts in scripts/_lib.sh to source from agents/kiro/prompts/. Added automated test suite scripts/tests/test_kiro_prompts.sh verifying isolated mock home installations, path substitutions, and uninstalls against both mock repo and live repo (5/5 checks passed). Updated docs/architecture.md. Verified with run-tests.sh --fast (79/79 passed) and all 11 gates in harness-verify.sh.
+- [x] feat-052: State layer feature archival to docs/archive/features/. Partitioned 40 historical completed features (feat-001 through feat-040) into docs/archive/features/archive-feat-001-040.json, reducing feature_list.json from 513 lines to 218 lines. Extended .claude/hooks/state-layer-guard.sh to validate archive_references, checking file existence, JSON validity, features schema, and unevidenced completion across both active and archived features with 3-part diagnostics. Added 4 new test cases to .claude/hooks/tests/test_state_layer_guard.sh (40/40 passed under both bash 5 and macOS /bin/bash 3.2). Verified run-tests.sh --fast (79/79 passed) and all 11 gates in harness-verify.sh.
+- [x] feat-053: Elevate active repo guard rails to universal harness/guards/. Elevated all 16 guard rails and 12 guard test suites from .claude/hooks/ to agent-agnostic harness/guards/ with backward-compatible relative symlink .claude/hooks -> ../harness/guards. Updated harness-verify.sh, setup-git-hooks.sh, .agents/hooks.json, .codex/hooks.json, run-tests.sh, resolve_test_targets.py, and documentation in docs/architecture.md. Added harness/ to REPO_SUBDIRS in skill_path_var_check.py. Verified run-tests.sh --fast (79/79 passed) and all 11 gates in harness-verify.sh.
+- [x] feat-054: Automated evaluation trace loop and trend reporter. Implemented scripts/trace_evaluation.py and scripts/trace-evaluation.sh supporting snapshot recording to docs/telemetry/evaluation-trace.jsonl, formatted --trend historical analysis, --check-thresholds for state layer token bloat detection (feature_list.json > 250 lines, PROGRESS.md > 150 lines), and --json export. Created automated test suite scripts/tests/test_trace_evaluation.sh (9/9 passed). Fast test suite runs 80/80 passed with zero failures.
+- [x] feat-055: Wire evaluation trace telemetry into session-clean.sh and AGENTS.md base workflow. Integrated scripts/trace-evaluation.sh snapshot recording and --trend display into scripts/session-clean.sh, added state layer threshold checks during handoffs, extended scripts/tests/test_session_clean.sh (8/8 passed), and documented commands in AGENTS.md Quick Reference and End-of-Session workflow.
 
+## Archived Decisions (Lectures 1–3)
+
+- **Did not add a fake "one feature at a time" placeholder feature list**:
+  this repo is an ongoing multi-skill toolkit, not a single-feature build, so a
+  literal `feature_list.json` reflects real completed/queued work instead of a
+  templated placeholder. See `AGENTS.md` for this repo's actual working rules.
+- **`init.sh` delegates rather than reimplements**: `scripts/harness-verify.sh`
+  is already this repo's single source of truth for verification gates (same
+  checks the Stop hooks run). A second implementation in `init.sh` would drift
+  from it the first time either changed.
+- **Removed a broken `ask` permission rule rather than patching it wider**:
+  `codex-kiro` (a genuinely different model) found `Bash(bash scripts/install.sh*)`
+  trivially bypassed by any other invocation form. Enumerating every bypass is
+  not a stable boundary, so `AGENTS.md` now documents that boundary as
+  advisory-only instead of pretending an unenforceable rule enforces it.
+- **Only 2 of ~400 bare `python3`/`mypy`/`pytest` call sites were pointed at
+  the new `.venv`**: everything else either ships to other people's machines
+  (installer scripts, credential helpers, hook templates copied into other
+  repos) and must keep resolving from ambient PATH, or only imports stdlib
+  and needs no third-party package at all. Confirmed via a full call-site
+  audit before touching anything, not assumed.
+- **Brought in a third model (`agy`) specifically because `codex-kiro` had
+  just failed once**: a single review tool's reliability wobble is a real
+  reason to add a second source, not just retry the same one. That review
+  paid off with a genuine finding (version-drift gap) — but also produced
+  two confident, false claims from `agy` itself, reinforcing that a third
+  model is one more source to verify, not one more source to trust by
+  default.
+- **`google-generativeai` deprecation confirmed but not migrated** (migrated later in feat-019): real,
+  checked against PyPI directly, not just claimed by either review model —
+  but migrating it means touching `polish_engine.py`'s actual Gemini
+  integration code, a different-shaped change than this session's
+  dev-tooling scope. Flagged in Blockers/Risks rather than silently
+  expanded into or silently dropped.
+- **Redesigned the exclusion test rather than accepting the first null
+  result**: attempt 1 (mirror a sibling file) was fully answerable from the
+  sibling alone, so stripping Instructions/State/Feedback never got
+  exercised — a null result about the task, not about the subsystems.
+  Attempt 2 deliberately chose a task with real ambiguity, a non-obvious
+  stopping point, and a mechanically verifiable outcome (a new gate across
+  4 integration points) instead of a bigger or different-repo task — size
+  wasn't the problem, shortcut-ability was.
+- **Caught and excluded a confound rather than reporting all 4 conditions
+  as comparable**: the no-feedback variant's ablation (delete
+  `scripts/tests/` to remove Feedback) happened to also delete the file
+  containing the pre-existing bug the other 3 conditions found. Its silence
+  on that bug is an artifact of the ablation, not a finding, and it was
+  explicitly excluded from that comparison rather than silently averaged in.
+- **Recorded the exclusion-test result as a correlation, not a proven
+  cause**: `AGENTS.md`'s presence correlates with fixing (not just
+  flagging) an incidentally-found bug, cross-validated across 3 independent
+  sandboxes finding the identical bug — but `AGENTS.md` has no instruction
+  resembling "fix bugs you find along the way" (checked directly, no
+  match), so the causal mechanism is explicitly left unconfirmed rather
+  than overclaimed.
+
+Full training-exercise narrative (diagnostic-loop scores, the verification-gap
+measurement, the same-model-review lesson): `docs/harness-creator/lecture-01/`
+and `docs/harness-creator/lecture-02/`.

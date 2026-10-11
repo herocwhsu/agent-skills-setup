@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ratchet-loop.sh — Portable CLI wrapper for scripts/ratchet_loop.py (feat-058)
+# ratchet-loop.sh — Portable CLI wrapper for scripts/ratchet_loop_runner.py (feat-058)
 #
 # Runs autonomous ratchet loops with Maker/Checker separation, automated verification,
 # independent review evaluation, and automatic rollback on regression.
@@ -18,4 +18,4 @@ if [[ -x "$REPO_DIR/.venv/bin/python3" ]]; then
   PYTHON="$REPO_DIR/.venv/bin/python3"
 fi
 
-exec "$PYTHON" "$REPO_DIR/scripts/ratchet_loop.py" --repo-dir "$REPO_DIR" "$@"
+exec "$PYTHON" "$REPO_DIR/scripts/ratchet_loop_runner.py" --repo-dir "$REPO_DIR" "$@"

@@ -1,0 +1,98 @@
+{
+  "archive_version": 1,
+  "description": "Historical completed features feat-051 through feat-055",
+  "archived_at": "2026-10-11",
+  "features": [
+    {
+      "id": "feat-051",
+      "name": "Relocate Kiro workflow prompts from prompts/ to agents/kiro/prompts/",
+      "description": "Relocate Kiro IDE workflow prompts from root prompts/ to agents/kiro/prompts/ to isolate agent-specific assets under agents/ and clean up root directory. Atomically update install_kiro_prompts and uninstall_kiro_prompts in scripts/_lib.sh and add test coverage.",
+      "dependencies": [
+        "feat-050"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "Root prompts/ moved to agents/kiro/prompts/ via git mv",
+        "scripts/_lib.sh install_kiro_prompts and uninstall_kiro_prompts point to agents/kiro/prompts",
+        "scripts/tests/test_kiro_prompts.sh verifies atomic install and uninstall without orphan prompt leakage",
+        "docs/architecture.md updated with agents/kiro/prompts/",
+        "All 78+ fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Relocated root prompts/ to agents/kiro/prompts/ via git mv. Atomically updated install_kiro_prompts and uninstall_kiro_prompts in scripts/_lib.sh to source from agents/kiro/prompts/. Added automated test suite scripts/tests/test_kiro_prompts.sh verifying isolated mock home installations, path substitutions, and uninstalls against both mock repo and live repo (5/5 checks passed). Updated docs/architecture.md. Verified with run-tests.sh --fast (79/79 passed) and all 11 gates in harness-verify.sh.",
+      "verification": "bash scripts/harness-verify.sh"
+    },
+    {
+      "id": "feat-052",
+      "name": "State layer feature archival to docs/archive/features/",
+      "description": "Partition historical completed features (feat-001 through feat-040) from feature_list.json into docs/archive/features/archive-feat-001-040.json, wire archive resolution and validation into state-layer-guard.sh, and add test coverage.",
+      "dependencies": [
+        "feat-051"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "Historical features feat-001 through feat-040 partitioned into docs/archive/features/archive-feat-001-040.json",
+        "feature_list.json references archive file and retains lean recent feature set",
+        "state-layer-guard.sh validates archive references, JSON integrity, and schema",
+        "scripts/tests or .claude/hooks/tests covers archive file validation in state-layer-guard",
+        "All 79 fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Partitioned 40 historical completed features (feat-001 through feat-040) into docs/archive/features/archive-feat-001-040.json, reducing feature_list.json from 513 lines to 218 lines. Extended .claude/hooks/state-layer-guard.sh to validate archive_references, checking file existence, JSON validity, features schema, and unevidenced completion across both active and archived features with 3-part diagnostics. Added 4 new test cases to .claude/hooks/tests/test_state_layer_guard.sh (40/40 passed under both bash 5 and macOS /bin/bash 3.2). Verified run-tests.sh --fast (79/79 passed) and all 11 gates in harness-verify.sh.",
+      "verification": "bash scripts/harness-verify.sh"
+    },
+    {
+      "id": "feat-053",
+      "name": "Elevate active repo guard rails to universal harness/guards/",
+      "description": "Elevate active repository guard rails from .claude/hooks/ to agent-agnostic harness/guards/ with backward-compatible .claude/hooks symlink. Update harness-verify.sh, setup-git-hooks.sh, .agents/hooks.json, .codex/hooks.json, .claude/settings.json, run-tests.sh, resolve_test_targets.py, and documentation.",
+      "dependencies": [
+        "feat-052"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "Guard scripts and tests relocated to harness/guards/ and harness/guards/tests/",
+        "Backward-compatible symlink .claude/hooks -> ../harness/guards maintained",
+        "harness-verify.sh, setup-git-hooks.sh, .agents/hooks.json, .codex/hooks.json, and .claude/settings.json reference canonical harness/guards/",
+        "run-tests.sh and resolve_test_targets.py discover tests from harness/guards/tests/",
+        "All 79 fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Elevated all 16 guard rails and 12 guard test suites from .claude/hooks/ to agent-agnostic harness/guards/ with backward-compatible relative symlink .claude/hooks -> ../harness/guards. Updated harness-verify.sh, setup-git-hooks.sh, .agents/hooks.json, .codex/hooks.json, run-tests.sh, resolve_test_targets.py, and documentation in docs/architecture.md. Added harness/ to REPO_SUBDIRS in skill_path_var_check.py. Verified run-tests.sh --fast (79/79 passed) and all 11 gates in harness-verify.sh.",
+      "verification": "bash scripts/harness-verify.sh"
+    },
+    {
+      "id": "feat-054",
+      "name": "Automated evaluation trace loop and trend reporter",
+      "description": "Capture state layer token load, test metrics, gate performance, and benchmark history into docs/telemetry/evaluation-trace.jsonl with trend reporting and threshold alerting via scripts/trace_evaluation.py and scripts/trace-evaluation.sh.",
+      "dependencies": [
+        "feat-053"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "scripts/trace_evaluation.py records snapshot to docs/telemetry/evaluation-trace.jsonl",
+        "--trend displays formatted history table of snapshots",
+        "--check-thresholds flags token bloat warnings on feature_list.json (>250 lines) or PROGRESS.md (>150 lines)",
+        "scripts/trace-evaluation.sh provides macOS bash 3.2 and Linux portable CLI wrapper",
+        "scripts/tests/test_trace_evaluation.sh verifies record, trend, threshold alerts, and edge cases",
+        "All fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Implemented scripts/trace_evaluation.py and scripts/trace-evaluation.sh supporting --record, --trend, --check-thresholds, and --json. Added automated test suite scripts/tests/test_trace_evaluation.sh passing 9/9 checks. Verified ruff and mypy are clean. Verified full test suite runs 80/80 passed with 0 failures, and all 11 harness gates pass cleanly.",
+      "verification": "bash scripts/tests/test_trace_evaluation.sh && bash scripts/trace-evaluation.sh --trend"
+    },
+    {
+      "id": "feat-055",
+      "name": "Wire evaluation trace telemetry into session-clean.sh and AGENTS.md base workflow",
+      "description": "Integrate scripts/trace-evaluation.sh into scripts/session-clean.sh to automatically record session snapshots and render trend tables during handoffs, add threshold checks to session handoff verification, update test_session_clean.sh, and document trace commands in AGENTS.md quick reference.",
+      "dependencies": [
+        "feat-054"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "scripts/session-clean.sh records trace snapshot and renders trend table when trace-evaluation.sh exists",
+        "scripts/session-clean.sh checks state layer thresholds during handoff",
+        "scripts/tests/test_session_clean.sh covers trace recording and clean handoff integration",
+        "AGENTS.md quick reference documents trace-evaluation.sh commands",
+        "All 80 fast tests and 11 harness gates pass"
+      ],
+      "evidence": "Integrated scripts/trace-evaluation.sh into scripts/session-clean.sh with automated snapshot recording and --trend table rendering on handoff, plus state layer threshold checking. Extended scripts/tests/test_session_clean.sh with 8/8 tests passing (including telemetry trace execution). Documented trace-evaluation.sh commands and session telemetry in AGENTS.md quick reference table, Verify section, and End of Session guidelines. Verified run-tests.sh --fast (80/80 passed) and all 11 harness gates clean.",
+      "verification": "bash scripts/session-clean.sh --dry-run && bash scripts/tests/test_session_clean.sh"
+    }
+  ]
+}
