@@ -1,0 +1,400 @@
+"""Tests for scripts/run_telemetry.py (read-only run telemetry collector)."""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+import run_telemetry as rt
+
+SESSION = "11111111-aaaa-bbbb-cccc-222222222222"
+T0 = "2026-10-12T02:00:00.000Z"
+
+
+def _ts(minute: int, second: int = 0) -> str:
+    return f"2026-10-12T02:{minute:02d}:{second:02d}.000Z"
+
+
+def _usage(i: int, o: int, cr: int | None = None, cc: int | None = None) -> dict[str, int]:
+    u = {"input_tokens": i, "output_tokens": o}
+    if cr is not None:
+        u["cache_read_input_tokens"] = cr
+    if cc is not None:
+        u["cache_creation_input_tokens"] = cc
+    return u
+
+
+def _row(
+    ts: str,
+    mid: str | None,
+    usage: dict[str, int] | None,
+    *,
+    content: list[dict[str, Any]] | None = None,
+    model: str = "model-a",
+) -> dict[str, Any]:
+    msg: dict[str, Any] = {"model": model, "content": content or []}
+    if mid is not None:
+        msg["id"] = mid
+    if usage is not None:
+        msg["usage"] = usage
+    return {"type": "assistant", "timestamp": ts, "uuid": f"u-{ts}-{mid}", "message": msg}
+
+
+def _write(path: Path, rows: list[Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        for r in rows:
+            f.write((r if isinstance(r, str) else json.dumps(r)) + "\n")
+
+
+def _session(tmp_path: Path, rows: list[Any]) -> Path:
+    p = tmp_path / f"{SESSION}.jsonl"
+    _write(p, rows)
+    return p
+
+
+def _subagent(
+    tmp_path: Path,
+    agent_id: str,
+    rows: list[Any],
+    *,
+    tool_use_id: str = "toolu_1",
+    agent_type: str = "general-purpose",
+    description: str = "review the diff",
+) -> None:
+    d = tmp_path / SESSION / "subagents"
+    _write(d / f"agent-{agent_id}.jsonl", rows)
+    meta = {"agentType": agent_type, "description": description, "toolUseId": tool_use_id}
+    (d / f"agent-{agent_id}.meta.json").write_text(json.dumps(meta))
+
+
+def _status(m: dict[str, Any]) -> str:
+    return m["status"]
+
+
+def test_identical_duplicate_rows_count_once(tmp_path):
+    rows = [
+        _row(_ts(1), "m1", _usage(100, 10, 0, 0)),
+        _row(_ts(1, 1), "m1", _usage(100, 10, 0, 0)),
+        _row(_ts(2), "m2", _usage(200, 20, 0, 0)),
+    ]
+    run = rt.collect_run(_session(tmp_path, rows))
+    tok = run["parent"]["tokens"]
+    assert tok["output_tokens_sum"]["value"] == 30
+    assert tok["input_tokens_sum"]["value"] == 300
+    assert run["parent"]["usage_rows"] == 3
+    assert run["parent"]["distinct_message_ids"] == 2
+    assert run["parent"]["conflicts"] == []
+
+
+def test_conflicting_duplicate_rows_flagged_and_raw_rows_kept(tmp_path):
+    rows = [
+        _row(_ts(1), "m1", _usage(100, 5, 0, 0)),
+        _row(_ts(1, 2), "m1", _usage(100, 40, 0, 0)),
+    ]
+    run = rt.collect_run(_session(tmp_path, rows))
+    assert run["parent"]["tokens"]["output_tokens_sum"]["value"] == 40
+    conflict = run["parent"]["conflicts"]
+    assert len(conflict) == 1 and conflict[0]["message_id"] == "m1"
+    assert [r["output_tokens"] for r in conflict[0]["raw_rows"]] == [5, 40]
+
+
+def test_absent_cache_field_is_missing_but_present_zero_is_measured(tmp_path):
+    absent = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(10, 1))]))
+    assert _status(absent["parent"]["tokens"]["cache_read_sum"]) == "missing"
+    assert absent["parent"]["tokens"]["cache_read_sum"]["value"] is None
+
+    present = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(10, 1, 0, 0))]))
+    cache = present["parent"]["tokens"]["cache_read_sum"]
+    assert cache["value"] == 0
+    assert cache["status"] == "measured"
+    assert cache["source"] == "session usage rows"
+
+
+def test_rows_without_message_id_are_not_collapsed_and_are_reported(tmp_path):
+    rows = [_row(_ts(1), None, _usage(10, 1, 0, 0)), _row(_ts(2), None, _usage(10, 1, 0, 0))]
+    run = rt.collect_run(_session(tmp_path, rows))
+    assert run["parent"]["tokens"]["output_tokens_sum"]["value"] == 2
+    assert run["parent"]["rows_without_message_id"] == 2
+
+
+def test_subagent_tokens_never_added_to_parent_or_parsed_from_text(tmp_path):
+    spawn = {"type": "tool_use", "id": "toolu_1", "name": "Agent", "input": {"description": "x"}}
+    note = {
+        "type": "user",
+        "timestamp": _ts(5),
+        "message": {"content": "<subagent_tokens>999999</subagent_tokens>"},
+    }
+    rows = [_row(_ts(1), "p1", _usage(100, 10, 0, 0), content=[spawn]), note]
+    _subagent(tmp_path, "abc", [_row(_ts(2), "s1", _usage(5000, 500, 0, 0))])
+    run = rt.collect_run(_session(tmp_path, rows))
+    assert run["parent"]["tokens"]["input_tokens_sum"]["value"] == 100
+    sub = run["subagents"][0]
+    assert sub["tokens"]["input_tokens_sum"]["value"] == 5000
+    assert "999999" not in json.dumps(run)
+
+
+def test_subagent_metadata_attributed(tmp_path):
+    spawn = {"type": "tool_use", "id": "toolu_1", "name": "Agent", "input": {}}
+    _subagent(
+        tmp_path,
+        "abc",
+        [
+            _row(_ts(2), "s1", _usage(10, 1, 0, 0), model="model-b"),
+            _row(_ts(4), "s2", _usage(12, 2)),
+        ],
+    )
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "p1", _usage(1, 1), content=[spawn])]))
+    s = run["subagents"][0]
+    assert s["agent_id"] == "abc"
+    assert s["parent_session_id"] == SESSION
+    assert s["tool_use_id"] == "toolu_1"
+    assert s["agent_type"] == "general-purpose"
+    assert s["description"] == "review the diff"
+    assert s["model"] == {
+        "value": ["model-b", "model-a"],
+        "source": "assistant message",
+        "status": "measured",
+    }
+    assert s["duration_ms"]["value"] == 120000
+    assert _status(s["outcome"]) == "missing"
+    assert run["spawn_calls"]["value"] == 1
+    assert run["unmatched_spawns"] == []
+
+
+def test_spawn_without_transcript_is_reported_unmatched(tmp_path):
+    spawn = {"type": "tool_use", "id": "toolu_zzz", "name": "Agent", "input": {}}
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "p1", _usage(1, 1), content=[spawn])]))
+    assert run["spawn_calls"]["value"] == 1
+    assert run["subagent_count"]["value"] == 0
+    assert run["unmatched_spawns"] == ["toolu_zzz"]
+
+
+def test_wall_time_and_agent_time_are_separate_with_overlapping_subagents(tmp_path):
+    _subagent(
+        tmp_path,
+        "a",
+        [_row(_ts(1), "s1", _usage(1, 1)), _row(_ts(5), "s2", _usage(1, 1))],
+        tool_use_id="t1",
+    )
+    _subagent(
+        tmp_path,
+        "b",
+        [_row(_ts(2), "s3", _usage(1, 1)), _row(_ts(6), "s4", _usage(1, 1))],
+        tool_use_id="t2",
+    )
+    rows = [_row(_ts(0), "p1", _usage(1, 1)), _row(_ts(10), "p2", _usage(1, 1))]
+    run = rt.collect_run(_session(tmp_path, rows))
+    assert run["wall_time_ms"]["value"] == 600000
+    assert run["agent_time_ms"]["value"] == 480000
+    assert run["agent_time_ms"]["note"]
+
+
+def test_window_excludes_rows_outside_it(tmp_path):
+    rows = [
+        _row(_ts(1), "m1", _usage(100, 10, 0, 0)),
+        _row(_ts(30), "m2", _usage(200, 20, 0, 0)),
+        _row(_ts(50), "m3", _usage(400, 40, 0, 0)),
+    ]
+    run = rt.collect_run(_session(tmp_path, rows), start=_ts(20), end=_ts(40))
+    assert run["parent"]["tokens"]["input_tokens_sum"]["value"] == 200
+
+
+def test_empty_window_has_all_metrics_missing_not_zero(tmp_path):
+    run = rt.collect_run(
+        _session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1, 0, 0))]), start=_ts(30), end=_ts(40)
+    )
+    for name in ("input_tokens_sum", "output_tokens_sum", "cache_read_sum", "cache_creation_sum"):
+        assert run["parent"]["tokens"][name]["value"] is None
+        assert _status(run["parent"]["tokens"][name]) == "missing"
+    assert _status(run["wall_time_ms"]) == "missing"
+
+
+def test_incomplete_session_without_assistant_rows_does_not_crash(tmp_path):
+    rows = [{"type": "user", "timestamp": _ts(1), "message": {"content": "hi"}}]
+    run = rt.collect_run(_session(tmp_path, rows))
+    assert _status(run["parent"]["tokens"]["output_tokens_sum"]) == "missing"
+    assert run["parent"]["usage_rows"] == 0
+
+
+def test_malformed_lines_are_skipped_and_counted(tmp_path):
+    rows = ["not json", _row(_ts(1), "m1", _usage(10, 1, 0, 0)), "{broken"]
+    run = rt.collect_run(_session(tmp_path, rows))
+    assert run["parent"]["tokens"]["input_tokens_sum"]["value"] == 10
+    assert run["parent"]["malformed_lines"] == 2
+
+
+def test_context_size_is_labeled_and_matches_harness_figure_without_cache(tmp_path):
+    rows = [
+        _row(_ts(1), "m1", _usage(24353, 0, 0, 0)),
+        _row(_ts(2), "m2", _usage(45541, 555, 0, 0)),
+    ]
+    tok = rt.collect_run(_session(tmp_path, rows))["parent"]["tokens"]
+    assert tok["last_context_tokens"]["value"] == 45541
+    assert tok["reported_context_total"]["value"] == 46096
+    assert "not billed" in tok["reported_context_total"]["note"]
+    assert tok["input_tokens_sum"]["value"] == 24353 + 45541
+
+
+def test_structured_event_counts_and_unavailable_metrics(tmp_path):
+    rows = [
+        _row(_ts(1), "m1", _usage(1, 1, 0, 0)),
+        {"type": "system", "subtype": "compact_boundary", "timestamp": _ts(2)},
+        {
+            "type": "assistant",
+            "timestamp": _ts(3),
+            "isApiErrorMessage": True,
+            "error": "x",
+            "message": {},
+        },
+    ]
+    run = rt.collect_run(_session(tmp_path, rows))
+    assert run["events"]["context_compactions"] == {
+        "value": 1,
+        "source": "system compact_boundary records",
+        "status": "measured",
+    }
+    assert run["events"]["api_errors"]["value"] == 1
+    assert _status(run["events"]["retries"]) == "missing"
+    assert _status(run["events"]["timeouts"]) == "missing"
+    assert _status(run["human_corrections"]) == "missing"
+
+
+def test_cost_usd_is_missing_with_reason(tmp_path):
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1, 0, 0))]))
+    assert run["cost_usd"]["value"] is None
+    assert _status(run["cost_usd"]) == "missing"
+    assert "authoritative" in run["cost_usd"]["note"]
+
+
+def test_run_id_is_deterministic_and_window_sensitive(tmp_path):
+    p = _session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))])
+    a = rt.collect_run(p)["run_id"]
+    assert a == rt.collect_run(p)["run_id"]
+    assert a != rt.collect_run(p, start=_ts(0), end=_ts(5))["run_id"]
+
+
+def test_gate_report_embedded_when_given_and_missing_otherwise(tmp_path):
+    p = _session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))])
+    assert _status(rt.collect_run(p)["gates"]) == "missing"
+    report = tmp_path / "report.json"
+    report.write_text(
+        json.dumps(
+            {
+                "status": "PASS",
+                "total_duration_ms": 5,
+                "gates": [{"name": "g", "status": "PASS", "duration_ms": 5}],
+                "failed": [],
+            }
+        )
+    )
+    gates = rt.collect_run(p, verify_report=report)["gates"]
+    assert gates["status"] == "measured" and gates["value"]["status"] == "PASS"
+
+
+def test_outside_agent_log_counts_attempts_and_flags_legacy_success_only_rows(tmp_path):
+    p = _session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))])
+    log = tmp_path / "outside.jsonl"
+    log.write_text(
+        "\n".join(
+            json.dumps(r)
+            for r in [
+                {"timestamp": _ts(2), "agent": "codex-kiro", "exit_code": 0, "independent": True},
+                {
+                    "timestamp": _ts(3),
+                    "agent": "agy",
+                    "attempt": True,
+                    "result": "timeout",
+                    "duration_ms": 110000,
+                },
+                {
+                    "timestamp": _ts(4),
+                    "agent": "agy",
+                    "attempt": True,
+                    "result": "ok",
+                    "duration_ms": 9000,
+                },
+                {
+                    "timestamp": _ts(50),
+                    "agent": "agy",
+                    "attempt": True,
+                    "result": "ok",
+                    "duration_ms": 1,
+                },
+            ]
+        )
+    )
+    out = rt.collect_run(p, start=_ts(0), end=_ts(10), outside_log=log)["outside_agent"]
+    assert out["attempts_logged"]["value"] == 2
+    assert out["results"] == {"timeout": 1, "ok": 1}
+    assert out["legacy_success_only_rows"]["value"] == 1
+    assert "failures were not logged" in out["legacy_success_only_rows"]["note"]
+
+
+def test_cli_writes_one_json_per_run(tmp_path, capsys):
+    p = _session(tmp_path, [_row(_ts(1), "m1", _usage(10, 1, 0, 0))])
+    out_dir = tmp_path / "runs"
+    assert rt.main(["--session", str(p), "--out-dir", str(out_dir)]) == 0
+    files = list(out_dir.glob("*.json"))
+    assert len(files) == 1
+    data = json.loads(files[0].read_text())
+    assert data["run_id"] == files[0].stem
+    assert str(tmp_path) not in files[0].read_text()
+
+
+def test_cli_missing_session_exits_2(tmp_path, capsys):
+    assert rt.main(["--session", str(tmp_path / "nope.jsonl"), "--out-dir", str(tmp_path)]) == 2
+    assert "nope.jsonl" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "ts", ["2026-10-12T02:00:00.000Z", "2026-10-12T02:00:00+00:00", "2026-10-12T10:00:00+08:00"]
+)
+def test_timestamp_parsing_accepts_z_and_offsets(ts):
+    assert rt.parse_ts(ts) == rt.parse_ts(T0)
+
+
+def test_input_sum_is_labeled_not_unique_and_not_billed(tmp_path):
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(10, 1, 0, 0))]))
+    note = run["parent"]["tokens"]["input_tokens_sum"]["note"]
+    assert "re-sent" in note and "not billed" in note
+
+
+def test_all_zero_cache_is_flagged_ambiguous(tmp_path):
+    rows = [_row(_ts(i), f"m{i}", _usage(10, 1, 0, 0)) for i in range(1, 4)]
+    tok = rt.collect_run(_session(tmp_path, rows))["parent"]["tokens"]
+    for name in ("cache_read_sum", "cache_creation_sum"):
+        assert tok[name]["value"] == 0
+        assert "cannot tell" in tok[name]["note"]
+
+
+def test_nonzero_cache_has_no_ambiguity_note(tmp_path):
+    tok = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(10, 1, 5, 0))]))["parent"][
+        "tokens"
+    ]
+    assert "note" not in tok["cache_read_sum"]
+
+
+def test_active_turn_time_sums_turn_duration_records_in_window(tmp_path):
+    rows = [
+        _row(_ts(1), "m1", _usage(1, 1, 0, 0)),
+        {"type": "system", "subtype": "turn_duration", "durationMs": 4000, "timestamp": _ts(2)},
+        {"type": "system", "subtype": "turn_duration", "durationMs": 6000, "timestamp": _ts(3)},
+        {"type": "system", "subtype": "turn_duration", "durationMs": 9000, "timestamp": _ts(40)},
+    ]
+    p = _session(tmp_path, rows)
+    assert rt.collect_run(p, start=_ts(0), end=_ts(10))["active_turn_time_ms"]["value"] == 10000
+    assert "idle" in rt.collect_run(p)["wall_time_ms"]["note"]
+
+
+def test_active_turn_time_missing_without_records(tmp_path):
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1, 0, 0))]))
+    assert run["active_turn_time_ms"]["value"] is None
+    assert run["active_turn_time_ms"]["status"] == "missing"
