@@ -27,7 +27,7 @@ Lecture 13 marks the shift from human-in-the-loop manual prompting (Lectures 1â€
 
 ## 2. Ported Code Artifacts
 
-### 2.1 Autonomous Ratchet Loop Engine (`code/ratchet_loop.py`)
+### 2.1 Autonomous Ratchet Loop Engine (`scripts/ratchet_loop_runner.py`)
 - Python 3.9â€“3.14 compatible, strongly typed implementation of the 9-step ratchet cycle.
 - Core classes & functions:
   - `LoopGoal`: Structured specification parsed from Markdown (`parse_goal_markdown`), including acceptance criteria, fair-game and hands-off scope boundaries, and verification commands.
@@ -37,7 +37,7 @@ Lecture 13 marks the shift from human-in-the-loop manual prompting (Lectures 1â€
   - Disk-persisted state: Generates human-readable Markdown dashboard (`render_state_markdown`) and append-only TSV experiment logs (`results.tsv`).
 - CLI interface: `--demo` mode running synthetic optimization cycles, `--goal-file`, `--state-file`, `--tsv-file`.
 
-### 2.2 Test Suite (`code/test_ratchet_loop.py`)
+### 2.2 Test Suite (`tests/test_ratchet_loop_runner.py`)
 - 7 comprehensive unit test cases verifying:
   - `test_parse_goal_markdown`: Markdown parsing of goal metadata, criteria, commands, and scopes.
   - `test_is_improvement`: Metric evaluation for lower-is-better and higher-is-better.
@@ -70,11 +70,11 @@ Lecture 13 marks the shift from human-in-the-loop manual prompting (Lectures 1â€
   ```
 - **Unit Tests:**
   ```bash
-  .venv/bin/pytest docs/harness-creator/lecture-13/code/test_ratchet_loop.py
+  .venv/bin/pytest tests/test_ratchet_loop_runner.py
   # Output: 7 passed in 0.20s
   ```
 - **macOS System Python 3.9 Compatibility:**
   ```bash
-  /usr/bin/python3 docs/harness-creator/lecture-13/code/ratchet_loop.py --demo
+  /usr/bin/python3 scripts/ratchet_loop_runner.py --demo
   # Output: 4 rounds completed, rollback verified, status COMPLETED
   ```

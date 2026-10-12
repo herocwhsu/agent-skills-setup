@@ -29,7 +29,7 @@
 1. [x] Authored `docs/goals/lecture-15-goal.md` and registered `feat-062` in `feature_list.json` and `PROGRESS.md`.
 2. [x] Drafted curriculum theory in `docs/harness-creator/lecture-15/summary.md`.
 3. [x] Draft system architecture blueprint in `docs/harness-creator/lecture-15/code/team_topology.md`.
-4. [x] Implement core zero-dependency engine in `docs/harness-creator/lecture-15/code/team_engine.py`.
-5. [x] Author comprehensive test suite in `docs/harness-creator/lecture-15/code/test_team_engine.py` (14/14 passed).
+4. [x] Implement core zero-dependency engine in `scripts/team_runner.py`.
+5. [x] Author comprehensive test suite in `tests/test_team_runner.py` (14/14 passed).
 6. [x] Promote production CLI runner in `scripts/team_runner.py` and `scripts/team-runner.sh` with tests (5/5 passed).
 7. [x] Run tests and harness verification; dispatch independent auditor subagent; remediated all conditional findings with tests.

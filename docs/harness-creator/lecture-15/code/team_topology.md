@@ -2,7 +2,7 @@
 
 ## Architecture Specification
 
-This document defines the interface and data contracts for the zero-dependency Multi-Agent Team Engine (`team_engine.py`).
+This document defines the interface and data contracts for the zero-dependency Multi-Agent Team Engine (`scripts/team_runner.py`).
 
 ---
 

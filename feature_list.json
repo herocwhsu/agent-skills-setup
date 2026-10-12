@@ -96,7 +96,7 @@
         "All fast tests and 11 harness gates pass cleanly"
       ],
       "evidence": "Authored comprehensive Lecture 14 study materials (summary.md, progress-detail.md, code/graph.md). Implemented zero-dependency StateGraph engine in docs/harness-creator/lecture-14/code/graph_engine.py with checkpointer persistence, human-in-the-loop pause, and conditional rollback routing. Promoted to production CLI runner in scripts/graph_runner.py and scripts/graph-runner.sh. Added automated unit tests in docs/harness-creator/lecture-14/code/test_graph_engine.py (5/5 passed), tests/test_graph_runner.py (3/3 passed), and scripts/tests/test_graph_runner.sh (3/3 passed). Audited by independent adversarial subagent with CLEAN PASS verdict. Verified with run-tests.sh --fast (86/86 passed) and all 11 gates in harness-verify.sh.",
-      "verification": "bash scripts/tests/test_graph_runner.sh && .venv/bin/pytest tests/test_graph_runner.py docs/harness-creator/lecture-14/code/test_graph_engine.py"
+      "verification": "bash scripts/tests/test_graph_runner.sh && .venv/bin/pytest tests/test_graph_runner.py"
     },
     {
       "id": "feat-061",
@@ -131,7 +131,7 @@
         "All fast tests and 11 harness gates pass cleanly"
       ],
       "evidence": "Authored Lecture 15 study materials under docs/harness-creator/lecture-15/ (summary.md, progress-detail.md, code/team_topology.md). Implemented zero-dependency Multi-Agent Team and Consensus engine in docs/harness-creator/lecture-15/code/team_engine.py with Supervisor, WorkerPool (timeout budget checking, isolated execution, non-dict wrapping), and ConsensusEngine (majority, unanimous, and security veto quorum rules with defensive reviewer exception handling). Promoted to production CLI runner in scripts/team_runner.py and scripts/team-runner.sh. Added automated unit tests in test_team_engine.py (14/14 passed) and tests/test_team_runner.py (3/3 passed), plus shell tests in scripts/tests/test_team_runner.sh (5/5 passed across macOS system Python 3.9 and Python 3.14). Independently audited by adversarial subagent; remediated all conditional findings (reconciled topology diagram, preserved NO_QUORUM status, hardened reviewer exception handling, enforced timeout budget). All fast tests (90/90) and 11 harness gates pass cleanly.",
-      "verification": "bash scripts/tests/test_team_runner.sh && .venv/bin/pytest tests/test_team_runner.py docs/harness-creator/lecture-15/code/test_team_engine.py"
+      "verification": "bash scripts/tests/test_team_runner.sh && .venv/bin/pytest tests/test_team_runner.py"
     },
     {
       "id": "feat-063",

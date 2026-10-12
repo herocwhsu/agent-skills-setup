@@ -22,13 +22,13 @@
   - *Mitigation:* `commit-evidence.sh` and `test_outside_agent.py` enforce behavioral assertions and independent cross-model review.
 
 ### Exercise 3: Zero-Dependency StateGraph Engine Implementation
-- Implemented `docs/harness-creator/lecture-14/code/graph_engine.py` without requiring heavy third-party packages (`langgraph`).
+- Implemented `scripts/graph_runner.py` without requiring heavy third-party packages (`langgraph`).
 - Features:
   - `StateGraph`: Node registration, linear and conditional edge routing.
   - `Checkpointer`: In-memory and disk persistence for checkpoint replayability.
   - `Human-in-the-Loop`: Interruption before sensitive nodes (e.g. merge / deploy).
   - `Rollback Engine`: Explicit backtracking to upstream nodes on verification failure.
-- Unit tests written in `docs/harness-creator/lecture-14/code/test_graph_engine.py`.
+- Unit tests written in `tests/test_graph_runner.py`.
 
 ---
 
