@@ -320,6 +320,46 @@ grep -q 'feat-old' <<<"$out" \
   && ok "message names the unevidenced archived feature" \
   || bad "message names the unevidenced archived feature" "out: $out"
 
+# --- 21. a crashing checker still blocks with exit 2, never 1 or 127 ---------
+root="$TMP/broken-root"
+mkdir -p "$root/harness/guards" "$root/scripts"
+cp "$REPO_DIR/harness/guards/state-layer-guard.sh" "$root/harness/guards/"
+echo 'def (' > "$root/scripts/state_layer_check.py"
+d=$(fixture_complete broken-checker)
+set +e; out=$(STATE_LAYER_GUARD_REPO_DIR="$d" bash "$root/harness/guards/state-layer-guard.sh" 2>&1); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "crashing checker blocks with exit 2" \
+  || bad "crashing checker blocks with exit 2" "exit $status, out: $out"
+grep -q 'state layer validation error' <<<"$out" \
+  && ok "crashing checker names the validation error" \
+  || bad "crashing checker names the validation error" "out: $out"
+
+# --- 21b. a missing python3 blocks with exit 2, never 127 -------------------
+nopy="$TMP/nopy-bin"
+mkdir -p "$nopy"
+for c in dirname grep git cat sed; do ln -s "$(command -v "$c")" "$nopy/$c"; done
+d=$(fixture_complete no-python)
+set +e; out=$(PATH="$nopy" STATE_LAYER_GUARD_REPO_DIR="$d" /bin/bash "$HOOK" 2>&1); status=$?; set -e
+[[ $status -eq 2 ]] \
+  && ok "missing python3 blocks with exit 2" \
+  || bad "missing python3 blocks with exit 2" "exit $status, out: $out"
+
+# --- 22. check order: a bad archive reference is reported before WIP ---------
+d=$(fixture_complete order)
+cat > "$d/feature_list.json" <<'EOF'
+{
+  "archive_references": ["docs/archive/features/missing.json"],
+  "features": [
+    {"id": "a", "status": "active", "verification": "true"},
+    {"id": "b", "status": "active", "verification": "true"}
+  ]
+}
+EOF
+set +e; out=$(run_hook "$d"); status=$?; set -e
+[[ $status -eq 2 ]] && grep -q 'archive reference error' <<<"$out" \
+  && ok "archive error is reported before WIP error" \
+  || bad "archive error is reported before WIP error" "exit $status, out: $out"
+
 echo ""
 echo "test_state_layer_guard: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

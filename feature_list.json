@@ -132,6 +132,23 @@
       ],
       "evidence": "Authored Lecture 15 study materials under docs/harness-creator/lecture-15/ (summary.md, progress-detail.md, code/team_topology.md). Implemented zero-dependency Multi-Agent Team and Consensus engine in docs/harness-creator/lecture-15/code/team_engine.py with Supervisor, WorkerPool (timeout budget checking, isolated execution, non-dict wrapping), and ConsensusEngine (majority, unanimous, and security veto quorum rules with defensive reviewer exception handling). Promoted to production CLI runner in scripts/team_runner.py and scripts/team-runner.sh. Added automated unit tests in test_team_engine.py (14/14 passed) and tests/test_team_runner.py (3/3 passed), plus shell tests in scripts/tests/test_team_runner.sh (5/5 passed across macOS system Python 3.9 and Python 3.14). Independently audited by adversarial subagent; remediated all conditional findings (reconciled topology diagram, preserved NO_QUORUM status, hardened reviewer exception handling, enforced timeout budget). All fast tests (90/90) and 11 harness gates pass cleanly.",
       "verification": "bash scripts/tests/test_team_runner.sh && .venv/bin/pytest tests/test_team_runner.py docs/harness-creator/lecture-15/code/test_team_engine.py"
+    },
+    {
+      "id": "feat-063",
+      "name": "Extract state-layer checks into scripts/state_layer_check.py",
+      "description": "Move the feature_list.json validation out of the inline heredoc in harness/guards/state-layer-guard.sh into scripts/state_layer_check.py with unchanged behavior, refactor scripts/trace_evaluation.py, and make doc links repo-relative.",
+      "dependencies": [
+        "feat-062"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "state-layer-guard.sh blocks with exit 2 for every failure, including a crashing checker and a missing python3",
+        "check order and stderr headers match the old heredoc",
+        "no file:///Users/... links remain in AGENTS.md or lecture docs",
+        "test_state_layer_guard.sh passes on bash 5 and /bin/bash 3.2, and all 11 harness gates pass"
+      ],
+      "evidence": "Added scripts/state_layer_check.py; the guard now calls it and maps any non-zero status to exit 2. Independent review (fresh-context subagent plus codex-kiro) found the guard exited 1 or 127 when the checker crashed or python3 was missing, which does not block; fixed with tests, and a self-referential trace_row test now asserts literal values. test_state_layer_guard.sh 44/44 on bash 5 and /bin/bash 3.2, test_session_clean.sh 8/8, tests/test_trace_evaluation.py 7/7. Converted 9 AGENTS.md and 6 lecture-doc file:/// links to relative paths. Dropped the redundant Write() deny rule in .claude/settings.json because Claude Code only consults Edit(path) rules.",
+      "verification": "bash harness/guards/tests/test_state_layer_guard.sh && .venv/bin/pytest tests/test_trace_evaluation.py"
     }
   ]
 }

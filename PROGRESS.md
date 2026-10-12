@@ -11,23 +11,20 @@
 - Lecture 13 (from manual prompting to autonomous loops) closed: ratchet_loop ported (9/9 tests, clean ruff/mypy), goal and loop state templates documented.
 - Lecture 14 (from single loops to graph engineering) closed: graph_engine ported (8/8 tests, clean ruff/mypy), multi-agent DAG runner & rollback routing documented.
 - Lecture 15 (multi-agent team topologies & consensus orchestration) closed: team_engine ported (17/17 tests, clean ruff/mypy), hierarchical supervisor, worker pool, and consensus runner documented.
-- Historical progress log pruned: `feat-001` through `feat-055` archived in `docs/progress-archive.md`.
+- Historical progress log pruned: `feat-001` through `feat-060` archived in `docs/progress-archive.md`.
 
 ## Status
 
 ### What's Done
 
-*(Earlier features feat-001 through feat-055 are archived in [docs/progress-archive.md](docs/progress-archive.md). Per-feature evidence also recorded in `feature_list.json` and `docs/archive/features/`.)*
+*(Earlier features feat-001 through feat-060 are archived in [docs/progress-archive.md](docs/progress-archive.md). Per-feature evidence also recorded in `feature_list.json` and `docs/archive/features/`.)*
 
-- [x] feat-056: Auto duration delta calculation, process tree agent detection, and Markdown trace dashboard. Upgraded `scripts/trace_evaluation.py` to auto-calculate elapsed duration since previous trace entries when `--duration-ms` is omitted, inspect process tree ancestry in `detect_agent()` via `get_process_ancestors()` (eliminating ambiguous directory checks), format times human-readably (ms, s, m, h), and auto-generate `docs/telemetry/SUMMARY.md` Markdown dashboard table on record. Added tests in `scripts/tests/test_trace_evaluation.sh` (12/12 passed).
-- [x] feat-057: Subagent telemetry tracking (self subagents and outside agents) and independent review verification. Added execution logging (`_log_outside_run`) to `scripts/outside_agent.py` recording runs to both state and local telemetry (`docs/telemetry/outside-agent-runs.jsonl`, gitignored). Implemented subagent tracking in `scripts/trace_evaluation.py` (`--self-subagents`, `--outside-subagents`, auto-detection via `auto_detect_outside_runs`, defensive parsing against malformed lines and naive/aware datetimes, cross-platform Python 3.9+ compatibility). Updated `SUMMARY.md` and CLI trend table with Subagents column. Added unit tests in `scripts/tests/test_trace_evaluation.sh` (16/16 passed across all timezones) and `tests/test_outside_agent.py` (92 passed, 1 skipped). Adversarially reviewed across 5 iterative rounds with both self subagents and outside independent agents (Claude Code `outside-agent.sh`) achieving CLEAN PASS.
-- [x] feat-058: Autonomous ratchet loop runner, goal specifications, and review iteration flow. Standardized goal specifications under docs/goals/ (TEMPLATE.md) defining machine-verifiable acceptance criteria, fair-game and hands-off scopes, and stopping conditions. Promoted ratchet_loop into scripts/ratchet_loop_runner.py and scripts/ratchet-loop.sh CLI runner with support for --goal-file, --active-feature, --review-diff, and --demo modes. Implemented automated verification, independent Checker review evaluation (via outside-agent.sh or custom checkers), automated rollback on regression, and circuit breakers. Added unit tests in tests/test_ratchet_loop_runner.py (5/5 passed) and scripts/tests/test_ratchet_loop.sh (6/6 passed across macOS system Python 3.9 and Python 3.14). All fast test suites and 11 harness gates pass.
-- [x] feat-059: State layer context bloat remediation and feature archival (feat-051 through feat-055). Partitioned completed features feat-051 through feat-055 into docs/archive/features/archive-feat-051-055.json, updated feature_list.json archive_references, and pruned historical training decisions from PROGRESS.md into docs/progress-archive.md. State layer tokens reduced below 6,000 threshold (OK status in trace evaluation).
-- [x] feat-060: Graph Engineering DAG runner, state machine orchestration, and Lecture 14 closing. Authored comprehensive Lecture 14 study materials (summary.md, progress-detail.md, code/graph.md). Implemented zero-dependency StateGraph engine in docs/harness-creator/lecture-14/code/graph_engine.py with checkpointer persistence, human-in-the-loop pause, and conditional rollback routing. Promoted to production CLI runner in scripts/graph_runner.py and scripts/graph-runner.sh. Added automated unit tests in docs/harness-creator/lecture-14/code/test_graph_engine.py (5/5 passed), tests/test_graph_runner.py (3/3 passed), and scripts/tests/test_graph_runner.sh (3/3 passed). Audited by independent adversarial subagent with CLEAN PASS verdict. Verified with run-tests.sh --fast (86/86 passed) and all 11 gates in harness-verify.sh.
 
 - [x] feat-061: Weekly review report (`scripts/weekly-review.sh` → `docs/weekly/YYYY-Www.md`) and first self fine-tune. Found feat-058's verification command broken by the feat-059 rename (`tests/test_ratchet_loop.py` → `test_ratchet_loop_runner.py`), fixed it, added a stale-verification-path check to the weekly report, and listed the new runners in the README script table. Tests 9/9.
 
 - [x] feat-062: Multi-Agent Team Topologies, Hierarchical Supervisor, and Consensus Voting (Lecture 15). Authored comprehensive study materials in `docs/harness-creator/lecture-15/` (summary.md, progress-detail.md, code/team_topology.md). Implemented zero-dependency team engine in `docs/harness-creator/lecture-15/code/team_engine.py` with Supervisor, WorkerPool (budget timeout check, isolated execution), and ConsensusEngine (majority, unanimous, security veto with error tolerance). Promoted to production CLI runner in `scripts/team_runner.py` and `scripts/team-runner.sh`. Added tests in `test_team_engine.py` (14/14), `tests/test_team_runner.py` (3/3), and `scripts/tests/test_team_runner.sh` (5/5). Audited by independent adversarial subagent; all conditional findings remediated.
+
+- [x] feat-063: State-layer checks moved from the guard heredoc into `scripts/state_layer_check.py`; the guard exits 2 on any checker failure. Doc links are repo-relative. Reviewed by a fresh subagent and codex-kiro; guard tests 44/44.
 
 ### What's In Progress
 
@@ -39,6 +36,10 @@
 1. **Smoke test verification:** Re-run live `codex-kiro` and `agy` smoke tests against feat-033 fixes; trust repo hooks in Codex on each host.
    - *Verification:* `outside-agent.sh run --purpose review` exits 0.
 2. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
+3. **Find why `agy` is slow when called from a Claude Code session:** Time the same `agy -p "Reply with OK only"` three ways, 3 runs each: (A) plain terminal, (B) inside the Claude Code session, (C) through `outside-agent.sh`. Then retry B with `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` to test env-var inheritance. Slow only in B/C points at the session environment, only in C at the wrapper's subprocess/stdio handling, in all three at agy auth or the service. Also make `outside-agent.sh` report timeout, auth, quota, and empty output as distinct errors instead of "unclassified error", and consider per-purpose default timeouts instead of one 110s default. Notes: `~/Project/docs/outside-subagent-timeout.txt` (outside this repo).
+   - *Verification:* the A/B/C timings are recorded in this file with the cause named, or marked still unconfirmed.
+4. **Cut the fresh-session context cost:** A new session here already starts at about 57k tokens (6% of 1.0M) before any work, while the state-layer threshold (6,000 tokens for `feature_list.json` + `PROGRESS.md`) only covers two of the files loaded. Measure what a fresh session loads (global `CLAUDE.md`, `AGENTS.md`, `MEMORY.md`, skill listings, SessionStart hook injections, state files), rank by size, then trim the biggest and decide whether the threshold should count more than two files or be lowered.
+   - *Verification:* a fresh-session token breakdown is recorded in this file, with a before/after total for whatever is trimmed.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
@@ -80,7 +81,7 @@
 
 ## Archived history
 
-`Files Modified This Session`, `Evidence of Completion`, and historical features `feat-001` through `feat-055`
+`Files Modified This Session`, `Evidence of Completion`, and historical features `feat-001` through `feat-060`
 moved to [docs/progress-archive.md](docs/progress-archive.md). Per-feature evidence lives in `feature_list.json`
 and `docs/archive/features/`.
 

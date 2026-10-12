@@ -5,7 +5,6 @@
   },
   "permissions": {
     "deny": [
-      "Write(//Users/**/AGENTS.override.md)",
       "Edit(//Users/**/AGENTS.override.md)"
     ]
   },

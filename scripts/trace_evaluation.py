@@ -293,6 +293,113 @@ def auto_detect_outside_runs(
     return runs
 
 
+def _state_metrics(repo_dir: Path) -> dict[str, int]:
+    """Measure the state layer: sizes, feature counts, and test file count."""
+    feature_file = repo_dir / "feature_list.json"
+    progress_file = repo_dir / "PROGRESS.md"
+
+    feat_tokens = estimate_tokens(feature_file)
+    prog_tokens = estimate_tokens(progress_file)
+
+    completed = active = total = archive_refs = 0
+    if feature_file.is_file():
+        try:
+            with open(feature_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                archive_refs = len(data.get("archive_references", []))
+                features = data.get("features", [])
+                total = len(features)
+                for feat in features:
+                    status = feat.get("status", "")
+                    if status in ("completed", "done"):
+                        completed += 1
+                    elif status in ("in_progress", "in-progress", "active"):
+                        active += 1
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    test_files = 0
+    for d in (
+        repo_dir / "scripts" / "tests",
+        repo_dir / "harness" / "guards" / "tests",
+        repo_dir / "tests",
+    ):
+        if d.is_dir():
+            test_files += sum(1 for p in d.glob("test_*.*") if p.suffix in (".sh", ".py"))
+
+    return {
+        "feat_lines": count_lines(feature_file),
+        "prog_lines": count_lines(progress_file),
+        "feat_tokens": feat_tokens,
+        "prog_tokens": prog_tokens,
+        "total_tokens": feat_tokens + prog_tokens,
+        "completed": completed,
+        "active": active,
+        "total": total,
+        "archive_refs": archive_refs,
+        "test_files": test_files,
+    }
+
+
+def _threshold_warnings(metrics: dict[str, int]) -> list[str]:
+    warnings: list[str] = []
+    if metrics["feat_lines"] > THRESHOLD_FEATURE_LIST_LINES:
+        warnings.append(
+            f"feature_list.json exceeds {THRESHOLD_FEATURE_LIST_LINES} lines "
+            f"({metrics['feat_lines']} lines) — archival to docs/archive/features/ recommended."
+        )
+    if metrics["prog_lines"] > THRESHOLD_PROGRESS_LINES:
+        warnings.append(
+            f"PROGRESS.md exceeds {THRESHOLD_PROGRESS_LINES} lines "
+            f"({metrics['prog_lines']} lines) — session log pruning recommended."
+        )
+    if metrics["total_tokens"] > THRESHOLD_STATE_TOKENS:
+        warnings.append(
+            f"State layer tokens exceed {THRESHOLD_STATE_TOKENS} tokens "
+            f"(~{metrics['total_tokens']:,} tokens) — context bloat detected."
+        )
+    return warnings
+
+
+def check_thresholds(repo_dir: Path) -> list[str]:
+    """Return threshold warnings for the state layer without gathering agent telemetry."""
+    return _threshold_warnings(_state_metrics(repo_dir))
+
+
+def load_records(trace_path: Path) -> list[dict[str, Any]]:
+    """Read the JSONL trace, skipping blank and malformed lines."""
+    if not trace_path.is_file():
+        return []
+    records: list[dict[str, Any]] = []
+    with open(trace_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return records
+
+
+def trace_row(rec: dict[str, Any]) -> dict[str, str]:
+    """Format one trace record into the display fields shared by the trend and dashboard."""
+    sl = rec.get("state_layer", {})
+    return {
+        "commit": rec.get("commit", "unknown"),
+        "ts": rec.get("timestamp", "")[:19].replace("T", " "),
+        "agent": rec.get("agent", "unknown"),
+        "subagents": format_subagents(rec.get("subagents")),
+        "duration": rec.get("duration_str") or format_duration(rec.get("duration_ms", 0)),
+        "tokens": f"~{sl.get('total_state_tokens_est', 0):,} tok",
+        "feat_lines": f"{sl.get('feature_list_lines', 0)} lines",
+        "prog_lines": f"{sl.get('progress_lines', 0)} lines",
+        "done_active": f"{sl.get('completed_features', 0)} ({sl.get('active_features', 0)} act)",
+        "status": rec.get("thresholds", {}).get("status", "OK"),
+    }
+
+
 def collect_snapshot(
     repo_dir: Path,
     trace_path: Path | None = None,
@@ -354,66 +461,8 @@ def collect_snapshot(
         "independent_verified": indep_verified,
     }
 
-    feature_file = repo_dir / "feature_list.json"
-    progress_file = repo_dir / "PROGRESS.md"
-
-    feat_lines = count_lines(feature_file)
-    prog_lines = count_lines(progress_file)
-    feat_tokens = estimate_tokens(feature_file)
-    prog_tokens = estimate_tokens(progress_file)
-    total_tokens = feat_tokens + prog_tokens
-
-    completed_count = 0
-    active_count = 0
-    total_count = 0
-    archive_refs_count = 0
-
-    if feature_file.is_file():
-        try:
-            with open(feature_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                archive_refs_count = len(data.get("archive_references", []))
-                features = data.get("features", [])
-                total_count = len(features)
-                for feat in features:
-                    status = feat.get("status", "")
-                    if status in ("completed", "done"):
-                        completed_count += 1
-                    elif status in ("in_progress", "in-progress", "active"):
-                        active_count += 1
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    # Count test files in repository
-    test_files_count = 0
-    scripts_tests_dir = repo_dir / "scripts" / "tests"
-    harness_tests_dir = repo_dir / "harness" / "guards" / "tests"
-    top_tests_dir = repo_dir / "tests"
-
-    for d in (scripts_tests_dir, harness_tests_dir, top_tests_dir):
-        if d.is_dir():
-            for p in d.glob("test_*.*"):
-                if p.suffix in (".sh", ".py"):
-                    test_files_count += 1
-
-    # Threshold checks
-    warnings: list[str] = []
-    if feat_lines > THRESHOLD_FEATURE_LIST_LINES:
-        warnings.append(
-            f"feature_list.json exceeds {THRESHOLD_FEATURE_LIST_LINES} lines "
-            f"({feat_lines} lines) — archival to docs/archive/features/ recommended."
-        )
-    if prog_lines > THRESHOLD_PROGRESS_LINES:
-        warnings.append(
-            f"PROGRESS.md exceeds {THRESHOLD_PROGRESS_LINES} lines "
-            f"({prog_lines} lines) — session log pruning recommended."
-        )
-    if total_tokens > THRESHOLD_STATE_TOKENS:
-        warnings.append(
-            f"State layer tokens exceed {THRESHOLD_STATE_TOKENS} tokens "
-            f"(~{total_tokens:,} tokens) — context bloat detected."
-        )
-
+    metrics = _state_metrics(repo_dir)
+    warnings = _threshold_warnings(metrics)
     status_str = "WARN" if warnings else "OK"
 
     return {
@@ -424,18 +473,18 @@ def collect_snapshot(
         "duration_ms": duration_ms or 0,
         "duration_str": dur_str,
         "state_layer": {
-            "feature_list_lines": feat_lines,
-            "feature_list_tokens_est": feat_tokens,
-            "progress_lines": prog_lines,
-            "progress_tokens_est": prog_tokens,
-            "total_state_tokens_est": total_tokens,
-            "completed_features": completed_count,
-            "active_features": active_count,
-            "total_features": total_count,
-            "archive_references": archive_refs_count,
+            "feature_list_lines": metrics["feat_lines"],
+            "feature_list_tokens_est": metrics["feat_tokens"],
+            "progress_lines": metrics["prog_lines"],
+            "progress_tokens_est": metrics["prog_tokens"],
+            "total_state_tokens_est": metrics["total_tokens"],
+            "completed_features": metrics["completed"],
+            "active_features": metrics["active"],
+            "total_features": metrics["total"],
+            "archive_references": metrics["archive_refs"],
         },
         "test_metrics": {
-            "test_suites_count": test_files_count,
+            "test_suites_count": metrics["test_files"],
         },
         "thresholds": {
             "status": status_str,
@@ -446,20 +495,7 @@ def collect_snapshot(
 
 def render_markdown_dashboard(trace_path: Path, output_md: Path | None = None) -> str:
     """Render a GitHub-flavored Markdown dashboard table from trace history."""
-    if not trace_path.is_file():
-        return ""
-
-    records: list[dict[str, Any]] = []
-    with open(trace_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                records.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-
+    records = load_records(trace_path)
     if not records:
         return ""
 
@@ -474,22 +510,11 @@ def render_markdown_dashboard(trace_path: Path, output_md: Path | None = None) -
 
     latest_warnings: list[str] = []
     for rec in records[-20:]:
-        commit = rec.get("commit", "unknown")
-        ts = rec.get("timestamp", "")[:19].replace("T", " ")
-        ag = rec.get("agent", "unknown")
-        sub_str = format_subagents(rec.get("subagents"))
-        dur = rec.get("duration_str") or format_duration(rec.get("duration_ms", 0))
-        sl = rec.get("state_layer", {})
-        tok = f"~{sl.get('total_state_tokens_est', 0):,} tok"
-        feat_l = f"{sl.get('feature_list_lines', 0)} lines"
-        prog_l = f"{sl.get('progress_lines', 0)} lines"
-        comp = sl.get("completed_features", 0)
-        act = sl.get("active_features", 0)
-        done_active = f"{comp} ({act} act)"
-        st = rec.get("thresholds", {}).get("status", "OK")
+        r = trace_row(rec)
         latest_warnings = rec.get("thresholds", {}).get("warnings", [])
         md_lines.append(
-            f"| `{commit}` | {ts} | `{ag}` | {sub_str} | {dur} | {tok} | {feat_l} | {prog_l} | {done_active} | **{st}** |"
+            f"| `{r['commit']}` | {r['ts']} | `{r['agent']}` | {r['subagents']} | {r['duration']} | "
+            f"{r['tokens']} | {r['feat_lines']} | {r['prog_lines']} | {r['done_active']} | **{r['status']}** |"
         )
 
     md_lines.append("")
@@ -543,17 +568,7 @@ def render_trend_table(trace_path: Path) -> None:
         print(f"No evaluation trace history found at: {trace_path}")
         return
 
-    records: list[dict[str, Any]] = []
-    with open(trace_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                records.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-
+    records = load_records(trace_path)
     if not records:
         print(f"No records found in {trace_path}")
         return
@@ -569,23 +584,12 @@ def render_trend_table(trace_path: Path) -> None:
 
     latest_warnings: list[str] = []
     for rec in records[-15:]:  # Show last 15 entries
-        commit = rec.get("commit", "unknown")
-        ts = rec.get("timestamp", "")[:19].replace("T", " ")
-        ag = rec.get("agent", "unknown")
-        sub_str = format_subagents(rec.get("subagents"))
-        dur = rec.get("duration_str") or format_duration(rec.get("duration_ms", 0))
-        sl = rec.get("state_layer", {})
-        tok = f"~{sl.get('total_state_tokens_est', 0):,} tok"
-        feat_l = f"{sl.get('feature_list_lines', 0)} lines"
-        prog_l = f"{sl.get('progress_lines', 0)} lines"
-        comp = sl.get("completed_features", 0)
-        act = sl.get("active_features", 0)
-        done_active = f"{comp} ({act} act)"
-        st = rec.get("thresholds", {}).get("status", "OK")
+        r = trace_row(rec)
         latest_warnings = rec.get("thresholds", {}).get("warnings", [])
         print(
-            f"{commit:<10} {ts:<20} {ag:<8} {sub_str:<22} {dur:<12} {tok:<14} "
-            f"{feat_l:<12} {prog_l:<10} {done_active:<14} {st:<6}"
+            f"{r['commit']:<10} {r['ts']:<20} {r['agent']:<8} {r['subagents']:<22} {r['duration']:<12} "
+            f"{r['tokens']:<14} {r['feat_lines']:<12} {r['prog_lines']:<10} {r['done_active']:<14} "
+            f"{r['status']:<6}"
         )
 
     print("=" * 136)
@@ -680,15 +684,7 @@ def main() -> int:
         return 0
 
     if args.check_thresholds:
-        snapshot = collect_snapshot(
-            repo_dir,
-            trace_path=default_trace_file,
-            explicit_agent=args.agent,
-            duration_ms=args.duration_ms,
-            self_subagents=args.self_subagents,
-            outside_subagents=args.outside_subagents,
-        )
-        warnings = snapshot.get("thresholds", {}).get("warnings", [])
+        warnings = check_thresholds(repo_dir)
         if warnings:
             print("WARNING: Repository state thresholds breached:")
             for w in warnings:

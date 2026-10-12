@@ -25,6 +25,7 @@ fixture_repo() {
   # Copy guards
   cp "$REPO_DIR/harness/guards/clean-state-guard.sh" "$d/.claude/hooks/"
   cp "$REPO_DIR/harness/guards/state-layer-guard.sh" "$d/.claude/hooks/"
+  cp "$REPO_DIR/scripts/state_layer_check.py" "$d/scripts/"
   chmod +x "$d/.claude/hooks/"*.sh
   git -C "$d" init -q
   git -C "$d" add .
