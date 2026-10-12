@@ -6,7 +6,7 @@ feat-011 to feat-022; its early numbers (8 gates, 53 tests) are from when they w
 
 This file is the readable history, one paragraph per feature. The structured records that the
 state-layer guard validates (description, acceptance criteria, evidence) live in
-`docs/archive/features/*.json` and cover feat-001 to feat-055; feat-056 to feat-060 are only here.
+`docs/archive/features/*.json` (feat-001 to feat-055) and `feature_list.json` (feat-056 onward).
 
 ## Files Modified This Session
 
