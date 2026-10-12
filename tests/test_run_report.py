@@ -120,3 +120,9 @@ def test_malformed_record_shapes_degrade_to_na_without_crashing():
     assert rr.row(bad[3])["wall"] == "n/a"
     assert rr.row(bad[4])["gates"] == "n/a"
     assert "n/a" in rr.render(bad)
+
+
+def test_deeply_nested_record_file_is_skipped_not_a_crash(tmp_path):
+    (tmp_path / "bad.json").write_text("[" * 200000 + "]" * 200000)
+    (tmp_path / "ok.json").write_text(json.dumps(_run("ok", 5)))
+    assert [r["run_id"] for r in rr.load_runs(tmp_path)] == ["ok"]

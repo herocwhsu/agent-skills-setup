@@ -54,7 +54,7 @@ def load_runs(runs_dir: Path) -> list[dict[str, Any]]:
     for p in sorted(runs_dir.glob("*.json")):
         try:
             data = json.loads(p.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        except (OSError, ValueError, RecursionError):
             continue
         if isinstance(data, dict) and "run_id" in data:
             runs.append(data)

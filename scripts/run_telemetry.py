@@ -40,16 +40,25 @@ _SECRET_WORDS = re.compile(
     r"(api[-_ ]?key|passw(or)?d|pwd|secret|token|bearer|authorization|credential)", re.I
 )
 _CREDENTIAL_SHAPES = re.compile(
-    r"(sk[-_][A-Za-z0-9_-]{6,}|gh[pousr]_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{12,}|xox[abprs]-[A-Za-z0-9-]{6,}"
+    r"((?<![A-Za-z0-9])sk[-_][A-Za-z0-9_-]{6,}|gh[pousr]_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{12,}|xox[abprs]-[A-Za-z0-9-]{6,}"
     r"|eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{2,}\.|AIza[A-Za-z0-9_-]{16,}|glpat-[A-Za-z0-9_-]{10,}"
     r"|npm_[A-Za-z0-9]{10,}|hf_[A-Za-z0-9]{10,}"
-    r"|(?:bearer|passw(?:or)?d|pwd|secret|token|api[-_ ]?key)\s+(?=\S*\d)\S{6,})",
+    r"|(?:bearer|passw(?:or)?d|pwd|api[-_ ]?key)\s+(?=\S*\d)\S{8,})",
     re.I,
 )
 _PATH_SHAPE = re.compile(
     r"(^|[\s(\"'=:])(/[A-Za-z0-9._-]+/|~[A-Za-z0-9_-]*/|[A-Za-z]:\\|\\\\)"
-    r"|\.\./|[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/|[\u2215\u2044\uff0f\u29f8]"
+    r"|\.\./|[\u2215\u2044\uff0f\u29f8]"
 )
+_FILE_EXT = re.compile(r"\.[A-Za-z0-9]{1,6}$")
+
+
+def _has_relative_path(text: str) -> bool:
+    for tok in text.split():
+        inner = tok.removeprefix("./").strip("/")
+        if "/" in inner and _FILE_EXT.search(tok.rstrip("/,;:)")):
+            return True
+    return False
 
 
 def _scrub(value: Any, limit: int = 80) -> str | None:
@@ -60,11 +69,12 @@ def _scrub(value: Any, limit: int = 80) -> str | None:
     """
     if not isinstance(value, str) or not value.strip():
         return None
-    text = " ".join(value.split())
-    if _PATH_SHAPE.search(text):
+    text = " ".join(value.split(maxsplit=limit))[: limit * 4]
+    window = text[: limit * 2]
+    if _PATH_SHAPE.search(window) or _has_relative_path(window):
         return "[redacted: contains a path]"
-    if _CREDENTIAL_SHAPES.search(text) or (
-        _SECRET_WORDS.search(text) and re.search(r"[=:]\s*\S{3,}", text)
+    if _CREDENTIAL_SHAPES.search(window) or (
+        _SECRET_WORDS.search(window) and re.search(r"[=:]\s*\S{3,}", window)
     ):
         return "[redacted]"
     return text if len(text) <= limit else text[: limit - 1] + "…"
@@ -76,6 +86,19 @@ def _opaque_id(value: Any, prefix: str) -> str:
     if _OPAQUE_ID_RE.match(s) and not _CREDENTIAL_SHAPES.search(s):
         return s
     return f"{prefix}-{hashlib.sha256(s.encode()).hexdigest()[:10]}"
+
+
+_MESSAGE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def _message_id(value: Any) -> str:
+    if (
+        isinstance(value, str)
+        and _MESSAGE_ID_RE.match(value)
+        and not _CREDENTIAL_SHAPES.search(value)
+    ):
+        return value
+    return _opaque_id(value, "msg")
 
 
 def _tool_use_id(value: Any) -> str:
@@ -197,7 +220,13 @@ def _scope_usage(
             ),
         )
         chosen.append(best)
-        conflicts.append({"message_id": mid, "conflict": True, "raw_rows": nums})
+        conflicts.append(
+            {
+                "message_id": _message_id(mid),
+                "conflict": True,
+                "raw_rows": [{k: v if _is_count(v) else None for k, v in n.items()} for n in nums],
+            }
+        )
     chosen.extend(no_id)
     partial: list[str] = []
     if all_urows is not None:
@@ -207,7 +236,7 @@ def _scope_usage(
         seen: Counter[str] = Counter(
             r["message"]["id"] for r in urows if isinstance(r["message"].get("id"), str)
         )
-        partial = [m for m in order if full[m] > seen[m]]
+        partial = [_message_id(m) for m in order if full[m] > seen[m]]
 
     tokens: dict[str, Any] = {}
     for name, field in TOKEN_FIELDS.items():
@@ -371,7 +400,7 @@ def _subagents(
                 loaded = json.loads(meta_path.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict):
                     meta = loaded
-            except ValueError:
+            except (ValueError, RecursionError, OSError):
                 pass
         scope = _scope_usage(rows, "subagent usage rows", all_sub_rows)
         dur = _span_ms(rows)

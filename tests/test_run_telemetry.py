@@ -781,3 +781,62 @@ def test_scrub_covers_more_credential_and_path_shapes(text):
 def test_scrub_keeps_ordinary_labels_with_slashes_or_secret_words():
     assert rt._scrub("Review token budget handling") == "Review token budget handling"
     assert rt._scrub("check and/or input") == "check and/or input"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "task-runner",
+        "disk_usage_report",
+        "risk-assessment",
+        "Write unit tests for risk_scoring",
+        "compare token budget2024",
+        "review/fix/test",
+        "read/write/execute files",
+        "Phase 1/2/3",
+    ],
+)
+def test_scrub_keeps_ordinary_labels_that_resemble_secrets_or_paths(text):
+    assert rt._scrub(text) == text
+
+
+@pytest.mark.parametrize("shape", ["a", "a-", "x ", "a/b"])
+def test_scrub_time_is_bounded_on_huge_input(shape):
+    import time
+
+    start = time.perf_counter()
+    rt._scrub(shape * 500000)
+    assert time.perf_counter() - start < 1.0
+
+
+def test_message_ids_and_raw_rows_in_conflicts_are_scrubbed(tmp_path):
+    bad = "/Users/bob/secret/x"
+    rows = [
+        _row(_ts(1), bad, {"input_tokens": 1, "output_tokens": 5}),
+        _row(_ts(2), bad, {"input_tokens": 1, "output_tokens": "/Users/bob/secret/x"}),
+    ]
+    run = rt.collect_run(_session(tmp_path, rows))
+    text = json.dumps(run)
+    assert "/Users/bob" not in text
+    assert run["parent"]["conflicts"][0]["message_id"].startswith("msg-")
+    assert run["parent"]["conflicts"][0]["raw_rows"][0]["output_tokens"] in (5, None)
+
+
+def test_message_ids_in_partial_list_are_scrubbed(tmp_path):
+    bad = "/Users/bob/secret/x"
+    rows = [
+        _row(_ts(1), bad, _usage(1, 1)),
+        _row(_ts(5), bad, _usage(1, 1)),
+    ]
+    run = rt.collect_run(_session(tmp_path, rows), start=_ts(0), end=_ts(3))
+    assert "/Users/bob" not in json.dumps(run)
+    assert run["parent"]["partial_message_ids"]
+
+
+def test_unreadable_or_nested_subagent_meta_does_not_crash(tmp_path):
+    d = tmp_path / SESSION / "subagents"
+    _write(d / "agent-a1.jsonl", [_row(_ts(2), "s1", _usage(1, 1))])
+    (d / "agent-a1.meta.json").write_text("[" * 200000 + "]" * 200000)
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "p", _usage(1, 1))]))
+    assert run["subagent_count"]["value"] == 1
+    assert run["subagents"][0]["agent_type"] is None
