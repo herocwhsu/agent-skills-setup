@@ -5,7 +5,6 @@ verify_command: bash scripts/harness-verify.sh
 fast_test_command: bash scripts/run-tests.sh --fast
 rules_file: agents/engineering-rules.md
 architecture_doc: docs/architecture.md
-recent_improvements_doc: docs/improvements/recent-tasks-summary.md
 state_layer: [feature_list.json, PROGRESS.md]
 ---
 
@@ -111,7 +110,6 @@ Load a topic doc only when its condition matches the task.
 
 - **`docs/incident-rules.md`** — the incident, scope, and expiry behind each rule in Incident rules above. *Load when:* editing a `*.sh` file, a hook, Python, or moving `skills/<group>`.
 - **`docs/architecture.md`** — layers, invariants, directory layout. *Load when:* changing a subsystem boundary, hook, or gate.
-- **`docs/improvements/recent-tasks-summary.md`** — recent milestone summaries, architecture changes, and ROI matrix. *Load when:* reviewing recent changes or understanding repository evolution.
 - **`agents/engineering-rules.md`** — the shipped rules. *Load when:* editing them (changes every agent on the machine).
 - **`skills/README.md`** — group and subcommand index, skill layout, registry entry types. *Load when:* adding or changing a skill.
 - **`docs/archive/features/`** — historical feature specifications. *Load when:* looking up older features (`feat-001` through `feat-040`).

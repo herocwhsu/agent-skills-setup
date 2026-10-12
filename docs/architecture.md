@@ -132,3 +132,17 @@ flowchart TD
 4. **Repository as the Sole System of Record:**
    - Cross-session state lives exclusively in repository files (`feature_list.json`, `PROGRESS.md`), never in transient conversational memory.
    - A change is considered complete only when `./init.sh` exits 0.
+
+## 5. Why the Layout Looks This Way
+
+Decisions behind the current structure. Details of each change live in `feature_list.json`, its archive, and git history.
+
+- **Guards in `harness/guards/`, not `.claude/hooks/`.** Antigravity, Codex and plain git all run the same guards, so they cannot sit in a Claude-specific hidden folder. `.claude/hooks` stays as a symlink to keep Claude working.
+- **Consumer hook templates in `templates/hooks/`.** They are copied into other repos and must not be confused with this repo's own active guards.
+- **Kiro prompts under `agents/kiro/`.** Agent-specific files live under `agents/`, not at the repo root.
+- **Python files are snake_case.** Kebab-case names such as `credential-backend-check.py` cannot be imported, which broke IDE inspection and linting.
+- **Completed features are archived** under `docs/archive/features/` and listed in `archive_references`, because a 500-line `feature_list.json` cost about 1,400 tokens on every state-layer read.
+- **The Stop gate runs only the tests for changed files** (`run-tests.sh --changed`). Running every test on every edit took minutes. An active feature's `exclusions` list blocks edits outside its sprint contract.
+- **A clean-state gate (Invariant 4)** fails the turn if an agent leaves untracked scratch files or uncommitted edits.
+- **Runtime venv instead of `--break-system-packages`.** Homebrew and modern Linux Python enforce PEP 668, so bare `pip install` fails.
+- **Reviews by a second model family.** A single model confirms its own mistakes, so important changes also go through a different family via `outside-agent.sh`.
