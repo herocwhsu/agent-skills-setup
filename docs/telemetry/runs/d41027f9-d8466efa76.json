@@ -1,0 +1,151 @@
+{
+  "run_id": "d41027f9-d8466efa76",
+  "schema_version": 1,
+  "session_id": "d41027f9",
+  "window": {
+    "start": null,
+    "end": null
+  },
+  "wall_time_ms": {
+    "value": 22626,
+    "source": "first to last parent timestamp",
+    "status": "measured",
+    "note": "includes idle time between prompts"
+  },
+  "active_turn_time_ms": {
+    "value": null,
+    "source": "no turn_duration records",
+    "status": "missing"
+  },
+  "agent_time_ms": {
+    "value": null,
+    "source": "no subagent with timestamps",
+    "status": "missing"
+  },
+  "parent": {
+    "tokens": {
+      "input_tokens_sum": {
+        "value": 36265,
+        "source": "session usage rows",
+        "status": "measured",
+        "note": "sums the context re-sent on every turn, so it is not unique content and not billed usage"
+      },
+      "output_tokens_sum": {
+        "value": 138,
+        "source": "session usage rows",
+        "status": "measured"
+      },
+      "cache_read_sum": {
+        "value": 0,
+        "source": "session usage rows",
+        "status": "measured",
+        "note": "every row reports 0; cannot tell no caching from a gateway that does not report it"
+      },
+      "cache_creation_sum": {
+        "value": 0,
+        "source": "session usage rows",
+        "status": "measured",
+        "note": "every row reports 0; cannot tell no caching from a gateway that does not report it"
+      },
+      "last_context_tokens": {
+        "value": 36265,
+        "source": "session usage rows",
+        "status": "measured",
+        "note": "input tokens of the final turn: context size, not usage"
+      },
+      "max_context_tokens": {
+        "value": 36265,
+        "source": "session usage rows",
+        "status": "measured",
+        "note": "largest per-turn input: context size, not usage"
+      },
+      "reported_context_total": {
+        "value": 36403,
+        "source": "session usage rows",
+        "status": "measured",
+        "note": "final-turn input + summed output; the figure the harness reports for subagents, not billed usage"
+      }
+    },
+    "usage_rows": 2,
+    "distinct_message_ids": 1,
+    "rows_without_message_id": 0,
+    "synthetic_rows_ignored": 0,
+    "partial_message_ids": [],
+    "conflicts": [],
+    "models": [
+      "claude-haiku-4.5"
+    ],
+    "malformed_lines": 0,
+    "rows_without_timestamp_excluded": 0
+  },
+  "subagents": [],
+  "subagent_count": {
+    "value": 0,
+    "source": "subagents/agent-*.jsonl",
+    "status": "measured"
+  },
+  "spawn_calls": {
+    "value": 0,
+    "source": "Agent tool_use blocks in the parent",
+    "status": "measured"
+  },
+  "unmatched_spawns": [],
+  "subagents_without_spawn": [],
+  "events": {
+    "context_compactions": {
+      "value": 0,
+      "source": "system compact_boundary records",
+      "status": "measured"
+    },
+    "api_errors": {
+      "value": 0,
+      "source": "records with isApiErrorMessage",
+      "status": "measured"
+    },
+    "retries": {
+      "value": null,
+      "source": "no structured retry record in session files",
+      "status": "missing"
+    },
+    "timeouts": {
+      "value": null,
+      "source": "no structured timeout record in session files",
+      "status": "missing"
+    }
+  },
+  "outside_agent": {
+    "attempts_logged": {
+      "value": 0,
+      "source": "outside-agent-runs.jsonl attempt rows",
+      "status": "measured"
+    },
+    "results": {},
+    "legacy_success_only_rows": {
+      "value": 5,
+      "source": "outside-agent-runs.jsonl rows without attempt=true",
+      "status": "measured",
+      "note": "written before attempt logging existed: failures were not logged, so attempts are undercounted for this period"
+    }
+  },
+  "gates": {
+    "value": null,
+    "source": "no harness-verify --report file given",
+    "status": "missing"
+  },
+  "cost_usd": {
+    "value": null,
+    "source": "none",
+    "status": "missing",
+    "note": "no authoritative cost source; custom ANTHROPIC_BASE_URL makes public pricing a guess, so it is not estimated"
+  },
+  "human_corrections": {
+    "value": null,
+    "source": "no reliable automatic source",
+    "status": "missing"
+  },
+  "rework": {
+    "value": null,
+    "source": "no reliable automatic source",
+    "status": "missing"
+  }
+}

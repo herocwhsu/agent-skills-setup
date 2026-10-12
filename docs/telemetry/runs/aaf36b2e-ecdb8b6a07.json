@@ -1,0 +1,147 @@
+{
+  "run_id": "aaf36b2e-ecdb8b6a07",
+  "schema_version": 1,
+  "session_id": "aaf36b2e",
+  "window": {
+    "start": null,
+    "end": null
+  },
+  "wall_time_ms": {
+    "value": 1809,
+    "source": "first to last parent timestamp",
+    "status": "measured",
+    "note": "includes idle time between prompts"
+  },
+  "active_turn_time_ms": {
+    "value": null,
+    "source": "no turn_duration records",
+    "status": "missing"
+  },
+  "agent_time_ms": {
+    "value": null,
+    "source": "no subagent with timestamps",
+    "status": "missing"
+  },
+  "parent": {
+    "tokens": {
+      "input_tokens_sum": {
+        "value": null,
+        "source": "session usage rows",
+        "status": "missing",
+        "note": "no usage row carried input_tokens"
+      },
+      "output_tokens_sum": {
+        "value": null,
+        "source": "session usage rows",
+        "status": "missing",
+        "note": "no usage row carried output_tokens"
+      },
+      "cache_read_sum": {
+        "value": null,
+        "source": "session usage rows",
+        "status": "missing",
+        "note": "no usage row carried cache_read_input_tokens"
+      },
+      "cache_creation_sum": {
+        "value": null,
+        "source": "session usage rows",
+        "status": "missing",
+        "note": "no usage row carried cache_creation_input_tokens"
+      },
+      "last_context_tokens": {
+        "value": null,
+        "source": "session usage rows",
+        "status": "missing"
+      },
+      "max_context_tokens": {
+        "value": null,
+        "source": "session usage rows",
+        "status": "missing"
+      },
+      "reported_context_total": {
+        "value": null,
+        "source": "session usage rows",
+        "status": "missing"
+      }
+    },
+    "usage_rows": 0,
+    "distinct_message_ids": 0,
+    "rows_without_message_id": 0,
+    "synthetic_rows_ignored": 0,
+    "partial_message_ids": [],
+    "conflicts": [],
+    "models": [],
+    "malformed_lines": 0,
+    "rows_without_timestamp_excluded": 0
+  },
+  "subagents": [],
+  "subagent_count": {
+    "value": 0,
+    "source": "subagents/agent-*.jsonl",
+    "status": "measured"
+  },
+  "spawn_calls": {
+    "value": 0,
+    "source": "Agent tool_use blocks in the parent",
+    "status": "measured"
+  },
+  "unmatched_spawns": [],
+  "subagents_without_spawn": [],
+  "events": {
+    "context_compactions": {
+      "value": 0,
+      "source": "system compact_boundary records",
+      "status": "measured"
+    },
+    "api_errors": {
+      "value": 0,
+      "source": "records with isApiErrorMessage",
+      "status": "measured"
+    },
+    "retries": {
+      "value": null,
+      "source": "no structured retry record in session files",
+      "status": "missing"
+    },
+    "timeouts": {
+      "value": null,
+      "source": "no structured timeout record in session files",
+      "status": "missing"
+    }
+  },
+  "outside_agent": {
+    "attempts_logged": {
+      "value": 0,
+      "source": "outside-agent-runs.jsonl attempt rows",
+      "status": "measured"
+    },
+    "results": {},
+    "legacy_success_only_rows": {
+      "value": 5,
+      "source": "outside-agent-runs.jsonl rows without attempt=true",
+      "status": "measured",
+      "note": "written before attempt logging existed: failures were not logged, so attempts are undercounted for this period"
+    }
+  },
+  "gates": {
+    "value": null,
+    "source": "no harness-verify --report file given",
+    "status": "missing"
+  },
+  "cost_usd": {
+    "value": null,
+    "source": "none",
+    "status": "missing",
+    "note": "no authoritative cost source; custom ANTHROPIC_BASE_URL makes public pricing a guess, so it is not estimated"
+  },
+  "human_corrections": {
+    "value": null,
+    "source": "no reliable automatic source",
+    "status": "missing"
+  },
+  "rework": {
+    "value": null,
+    "source": "no reliable automatic source",
+    "status": "missing"
+  }
+}

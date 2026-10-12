@@ -154,7 +154,7 @@ def test_subagent_metadata_attributed(tmp_path):
     run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "p1", _usage(1, 1), content=[spawn])]))
     s = run["subagents"][0]
     assert s["agent_id"] == "abc"
-    assert s["parent_session_id"] == SESSION
+    assert s["parent_session_id"] == SESSION[:8]
     assert s["tool_use_id"] == "toolu_1"
     assert s["agent_type"] == "general-purpose"
     assert s["description"] == "review the diff"
@@ -398,3 +398,281 @@ def test_active_turn_time_missing_without_records(tmp_path):
     run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1, 0, 0))]))
     assert run["active_turn_time_ms"]["value"] is None
     assert run["active_turn_time_ms"]["status"] == "missing"
+
+
+def test_subagent_without_parent_spawn_is_flagged_not_dropped(tmp_path):
+    spawn = {"type": "tool_use", "id": "toolu_1", "name": "Agent", "input": {}}
+    _subagent(tmp_path, "abc", [_row(_ts(2), "s1", _usage(10, 1, 0, 0))], tool_use_id="toolu_1")
+    _subagent(
+        tmp_path, "skl", [_row(_ts(3), "s2", _usage(20, 2, 0, 0))], tool_use_id="toolu_from_skill"
+    )
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "p1", _usage(1, 1), content=[spawn])]))
+    assert run["subagent_count"]["value"] == 2
+    assert run["spawn_calls"]["value"] == 1
+    assert run["subagents_without_spawn"] == ["skl"]
+    by_id = {s["agent_id"]: s for s in run["subagents"]}
+    assert by_id["skl"]["spawned_by_parent_call"] is False
+    assert by_id["abc"]["spawned_by_parent_call"] is True
+
+
+def test_context_total_is_missing_when_output_is_missing(tmp_path):
+    rows = [_row(_ts(1), "m1", {"input_tokens": 7})]
+    tok = rt.collect_run(_session(tmp_path, rows))["parent"]["tokens"]
+    assert tok["output_tokens_sum"]["status"] == "missing"
+    assert tok["reported_context_total"]["status"] == "missing"
+    assert tok["reported_context_total"]["value"] is None
+    assert tok["last_context_tokens"]["value"] == 7
+
+
+def test_max_context_tokens_reported(tmp_path):
+    rows = [
+        _row(_ts(1), "m1", _usage(7, 1, 0, 0)),
+        _row(_ts(2), "m2", _usage(9, 1, 0, 0)),
+        _row(_ts(3), "m3", _usage(8, 1, 0, 0)),
+    ]
+    tok = rt.collect_run(_session(tmp_path, rows))["parent"]["tokens"]
+    assert tok["max_context_tokens"]["value"] == 9
+    assert tok["last_context_tokens"]["value"] == 8
+
+
+def test_subagent_description_is_bounded_and_scrubbed(tmp_path):
+    long_desc = "review " + "x" * 300
+    _subagent(
+        tmp_path, "abc", [_row(_ts(2), "s1", _usage(1, 1))], description=long_desc, tool_use_id="t1"
+    )
+    _subagent(
+        tmp_path,
+        "def",
+        [_row(_ts(3), "s2", _usage(1, 1))],
+        description="fix /Users/alice/secret/file.py now",
+        tool_use_id="t2",
+    )
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "p1", _usage(1, 1))]))
+    descs = {s["agent_id"]: s["description"] for s in run["subagents"]}
+    assert len(descs["abc"]) <= 80 and descs["abc"].endswith("…")
+    assert "/Users/alice" not in descs["def"]
+    assert descs["def"] == "[redacted: contains a path]"
+
+
+def test_synthetic_rows_do_not_set_context_size(tmp_path):
+    rows = [
+        _row(_ts(1), "m1", _usage(500, 10, 0, 0)),
+        _row(_ts(2), "m2", _usage(0, 0, 0, 0), model="<synthetic>"),
+    ]
+    p = rt.collect_run(_session(tmp_path, rows))["parent"]
+    assert p["tokens"]["last_context_tokens"]["value"] == 500
+    assert p["tokens"]["max_context_tokens"]["value"] == 500
+    assert p["synthetic_rows_ignored"] == 1
+    assert "<synthetic>" not in p["models"]
+
+
+def test_only_synthetic_rows_means_context_missing(tmp_path):
+    rows = [_row(_ts(1), "m1", _usage(0, 0, 0, 0), model="<synthetic>")]
+    tok = rt.collect_run(_session(tmp_path, rows))["parent"]["tokens"]
+    assert tok["last_context_tokens"]["status"] == "missing"
+    assert tok["output_tokens_sum"]["status"] == "missing"
+
+
+def test_nested_workflow_subagents_are_read(tmp_path):
+    d = tmp_path / SESSION / "subagents" / "workflows" / "wf_1"
+    _write(
+        d / "agent-nested.jsonl",
+        [_row(_ts(2), "n1", _usage(40, 4, 0, 0)), _row(_ts(3), "n2", _usage(50, 5, 0, 0))],
+    )
+    _write(
+        tmp_path / SESSION / "subagents" / "agent-top.jsonl",
+        [_row(_ts(2), "t1", _usage(10, 1, 0, 0))],
+    )
+    (tmp_path / SESSION / "subagents" / "agent-top.meta.json").write_text(
+        json.dumps({"toolUseId": "t"})
+    )
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "p1", _usage(1, 1, 0, 0))]))
+    assert run["subagent_count"]["value"] == 2
+    assert {s["agent_id"] for s in run["subagents"]} == {"top", "nested"}
+
+
+def test_invalid_utf8_bytes_are_counted_as_malformed_not_a_crash(tmp_path):
+    p = tmp_path / f"{SESSION}.jsonl"
+    good = json.dumps(_row(_ts(1), "m1", _usage(5, 1, 0, 0))).encode()
+    p.write_bytes(b"\xff\xfe\x00bad\n" + good + b"\n")
+    run = rt.collect_run(p)
+    assert run["parent"]["malformed_lines"] == 1
+    assert run["parent"]["tokens"]["input_tokens_sum"]["value"] == 5
+
+
+def test_nonhashable_tool_use_id_and_nan_duration_do_not_crash(tmp_path):
+    d = tmp_path / SESSION / "subagents"
+    _write(d / "agent-x.jsonl", [_row(_ts(2), "s1", _usage(1, 1, 0, 0))])
+    (d / "agent-x.meta.json").write_text(json.dumps({"toolUseId": ["a"], "agentType": "t"}))
+    rows = [
+        _row(_ts(1), "p1", _usage(1, 1, 0, 0)),
+        {
+            "type": "system",
+            "subtype": "turn_duration",
+            "durationMs": float("nan"),
+            "timestamp": _ts(2),
+        },
+    ]
+    p = _session(tmp_path, [json.dumps(r) if isinstance(r, dict) else r for r in rows])
+    run = rt.collect_run(p)
+    assert run["subagents"][0]["tool_use_id"] is None
+    assert run["active_turn_time_ms"]["status"] == "missing"
+
+
+def test_agent_type_and_session_id_are_scrubbed(tmp_path):
+    secret = tmp_path / "my-secret-client-x.jsonl"
+    _write(secret, [_row(_ts(1), "m1", _usage(1, 1, 0, 0))])
+    d = tmp_path / "my-secret-client-x" / "subagents"
+    _write(d / "agent-a.jsonl", [_row(_ts(2), "s1", _usage(1, 1, 0, 0))])
+    (d / "agent-a.meta.json").write_text(
+        json.dumps(
+            {
+                "toolUseId": "t",
+                "agentType": "/Users/herohsu/secret",
+                "description": "password=hunter2 sk-ant-abc123",
+            }
+        )
+    )
+    run = rt.collect_run(secret)
+    text = json.dumps(run)
+    assert "my-secret-client-x" not in text
+    assert "/Users/herohsu" not in text
+    assert "hunter2" not in text and "sk-ant-abc123" not in text
+    assert len(run["session_id"]) <= 12
+
+
+def test_window_cutting_duplicate_rows_is_flagged(tmp_path):
+    rows = [
+        _row(_ts(0), "m1", _usage(10, 1, 0, 0)),
+        _row(_ts(10), "m1", _usage(10, 50, 0, 0)),
+    ]
+    run = rt.collect_run(_session(tmp_path, rows), start=_ts(0), end=_ts(5))
+    assert run["parent"]["partial_message_ids"] == ["m1"]
+
+
+def test_adjacent_windows_do_not_both_count_a_boundary_row(tmp_path):
+    rows = [_row(_ts(5), "m1", _usage(10, 1, 0, 0))]
+    p = _session(tmp_path, rows)
+    a = rt.collect_run(p, start=_ts(0), end=_ts(5))["parent"]["usage_rows"]
+    b = rt.collect_run(p, start=_ts(5), end=_ts(10))["parent"]["usage_rows"]
+    assert a + b == 1
+
+
+def test_boolean_token_values_are_not_counted(tmp_path):
+    rows = [_row(_ts(1), "m1", {"input_tokens": True, "output_tokens": 3})]
+    tok = rt.collect_run(_session(tmp_path, rows))["parent"]["tokens"]
+    assert tok["input_tokens_sum"]["status"] == "missing"
+    assert tok["output_tokens_sum"]["value"] == 3
+
+
+def test_conflict_in_cache_fields_only_is_flagged(tmp_path):
+    rows = [
+        _row(_ts(1), "m1", _usage(10, 5, 0, 0)),
+        _row(_ts(2), "m1", _usage(10, 5, 7, 0)),
+    ]
+    assert len(rt.collect_run(_session(tmp_path, rows))["parent"]["conflicts"]) == 1
+
+
+def test_subagent_outside_window_is_excluded(tmp_path):
+    _subagent(tmp_path, "early", [_row(_ts(1), "s1", _usage(10, 1, 0, 0))])
+    _subagent(tmp_path, "late", [_row(_ts(30), "s2", _usage(20, 2, 0, 0))], tool_use_id="t2")
+    run = rt.collect_run(
+        _session(tmp_path, [_row(_ts(0), "p", _usage(1, 1, 0, 0))]), start=_ts(20), end=_ts(40)
+    )
+    assert [s["agent_id"] for s in run["subagents"]] == ["late"]
+
+
+def test_subagent_partial_ids_are_reported(tmp_path):
+    _subagent(
+        tmp_path,
+        "abc",
+        [_row(_ts(1), "s", _usage(10, 1, 0, 0)), _row(_ts(5), "s", _usage(10, 1, 0, 0))],
+    )
+    run = rt.collect_run(
+        _session(tmp_path, [_row(_ts(0), "p", _usage(1, 1, 0, 0))]), start=_ts(0), end=_ts(2)
+    )
+    assert run["subagents"][0]["partial_message_ids"] == ["s"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Authorization: Bearer abcdef1234567890",
+        "api_key=abcd1234",
+        "API-KEY: abc123",
+        "pwd=hunter2",
+        "passwd: hunter2",
+        "secrets=abc",
+        "gh" + "p_abcdefghijklmnop1234",
+        "AK" + "IA" + "ABCDEFGHIJKLMNOP",
+        "xo" + "xb-1234-abcdef",
+        "ey" + "JhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc",
+        "C:\\Users\\x\\proj",
+        "\\\\server\\share\\file",
+        "/tmp/build/out",
+        "/etc/passwd",
+        "/opt/app/run",
+        "/private/var/x",
+        "\u2215Users\u2215bob",
+    ],
+    ids=lambda v: "case",
+)
+def test_description_scrub_blocks_secret_and_path_shapes(text):
+    out = rt._scrub(text)
+    assert out == "[redacted]" or out.startswith("[redacted")
+    assert "hunter2" not in out and "abcd1234" not in out and "ghp_" not in out
+
+
+def test_description_scrub_keeps_plain_labels():
+    assert rt._scrub("Fresh review of uncommitted changes") == "Fresh review of uncommitted changes"
+    assert rt._scrub("Verify ./init.sh on a clean copy") == "Verify ./init.sh on a clean copy"
+    assert rt._scrub("/code-review") == "/code-review"
+
+
+def test_agent_and_tool_use_ids_must_be_opaque_tokens(tmp_path):
+    d = tmp_path / SESSION / "subagents"
+    _write(d / "agent-ghp_secrettoken123456.jsonl", [_row(_ts(2), "s1", _usage(1, 1, 0, 0))])
+    (d / "agent-ghp_secrettoken123456.meta.json").write_text(
+        json.dumps({"toolUseId": "password=hunter2", "agentType": "t"})
+    )
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "p", _usage(1, 1, 0, 0))]))
+    text = json.dumps(run)
+    assert "ghp_secrettoken123456" not in text
+    assert "hunter2" not in text
+    sub = run["subagents"][0]
+    assert sub["agent_id"].startswith("agent-")
+    assert sub["tool_use_id"] is None
+
+
+def test_duplicate_agent_file_names_get_distinct_ids(tmp_path):
+    base = tmp_path / SESSION / "subagents"
+    _write(base / "workflows" / "wf_a" / "agent-x1.jsonl", [_row(_ts(2), "a", _usage(1, 1, 0, 0))])
+    _write(base / "workflows" / "wf_b" / "agent-x1.jsonl", [_row(_ts(3), "b", _usage(1, 1, 0, 0))])
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "p", _usage(1, 1, 0, 0))]))
+    ids = [s["agent_id"] for s in run["subagents"]]
+    assert len(ids) == len(set(ids)) == 2
+
+
+def test_overflowing_durations_and_string_token_values_do_not_crash(tmp_path):
+    rows = [
+        {"type": "system", "subtype": "turn_duration", "durationMs": 1e308, "timestamp": _ts(1)},
+        {"type": "system", "subtype": "turn_duration", "durationMs": 1e308, "timestamp": _ts(2)},
+        _row(_ts(3), "m", {"input_tokens": 1, "output_tokens": "5"}),
+        _row(_ts(4), "m", {"input_tokens": 1, "output_tokens": 3}),
+    ]
+    run = rt.collect_run(_session(tmp_path, rows))
+    assert run["active_turn_time_ms"]["status"] == "missing"
+    assert len(run["parent"]["conflicts"]) == 1
+
+
+def test_rows_without_timestamp_are_counted_when_windowed(tmp_path):
+    row = _row(_ts(1), "m", _usage(5, 1, 0, 0))
+    del row["timestamp"]
+    run = rt.collect_run(_session(tmp_path, [row]), start=_ts(0), end=_ts(5))
+    assert run["parent"]["rows_without_timestamp_excluded"] == 1
+    assert run["parent"]["usage_rows"] == 0
+
+
+def test_boolean_duration_is_not_a_duration(tmp_path):
+    rows = [{"type": "system", "subtype": "turn_duration", "durationMs": True, "timestamp": _ts(1)}]
+    assert rt.collect_run(_session(tmp_path, rows))["active_turn_time_ms"]["status"] == "missing"

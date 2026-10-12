@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import re
 import sys
 from collections import Counter
 from datetime import datetime, timezone
@@ -31,6 +33,56 @@ def parse_ts(value: str) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
+_TOOL_USE_RE = re.compile(r"^toolu_[A-Za-z0-9_]{1,60}$")
+_OPAQUE_ID_RE = re.compile(r"^[A-Za-z0-9]{1,40}$")
+_SECRET_WORDS = re.compile(
+    r"(api[-_ ]?key|passw(or)?d|pwd|secret|token|bearer|authorization|credential)", re.I
+)
+_CREDENTIAL_SHAPES = re.compile(
+    r"(sk-[A-Za-z0-9_-]{6,}|gh[pousr]_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{12,}|xox[abprs]-[A-Za-z0-9-]{6,}"
+    r"|eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{2,}\.)"
+)
+_PATH_SHAPE = re.compile(
+    r"(^|[\s(\"'=:])(/[A-Za-z0-9._-]+/|~/|[A-Za-z]:\\|\\\\)|[\u2215\u2044\uff0f\u29f8]"
+)
+
+
+def _scrub(value: Any, limit: int = 80) -> str | None:
+    """Short label that is safe to commit.
+
+    Anything that looks like a path, a credential, or a key/password assignment replaces the whole
+    label with a marker; a plain label is only length-bounded.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = " ".join(value.split())
+    if _PATH_SHAPE.search(text):
+        return "[redacted: contains a path]"
+    if _CREDENTIAL_SHAPES.search(text) or (
+        _SECRET_WORDS.search(text) and re.search(r"[=:]\s*\S{3,}", text)
+    ):
+        return "[redacted]"
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def _opaque_id(value: Any, prefix: str) -> str:
+    """Return the id when it is a plain token, else a short hash; ids come from file names."""
+    s = value if isinstance(value, str) else ""
+    if _OPAQUE_ID_RE.match(s) and not _CREDENTIAL_SHAPES.search(s):
+        return s
+    return f"{prefix}-{hashlib.sha256(s.encode()).hexdigest()[:10]}"
+
+
+def _safe_description(value: Any) -> str | None:
+    """Short label for a subagent; text that looks like a path is redacted before it is committed."""
+    return _scrub(value)
+
+
+def _is_count(v: Any) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
 def metric(
     value: Any, source: str, status: str = "measured", note: str | None = None
 ) -> dict[str, Any]:
@@ -47,7 +99,7 @@ def missing(source: str, note: str | None = None) -> dict[str, Any]:
 def _read_rows(path: Path) -> tuple[list[dict[str, Any]], int]:
     rows: list[dict[str, Any]] = []
     bad = 0
-    with open(path, encoding="utf-8") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             if not line.strip():
                 continue
@@ -73,7 +125,7 @@ def _in_window(row: dict[str, Any], start: datetime | None, end: datetime | None
         t = parse_ts(ts)
     except ValueError:
         return False
-    return (start is None or t >= start) and (end is None or t <= end)
+    return (start is None or t >= start) and (end is None or t < end)
 
 
 def _usage_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -94,9 +146,14 @@ def _row_numbers(usage: dict[str, Any]) -> dict[str, int | None]:
     }
 
 
-def _scope_usage(rows: list[dict[str, Any]], source: str) -> dict[str, Any]:
+def _scope_usage(
+    rows: list[dict[str, Any]], source: str, all_rows: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
     """Deduplicate usage rows by message id within one scope and sum tokens."""
-    urows = _usage_rows(rows)
+    all_urows = _usage_rows(all_rows) if all_rows is not None else None
+    real = [r for r in _usage_rows(rows) if r["message"].get("model") != "<synthetic>"]
+    synthetic = len(_usage_rows(rows)) - len(real)
+    urows = real
     by_id: dict[str, list[dict[str, Any]]] = {}
     order: list[str] = []
     no_id: list[dict[str, Any]] = []
@@ -118,15 +175,31 @@ def _scope_usage(rows: list[dict[str, Any]], source: str) -> dict[str, Any]:
         if all(n == nums[0] for n in nums):
             chosen.append(group[0])
             continue
-        best = max(group, key=lambda g: g["message"]["usage"].get("output_tokens") or 0)
+        best = max(
+            group,
+            key=lambda g: (
+                g["message"]["usage"].get("output_tokens")
+                if _is_count(g["message"]["usage"].get("output_tokens"))
+                else -1
+            ),
+        )
         chosen.append(best)
-        conflicts.append({"message_id": mid, "raw_rows": nums})
+        conflicts.append({"message_id": mid, "conflict": True, "raw_rows": nums})
     chosen.extend(no_id)
+    partial: list[str] = []
+    if all_urows is not None:
+        full: Counter[str] = Counter(
+            r["message"]["id"] for r in all_urows if isinstance(r["message"].get("id"), str)
+        )
+        seen: Counter[str] = Counter(
+            r["message"]["id"] for r in urows if isinstance(r["message"].get("id"), str)
+        )
+        partial = [m for m in order if full[m] > seen[m]]
 
     tokens: dict[str, Any] = {}
     for name, field in TOKEN_FIELDS.items():
         vals = [c["message"]["usage"].get(field) for c in chosen]
-        present = [v for v in vals if isinstance(v, int)]
+        present = [v for v in vals if _is_count(v)]
         if not present:
             tokens[name] = missing(source, f"no usage row carried {field}")
             continue
@@ -141,20 +214,28 @@ def _scope_usage(rows: list[dict[str, Any]], source: str) -> dict[str, Any]:
         tokens[name] = metric(total, source, note=note)
     ins = [c["message"]["usage"].get("input_tokens") for c in chosen]
     outs = [c["message"]["usage"].get("output_tokens") for c in chosen]
-    last_in = next((v for v in reversed(ins) if isinstance(v, int)), None)
-    out_sum = sum(v for v in outs if isinstance(v, int))
+    last_in = next((v for v in reversed(ins) if _is_count(v)), None)
+    known_outs = [v for v in outs if _is_count(v)]
+    known_ins = [v for v in ins if _is_count(v)]
     if last_in is None:
         tokens["last_context_tokens"] = missing(source)
+        tokens["max_context_tokens"] = missing(source)
         tokens["reported_context_total"] = missing(source)
     else:
         tokens["last_context_tokens"] = metric(
             last_in, source, note="input tokens of the final turn: context size, not usage"
         )
-        tokens["reported_context_total"] = metric(
-            last_in + out_sum,
-            source,
-            note="final-turn input + summed output; this is the figure the harness reports for subagents, not billed usage",
+        tokens["max_context_tokens"] = metric(
+            max(known_ins), source, note="largest per-turn input: context size, not usage"
         )
+        if known_outs:
+            tokens["reported_context_total"] = metric(
+                last_in + sum(known_outs),
+                source,
+                note="final-turn input + summed output; the figure the harness reports for subagents, not billed usage",
+            )
+        else:
+            tokens["reported_context_total"] = missing(source, "no row carried output_tokens")
     models: list[str] = []
     for c in chosen:
         mdl = c["message"].get("model")
@@ -165,6 +246,8 @@ def _scope_usage(rows: list[dict[str, Any]], source: str) -> dict[str, Any]:
         "usage_rows": len(urows),
         "distinct_message_ids": len(order),
         "rows_without_message_id": len(no_id),
+        "synthetic_rows_ignored": synthetic,
+        "partial_message_ids": partial,
         "conflicts": conflicts,
         "models": models,
     }
@@ -191,11 +274,16 @@ def _turn_time(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if r.get("type") == "system"
         and r.get("subtype") == "turn_duration"
         and isinstance(r.get("durationMs"), (int, float))
+        and not isinstance(r.get("durationMs"), bool)
+        and math.isfinite(r["durationMs"])
     ]
     if not vals:
         return missing("no turn_duration records")
+    total = sum(vals)
+    if not math.isfinite(total) or total > 1e13:
+        return missing("turn_duration records sum to an unusable value")
     return metric(
-        int(sum(vals)),
+        int(total),
         "system turn_duration records",
         note="time inside turns, excluding idle gaps",
     )
@@ -239,10 +327,16 @@ def _subagents(
     sub_dir = session_dir / session_id / "subagents"
     if not sub_dir.is_dir():
         return out
-    for path in sorted(sub_dir.glob("agent-*.jsonl")):
-        agent_id = path.stem[len("agent-") :]
-        rows, bad = _read_rows(path)
-        rows = [r for r in rows if _in_window(r, start, end)]
+    seen_ids: set[str] = set()
+    for path in sorted(sub_dir.rglob("agent-*.jsonl")):
+        raw_id = path.stem[len("agent-") :]
+        rel = str(path.relative_to(sub_dir))
+        agent_id = _opaque_id(raw_id, "agent")
+        if agent_id in seen_ids:
+            agent_id = f"{agent_id}-{hashlib.sha256(rel.encode()).hexdigest()[:6]}"
+        seen_ids.add(agent_id)
+        all_sub_rows, bad = _read_rows(path)
+        rows = [r for r in all_sub_rows if _in_window(r, start, end)]
         if not rows:
             continue
         meta: dict[str, Any] = {}
@@ -254,15 +348,17 @@ def _subagents(
                     meta = loaded
             except ValueError:
                 pass
-        scope = _scope_usage(rows, "subagent usage rows")
+        scope = _scope_usage(rows, "subagent usage rows", all_sub_rows)
         dur = _span_ms(rows)
         out.append(
             {
                 "agent_id": agent_id,
-                "parent_session_id": session_id,
-                "tool_use_id": meta.get("toolUseId"),
-                "agent_type": meta.get("agentType"),
-                "description": meta.get("description"),
+                "parent_session_id": session_id[:8] if _UUID_RE.match(session_id) else "session",
+                "tool_use_id": meta["toolUseId"]
+                if isinstance(meta.get("toolUseId"), str) and _TOOL_USE_RE.match(meta["toolUseId"])
+                else None,
+                "agent_type": _scrub(meta.get("agentType"), 40),
+                "description": _safe_description(meta.get("description")),
                 "model": metric(scope["models"], "assistant message")
                 if scope["models"]
                 else missing("assistant message"),
@@ -274,6 +370,7 @@ def _subagents(
                 "usage_rows": scope["usage_rows"],
                 "distinct_message_ids": scope["distinct_message_ids"],
                 "conflicts": scope["conflicts"],
+                "partial_message_ids": scope["partial_message_ids"],
                 "malformed_lines": bad,
             }
         )
@@ -338,22 +435,31 @@ def collect_run(
     session_id = session_file.stem
     all_rows, bad = _read_rows(session_file)
     rows = [r for r in all_rows if _in_window(r, t_start, t_end)]
+    no_ts = (
+        sum(1 for r in all_rows if _usage_rows([r]) and not isinstance(r.get("timestamp"), str))
+        if (t_start or t_end)
+        else 0
+    )
 
-    parent = _scope_usage(rows, "session usage rows")
+    parent = _scope_usage(rows, "session usage rows", all_rows)
     parent["malformed_lines"] = bad
+    parent["rows_without_timestamp_excluded"] = no_ts
     subs = _subagents(session_file.parent, session_id, t_start, t_end)
 
     spawns = _spawn_ids(rows)
     matched = {s["tool_use_id"] for s in subs}
+    for s in subs:
+        s["spawned_by_parent_call"] = s["tool_use_id"] in spawns
     wall = _span_ms(rows)
     agent_ms = [s["duration_ms"]["value"] for s in subs if s["duration_ms"]["value"] is not None]
 
     key = f"{session_id}|{start or ''}|{end or ''}"
-    run_id = f"{session_id[:8]}-{hashlib.sha256(key.encode()).hexdigest()[:10]}"
+    short_id = session_id[:8] if _UUID_RE.match(session_id) else "session"
+    run_id = f"{short_id}-{hashlib.sha256(key.encode()).hexdigest()[:10]}"
     return {
         "run_id": run_id,
         "schema_version": 1,
-        "session_id": session_id,
+        "session_id": short_id,
         "window": {"start": start, "end": end},
         "wall_time_ms": metric(
             wall,
@@ -377,6 +483,7 @@ def collect_run(
         "subagent_count": metric(len(subs), "subagents/agent-*.jsonl"),
         "spawn_calls": metric(len(spawns), "Agent tool_use blocks in the parent"),
         "unmatched_spawns": [s for s in spawns if s not in matched],
+        "subagents_without_spawn": [s["agent_id"] for s in subs if not s["spawned_by_parent_call"]],
         "events": _event_counts(rows),
         "outside_agent": _outside_agent(outside_log, t_start, t_end),
         "gates": _gates(verify_report),
