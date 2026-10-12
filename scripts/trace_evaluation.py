@@ -269,7 +269,7 @@ def auto_detect_outside_runs(
                         continue
                     try:
                         rec = json.loads(line)
-                        if not isinstance(rec, dict):
+                        if not isinstance(rec, dict) or rec.get("attempt") is True:
                             continue
                         # If reading global runtime state, require matching repo
                         if not is_local_repo:

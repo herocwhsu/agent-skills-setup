@@ -1,5 +1,6 @@
 """Tests for scripts/outside_agent.py."""
 
+import argparse
 import json
 import os
 import signal
@@ -618,6 +619,7 @@ def test_outside_agent_logs_run_to_jsonl(stubenv):
     rt_log = oa.runtime_dir() / "state" / "outside-agent-runs.jsonl"
     assert rt_log.is_file()
     lines = [json.loads(line) for line in rt_log.read_text().splitlines() if line]
+    lines = [r for r in lines if r.get("attempt") is not True]
     assert len(lines) == 1
     rec = lines[0]
     assert rec["agent"] == "agy"
@@ -671,3 +673,144 @@ def test_outside_agent_live_review():
     )
     assert r.returncode in (0, 3), r.stderr
     assert "used=" in r.stderr
+
+
+def _attempts(home: Path) -> list[dict]:
+    log = oa.runtime_dir() / "state" / "outside-agent-runs.jsonl"
+    if not log.is_file():
+        return []
+    rows = [json.loads(line) for line in log.read_text().splitlines() if line]
+    return [r for r in rows if r.get("attempt") is True]
+
+
+def _run_agy(stubenv, body: str, *extra: str):
+    bin_, home = stubenv
+    _stub(bin_, "agy", body)
+    _conf(home, "agy")
+    r = cli("run", "--purpose", "review", "--from", "claude", *extra, "--", "p")
+    return r, _attempts(home)
+
+
+def test_attempt_logged_for_success_with_duration(stubenv):
+    r, att = _run_agy(stubenv, "echo OK")
+    assert r.returncode == 0
+    assert [(a["agent"], a["result"]) for a in att] == [("agy", "ok")]
+    assert isinstance(att[0]["duration_ms"], int) and att[0]["duration_ms"] >= 0
+
+
+def test_attempt_logged_for_timeout(stubenv):
+    r, att = _run_agy(stubenv, "sleep 30", "--timeout", "1")
+    assert r.returncode == 2
+    assert [(a["agent"], a["result"]) for a in att] == [("agy", "timeout")]
+    assert att[0]["duration_ms"] >= 900
+
+
+def test_attempt_logged_for_rate_limit_and_auth_and_empty_and_error(stubenv):
+    cases = {
+        'echo "usage limit reached" >&2; exit 1': "rate_limit",
+        'echo "not logged in" >&2; exit 1': "auth",
+        "exit 0": "empty",
+        'echo "segfault" >&2; exit 1': "error",
+    }
+    for body, expected in cases.items():
+        oa.state_path().unlink(missing_ok=True)
+        (oa.runtime_dir() / "state" / "outside-agent-runs.jsonl").unlink(missing_ok=True)
+        r, att = _run_agy(stubenv, body)
+        assert r.returncode == 2, body
+        assert [a["result"] for a in att] == [expected], body
+
+
+def test_attempt_logged_for_precheck_skip_without_running_the_agent(stubenv):
+    bin_, home = stubenv
+    _conf(home, "agy")
+    r = cli("run", "--purpose", "review", "--from", "claude", "--", "p")
+    assert r.returncode == 2
+    att = _attempts(home)
+    assert [(a["agent"], a["result"]) for a in att] == [("agy", "skipped")]
+    assert att[0]["duration_ms"] == 0 and "agy not on PATH" in att[0]["reason"]
+
+
+def test_attempt_logging_leaves_exit_codes_and_order_unchanged(stubenv):
+    bin_, home = stubenv
+    (home / ".codex").mkdir()
+    (home / ".codex" / "auth.json").write_text("{}")
+    _stub(bin_, "codex", 'echo "usage limit reached" >&2; exit 1')
+    _stub(bin_, "agy", "echo second-ok")
+    _conf(home, "codex", "agy")
+    r = cli("run", "--purpose", "review", "--from", "claude", "--", "p")
+    assert r.returncode == 0 and "second-ok" in r.stdout
+    assert [(a["agent"], a["result"]) for a in _attempts(home)] == [
+        ("codex", "rate_limit"),
+        ("agy", "ok"),
+    ]
+
+
+def test_attempt_logged_when_interrupted_by_sigterm(stubenv):
+    import signal
+    import time as _time
+
+    bin_, home = stubenv
+    _stub(bin_, "agy", "sleep 30")
+    _conf(home, "agy")
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "outside_agent.py"),
+            "run",
+            "--purpose",
+            "review",
+            "--from",
+            "claude",
+            "--timeout",
+            "60",
+            "--",
+            "p",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    _time.sleep(1.5)
+    proc.send_signal(signal.SIGTERM)
+    proc.communicate(timeout=15)
+    assert proc.returncode == 128 + signal.SIGTERM
+    att = _attempts(home)
+    assert [(a["agent"], a["result"]) for a in att] == [("agy", "interrupted")]
+
+
+def test_attempt_logging_failure_never_changes_the_result(stubenv, monkeypatch):
+    bin_, home = stubenv
+    _stub(bin_, "agy", "echo OK")
+    _conf(home, "agy")
+    (oa.runtime_dir() / "state").mkdir(parents=True, exist_ok=True)
+    (oa.runtime_dir() / "state" / "outside-agent-runs.jsonl").mkdir()
+    r = cli("run", "--purpose", "review", "--from", "claude", "--", "p")
+    assert r.returncode == 0 and "OK" in r.stdout
+
+
+def test_attempt_logged_for_shared_quota_skip(stubenv, monkeypatch):
+    bin_, home = stubenv
+    _conf(home, "claude-kiro", "codex-kiro")
+    monkeypatch.setattr(oa, "precheck", lambda name, env: None)
+    calls: list[str] = []
+
+    def fake_run_one(name, prompt, purpose, allow_edits, timeout, cwd):
+        calls.append(name)
+        return "rate_limit", "usage limit reached"
+
+    monkeypatch.setattr(oa, "run_one", fake_run_one)
+    args = argparse.Namespace(
+        purpose="delegate",
+        from_="gemini",
+        prompt="p",
+        timeout=5,
+        cwd=None,
+        allow_edits=False,
+        rubric=False,
+    )
+    assert oa.cmd_run(args) == 2
+    assert calls == ["claude-kiro"]
+    assert [(a["agent"], a["result"]) for a in _attempts(home)] == [
+        ("claude-kiro", "rate_limit"),
+        ("codex-kiro", "skipped"),
+    ]

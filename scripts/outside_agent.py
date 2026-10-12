@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, NamedTuple, NoReturn
@@ -436,6 +437,36 @@ def _log_outside_run(
         pass
 
 
+def _log_attempt(
+    name: str,
+    purpose: str,
+    caller_family: str,
+    result: str,
+    duration_ms: int,
+    reason: str | None = None,
+) -> None:
+    """Record one attempt (any result) in the runtime state log. Never raises."""
+    entry = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "attempt": True,
+        "agent": name,
+        "family": KINDS[name].family,
+        "purpose": purpose,
+        "caller_family": caller_family,
+        "result": result,
+        "duration_ms": duration_ms,
+    }
+    if reason:
+        entry["reason"] = reason
+    try:
+        log = runtime_dir() / "state" / "outside-agent-runs.jsonl"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with open(log, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except OSError:
+        pass
+
+
 def cmd_run(a: argparse.Namespace) -> int:
     if getattr(a, "rubric", False) and a.purpose != "review":
         _say("--rubric is only supported when --purpose is review")
@@ -462,12 +493,28 @@ def cmd_run(a: argparse.Namespace) -> int:
     for name in order:
         if KINDS[name].group in limited:
             notes.append(f"{name}(rate_limit, shared quota)")
+            _log_attempt(name, a.purpose, a.from_, "skipped", 0, "shared quota rate limited")
             continue
         why = precheck(name, env)
         if why:
             notes.append(f"{name}(precheck: {why})")
+            _log_attempt(name, a.purpose, a.from_, "skipped", 0, why)
             continue
-        cls, out = run_one(name, prompt, a.purpose, a.allow_edits, a.timeout, a.cwd)
+        started = time.monotonic()
+        try:
+            cls, out = run_one(name, prompt, a.purpose, a.allow_edits, a.timeout, a.cwd)
+        except BaseException:
+            _log_attempt(
+                name, a.purpose, a.from_, "interrupted", int((time.monotonic() - started) * 1000)
+            )
+            raise
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        result = {
+            "ok": "ok",
+            "transient": "timeout",
+            "error": "empty" if not out.strip() else "error",
+        }.get(cls, cls)
+        _log_attempt(name, a.purpose, a.from_, result, elapsed_ms)
         if cls == "ok":
             print(out)
             if state["auth"].pop(name, None) is not None:

@@ -118,3 +118,26 @@ def test_trend_table_prints_row_values(tmp_path, capsys):
     assert "abc1234" in out
     assert "~1,234 tok" in out
     assert "3 (1 act)" in out
+
+
+def test_attempt_rows_do_not_inflate_outside_runs(tmp_path, monkeypatch):
+    monkeypatch.setenv("OUTSIDE_AGENT_DIR", str(tmp_path / "rt"))
+    (tmp_path / "docs" / "telemetry").mkdir(parents=True)
+    log = tmp_path / "docs" / "telemetry" / "outside-agent-runs.jsonl"
+    now = "2099-01-01T00:00:00+00:00"
+    rows = [
+        {"timestamp": now, "agent": "codex-kiro", "exit_code": 0, "independent": True},
+        {"timestamp": now, "attempt": True, "agent": "agy", "result": "timeout", "duration_ms": 5},
+        {
+            "timestamp": now,
+            "attempt": True,
+            "agent": "codex-kiro",
+            "result": "ok",
+            "duration_ms": 5,
+        },
+    ]
+    log.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+
+    runs = te.auto_detect_outside_runs(tmp_path, since_ts_iso="2098-12-31T00:00:00+00:00")
+
+    assert [r["agent"] for r in runs] == ["codex-kiro"]
