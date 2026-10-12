@@ -2,84 +2,10 @@
   "archive_references": [
     "docs/archive/features/archive-feat-001-040.json",
     "docs/archive/features/archive-feat-041-050.json",
-    "docs/archive/features/archive-feat-051-055.json"
+    "docs/archive/features/archive-feat-051-055.json",
+    "docs/archive/features/archive-feat-056-059.json"
   ],
   "features": [
-    {
-      "id": "feat-056",
-      "name": "Auto duration delta calculation, process tree agent detection, and Markdown trace dashboard",
-      "description": "Upgrade scripts/trace_evaluation.py with automated duration delta calculation from previous trace snapshots when --duration-ms is omitted, process tree ancestry inspection in detect_agent() eliminating ambiguous directory checks, and automatic generation of docs/telemetry/SUMMARY.md Markdown dashboard.",
-      "dependencies": [
-        "feat-055"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "trace_evaluation.py auto-calculates duration_ms from previous trace timestamp when omitted",
-        "detect_agent() inspects process tree ancestry (PPID/ancestors) to identify active agent runtime",
-        "record_snapshot() automatically updates docs/telemetry/SUMMARY.md Markdown table",
-        "scripts/tests/test_trace_evaluation.sh passes with new test coverage for auto duration, process tree detection, and Markdown rendering",
-        "All fast tests and 11 harness gates pass"
-      ],
-      "evidence": "Upgraded scripts/trace_evaluation.py with auto duration calculation (auto_detect_duration_ms), process tree ancestry inspection in detect_agent() via get_process_ancestors(), human-friendly time formatting in format_duration() (ms, s, m, h), and automatic Markdown dashboard generation in docs/telemetry/SUMMARY.md via render_markdown_dashboard(). Added unit tests in scripts/tests/test_trace_evaluation.sh (12/12 passed). Verified run-tests.sh --fast (80/80 passed) and all 11 harness gates clean.",
-      "verification": "bash scripts/tests/test_trace_evaluation.sh && bash scripts/trace-evaluation.sh --trend"
-    },
-    {
-      "id": "feat-057",
-      "name": "Subagent telemetry tracking (self subagents and outside agents) and independent review verification",
-      "description": "Track self subagents and outside cross-model agents in scripts/trace_evaluation.py, log outside-agent runs in outside_agent.py, render Subagents column in docs/telemetry/SUMMARY.md and CLI trend table, and verify independent reviews.",
-      "dependencies": [
-        "feat-056"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "scripts/outside_agent.py logs outside agent executions to outside-agent-runs.jsonl",
-        "scripts/trace_evaluation.py collects subagent metrics (self_count, outside_count, outside_used, independent_verified) with CLI flags and auto-detection",
-        "scripts/trace_evaluation.py displays Subagents column in docs/telemetry/SUMMARY.md and --trend CLI table",
-        "scripts/tests/test_trace_evaluation.sh and tests/test_outside_agent.py verify subagent tracking",
-        "All fast tests and 11 harness gates pass"
-      ],
-      "evidence": "Added execution logging (_log_outside_run) in scripts/outside_agent.py recording timestamps, agent name, family, purpose, caller family, exit code, independence status, and repo path to both ~/.agent-skills-setup/state/outside-agent-runs.jsonl and docs/telemetry/outside-agent-runs.jsonl (gitignored). Implemented subagent metrics tracking in scripts/trace_evaluation.py (format_subagents, auto_detect_outside_runs, format_table, render_markdown_dashboard, CLI flags --self-subagents and --outside-subagents). Hardened parsing defensively against malformed jsonl lines, None values, and timezone naive/aware datetimes with cross-platform Python 3.9+ compatibility. Added unit tests in scripts/tests/test_trace_evaluation.sh (16/16 passed across UTC, Asia/Taipei, and America/Los_Angeles timezones) and tests/test_outside_agent.py (92 passed, 1 skipped). Adversarially reviewed across 5 iterative rounds with both self subagents and outside independent agents (Claude Code outside-agent.sh) achieving CLEAN PASS.",
-      "verification": "bash scripts/tests/test_trace_evaluation.sh && .venv/bin/pytest tests/test_outside_agent.py"
-    },
-    {
-      "id": "feat-058",
-      "name": "Autonomous ratchet loop runner, goal specifications, and review iteration flow",
-      "description": "Standardize goal specifications under docs/goals/, promote ratchet_loop into scripts/ratchet_loop_runner.py and scripts/ratchet-loop.sh CLI runner supporting goal-based iteration, automated test verification, independent review evaluation, and automatic rollback on regression.",
-      "dependencies": [
-        "feat-057"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "docs/goals/TEMPLATE.md provides standardized goal loop specification with scopes and criteria",
-        "scripts/ratchet_loop_runner.py and scripts/ratchet-loop.sh implement autonomous ratchet runner with --goal, --review, and --demo modes",
-        "Automated verification and rollback on regression via git reset when tests or checker review fails",
-        "Circuit breakers halt loop on max rounds, consecutive failures, or goal threshold met",
-        "scripts/tests/test_ratchet_loop.sh and tests/test_ratchet_loop_runner.py pass with 100% clean status",
-        "All fast tests and 11 harness gates pass"
-      ],
-      "evidence": "Promoted autonomous ratchet loop engine into scripts/ratchet_loop_runner.py and scripts/ratchet-loop.sh CLI runner with support for --goal-file, --active-feature, --review-diff, and --demo modes. Created standardized goal loop specification template in docs/goals/TEMPLATE.md defining machine-verifiable acceptance criteria, fair-game and hands-off scopes, and stopping conditions. Implemented automated verification, independent Checker review integration (via outside-agent.sh or custom checkers), and automated rollback on regression with circuit breakers halting on consecutive failures or max rounds. Added automated test coverage in tests/test_ratchet_loop_runner.py (5/5 passed) and scripts/tests/test_ratchet_loop.sh (6/6 passed across macOS system Python 3.9 and Python 3.14). All fast test suites and 11 harness gates pass.",
-      "verification": "bash scripts/tests/test_ratchet_loop.sh && .venv/bin/pytest tests/test_ratchet_loop_runner.py"
-    },
-    {
-      "id": "feat-059",
-      "name": "State layer context bloat remediation and feature archival (feat-051 through feat-055)",
-      "description": "Archive historical completed features feat-051 through feat-055 to docs/archive/features/archive-feat-051-055.json, wire archive references, prune historical decisions into docs/progress-archive.md, and restore state layer token count below 6,000 threshold.",
-      "dependencies": [
-        "feat-058"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "docs/archive/features/archive-feat-051-055.json created with valid schema and non-null evidence",
-        "feature_list.json references archive-feat-051-055.json in archive_references",
-        "feat-051 through feat-055 pruned from active feature_list.json",
-        "PROGRESS.md historical features and legacy training decisions archived to docs/progress-archive.md",
-        "trace_evaluation.py --check-thresholds reports OK (< 6,000 state tokens)",
-        "harness/guards/state-layer-guard.sh passes with 0 errors across bash 5 and macOS /bin/bash 3.2",
-        "All fast tests and 11 harness gates pass"
-      ],
-      "evidence": "Partitioned completed features feat-051 through feat-055 into docs/archive/features/archive-feat-051-055.json, updated feature_list.json archive_references, pruned historical training decisions and completed entries from PROGRESS.md into docs/progress-archive.md. State layer tokens reduced from ~6,995 to ~3,200 tokens (OK status). State layer guard and all 11 harness gates pass cleanly.",
-      "verification": "bash harness/guards/state-layer-guard.sh && python3 scripts/trace_evaluation.py --check-thresholds"
-    },
     {
       "id": "feat-060",
       "name": "Graph Engineering DAG runner, state machine orchestration, and Lecture 14 closing",
@@ -149,6 +75,23 @@
       ],
       "evidence": "Added scripts/state_layer_check.py; the guard now calls it and maps any non-zero status to exit 2. Independent review (fresh-context subagent plus codex-kiro) found the guard exited 1 or 127 when the checker crashed or python3 was missing, which does not block; fixed with tests, and a self-referential trace_row test now asserts literal values. test_state_layer_guard.sh 44/44 on bash 5 and /bin/bash 3.2, test_session_clean.sh 8/8, tests/test_trace_evaluation.py 7/7. Converted 9 AGENTS.md and 6 lecture-doc file:/// links to relative paths. Dropped the redundant Write() deny rule in .claude/settings.json because Claude Code only consults Edit(path) rules.",
       "verification": "bash harness/guards/tests/test_state_layer_guard.sh && .venv/bin/pytest tests/test_trace_evaluation.py"
+    },
+    {
+      "id": "feat-064",
+      "name": "One place per record: remove duplicated docs and lecture engine copies",
+      "description": "Remove records that duplicate another source: recent-tasks-summary.md, the lecture 13/14/15 engine copies and their tests, and the decisions section of progress-archive.md. Record the one-place rule in AGENTS.md.",
+      "dependencies": [
+        "feat-063"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "scripts/*_runner.py are the only copies of the ratchet, graph and team engines, and the lecture docs link to them",
+        "no reference to a deleted file remains outside historical evidence text",
+        "AGENTS.md has a one-place-per-record table; docs/decisions.md holds superseded decisions",
+        "all 11 harness gates pass"
+      ],
+      "evidence": "Folded the motivation text into docs/architecture.md section 5 and deleted docs/improvements/recent-tasks-summary.md with its AGENTS.md references. Deleted the lecture 13/14/15 engines and their 28 tests; the runner suites (37 tests) and three shell suites still pass. Moved Archived Decisions to docs/decisions.md. Added docs/harness-creator/README.md marking the lectures frozen. Known coverage gaps after the deletion: the checkpoint save-and-resume path of the graph runner is only covered indirectly, and the goal-template.md parse assertions were not ported (docs/goals/TEMPLATE.md is covered by test_ratchet_loop.sh).",
+      "verification": "bash scripts/harness-verify.sh"
     }
   ]
 }

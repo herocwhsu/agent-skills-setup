@@ -93,6 +93,19 @@ Each rule below cost a real incident. Read the matching section of [`docs/incide
 - **Hooks** (adding or editing one): Stop hooks exit 2 to block; the `-guard.sh` suffix is for whole-repo validators wired into `harness-verify.sh`.
 - **Python** (any edit): run `.venv/bin/mypy .` over the whole repo, never per file; `ruff.toml` configures `ruff format` only.
 
+## One place per record
+
+Record a fact once; link to it instead of copying it.
+
+| Record | Home |
+| :--- | :--- |
+| Feature done, with evidence | `feature_list.json`, then `docs/archive/features/*.json` |
+| Current state, next steps, binding decisions | `PROGRESS.md` (superseded decisions move to `docs/decisions.md`) |
+| Runnable code and its tests | `scripts/` + `tests/`, `harness/guards/` |
+| Why the layout is as it is | `docs/architecture.md` |
+| Lecture history (frozen) | `docs/harness-creator/` |
+| Everything else that happened | `git log` |
+
 ## Boundaries (scope)
 
 *Source:* `init-repo.sh` overwrote `.claude/hooks/`; tests wrote into real `~/.claude`. *Applies:* running scripts or tests. *Expires:* prompt-only — none of these is mechanically enforced.
@@ -113,6 +126,6 @@ Load a topic doc only when its condition matches the task.
 - **`agents/engineering-rules.md`** — the shipped rules. *Load when:* editing them (changes every agent on the machine).
 - **`skills/README.md`** — group and subcommand index, skill layout, registry entry types. *Load when:* adding or changing a skill.
 - **`docs/archive/features/`** — historical feature specifications. *Load when:* looking up older features (`feat-001` through `feat-040`).
-- **`docs/harness-creator/`** — lecture logs and diagnostic tools. *Load when:* doing harness training work.
+- **`docs/harness-creator/README.md`** — frozen lecture history and what moved to `scripts/`. *Load when:* looking up a lecture or its diagnostic tools.
 - **`docs/harness-adoption.md`** — putting this harness into another repo. *Load when:* adopting or refreshing the harness in a repo.
 - **`docs/migration.md`** — host upgrades, pyenv, multi-agent dirs. *Load when:* changing interpreters or agent install paths.
