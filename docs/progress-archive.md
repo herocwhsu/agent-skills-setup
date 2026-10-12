@@ -4,6 +4,10 @@ Frozen history moved out of `PROGRESS.md` on 2026-10-04 (Lecture 5). Nothing her
 current state: "Files Modified" stops at feat-014, and "Evidence of Completion" has no entries for
 feat-011 to feat-022; its early numbers (8 gates, 53 tests) are from when they were written. Current evidence lives in `feature_list.json`.
 
+This file is the readable history, one paragraph per feature. The structured records that the
+state-layer guard validates (description, acceptance criteria, evidence) live in
+`docs/archive/features/*.json` and cover feat-001 to feat-055; feat-056 to feat-060 are only here.
+
 ## Files Modified This Session
 
 - `registry.txt`, `scripts/_lib.sh`, `scripts/validate-registry.sh`,
@@ -127,7 +131,7 @@ feat-011 to feat-022; its early numbers (8 gates, 53 tests) are from when they w
 - [x] feat-028: `pytest skills/utils/polish-input/tests` → 59 passed (9 new cases failed first, built from today's real bad outputs); live hook through the gateway: "yes" → silent, "use codex-kiro only not codex directly" → "Use codex-kiro only, not codex directly.", the meaning-flip prompt keeps its meaning; `./init.sh` → all gates passed.
 - [x] feat-029: `scripts/tests/test_setup_tmux_conf.sh` → 10 OK under bash 5 and `/bin/bash` 3.2 (failed first, script missing); moving the line out of the Darwin branch fails `linux: update-environment not set`; on macmini, with `SSH_CONNECTION` cleared from the session, `agy -p` authenticated via keyring; `./init.sh` → all gates passed.
 
-## Completed Features Archive (feat-001 to feat-040)
+## Completed Features Archive (feat-001 to feat-060)
 
 - [x] feat-001: pinned external skill sources (`github`/`github-skill` registry
   entries) to a commit SHA via optional `@ref` syntax, so `install.sh`/`update.sh`
