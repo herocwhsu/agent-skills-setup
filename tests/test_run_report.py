@@ -102,3 +102,21 @@ def test_cli_table_and_json(tmp_path, capsys):
     assert "a" in capsys.readouterr().out
     assert rr.main(["--runs-dir", str(tmp_path), "--json"]) == 0
     assert json.loads(capsys.readouterr().out)[0]["out_tok"] == "7"
+
+
+def test_malformed_record_shapes_degrade_to_na_without_crashing():
+    bad = [
+        _run("a", 1, parent=[]),
+        _run("b", 1, subagents=[1]),
+        _run("c", 1, subagents=None),
+        _run("d", 1, wall_time_ms=_m("abc")),
+        _run("e", 1, gates=_m([1])),
+        _run("f", 1, subagents_without_spawn=None),
+        _run("g", 1, subagent_count=_m("x")),
+    ]
+    for r in bad:
+        out = rr.row(r)
+        assert out["run"] == r["run_id"]
+    assert rr.row(bad[3])["wall"] == "n/a"
+    assert rr.row(bad[4])["gates"] == "n/a"
+    assert "n/a" in rr.render(bad)

@@ -676,3 +676,108 @@ def test_rows_without_timestamp_are_counted_when_windowed(tmp_path):
 def test_boolean_duration_is_not_a_duration(tmp_path):
     rows = [{"type": "system", "subtype": "turn_duration", "durationMs": True, "timestamp": _ts(1)}]
     assert rt.collect_run(_session(tmp_path, rows))["active_turn_time_ms"]["status"] == "missing"
+
+
+def test_deeply_nested_line_is_malformed_not_a_crash(tmp_path):
+    p = _session(tmp_path, [_row(_ts(1), "m", _usage(1, 1)), "[" * 200000])
+    run = rt.collect_run(p)
+    assert run["parent"]["malformed_lines"] == 1
+    assert run["parent"]["tokens"]["output_tokens_sum"]["value"] == 1
+
+
+def test_huge_integer_duration_does_not_crash(tmp_path):
+    rows = [
+        _row(_ts(1), "m", _usage(1, 1)),
+        '{"type":"system","subtype":"turn_duration","durationMs":'
+        + "9" * 400
+        + ',"timestamp":"'
+        + _ts(2)
+        + '"}',
+    ]
+    run = rt.collect_run(_session(tmp_path, rows))
+    assert _status(run["active_turn_time_ms"]) == "missing"
+
+
+def test_unreadable_subagent_path_does_not_crash(tmp_path):
+    (tmp_path / SESSION / "subagents" / "agent-dir.jsonl").mkdir(parents=True)
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m", _usage(1, 1))]))
+    assert run["subagent_count"]["value"] == 0
+
+
+@pytest.mark.parametrize("payload", ["[1]", '"x"', "null", "5"])
+def test_gate_report_that_is_not_an_object_is_missing(tmp_path, payload):
+    report = tmp_path / "r.json"
+    report.write_text(payload)
+    run = rt.collect_run(
+        _session(tmp_path, [_row(_ts(1), "m", _usage(1, 1))]), verify_report=report
+    )
+    assert _status(run["gates"]) == "missing"
+
+
+def test_gate_report_values_are_scrubbed_and_bounded(tmp_path):
+    report = tmp_path / "r.json"
+    report.write_text(
+        json.dumps(
+            {
+                "status": "FAIL",
+                "total_duration_ms": 10,
+                "gates": [
+                    {
+                        "name": "/Users/bob/secret/x",
+                        "status": "FAIL",
+                        "duration_ms": 3,
+                        "extra": "/Users/bob/p",
+                    }
+                ],
+                "failed": ["/Users/bob/secret/x"],
+            }
+        )
+    )
+    run = rt.collect_run(
+        _session(tmp_path, [_row(_ts(1), "m", _usage(1, 1))]), verify_report=report
+    )
+    text = json.dumps(run["gates"])
+    assert "/Users/bob" not in text
+    assert run["gates"]["value"]["gates"][0]["status"] == "FAIL"
+
+
+def test_free_text_fields_never_carry_paths(tmp_path):
+    bad = "/Users/bob/secret/key"
+    rows = [
+        _row(_ts(1), "m", _usage(1, 1), model=bad),
+        _row(
+            _ts(2),
+            "n",
+            _usage(1, 1),
+            content=[{"type": "tool_use", "name": "Agent", "id": bad}],
+        ),
+    ]
+    log = tmp_path / "log.jsonl"
+    _write(log, [{"attempt": True, "result": "failed at /Users/bob/p", "timestamp": _ts(1)}])
+    run = rt.collect_run(_session(tmp_path, rows), outside_log=log)
+    assert "/Users/bob" not in json.dumps(run)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "".join(["sk_live", "_", "abcdefghijklmnop"]),
+        "".join(["AIza", "SyA1234567890abcdefghij"]),
+        "".join(["glpat", "-", "abcdefghij1234567890"]),
+        "".join(["npm", "_", "abcdefghijklmnop1234"]),
+        "".join(["hf", "_", "abcdefghijklmnopqrst"]),
+        "Bearer " + "abcdef123456",
+        "password " + "hunter2secret",
+        "fix ../../etc/passwd",
+        "review src/secrets/prod.py",
+        "see ~bob/x",
+    ],
+    ids=lambda v: "case",
+)
+def test_scrub_covers_more_credential_and_path_shapes(text):
+    assert rt._scrub(text).startswith("[redacted")
+
+
+def test_scrub_keeps_ordinary_labels_with_slashes_or_secret_words():
+    assert rt._scrub("Review token budget handling") == "Review token budget handling"
+    assert rt._scrub("check and/or input") == "check and/or input"

@@ -22,14 +22,26 @@ def _val(m: Any) -> Any:
     return None
 
 
+def _num(v: Any) -> float | None:
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    return float(v) if v == v and abs(v) != float("inf") else None
+
+
+def _dict(v: Any) -> dict[str, Any]:
+    return v if isinstance(v, dict) else {}
+
+
 def _fmt_int(v: Any) -> str:
-    return NA if v is None else f"{int(v):,}"
+    n = _num(v)
+    return NA if n is None else f"{int(n):,}"
 
 
 def _fmt_ms(v: Any) -> str:
-    if v is None:
+    n = _num(v)
+    if n is None:
         return NA
-    s = float(v) / 1000
+    s = n / 1000
     if s < 60:
         return f"{s:.0f}s"
     if s < 3600:
@@ -50,25 +62,27 @@ def load_runs(runs_dir: Path) -> list[dict[str, Any]]:
 
 
 def row(run: dict[str, Any]) -> dict[str, str]:
-    parent = run.get("parent", {})
-    tokens = parent.get("tokens", {})
-    subs = run.get("subagents", [])
-    sub_out = [_val(s.get("tokens", {}).get("output_tokens_sum")) for s in subs]
+    parent = _dict(run.get("parent"))
+    tokens = _dict(parent.get("tokens"))
+    subs = [_dict(s) for s in run.get("subagents") or [] if isinstance(s, dict)]
+    sub_out = [_num(_val(_dict(s.get("tokens")).get("output_tokens_sum"))) for s in subs]
     known = [v for v in sub_out if v is not None]
     gates = _val(run.get("gates"))
+    count = _num(_val(run.get("subagent_count")))
+    spawnless = run.get("subagents_without_spawn")
+    conflicts = parent.get("conflicts")
+    gate_status = gates.get("status") if isinstance(gates, dict) else None
     return {
         "run": str(run.get("run_id", "?")),
         "out_tok": _fmt_int(_val(tokens.get("output_tokens_sum"))),
         "ctx_tok": _fmt_int(_val(tokens.get("last_context_tokens"))),
         "wall": _fmt_ms(_val(run.get("wall_time_ms"))),
         "turns": _fmt_ms(_val(run.get("active_turn_time_ms"))),
-        "subs": str(
-            _val(run.get("subagent_count")) if _val(run.get("subagent_count")) is not None else NA
-        ),
+        "subs": NA if count is None else str(int(count)),
         "sub_out_tok": _fmt_int(sum(known)) if known and len(known) == len(sub_out) else NA,
-        "unattributed": str(len(run.get("subagents_without_spawn", []))),
-        "conflicts": str(len(parent.get("conflicts", []))),
-        "gates": NA if gates is None else str(gates.get("status")),
+        "unattributed": str(len(spawnless)) if isinstance(spawnless, list) else NA,
+        "conflicts": str(len(conflicts)) if isinstance(conflicts, list) else NA,
+        "gates": NA if not isinstance(gate_status, str) else gate_status,
     }
 
 

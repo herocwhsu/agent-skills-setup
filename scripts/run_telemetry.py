@@ -40,11 +40,15 @@ _SECRET_WORDS = re.compile(
     r"(api[-_ ]?key|passw(or)?d|pwd|secret|token|bearer|authorization|credential)", re.I
 )
 _CREDENTIAL_SHAPES = re.compile(
-    r"(sk-[A-Za-z0-9_-]{6,}|gh[pousr]_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{12,}|xox[abprs]-[A-Za-z0-9-]{6,}"
-    r"|eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{2,}\.)"
+    r"(sk[-_][A-Za-z0-9_-]{6,}|gh[pousr]_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{12,}|xox[abprs]-[A-Za-z0-9-]{6,}"
+    r"|eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{2,}\.|AIza[A-Za-z0-9_-]{16,}|glpat-[A-Za-z0-9_-]{10,}"
+    r"|npm_[A-Za-z0-9]{10,}|hf_[A-Za-z0-9]{10,}"
+    r"|(?:bearer|passw(?:or)?d|pwd|secret|token|api[-_ ]?key)\s+(?=\S*\d)\S{6,})",
+    re.I,
 )
 _PATH_SHAPE = re.compile(
-    r"(^|[\s(\"'=:])(/[A-Za-z0-9._-]+/|~/|[A-Za-z]:\\|\\\\)|[\u2215\u2044\uff0f\u29f8]"
+    r"(^|[\s(\"'=:])(/[A-Za-z0-9._-]+/|~[A-Za-z0-9_-]*/|[A-Za-z]:\\|\\\\)"
+    r"|\.\./|[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/|[\u2215\u2044\uff0f\u29f8]"
 )
 
 
@@ -74,6 +78,12 @@ def _opaque_id(value: Any, prefix: str) -> str:
     return f"{prefix}-{hashlib.sha256(s.encode()).hexdigest()[:10]}"
 
 
+def _tool_use_id(value: Any) -> str:
+    if isinstance(value, str) and _TOOL_USE_RE.match(value):
+        return value
+    return _opaque_id(value, "spawn")
+
+
 def _safe_description(value: Any) -> str | None:
     """Short label for a subagent; text that looks like a path is redacted before it is committed."""
     return _scrub(value)
@@ -99,19 +109,22 @@ def missing(source: str, note: str | None = None) -> dict[str, Any]:
 def _read_rows(path: Path) -> tuple[list[dict[str, Any]], int]:
     rows: list[dict[str, Any]] = []
     bad = 0
-    with open(path, encoding="utf-8", errors="replace") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            try:
-                r = json.loads(line)
-            except ValueError:
-                bad += 1
-                continue
-            if isinstance(r, dict):
-                rows.append(r)
-            else:
-                bad += 1
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    r = json.loads(line)
+                except (ValueError, RecursionError):
+                    bad += 1
+                    continue
+                if isinstance(r, dict):
+                    rows.append(r)
+                else:
+                    bad += 1
+    except OSError:
+        bad += 1
     return rows, bad
 
 
@@ -239,8 +252,9 @@ def _scope_usage(
     models: list[str] = []
     for c in chosen:
         mdl = c["message"].get("model")
-        if isinstance(mdl, str) and mdl not in models:
-            models.append(mdl)
+        label = _scrub(mdl, 60)
+        if label is not None and label not in models:
+            models.append(label)
     return {
         "tokens": tokens,
         "usage_rows": len(urows),
@@ -267,20 +281,31 @@ def _span_ms(rows: list[dict[str, Any]]) -> int | None:
     return int((max(times) - min(times)).total_seconds() * 1000)
 
 
+def _finite_number(v: Any) -> bool:
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:
+        return False
+
+
 def _turn_time(rows: list[dict[str, Any]]) -> dict[str, Any]:
     vals = [
         r["durationMs"]
         for r in rows
         if r.get("type") == "system"
         and r.get("subtype") == "turn_duration"
-        and isinstance(r.get("durationMs"), (int, float))
-        and not isinstance(r.get("durationMs"), bool)
-        and math.isfinite(r["durationMs"])
+        and _finite_number(r.get("durationMs"))
     ]
     if not vals:
         return missing("no turn_duration records")
-    total = sum(vals)
-    if not math.isfinite(total) or total > 1e13:
+    try:
+        total = sum(vals)
+        unusable = not math.isfinite(total) or total > 1e13
+    except OverflowError:
+        unusable = True
+    if unusable:
         return missing("turn_duration records sum to an unusable value")
     return metric(
         int(total),
@@ -390,7 +415,7 @@ def _outside_agent(
             continue
         if r.get("attempt") is True:
             attempts += 1
-            results[str(r.get("result"))] += 1
+            results[_scrub(r.get("result"), 30) or "unknown"] += 1
         else:
             legacy += 1
     return {
@@ -409,14 +434,31 @@ def _gates(report: Path | None) -> dict[str, Any]:
         return missing("no harness-verify --report file given")
     try:
         data = json.loads(report.read_text(encoding="utf-8"))
-    except ValueError:
+    except (ValueError, RecursionError, OSError):
         return missing("harness-verify report is not valid JSON")
+    if not isinstance(data, dict):
+        return missing("harness-verify report is not a JSON object")
+    dur = data.get("total_duration_ms")
+    gates: list[dict[str, Any]] = []
+    raw_gates = data.get("gates")
+    for g in raw_gates if isinstance(raw_gates, list) else []:
+        if isinstance(g, dict):
+            gates.append(
+                {
+                    "name": _scrub(g.get("name"), 40),
+                    "status": _scrub(g.get("status"), 20),
+                    "duration_ms": g["duration_ms"] if _is_count(g.get("duration_ms")) else None,
+                }
+            )
+    failed = data.get("failed")
     return metric(
         {
-            "status": data.get("status"),
-            "total_duration_ms": data.get("total_duration_ms"),
-            "gates": data.get("gates"),
-            "failed": data.get("failed"),
+            "status": _scrub(data.get("status"), 20),
+            "total_duration_ms": dur if _is_count(dur) else None,
+            "gates": gates,
+            "failed": [x for x in (_scrub(f, 40) for f in failed) if x]
+            if isinstance(failed, list)
+            else [],
         },
         "harness-verify --report",
     )
@@ -482,7 +524,7 @@ def collect_run(
         "subagents": subs,
         "subagent_count": metric(len(subs), "subagents/agent-*.jsonl"),
         "spawn_calls": metric(len(spawns), "Agent tool_use blocks in the parent"),
-        "unmatched_spawns": [s for s in spawns if s not in matched],
+        "unmatched_spawns": [_tool_use_id(s) for s in spawns if s not in matched],
         "subagents_without_spawn": [s["agent_id"] for s in subs if not s["spawned_by_parent_call"]],
         "events": _event_counts(rows),
         "outside_agent": _outside_agent(outside_log, t_start, t_end),
