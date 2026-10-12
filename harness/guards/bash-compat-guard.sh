@@ -45,7 +45,7 @@ done < <(find "$REPO_DIR" \( -name .git -o -name .venv -o -name node_modules \) 
 if [[ -n "$hits" || -n "$pyhits" ]]; then
   {
     if [[ -n "$hits" ]]; then
-      echo "Blocked: Bash 4+ constructs abort under macOS /bin/bash 3.2 (see AGENTS.md Shell Portability):"
+      echo "Blocked: Bash 4+ constructs abort under macOS /bin/bash 3.2 (see docs/incident-rules.md Shell Portability):"
       printf '%s' "$hits"
     fi
     if [[ -n "$pyhits" ]]; then
