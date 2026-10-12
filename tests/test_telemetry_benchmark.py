@@ -488,3 +488,14 @@ def test_agent_output_that_is_not_utf8_is_a_failed_run_not_a_crash(tmp_path):
         outside_log=tmp_path / "none.jsonl",
     )
     assert out["passed"] is False
+
+
+def test_non_utf8_agent_written_files_are_failed_checks_not_crashes(tmp_path):
+    wd = _prepared(tmp_path / "b5", "B5")
+    _apply_reference("B5", wd)
+    (wd / "PROGRESS.md").write_bytes(b"\xff\xfe feat-900")
+    assert _score("B5", wd)["progress_updated"] is True
+    wd2 = _prepared(tmp_path / "b2", "B2")
+    _apply_reference("B2", wd2)
+    (wd2 / "README.md").write_bytes(b"\xff\xfe --shout shout = true")
+    assert _score("B2", wd2)["readme_documents_option"] is True

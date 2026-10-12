@@ -240,7 +240,7 @@ def score(
         shutil.copy(_src(fixture / "test_greeter.py"), workdir / "test_original_greeter.py")
         shutil.copy(_src(bench / "hidden/B2/test_shout.py"), workdir / "test_shout.py")
         readme = (
-            (workdir / "README.md").read_text(encoding="utf-8")
+            (workdir / "README.md").read_text(encoding="utf-8", errors="replace")
             if (workdir / "README.md").is_file()
             else ""
         )
@@ -284,7 +284,7 @@ def score(
             "feat900_done_with_evidence": done,
             "no_features_lost": kept and "feat-900" in final,
             "progress_updated": progress.is_file()
-            and "feat-900" in progress.read_text(encoding="utf-8")
+            and "feat-900" in progress.read_text(encoding="utf-8", errors="replace")
             and _sha(progress) != _sha(fixture / "PROGRESS.md"),
         }
     raise ValueError(f"unknown task id: {tid}")
