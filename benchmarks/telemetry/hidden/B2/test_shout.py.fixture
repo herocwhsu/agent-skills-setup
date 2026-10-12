@@ -1,0 +1,40 @@
+import pytest
+
+from cli import main
+
+
+def _run(argv, capsys):
+    assert main(argv) == 0
+    return capsys.readouterr().out
+
+
+def test_flag_uppercases(capsys):
+    assert _run(["Ana", "--shout"], capsys) == "HELLO, ANA!\n"
+
+
+def test_flag_applies_to_custom_greeting(capsys):
+    assert _run(["Ana", "--greeting", "Hi", "--shout"], capsys) == "HI, ANA!\n"
+
+
+def test_default_is_unchanged(capsys):
+    assert _run(["Ana"], capsys) == "Hello, Ana!\n"
+
+
+@pytest.mark.parametrize("value", ["true", "True", "TRUE"])
+def test_config_true_in_any_case(tmp_path, capsys, value):
+    conf = tmp_path / "g.conf"
+    conf.write_text(f"shout = {value}\n")
+    assert _run(["Ana", "--config", str(conf)], capsys) == "HELLO, ANA!\n"
+
+
+@pytest.mark.parametrize("value", ["false", "False", "FALSE"])
+def test_config_false_in_any_case(tmp_path, capsys, value):
+    conf = tmp_path / "g.conf"
+    conf.write_text(f"shout = {value}\n")
+    assert _run(["Ana", "--config", str(conf)], capsys) == "Hello, Ana!\n"
+
+
+def test_config_greeting_still_works(tmp_path, capsys):
+    conf = tmp_path / "g.conf"
+    conf.write_text("greeting = Hey\nshout = true\n")
+    assert _run(["Ana", "--config", str(conf)], capsys) == "HEY, ANA!\n"

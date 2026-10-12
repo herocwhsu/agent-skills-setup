@@ -125,6 +125,23 @@
       ],
       "evidence": "Collector, report and 53 tests (tests/test_run_telemetry.py, tests/test_run_report.py); 24 baseline records in docs/telemetry/runs/ from 22 existing sessions, with docs/telemetry/RELIABILITY.md listing each metric as measured, ambiguous or missing. Reviews: a fresh subagent and codex-kiro on the first draft found 12 defects (synthetic rows reported a context size of 0 in 4 sessions, 4 nested workflow subagents never read, crashes on non-hashable ids and NaN durations, committed records carrying agent type and session id verbatim, window boundary rows counted twice); each got a failing test first and a fix. Attempt logging for outside_agent.py got a subagent and codex-kiro review; the SIGTERM path was found by both and fixed. Not done: USD cost (no authoritative source), outcome and retries (no structured record), Codex/Kiro/agy token usage (none usable), and running the fixed benchmark defined in docs/stories/run-telemetry/benchmark.md.",
       "verification": "bash scripts/harness-verify.sh && python3 -m pytest tests/test_run_telemetry.py tests/test_run_report.py tests/test_outside_agent.py -q"
+    },
+    {
+      "id": "feat-066",
+      "name": "Fixed telemetry benchmark: five tasks, scripted checks, runner and comparison",
+      "description": "Answer whether a harness change made the next task of the same difficulty faster, cheaper or more reliable, using fixed prompts, frozen fixtures, hidden checks and no model-based scoring.",
+      "dependencies": [
+        "feat-065"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "each of B1-B5 has a frozen prompt, a fixture, and scripted checks that fail on the untouched fixture and pass on a reference solution",
+        "compare prints no verdict with fewer than 5 runs per version, and only between runs that share model and suite hash",
+        "a run's telemetry counts only that run's outside-agent attempts",
+        "all 11 harness gates pass"
+      ],
+      "evidence": "scripts/telemetry_benchmark.py, benchmarks/telemetry/ (suite, fixtures, hidden tests, reference solutions; python files stored as *.fixture so mypy and the bash guard skip them), tests/test_telemetry_benchmark.py (38 tests, fake agent, no tokens). One real run of each task on claude-sonnet-5.5 passed. Two defects found by the smoke runs (B2 check rejected a legitimate added test; run telemetry counted the global outside-agent log) and 8 more by a fresh subagent plus codex-kiro (hidden dir exposed via BENCH_DIR, first-pass compared as a point, missing subagents read as 0, harness commit turned -dirty by its own output, missing agent binary crashed the batch, B1 accepted a hard-coded answer, B3 matched negated sentences, B5 only checked that ids survived); each got a failing test first. Not done: the 5-runs-per-version comparison itself (about 50 sessions, run it when a harness change needs measuring), gate results per task (fixture repos have no gates), a second harness version to compare against. B3 scoring is keyword-based and can misjudge unusual phrasing.",
+      "verification": "bash scripts/harness-verify.sh && python3 -m pytest tests/test_telemetry_benchmark.py -q"
     }
   ]
 }

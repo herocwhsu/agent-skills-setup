@@ -1,0 +1,3 @@
+paginate.py: paginate() clamps end to len(items) - 1, an off-by-one that drops the last item, so the last page comes back short or empty.
+test_paginate.py: no test covers the last or a partial page, which is why the bug above passes the tests.
+collect.sh: mapfile is not available in the macOS /bin/bash 3.2, so the script is not portable.

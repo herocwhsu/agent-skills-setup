@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mapfile -t files < <(find "${1:-.}" -name '*.py' -not -path '*/.venv/*' | sort)
+printf '%s\n' "${files[@]}"
+echo "found ${#files[@]} files"

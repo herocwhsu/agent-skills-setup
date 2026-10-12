@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "name": "telemetry-benchmark",
+  "description": "Five fixed tasks used to compare harness versions. Prompts are frozen text; changing any prompt or fixture changes the suite hash and makes earlier results incomparable.",
+  "min_runs_per_cell": 5,
+  "tasks": [
+    {
+      "id": "B1",
+      "kind": "simple bug fix",
+      "requires": [],
+      "prompt": "The test suite in this directory has one failing test. Make it pass by fixing the code. Do not edit the tests.",
+      "fixture": "B1",
+      "allowed_tools": [
+        "Read",
+        "Edit",
+        "Bash(python3 -m pytest*)"
+      ]
+    },
+    {
+      "id": "B2",
+      "kind": "multi-file feature",
+      "requires": [],
+      "prompt": "Add a --shout option to the greet command that prints the greeting in upper case. It can also be turned on with shout = true in the config file; accepted values are true and false, in any letter case. Document the option in README.md. Do not change existing behavior.",
+      "fixture": "B2",
+      "allowed_tools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash(python3 -m pytest*)",
+        "Bash(python3 cli.py*)"
+      ]
+    },
+    {
+      "id": "B3",
+      "kind": "review needing several reviewers",
+      "requires": [],
+      "prompt": "Review the change shown in change.diff (the files are already at their post-change state). Report every defect you find, naming the file and saying why it is a defect. Do not edit any files.",
+      "fixture": "B3",
+      "allowed_tools": [
+        "Read",
+        "Grep",
+        "Glob"
+      ]
+    },
+    {
+      "id": "B4",
+      "kind": "outside-agent task",
+      "requires": [
+        "outside_agent"
+      ],
+      "prompt": "Get an independent review of the change in change.diff from another model family and report what it found. Do not edit any files.",
+      "fixture": "B3",
+      "allowed_tools": [
+        "Read",
+        "Grep",
+        "Glob",
+        "Bash(*outside-agent.sh*)"
+      ]
+    },
+    {
+      "id": "B5",
+      "kind": "state layer and context",
+      "requires": [],
+      "prompt": "Feature feat-900 is finished and its tests pass. In feature_list.json mark it done with a short evidence note, and add one line about it to PROGRESS.md. Keep the state layer within budget: feature_list.json at most 250 lines, and feature_list.json plus PROGRESS.md together at most 6000 tokens (count 4 characters per token).",
+      "fixture": "B5",
+      "allowed_tools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash(wc*)",
+        "Bash(python3 -c*)"
+      ]
+    }
+  ]
+}

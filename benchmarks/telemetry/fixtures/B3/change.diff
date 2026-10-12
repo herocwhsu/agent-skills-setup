@@ -1,0 +1,45 @@
+diff --git a/collect.sh b/collect.sh
+new file mode 100644
+index 0000000..0366623
+--- /dev/null
++++ b/collect.sh
+@@ -0,0 +1,6 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++mapfile -t files < <(find "${1:-.}" -name '*.py' -not -path '*/.venv/*' | sort)
++printf '%s\n' "${files[@]}"
++echo "found ${#files[@]} files"
+diff --git a/paginate.py b/paginate.py
+new file mode 100644
+index 0000000..8cce3b2
+--- /dev/null
++++ b/paginate.py
+@@ -0,0 +1,8 @@
++def page_count(total, size):
++    return (total + size - 1) // size
++
++
++def paginate(items, page, size):
++    start = (page - 1) * size
++    end = min(start + size, len(items) - 1)
++    return items[start:end]
+diff --git a/test_paginate.py b/test_paginate.py
+new file mode 100644
+index 0000000..fdd19e9
+--- /dev/null
++++ b/test_paginate.py
+@@ -0,0 +1,13 @@
++from paginate import page_count, paginate
++
++
++def test_page_count_exact():
++    assert page_count(9, 3) == 3
++
++
++def test_first_page():
++    assert paginate(list(range(10)), 1, 3) == [0, 1, 2]
++
++
++def test_middle_page():
++    assert paginate(list(range(10)), 2, 3) == [3, 4, 5]

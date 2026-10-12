@@ -27,6 +27,8 @@
 - [x] feat-063: State-layer checks moved from the guard heredoc into `scripts/state_layer_check.py`; the guard exits 2 on any checker failure. Doc links are repo-relative. Reviewed by a fresh subagent and codex-kiro; guard tests 44/44.
 
 - [x] feat-065: Run telemetry. `scripts/run_telemetry.py` reads session and subagent files into one JSON per run (`docs/telemetry/runs/`), `scripts/run_report.py` compares runs, and every outside-agent attempt is now logged. Reliability per metric: `docs/telemetry/RELIABILITY.md`. Spec and benchmark definition: `docs/stories/run-telemetry/`.
+
+- [x] feat-066: Fixed telemetry benchmark. `python3 scripts/telemetry_benchmark.py run|compare` runs five fixed tasks in throwaway git repos and scores them with scripted checks; fixtures, hidden tests and reference solutions are in `benchmarks/telemetry/`. Method, checks and limits: `docs/stories/run-telemetry/benchmark.md`. One real run per task passed; the 5-run comparison has not been run.
 ### What's In Progress
 
 - Nothing active (WIP=0, clean state).
@@ -34,7 +36,7 @@
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-1. **Build and run the telemetry benchmark (five fixed tasks, not built yet).** `docs/stories/run-telemetry/benchmark.md` defines five fixed tasks and the comparison rule but nothing is built yet (fixture repo, prompts, hidden checks, runner). Use the telemetry for a while first to see if its numbers are stable.
+1. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
 2. **Capture gate results per task so run records have gate data.** Run `harness-verify.sh --report <path>` at the end of a task so a run record has gate data; no baseline run does.
 3. **Decide whether `classify` should recognize 429 and auth failures.** `429`, `rate limit exceeded` and `Authentication failed` count as unclassified errors. Widening them would bench an agent for 5 hours to a month on one transient error, so it was left as is.
 

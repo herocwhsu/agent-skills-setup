@@ -1,0 +1,24 @@
+import argparse
+import sys
+
+from config import load_config
+
+
+def build_greeting(name, greeting="Hello"):
+    return f"{greeting}, {name}!"
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="greet")
+    parser.add_argument("name")
+    parser.add_argument("--greeting", default=None)
+    parser.add_argument("--config", default=None)
+    args = parser.parse_args(argv)
+    cfg = load_config(args.config)
+    greeting = args.greeting or cfg.get("greeting", "Hello")
+    print(build_greeting(args.name, greeting))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

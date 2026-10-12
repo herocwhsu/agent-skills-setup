@@ -1,0 +1,17 @@
+from cli import build_greeting, main
+
+
+def test_build_greeting_default():
+    assert build_greeting("Ana") == "Hello, Ana!"
+
+
+def test_main_prints_greeting(capsys):
+    assert main(["Ana", "--greeting", "Hi"]) == 0
+    assert capsys.readouterr().out == "Hi, Ana!\n"
+
+
+def test_config_sets_greeting(tmp_path, capsys):
+    conf = tmp_path / "g.conf"
+    conf.write_text("greeting = Hey\n")
+    main(["Ana", "--config", str(conf)])
+    assert capsys.readouterr().out == "Hey, Ana!\n"

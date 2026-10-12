@@ -1,0 +1,12 @@
+def load_config(path):
+    cfg = {}
+    if not path:
+        return cfg
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            cfg[key.strip()] = value.strip()
+    return cfg
