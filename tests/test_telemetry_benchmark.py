@@ -322,7 +322,7 @@ def test_real_agent_environment_does_not_expose_hidden_or_reference_directories(
 
         class R:
             returncode = 0
-            stdout = ""
+            stdout = b""
 
         return R()
 
@@ -428,3 +428,63 @@ def test_b5_stripping_old_features_to_fit_the_budget_fails(tmp_path):
     (wd / "PROGRESS.md").write_text("# Progress\n- feat-900 done\n")
     r = _score("B5", wd)
     assert r["no_features_lost"] is False
+
+
+@pytest.mark.parametrize(
+    "text, key",
+    [
+        (
+            "The paginate function works fine for full pages but drops the last item on a partial page.",
+            "found_logic_defect",
+        ),
+        (
+            "paginate looks correct at first glance, but it drops the final item.",
+            "found_logic_defect",
+        ),
+        (
+            "paginate has no off-by-one error, but the clamp len(items) - 1 truncates the last item.",
+            "found_logic_defect",
+        ),
+        ("paginate returns one item too few on the last page.", "found_logic_defect"),
+        ("The tests have coverage gaps: the last page is never tested.", "found_test_gap"),
+        (
+            "mapfile is fine on Linux but not available on macOS bash 3.2.",
+            "found_portability_defect",
+        ),
+    ],
+)
+def test_b3_real_findings_with_hedges_or_other_wording_count(tmp_path, text, key):
+    assert _score("B3", _prepared(tmp_path, "B3"), text)[key] is True
+
+
+@pytest.mark.parametrize(
+    "text, key",
+    [
+        ("I did not find an off-by-one in paginate.", "found_logic_defect"),
+        ("paginate is fine. The collect script drops non-py files.", "found_logic_defect"),
+        (
+            "paginate is fine. The collect script skips nothing but mapfile is not available on bash 3.2.",
+            "found_logic_defect",
+        ),
+        ("I found nothing wrong with paginate; it does not drop items.", "found_logic_defect"),
+    ],
+)
+def test_b3_evasive_or_cross_subject_text_does_not_count(tmp_path, text, key):
+    assert _score("B3", _prepared(tmp_path, "B3"), text)[key] is False
+
+
+def test_b5_list_root_feature_file_is_a_failed_check_not_a_crash(tmp_path):
+    wd = _prepared(tmp_path, "B5")
+    (wd / "feature_list.json").write_text("[]\n")
+    r = _score("B5", wd)
+    assert r["state_layer_valid"] is False or r["within_budget"] is False
+    assert r["no_features_lost"] is False
+
+
+def test_agent_output_that_is_not_utf8_is_a_failed_run_not_a_crash(tmp_path):
+    out = tb.run_one(
+        TASKS["B1"],
+        agent_cmd=["sh", "-c", "printf '\\377\\376'"],
+        outside_log=tmp_path / "none.jsonl",
+    )
+    assert out["passed"] is False

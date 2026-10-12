@@ -130,27 +130,46 @@ def _pytest(workdir: Path, *files: str) -> bool:
 
 
 _NEGATION = re.compile(
-    r"\bno\s+(off[- ]by[- ]one|problems?|issues?|bugs?|defects?|errors?|portability)"
-    r"|\bnot\s+(an?\s+)?(off[- ]by[- ]one|bug|issue|defect|problem)"
-    r"|\b(works?|looks?|is|are|seems?)\s+(fine|correct|ok|okay|good)"
-    r"|\b(has|have|had)\s+(full\s+|good\s+)?(test\s+)?coverage"
-    r"|\b(is|are)\s+(fully\s+)?covered"
-    r"|\bwithout (any )?(issues?|problems?)",
+    r"\b(no|not|without|nothing)\s+(wrong|off[- ]by[- ]one|problems?|issues?|bugs?|defects?|errors?|portability)\b"
+    r"|\b(did|do|does|could|can|would)\s*(not|n't)\s+(find|see|spot|notice|detect|identify|observe)\b"
+    r"|\bcannot\s+(find|see|spot)\b|\b(found|see|saw)\s+nothing\b"
+    r"|\b(works?|looks?|is|are|seems?)\s+(fine|correct|ok|okay|good|safe)\b"
+    r"|\b(has|have|had)\s+(full\s+|good\s+)?(test\s+)?coverage\b(?!\s+(gaps?|holes?|problems?|issues?))"
+    r"|\b(is|are)\s+(fully\s+)?covered\b"
+    r"|\bwithout\s+(any\s+)?(issues?|problems?)\b",
     re.I,
 )
+_LOGIC_NEGATION = re.compile(r"\b(does|do|did)\s*(not|n't)\s+(drop|omit|skip|truncat|lose)", re.I)
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+_CLAUSE_SPLIT = re.compile(r"\b(?:but|however|although|though|yet|whereas)\b|[;:]|\u2014", re.I)
+_KEYWORD_LIST = re.compile(r"^(?:[^,]{1,30},){3,}")
 
 
-def _sentences(text: str) -> list[str]:
-    return [p for p in re.split(r"(?<=[.!?])\s+|\n+", text) if p.strip()]
-
-
-def _found(text: str, subject: str, evidence: str) -> bool:
-    parts = _sentences(text)
-    for i, sentence in enumerate(parts):
-        if not re.search(evidence, sentence, re.I) or _NEGATION.search(sentence):
+def _found(
+    text: str,
+    subject: str,
+    evidence: str,
+    others: str,
+    extra_negation: re.Pattern[str] | None = None,
+) -> bool:
+    sentences = [p for p in _SENTENCE_SPLIT.split(text) if p.strip()]
+    for i, sentence in enumerate(sentences):
+        has_subject = bool(re.search(subject, sentence, re.I))
+        if not has_subject and i > 0:
+            prev = sentences[i - 1]
+            first_clause = _CLAUSE_SPLIT.split(prev)[0]
+            has_subject = (
+                bool(re.search(subject, prev, re.I))
+                and not _NEGATION.search(first_clause)
+                and not re.search(others, sentence, re.I)
+            )
+        if not has_subject:
             continue
-        around = " ".join(parts[max(0, i - 1) : i + 2])
-        if re.search(subject, around, re.I):
+        for clause in _CLAUSE_SPLIT.split(sentence):
+            if _KEYWORD_LIST.match(clause.strip()) or not re.search(evidence, clause, re.I):
+                continue
+            if _NEGATION.search(clause) or (extra_negation and extra_negation.search(clause)):
+                continue
             return True
     return False
 
@@ -160,17 +179,22 @@ def score_review(text: str) -> dict[str, bool]:
         "found_logic_defect": _found(
             text,
             r"paginate",
-            r"off[- ]by[- ]one|len\(items\)\s*-\s*1|last (item|element)|drops?|omits?|skips?|truncat",
+            r"off[- ]by[- ]one|len\(items\)\s*-\s*1|last (item|element)|final (item|element)|drops?|omits?|skips?|truncat"
+            r"|too few|one (item|element) (short|less|missing)|fewer|short by one|cuts? off|loses?",
+            r"collect|\.sh\b|mapfile|test_|\btests?\b",
+            _LOGIC_NEGATION,
         ),
         "found_test_gap": _found(
             text,
             r"\btests?\b|test_paginate",
             r"last page|partial|final page|boundary|edge case|not covered|no test|missing test|coverage|untested|never (test|exercis)",
+            r"collect|\.sh\b|mapfile",
         ),
         "found_portability_defect": _found(
             text,
             r"mapfile",
             r"bash ?3|3\.2|macos|portab|bsd|not available|unavailable|builtin|older bash|does not exist",
+            r"paginate|test_",
         ),
     }
 
@@ -244,15 +268,19 @@ def score(
             done = _feat900_done(workdir)
             final = _feature_map(workdir)
             original = _feature_map(fixture)
-        except (state_layer_check.StateLayerError, OSError, ValueError, KeyError):
+        except Exception:  # noqa: BLE001 - scoring files the agent wrote; any failure is a failed check
             valid, done, final, original = False, False, {}, {}
+        try:
+            within_budget = not trace_evaluation.check_thresholds(workdir)
+        except Exception:  # noqa: BLE001
+            within_budget = False
         kept = bool(original) and all(
             final.get(fid) == feat for fid, feat in original.items() if fid != "feat-900"
         )
         progress = workdir / "PROGRESS.md"
         return {
             "state_layer_valid": valid,
-            "within_budget": not trace_evaluation.check_thresholds(workdir),
+            "within_budget": within_budget,
             "feat900_done_with_evidence": done,
             "no_features_lost": kept and "feat-900" in final,
             "progress_updated": progress.is_file()
@@ -323,9 +351,9 @@ def run_agent(
     launch_error = False
     try:
         r = subprocess.run(
-            cmd, cwd=workdir, capture_output=True, text=True, timeout=timeout, env=env, check=False
+            cmd, cwd=workdir, capture_output=True, timeout=timeout, env=env, check=False
         )
-        code, out, timed_out = r.returncode, r.stdout, False
+        code, out, timed_out = r.returncode, r.stdout.decode("utf-8", errors="replace"), False
     except subprocess.TimeoutExpired:
         code, out, timed_out = -1, "", True
     except OSError:

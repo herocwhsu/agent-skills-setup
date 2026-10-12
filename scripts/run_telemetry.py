@@ -15,6 +15,7 @@ import json
 import math
 import re
 import sys
+import unicodedata
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,7 +38,11 @@ _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 _TOOL_USE_RE = re.compile(r"^toolu_[A-Za-z0-9_]{1,60}$")
 _OPAQUE_ID_RE = re.compile(r"^[A-Za-z0-9]{1,40}$")
 _SECRET_WORDS = re.compile(
-    r"(api[-_ ]?key|passw(or)?d|pwd|secret|token|bearer|authorization|credential)", re.I
+    r"(api[-_ ]?key|passw(or)?d|pwd|secret|bearer|authorization|credential)", re.I
+)
+_TOKEN_ASSIGNMENT = re.compile(r"\btokens?\s*[=:]\s*(?=\S*[A-Za-z0-9])\S{8,}", re.I)
+_SENSITIVE_SEGMENT = re.compile(
+    r"^\.?(secrets?|credentials?|keys?|private|tokens?|passw(or)?d|ssh|aws|env|gnupg)$", re.I
 )
 _CREDENTIAL_SHAPES = re.compile(
     r"((?<![A-Za-z0-9])sk[-_][A-Za-z0-9_-]{6,}|gh[pousr]_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{12,}|xox[abprs]-[A-Za-z0-9-]{6,}"
@@ -47,7 +52,8 @@ _CREDENTIAL_SHAPES = re.compile(
     re.I,
 )
 _PATH_SHAPE = re.compile(
-    r"(^|[\s(\"'=:])(/[A-Za-z0-9._-]+/|~[A-Za-z0-9_-]*/|[A-Za-z]:\\|\\\\)"
+    r"(^|[\s(\"'=:])(/[A-Za-z0-9._-]+/|~[A-Za-z0-9_-]*/|[A-Za-z]:\\|\\\\"
+    r"|(?:Users|home|var|private|tmp|etc|opt|usr|mnt|Volumes|root)/[A-Za-z0-9._-]+)"
     r"|\.\./|[\u2215\u2044\uff0f\u29f8]"
 )
 _FILE_EXT = re.compile(r"\.[A-Za-z0-9]{1,6}$")
@@ -56,7 +62,11 @@ _FILE_EXT = re.compile(r"\.[A-Za-z0-9]{1,6}$")
 def _has_relative_path(text: str) -> bool:
     for tok in text.split():
         inner = tok.removeprefix("./").strip("/")
-        if "/" in inner and _FILE_EXT.search(tok.rstrip("/,;:)")):
+        if "/" not in inner:
+            continue
+        if _FILE_EXT.search(tok.rstrip("/,;:)")) or any(
+            _SENSITIVE_SEGMENT.match(seg) for seg in inner.split("/")
+        ):
             return True
     return False
 
@@ -69,12 +79,15 @@ def _scrub(value: Any, limit: int = 80) -> str | None:
     """
     if not isinstance(value, str) or not value.strip():
         return None
-    text = " ".join(value.split(maxsplit=limit))[: limit * 4]
+    clean = "".join(ch for ch in value[: limit * 8] if unicodedata.category(ch) != "Cf")
+    text = " ".join(clean.split(maxsplit=limit))[: limit * 4]
     window = text[: limit * 2]
     if _PATH_SHAPE.search(window) or _has_relative_path(window):
         return "[redacted: contains a path]"
-    if _CREDENTIAL_SHAPES.search(window) or (
-        _SECRET_WORDS.search(window) and re.search(r"[=:]\s*\S{3,}", window)
+    if (
+        _CREDENTIAL_SHAPES.search(window)
+        or _TOKEN_ASSIGNMENT.search(window)
+        or (_SECRET_WORDS.search(window) and re.search(r"[=:]\s*\S{3,}", window))
     ):
         return "[redacted]"
     return text if len(text) <= limit else text[: limit - 1] + "…"

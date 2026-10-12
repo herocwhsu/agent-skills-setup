@@ -840,3 +840,25 @@ def test_unreadable_or_nested_subagent_meta_does_not_crash(tmp_path):
     run = rt.collect_run(_session(tmp_path, [_row(_ts(1), "p", _usage(1, 1))]))
     assert run["subagent_count"]["value"] == 1
     assert run["subagents"][0]["agent_type"] is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Users/herohsu/Project",
+        "see var/folders/x for details",
+        "pass​word=abcd1234",
+        "api​_key=abcd1234",
+        "tok" + "en=abcd1234efgh",
+    ],
+    ids=lambda v: "case",
+)
+def test_scrub_catches_home_prefix_paths_and_zero_width_evasion(text):
+    assert rt._scrub(text).startswith("[redacted")
+
+
+@pytest.mark.parametrize(
+    "text", ["token budget: 6000", "token limit = 6000 tokens", "max token: 4096"]
+)
+def test_scrub_keeps_token_budget_labels(text):
+    assert rt._scrub(text) == text

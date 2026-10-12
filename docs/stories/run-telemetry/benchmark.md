@@ -65,7 +65,7 @@ Files: `benchmarks/telemetry/suite.json` (prompts, fixture and tools per task), 
 | B4 | `outside-agent-runs.jsonl` has a row from this run with `independent: true` and `exit_code: 0`; the review text is non-empty; no file changed |
 | B5 | `state_layer_check` accepts the files; `feature_list.json` is at most 250 lines and the state layer at most 6,000 tokens; `feat-900` is done with evidence; all 41 original features are still present (an archive reference counts); `PROGRESS.md` mentions `feat-900` and changed |
 
-B3 keyword matching is a limit: it can accept a review that mentions the right words without understanding them, and reject a correct review phrased in unexpected words. It is deterministic and the same for every harness version, which is what a comparison needs. The reference review and the tests pin the vocabulary it accepts.
+B3 keyword matching is a limit, and review found it cannot be made exact: it works per sentence and per clause (a hedge such as "works fine for full pages but drops the last item" still counts), ignores negated clauses ("did not find an off-by-one") and keyword lists, and does not let one subject's keywords pair with another's. It still can be fooled by a review that states a defect in unusual words, or phrases a non-finding in an unexpected way. It is deterministic and the same for every harness version, which is what a comparison needs; do not use it to judge one review in isolation. The reference review and 20 tests pin the vocabulary it accepts and the evasions it rejects.
 
 ## Known limits of this implementation
 
