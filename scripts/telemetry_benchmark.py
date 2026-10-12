@@ -19,6 +19,8 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -206,14 +208,93 @@ def _feature_map(workdir: Path) -> dict[str, dict[str, Any]]:
     return {f["id"]: f for f in feats if isinstance(f, dict) and isinstance(f.get("id"), str)}
 
 
-def _feat900_done(workdir: Path) -> bool:
-    data = json.loads((workdir / "feature_list.json").read_text(encoding="utf-8"))
-    feats = list(state_layer_check._feature_list(data))
-    feats += state_layer_check._archived_features(data, workdir)
-    for f in feats:
-        if isinstance(f, dict) and f.get("id") == "feat-900":
-            return f.get("status") == "done" and state_layer_check.has_text(f.get("evidence"))
-    return False
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace") if path.is_file() else ""
+
+
+def _score_b1(ctx: _Ctx) -> dict[str, bool]:
+    untouched = _sha(ctx.workdir / "test_stats.py") == _sha(_src(ctx.fixture / "test_stats.py"))
+    only = ctx.changed == {"stats.py"}
+    shutil.copy(_src(ctx.bench / "hidden/B1/test_stats.py"), ctx.workdir / "test_stats.py")
+    return {
+        "tests_untouched": untouched,
+        "only_stats_changed": only,
+        "hidden_tests_pass": _pytest(ctx.workdir, "test_stats.py"),
+    }
+
+
+def _score_b2(ctx: _Ctx) -> dict[str, bool]:
+    shutil.copy(_src(ctx.fixture / "test_greeter.py"), ctx.workdir / "test_original_greeter.py")
+    shutil.copy(_src(ctx.bench / "hidden/B2/test_shout.py"), ctx.workdir / "test_shout.py")
+    readme = _read_text(ctx.workdir / "README.md")
+    return {
+        "original_tests_pass": _pytest(ctx.workdir, "test_original_greeter.py"),
+        "hidden_tests_pass": _pytest(ctx.workdir, "test_shout.py"),
+        "readme_documents_option": bool(
+            re.search(r"--shout", readme) and re.search(r"shout\s*=", readme)
+        ),
+    }
+
+
+def _score_b3(ctx: _Ctx) -> dict[str, bool]:
+    return {**score_review(ctx.final_text), "no_files_changed": not ctx.changed}
+
+
+def _score_b4(ctx: _Ctx) -> dict[str, bool]:
+    return {
+        "outside_run_independent": any(
+            r.get("independent") is True and r.get("exit_code") == 0 for r in ctx.outside_rows
+        ),
+        "review_non_empty": bool(ctx.final_text.strip()),
+        "no_files_changed": not ctx.changed,
+    }
+
+
+def _score_b5(ctx: _Ctx) -> dict[str, bool]:
+    try:
+        state_layer_check.check(ctx.workdir / "feature_list.json", [])
+        final = _feature_map(ctx.workdir)
+        original = _feature_map(ctx.fixture)
+        valid = True
+    except Exception:  # noqa: BLE001 - scoring files the agent wrote; any failure is a failed check
+        valid, final, original = False, {}, {}
+    try:
+        within_budget = not trace_evaluation.check_thresholds(ctx.workdir)
+    except Exception:  # noqa: BLE001
+        within_budget = False
+    target = final.get("feat-900", {})
+    kept = bool(original) and all(
+        final.get(fid) == feat for fid, feat in original.items() if fid != "feat-900"
+    )
+    progress = _read_text(ctx.workdir / "PROGRESS.md")
+    return {
+        "state_layer_valid": valid,
+        "within_budget": within_budget,
+        "feat900_done_with_evidence": target.get("status") == "done"
+        and state_layer_check.has_text(target.get("evidence")),
+        "no_features_lost": kept and "feat-900" in final,
+        "progress_updated": "feat-900" in progress
+        and _sha(ctx.workdir / "PROGRESS.md") != _sha(ctx.fixture / "PROGRESS.md"),
+    }
+
+
+@dataclass
+class _Ctx:
+    workdir: Path
+    fixture: Path
+    bench: Path
+    changed: set[str]
+    final_text: str
+    outside_rows: list[dict[str, Any]]
+
+
+SCORERS: dict[str, Callable[[_Ctx], dict[str, bool]]] = {
+    "B1": _score_b1,
+    "B2": _score_b2,
+    "B3": _score_b3,
+    "B4": _score_b4,
+    "B5": _score_b5,
+}
 
 
 def score(
@@ -224,70 +305,17 @@ def score(
     outside_rows: list[dict[str, Any]],
     bench: Path = BENCH,
 ) -> dict[str, bool]:
-    tid = task["id"]
-    fixture = bench / "fixtures" / task["fixture"]
-    changed = changed_files(workdir)
-    if tid == "B1":
-        untouched = _sha(workdir / "test_stats.py") == _sha(_src(fixture / "test_stats.py"))
-        only = changed == {"stats.py"}
-        shutil.copy(_src(bench / "hidden/B1/test_stats.py"), workdir / "test_stats.py")
-        return {
-            "tests_untouched": untouched,
-            "only_stats_changed": only,
-            "hidden_tests_pass": _pytest(workdir, "test_stats.py"),
-        }
-    if tid == "B2":
-        shutil.copy(_src(fixture / "test_greeter.py"), workdir / "test_original_greeter.py")
-        shutil.copy(_src(bench / "hidden/B2/test_shout.py"), workdir / "test_shout.py")
-        readme = (
-            (workdir / "README.md").read_text(encoding="utf-8", errors="replace")
-            if (workdir / "README.md").is_file()
-            else ""
-        )
-        return {
-            "original_tests_pass": _pytest(workdir, "test_original_greeter.py"),
-            "hidden_tests_pass": _pytest(workdir, "test_shout.py"),
-            "readme_documents_option": bool(
-                re.search(r"--shout", readme) and re.search(r"shout\s*=", readme)
-            ),
-        }
-    if tid == "B3":
-        return {**score_review(final_text), "no_files_changed": not changed}
-    if tid == "B4":
-        return {
-            "outside_run_independent": any(
-                r.get("independent") is True and r.get("exit_code") == 0 for r in outside_rows
-            ),
-            "review_non_empty": bool(final_text.strip()),
-            "no_files_changed": not changed,
-        }
-    if tid == "B5":
-        try:
-            state_layer_check.check(workdir / "feature_list.json", [])
-            valid = True
-            done = _feat900_done(workdir)
-            final = _feature_map(workdir)
-            original = _feature_map(fixture)
-        except Exception:  # noqa: BLE001 - scoring files the agent wrote; any failure is a failed check
-            valid, done, final, original = False, False, {}, {}
-        try:
-            within_budget = not trace_evaluation.check_thresholds(workdir)
-        except Exception:  # noqa: BLE001
-            within_budget = False
-        kept = bool(original) and all(
-            final.get(fid) == feat for fid, feat in original.items() if fid != "feat-900"
-        )
-        progress = workdir / "PROGRESS.md"
-        return {
-            "state_layer_valid": valid,
-            "within_budget": within_budget,
-            "feat900_done_with_evidence": done,
-            "no_features_lost": kept and "feat-900" in final,
-            "progress_updated": progress.is_file()
-            and "feat-900" in progress.read_text(encoding="utf-8", errors="replace")
-            and _sha(progress) != _sha(fixture / "PROGRESS.md"),
-        }
-    raise ValueError(f"unknown task id: {tid}")
+    if task["id"] not in SCORERS:
+        raise ValueError(f"unknown task id: {task['id']}")
+    ctx = _Ctx(
+        workdir=workdir,
+        fixture=bench / "fixtures" / task["fixture"],
+        bench=bench,
+        changed=changed_files(workdir),
+        final_text=final_text,
+        outside_rows=outside_rows,
+    )
+    return SCORERS[task["id"]](ctx)
 
 
 def outside_log_path() -> Path:

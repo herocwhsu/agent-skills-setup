@@ -195,18 +195,13 @@ def _row_numbers(usage: dict[str, Any]) -> dict[str, int | None]:
     }
 
 
-def _scope_usage(
-    rows: list[dict[str, Any]], source: str, all_rows: list[dict[str, Any]] | None = None
-) -> dict[str, Any]:
-    """Deduplicate usage rows by message id within one scope and sum tokens."""
-    all_urows = _usage_rows(all_rows) if all_rows is not None else None
-    real = [r for r in _usage_rows(rows) if r["message"].get("model") != "<synthetic>"]
-    synthetic = len(_usage_rows(rows)) - len(real)
-    urows = real
+def _group_by_message_id(
+    rows: list[dict[str, Any]],
+) -> tuple[dict[str, list[dict[str, Any]]], list[str], list[dict[str, Any]]]:
     by_id: dict[str, list[dict[str, Any]]] = {}
     order: list[str] = []
     no_id: list[dict[str, Any]] = []
-    for r in urows:
+    for r in rows:
         mid = r["message"].get("id")
         if not isinstance(mid, str) or not mid:
             no_id.append(r)
@@ -215,7 +210,17 @@ def _scope_usage(
             by_id[mid] = []
             order.append(mid)
         by_id[mid].append(r)
+    return by_id, order, no_id
 
+
+def _output_rank(row: dict[str, Any]) -> int:
+    out = row["message"]["usage"].get("output_tokens")
+    return out if _is_count(out) else -1
+
+
+def _dedupe(
+    by_id: dict[str, list[dict[str, Any]]], order: list[str]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     chosen: list[dict[str, Any]] = []
     conflicts: list[dict[str, Any]] = []
     for mid in order:
@@ -224,15 +229,7 @@ def _scope_usage(
         if all(n == nums[0] for n in nums):
             chosen.append(group[0])
             continue
-        best = max(
-            group,
-            key=lambda g: (
-                g["message"]["usage"].get("output_tokens")
-                if _is_count(g["message"]["usage"].get("output_tokens"))
-                else -1
-            ),
-        )
-        chosen.append(best)
+        chosen.append(max(group, key=_output_rank))
         conflicts.append(
             {
                 "message_id": _message_id(mid),
@@ -240,21 +237,26 @@ def _scope_usage(
                 "raw_rows": [{k: v if _is_count(v) else None for k, v in n.items()} for n in nums],
             }
         )
-    chosen.extend(no_id)
-    partial: list[str] = []
-    if all_urows is not None:
-        full: Counter[str] = Counter(
-            r["message"]["id"] for r in all_urows if isinstance(r["message"].get("id"), str)
-        )
-        seen: Counter[str] = Counter(
-            r["message"]["id"] for r in urows if isinstance(r["message"].get("id"), str)
-        )
-        partial = [_message_id(m) for m in order if full[m] > seen[m]]
+    return chosen, conflicts
 
+
+def _partial_ids(
+    order: list[str], urows: list[dict[str, Any]], all_urows: list[dict[str, Any]] | None
+) -> list[str]:
+    if all_urows is None:
+        return []
+
+    def counts(rows: list[dict[str, Any]]) -> Counter[str]:
+        return Counter(r["message"]["id"] for r in rows if isinstance(r["message"].get("id"), str))
+
+    full, seen = counts(all_urows), counts(urows)
+    return [_message_id(m) for m in order if full[m] > seen[m]]
+
+
+def _sum_tokens(chosen: list[dict[str, Any]], source: str) -> dict[str, Any]:
     tokens: dict[str, Any] = {}
     for name, field in TOKEN_FIELDS.items():
-        vals = [c["message"]["usage"].get(field) for c in chosen]
-        present = [v for v in vals if _is_count(v)]
+        present = [v for v in (c["message"]["usage"].get(field) for c in chosen) if _is_count(v)]
         if not present:
             tokens[name] = missing(source, f"no usage row carried {field}")
             continue
@@ -267,45 +269,69 @@ def _scope_usage(
                 "every row reports 0; cannot tell no caching from a gateway that does not report it"
             )
         tokens[name] = metric(total, source, note=note)
+    return tokens
+
+
+def _context_tokens(chosen: list[dict[str, Any]], source: str) -> dict[str, Any]:
     ins = [c["message"]["usage"].get("input_tokens") for c in chosen]
     outs = [c["message"]["usage"].get("output_tokens") for c in chosen]
     last_in = next((v for v in reversed(ins) if _is_count(v)), None)
     known_outs = [v for v in outs if _is_count(v)]
     known_ins = [v for v in ins if _is_count(v)]
     if last_in is None:
-        tokens["last_context_tokens"] = missing(source)
-        tokens["max_context_tokens"] = missing(source)
-        tokens["reported_context_total"] = missing(source)
-    else:
-        tokens["last_context_tokens"] = metric(
+        return {
+            "last_context_tokens": missing(source),
+            "max_context_tokens": missing(source),
+            "reported_context_total": missing(source),
+        }
+    total = (
+        metric(
+            last_in + sum(known_outs),
+            source,
+            note="final-turn input + summed output; the figure the harness reports for subagents, not billed usage",
+        )
+        if known_outs
+        else missing(source, "no row carried output_tokens")
+    )
+    return {
+        "last_context_tokens": metric(
             last_in, source, note="input tokens of the final turn: context size, not usage"
-        )
-        tokens["max_context_tokens"] = metric(
+        ),
+        "max_context_tokens": metric(
             max(known_ins), source, note="largest per-turn input: context size, not usage"
-        )
-        if known_outs:
-            tokens["reported_context_total"] = metric(
-                last_in + sum(known_outs),
-                source,
-                note="final-turn input + summed output; the figure the harness reports for subagents, not billed usage",
-            )
-        else:
-            tokens["reported_context_total"] = missing(source, "no row carried output_tokens")
+        ),
+        "reported_context_total": total,
+    }
+
+
+def _model_labels(chosen: list[dict[str, Any]]) -> list[str]:
     models: list[str] = []
     for c in chosen:
-        mdl = c["message"].get("model")
-        label = _scrub(mdl, 60)
+        label = _scrub(c["message"].get("model"), 60)
         if label is not None and label not in models:
             models.append(label)
+    return models
+
+
+def _scope_usage(
+    rows: list[dict[str, Any]], source: str, all_rows: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    """Deduplicate usage rows by message id within one scope and sum tokens."""
+    all_urows = _usage_rows(all_rows) if all_rows is not None else None
+    usage_rows = _usage_rows(rows)
+    urows = [r for r in usage_rows if r["message"].get("model") != "<synthetic>"]
+    by_id, order, no_id = _group_by_message_id(urows)
+    chosen, conflicts = _dedupe(by_id, order)
+    chosen.extend(no_id)
     return {
-        "tokens": tokens,
+        "tokens": {**_sum_tokens(chosen, source), **_context_tokens(chosen, source)},
         "usage_rows": len(urows),
         "distinct_message_ids": len(order),
         "rows_without_message_id": len(no_id),
-        "synthetic_rows_ignored": synthetic,
-        "partial_message_ids": partial,
+        "synthetic_rows_ignored": len(usage_rows) - len(urows),
+        "partial_message_ids": _partial_ids(order, urows, all_urows),
         "conflicts": conflicts,
-        "models": models,
+        "models": _model_labels(chosen),
     }
 
 
