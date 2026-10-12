@@ -628,6 +628,25 @@ def test_outside_agent_logs_run_to_jsonl(stubenv):
     assert "repo" in rec
 
 
+def test_timeout_is_named_in_the_final_message(stubenv):
+    bin_, home = stubenv
+    _stub(bin_, "agy", "sleep 30")
+    _conf(home, "agy")
+    r = cli("run", "--purpose", "review", "--from", "claude", "--timeout", "1", "--", "p")
+    assert r.returncode == 2
+    assert "agy(timeout after 1s)" in r.stderr
+
+
+def test_empty_reply_is_named_not_unclassified(stubenv):
+    bin_, home = stubenv
+    _stub(bin_, "agy", "exit 0")
+    _conf(home, "agy")
+    r = cli("run", "--purpose", "review", "--from", "claude", "--", "p")
+    assert r.returncode == 2
+    assert "agy returned no output" in r.stderr
+    assert "unclassified" not in r.stderr
+
+
 @pytest.mark.skipif(
     os.environ.get("RUN_INTEGRATION") != "1", reason="live agents; RUN_INTEGRATION=1"
 )

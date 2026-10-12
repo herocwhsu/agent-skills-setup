@@ -488,7 +488,9 @@ def cmd_run(a: argparse.Namespace) -> int:
                 return 3
             _say(used)
             return 0
-        notes.append(f"{name}({cls})")
+        notes.append(
+            f"{name}(timeout after {a.timeout}s)" if cls == "transient" else f"{name}({cls})"
+        )
         if cls == "rate_limit":
             record(state, name, cls, rate_limit_reset(KINDS[name].group, now, out))
             limited.add(KINDS[name].group)
@@ -497,7 +499,10 @@ def cmd_run(a: argparse.Namespace) -> int:
             record(state, name, cls, now + AUTH_DEMOTE)
             save_state(state)
         elif cls == "error":
-            _say(f"{name} failed with an unclassified error, stopping:\n{out}")
+            if not out.strip():
+                _say(f"{name} returned no output, stopping")
+            else:
+                _say(f"{name} failed with an unclassified error, stopping:\n{out}")
             return 2
     earliest = _earliest_reset(state, now)
     tail = f"; earliest reset {earliest}" if earliest else ""
@@ -621,7 +626,11 @@ def main(argv: list[str]) -> int:
     r.add_argument("--timeout", type=_positive_int, default=110)
     r.add_argument("--cwd")
     r.add_argument("--allow-edits", action="store_true")
-    r.add_argument("--rubric", action="store_true", help="Append multidimensional evaluator rubric to review prompt")
+    r.add_argument(
+        "--rubric",
+        action="store_true",
+        help="Append multidimensional evaluator rubric to review prompt",
+    )
     r.add_argument("prompt")
     i = sub.add_parser("init")
     i.add_argument("--force", action="store_true")

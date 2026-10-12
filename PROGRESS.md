@@ -33,13 +33,11 @@
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-1. **Smoke test verification:** Re-run live `codex-kiro` and `agy` smoke tests against feat-033 fixes; trust repo hooks in Codex on each host.
-   - *Verification:* `outside-agent.sh run --purpose review` exits 0.
-2. **Fresh-session cross-repo tests:** Run fresh-session test on real `hangar` and `atelier` `main` once logged in headless.
-3. **Find why `agy` is slow when called from a Claude Code session:** Time the same `agy -p "Reply with OK only"` three ways, 3 runs each: (A) plain terminal, (B) inside the Claude Code session, (C) through `outside-agent.sh`. Then retry B with `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` to test env-var inheritance. Slow only in B/C points at the session environment, only in C at the wrapper's subprocess/stdio handling, in all three at agy auth or the service. Also make `outside-agent.sh` report timeout, auth, quota, and empty output as distinct errors instead of "unclassified error", and consider per-purpose default timeouts instead of one 110s default. Notes: `~/Project/docs/outside-subagent-timeout.txt` (outside this repo).
-   - *Verification:* the A/B/C timings are recorded in this file with the cause named, or marked still unconfirmed.
-4. **Cut the fresh-session context cost:** A new session here already starts at about 57k tokens (6% of 1.0M) before any work, while the state-layer threshold (6,000 tokens for `feature_list.json` + `PROGRESS.md`) only covers two of the files loaded. Measure what a fresh session loads (global `CLAUDE.md`, `AGENTS.md`, `MEMORY.md`, skill listings, SessionStart hook injections, state files), rank by size, then trim the biggest and decide whether the threshold should count more than two files or be lowered.
-   - *Verification:* a fresh-session token breakdown is recorded in this file, with a before/after total for whatever is trimmed.
+1. **[DONE 2026-10-12] Smoke test:** `outside-agent.sh run --purpose review` exited 0 in 16s via `codex-kiro`; `agy` answered directly in 12s. The `agy` fallback was not forced through the wrapper.
+2. **[DONE 2026-10-12] Fresh-session cross-repo tests:** read-only `claude -p` sessions on `hangar` and `atelier` answered all five questions in ~46s each; the gaps they named were tool artifacts, not repo defects. `kiro-cli` and `gemini` `AGENTS.md` support is still untested.
+3. **[DONE 2026-10-12] `agy` latency: not reproduced, cause unconfirmed.** 9 runs from this session took 7-15s (wrapper, direct, env-stripped), so the 2026-10-08 221s was likely a one-off; env inheritance has no effect. Fixed in `outside_agent.py`: a timeout now reads `agy(timeout after Ns)` and an empty reply `agy returned no output` (2 tests). Kept the 110s default.
+4. **Cut the fresh-session context cost: measured, plan is lazy loading (not started).** `claude -p /context` here shows 40.2k fresh: system tools 15.6k, skills 7.4k, system prompt 6.6k, memory files 5.1k (`AGENTS.md` 2.7k, global `CLAUDE.md` 2.1k), playwright MCP 4.5k. The repo owns the 2.7k `AGENTS.md` plus ~6k of state files that its Startup Workflow tells every session to read in full. Plan: (a) move the incident sections of `AGENTS.md` (shell portability, symlinks, hooks, Python, boundaries) into topic docs under the existing "load when" list; (b) replace "read `feature_list.json`" with a script that prints only the active feature and next queue item; (c) enable the playwright MCP per project, not by default. Skills already load lazily (descriptions only).
+   - *Verification:* before/after `claude -p /context` total, and `trace_evaluation.py --check-thresholds` OK.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
@@ -50,11 +48,11 @@
 
 - **`_lib.sh` pip step on Homebrew Python (PEP 668) [RESOLVED in feat-043]:** Replaced `--break-system-packages` with isolated runtime venv (`~/.agent-skills-setup/venv`) and automatic `site-packages` discovery.
 
-- **`agy` latency varies by caller and environment (2026-10-08, cause unconfirmed):** a trivial
-  `agy --dangerously-skip-permissions -p` prompt took 221s from the Claude Code session, above
-  `outside-agent.sh`'s 110s default `--timeout`. The earlier `agy failed with an unclassified error`
-  during a review is likely the same slowness, but it was not reproduced through the wrapper. Not a
-  code defect. For a review that may fall through to `agy`, pass `--timeout 900`.
+- **`agy` latency is intermittent (2026-10-08, cause unconfirmed):** a trivial
+  `agy --dangerously-skip-permissions -p` prompt took 221s once from the Claude Code session, above
+  `outside-agent.sh`'s 110s default `--timeout`. On 2026-10-12, 9 runs took 7-15s in every condition
+  (see queue item 3). If it recurs, record the time and whether `agy` was cold. For a review that may
+  fall through to `agy`, pass `--timeout 900`.
 
 ## Decisions Made
 
