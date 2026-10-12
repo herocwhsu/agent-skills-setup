@@ -26,6 +26,7 @@
 
 - [x] feat-063: State-layer checks moved from the guard heredoc into `scripts/state_layer_check.py`; the guard exits 2 on any checker failure. Doc links are repo-relative. Reviewed by a fresh subagent and codex-kiro; guard tests 44/44.
 
+- [x] feat-065: Run telemetry. `scripts/run_telemetry.py` reads session and subagent files into one JSON per run (`docs/telemetry/runs/`), `scripts/run_report.py` compares runs, and every outside-agent attempt is now logged. Reliability per metric: `docs/telemetry/RELIABILITY.md`. Spec and benchmark definition: `docs/stories/run-telemetry/`.
 ### What's In Progress
 
 - Nothing active (WIP=0, clean state).
@@ -33,11 +34,9 @@
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-1. **[DONE 2026-10-12] Smoke test:** `outside-agent.sh run --purpose review` exited 0 in 16s via `codex-kiro`; `agy` answered directly in 12s. The `agy` fallback was not forced through the wrapper.
-2. **[DONE 2026-10-12] Fresh-session cross-repo tests:** read-only `claude -p` sessions on `hangar` and `atelier` answered all five questions in ~46s each; the gaps they named were tool artifacts, not repo defects. `kiro-cli` and `gemini` `AGENTS.md` support is still untested.
-3. **[DONE 2026-10-12] `agy` latency: not reproduced, cause unconfirmed.** 9 runs from this session took 7-15s (wrapper, direct, env-stripped), so the 2026-10-08 221s was likely a one-off; env inheritance has no effect. Fixed in `outside_agent.py`: a timeout now reads `agy(timeout after Ns)` and an empty reply `agy returned no output` (2 tests). Kept the 110s default.
-4. **[DONE 2026-10-12] Cut the fresh-session context cost: 40.2k to 23.8k tokens (`claude -p /context`).** (a) `AGENTS.md` incident sections moved to `docs/incident-rules.md`; (b) `scripts/state_brief.py` replaces reading both state files in full (startup read 33.3 KB to 9.1 KB); (c) `ENABLE_TOOL_SEARCH=true` in `~/.claude/settings.json` defers MCP and rarely used built-in tools until a prompt needs them, saving about 16k in every repo; one `browser_navigate` run worked through the gateway. This host sets `ANTHROPIC_BASE_URL`, which turns tool search off by default. Remaining fixed costs the repo does not control: system prompt 6.6k, skills 7.4k, global `CLAUDE.md` 2.1k. To undo (c), delete the `ENABLE_TOOL_SEARCH` line.
-   - *Verification:* before/after `claude -p /context` total, and `trace_evaluation.py --check-thresholds` OK.
+1. **Build and run the telemetry benchmark (five fixed tasks, not built yet).** `docs/stories/run-telemetry/benchmark.md` defines five fixed tasks and the comparison rule but nothing is built yet (fixture repo, prompts, hidden checks, runner). Use the telemetry for a while first to see if its numbers are stable.
+2. **Capture gate results per task so run records have gate data.** Run `harness-verify.sh --report <path>` at the end of a task so a run record has gate data; no baseline run does.
+3. **Decide whether `classify` should recognize 429 and auth failures.** `429`, `rate limit exceeded` and `Authentication failed` count as unclassified errors. Widening them would bench an agent for 5 hours to a month on one transient error, so it was left as is.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
