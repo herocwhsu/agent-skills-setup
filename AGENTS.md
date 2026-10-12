@@ -11,7 +11,7 @@ state_layer: [feature_list.json, PROGRESS.md]
 
 # AGENTS.md — Agent Operating Manual & Quick Reference
 
-> **Quick Orientation:** Instructions for agents working **on this repository**. The engineering rules this repo *ships* live in [`agents/engineering-rules.md`](file:///Users/phoenix/projects/agent-skills-setup/agents/engineering-rules.md) and are installed into host files by `scripts/install-agents-md.sh` — editing that file changes every agent on the machine, not just work done here.
+> **Quick Orientation:** Instructions for agents working **on this repository**. The engineering rules this repo *ships* live in [`agents/engineering-rules.md`](agents/engineering-rules.md) and are installed into host files by `scripts/install-agents-md.sh` — editing that file changes every agent on the machine, not just work done here.
 
 ## Quick Reference & Cheatsheet
 
@@ -19,10 +19,10 @@ state_layer: [feature_list.json, PROGRESS.md]
 | :--- | :--- | :--- |
 | **Startup** | Run `./init.sh` (or `bash scripts/harness-verify.sh`). Read `PROGRESS.md` & `feature_list.json`. | [Startup Workflow](#startup-workflow) |
 | **Verification** | Micro-edits: `bash scripts/run-tests.sh --fast --changed`<br>Fast suite: `bash scripts/run-tests.sh --fast`<br>Full gates: `bash scripts/harness-verify.sh` | [Verify](#verify) |
-| **Architecture** | Guards: [`harness/guards/`](file:///Users/phoenix/projects/agent-skills-setup/harness/guards/) (symlinked as `.claude/hooks`)<br>Templates: [`templates/hooks/`](file:///Users/phoenix/projects/agent-skills-setup/templates/hooks/)<br>Multi-Agent: [`agents/`](file:///Users/phoenix/projects/agent-skills-setup/agents/) (`kiro/prompts/`, `antigravity-rules.md`)<br>Skills: [`skills/`](file:///Users/phoenix/projects/agent-skills-setup/skills/) & [`registry.txt`](file:///Users/phoenix/projects/agent-skills-setup/registry.txt) | [`docs/architecture.md`](file:///Users/phoenix/projects/agent-skills-setup/docs/architecture.md) |
-| **Conventions** | Strictly `WIP=1`. Karpathy rules (Think before coding, Simplicity first, Surgical changes, Fail loud). | [`agents/engineering-rules.md`](file:///Users/phoenix/projects/agent-skills-setup/agents/engineering-rules.md) |
+| **Architecture** | Guards: [`harness/guards/`](harness/guards/) (symlinked as `.claude/hooks`)<br>Templates: [`templates/hooks/`](templates/hooks/)<br>Multi-Agent: [`agents/`](agents/) (`kiro/prompts/`, `antigravity-rules.md`)<br>Skills: [`skills/`](skills/) & [`registry.txt`](registry.txt) | [`docs/architecture.md`](docs/architecture.md) |
+| **Conventions** | Strictly `WIP=1`. Karpathy rules (Think before coding, Simplicity first, Surgical changes, Fail loud). | [`agents/engineering-rules.md`](agents/engineering-rules.md) |
 | **Portability** | macOS `/bin/bash` (3.2) floor + Linux. No `mapfile`, `declare -A`, `;&`. PEP 8 Python naming. | [Shell Portability](#shell-portability) |
-| **Git Policy** | Check `git log --oneline` before commit. **NEVER run `git push` without explicit user instruction.** | [Personal Conventions](file:///Users/phoenix/projects/agent-skills-setup/agents/engineering-rules.md#part-iii-personal-conventions) |
+| **Git Policy** | Check `git log --oneline` before commit. **NEVER run `git push` without explicit user instruction.** | [Personal Conventions](agents/engineering-rules.md#part-iii-personal-conventions) |
 | **Clean State** | Verify 11 gates pass. Run `bash scripts/session-clean.sh`. Update `feature_list.json` & `PROGRESS.md`. | [End of Session](#end-of-session) |
 | **Telemetry** | Trend: `bash scripts/trace-evaluation.sh --trend`<br>Check limits: `bash scripts/trace-evaluation.sh --check-thresholds` | [Evaluation Trace](#evaluation-trace) |
 

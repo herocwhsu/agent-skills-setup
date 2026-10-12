@@ -6,7 +6,7 @@ Companion to [summary.md](./summary.md). Date: 2026-10-09. Code artifacts in [co
 
 ## Step 0 — Baseline & Pre-checks
 
-- Target repository: [`agent-skills-setup`](file:///Users/phoenix/projects/agent-skills-setup)
+- Target repository: [`agent-skills-setup`](../../..)
 - Commit: `8b0cd2d` (`feat-041`) on `main`
 - Initial gate status: All 10 verification gates OK via `./init.sh`.
 - Prior state:

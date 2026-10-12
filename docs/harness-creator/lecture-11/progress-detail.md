@@ -6,7 +6,7 @@ Companion to [summary.md](./summary.md). Date: 2026-10-10. Code artifacts in [co
 
 ## Step 0 — Baseline & Pre-checks
 
-- Target repository: [`agent-skills-setup`](file:///Users/phoenix/projects/agent-skills-setup)
+- Target repository: [`agent-skills-setup`](../../..)
 - Commit: `23277a2` on `main` (Option 2 and Option 4 completed and verified).
 - Initial gate status: All 10 gates passed via `scripts/harness-verify.sh`.
 - Fast tests: 72 passed, 0 failed.

@@ -6,7 +6,7 @@ Companion to [summary.md](./summary.md). Date: 2026-10-07. Raw experiment files 
 
 ## Step 0 — Baseline & Pre-checks
 
-- Target repository: [`agent-skills-setup`](file:///Users/phoenix/projects/agent-skills-setup)
+- Target repository: [`agent-skills-setup`](../../..)
 - Commit: `00205e0` (feat-039) on `main`
 - Initial gate status: `./init.sh` passed clean across all gates.
 - Lecture 6 open items recorded in `PROGRESS.md`:

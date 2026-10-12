@@ -108,7 +108,7 @@ flowchart TD
 
 ## Part 4: Empirical SNR Audit on `agent-skills-setup`
 
-To measure the real-world impact of instruction bloat, we developed an automated audit script ([`docs/harness-creator/lecture-04/code/split_simulation.py`](file:///Users/phoenix/projects/agent-skills-setup/docs/harness-creator/lecture-04/code/split_simulation.py)) and ran it against `agent-skills-setup`.
+To measure the real-world impact of instruction bloat, we developed an automated audit script ([`docs/harness-creator/lecture-04/code/split_simulation.py`](code/split_simulation.py)) and ran it against `agent-skills-setup`.
 
 ### Current Instruction File Footprint:
 - **`AGENTS.md` (Root Router):** 82 lines, ~960 tokens.
