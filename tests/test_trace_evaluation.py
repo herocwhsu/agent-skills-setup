@@ -94,3 +94,27 @@ def test_trend_and_dashboard_render_same_row_values(tmp_path):
     assert row["tokens"] in md
     assert row["done_active"] in md
     assert "**WARN**" in md
+
+
+def test_trend_table_prints_row_values(tmp_path, capsys):
+    trace = tmp_path / "trace.jsonl"
+    rec = {
+        "commit": "abc1234",
+        "timestamp": "2026-10-12T08:07:00+00:00",
+        "agent": "claude",
+        "duration_str": "5m",
+        "state_layer": {
+            "total_state_tokens_est": 1234,
+            "completed_features": 3,
+            "active_features": 1,
+        },
+        "thresholds": {"status": "WARN", "warnings": ["x"]},
+    }
+    trace.write_text(json.dumps(rec) + "\n")
+
+    te.render_trend_table(trace)
+
+    out = capsys.readouterr().out
+    assert "abc1234" in out
+    assert "~1,234 tok" in out
+    assert "3 (1 act)" in out
