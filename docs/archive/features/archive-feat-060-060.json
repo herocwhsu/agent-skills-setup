@@ -1,0 +1,22 @@
+{
+  "features": [
+    {
+      "id": "feat-060",
+      "name": "Graph Engineering DAG runner, state machine orchestration, and Lecture 14 closing",
+      "description": "Port Lecture 14 Graph Engineering concepts, standalone StateGraph runner with checkpointer, pause-for-human node, conditional rollback routing, and production scripts/graph_runner.py with full test verification.",
+      "dependencies": [
+        "feat-059"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "docs/harness-creator/lecture-14/ contains summary.md, progress-detail.md, and code/graph.md",
+        "docs/harness-creator/lecture-14/code/graph_engine.py implements zero-dependency StateGraph engine with checkpointer and conditional routing",
+        "scripts/graph_runner.py and scripts/graph-runner.sh provide CLI workflow DAG runner",
+        "tests/test_graph_runner.py and scripts/tests/test_graph_runner.sh pass 100%",
+        "All fast tests and 11 harness gates pass cleanly"
+      ],
+      "evidence": "Authored comprehensive Lecture 14 study materials (summary.md, progress-detail.md, code/graph.md). Implemented zero-dependency StateGraph engine in docs/harness-creator/lecture-14/code/graph_engine.py with checkpointer persistence, human-in-the-loop pause, and conditional rollback routing. Promoted to production CLI runner in scripts/graph_runner.py and scripts/graph-runner.sh. Added automated unit tests in docs/harness-creator/lecture-14/code/test_graph_engine.py (5/5 passed), tests/test_graph_runner.py (3/3 passed), and scripts/tests/test_graph_runner.sh (3/3 passed). Audited by independent adversarial subagent with CLEAN PASS verdict. Verified with run-tests.sh --fast (86/86 passed) and all 11 gates in harness-verify.sh.",
+      "verification": "bash scripts/tests/test_graph_runner.sh && .venv/bin/pytest tests/test_graph_runner.py"
+    }
+  ]
+}

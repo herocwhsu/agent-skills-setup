@@ -3,27 +3,10 @@
     "docs/archive/features/archive-feat-001-040.json",
     "docs/archive/features/archive-feat-041-050.json",
     "docs/archive/features/archive-feat-051-055.json",
-    "docs/archive/features/archive-feat-056-059.json"
+    "docs/archive/features/archive-feat-056-059.json",
+    "docs/archive/features/archive-feat-060-060.json"
   ],
   "features": [
-    {
-      "id": "feat-060",
-      "name": "Graph Engineering DAG runner, state machine orchestration, and Lecture 14 closing",
-      "description": "Port Lecture 14 Graph Engineering concepts, standalone StateGraph runner with checkpointer, pause-for-human node, conditional rollback routing, and production scripts/graph_runner.py with full test verification.",
-      "dependencies": [
-        "feat-059"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "docs/harness-creator/lecture-14/ contains summary.md, progress-detail.md, and code/graph.md",
-        "docs/harness-creator/lecture-14/code/graph_engine.py implements zero-dependency StateGraph engine with checkpointer and conditional routing",
-        "scripts/graph_runner.py and scripts/graph-runner.sh provide CLI workflow DAG runner",
-        "tests/test_graph_runner.py and scripts/tests/test_graph_runner.sh pass 100%",
-        "All fast tests and 11 harness gates pass cleanly"
-      ],
-      "evidence": "Authored comprehensive Lecture 14 study materials (summary.md, progress-detail.md, code/graph.md). Implemented zero-dependency StateGraph engine in docs/harness-creator/lecture-14/code/graph_engine.py with checkpointer persistence, human-in-the-loop pause, and conditional rollback routing. Promoted to production CLI runner in scripts/graph_runner.py and scripts/graph-runner.sh. Added automated unit tests in docs/harness-creator/lecture-14/code/test_graph_engine.py (5/5 passed), tests/test_graph_runner.py (3/3 passed), and scripts/tests/test_graph_runner.sh (3/3 passed). Audited by independent adversarial subagent with CLEAN PASS verdict. Verified with run-tests.sh --fast (86/86 passed) and all 11 gates in harness-verify.sh.",
-      "verification": "bash scripts/tests/test_graph_runner.sh && .venv/bin/pytest tests/test_graph_runner.py"
-    },
     {
       "id": "feat-061",
       "name": "Weekly review report and first self fine-tune",
@@ -158,6 +141,24 @@
         "subagents": 5,
         "subagent_output_tokens": 6501
       }
+    },
+    {
+      "id": "feat-067",
+      "name": "Faster gates and automatic run records: parallel tests, process adherence, feature summaries, review timeout",
+      "description": "Cut the verify time, make every task leave its own telemetry without manual steps, and make outside-agent failures explain themselves.",
+      "dependencies": [
+        "feat-066"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "run-tests.sh runs files in parallel and prints the same lines, order, counts and exit code as the sequential run; a killed test is a failure; a signal stops the queue",
+        "every run record carries process_adherence (hook feedback, review attempts by family, subagents by type) with unmeasurable rules marked missing",
+        "session-clean attaches a summary to each completed feature, archives old features to keep the state layer under 6000 tokens without losing any, and keeps the last gate report for the window it falls in",
+        "outside-agent reviews default to 300 s and failed attempts log a bounded, scrubbed reason; return codes, order and classification are unchanged",
+        "all 11 harness gates pass"
+      ],
+      "evidence": "Full gate time fell from about 220 s to 75-85 s (tests gate 70 s); 93 test files, identical ordered output at 1 and 4 jobs, 12 jobs x5 stress, SIGINT/SIGTERM leave no process. process_adherence measured on 76 real sessions with no change to existing fields. feature_run_record.py: 30 tests, 3,324 budget cases with no loss and none left over budget. outside_agent.py: 131 tests. Reviews by a fresh subagent, codex-kiro and agy found about 30 defects across the rounds (lost features without an id, archive overwrite and path escape, kill diagnostics interleaving, --jobs swallowing a flag, orphaned queue after SIGTERM, credential-shaped guard names, unscrubbed error text); each got a failing test first. Not done: gate-necessity experiment, the 5-runs-per-version benchmark comparison, SubagentStop double counting is unverified, claude-kiro is not an independent reviewer for a Claude caller by design.",
+      "verification": "bash scripts/harness-verify.sh"
     }
   ]
 }

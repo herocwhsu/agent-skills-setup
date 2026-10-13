@@ -29,6 +29,8 @@
 - [x] feat-065: Run telemetry. `scripts/run_telemetry.py` reads session and subagent files into one JSON per run (`docs/telemetry/runs/`), `scripts/run_report.py` compares runs, and every outside-agent attempt is now logged. Reliability per metric: `docs/telemetry/RELIABILITY.md`. Spec and benchmark definition: `docs/stories/run-telemetry/`.
 
 - [x] feat-066: Fixed telemetry benchmark. `python3 scripts/telemetry_benchmark.py run|compare` runs five fixed tasks in throwaway git repos and scores them with scripted checks; fixtures, hidden tests and reference solutions are in `benchmarks/telemetry/`. Method, checks and limits: `docs/stories/run-telemetry/benchmark.md`. One real run per task passed; the 5-run comparison has not been run.
+
+- [x] feat-067: Faster gates and automatic run records. Tests run in parallel (gates take about 80 s instead of 220 s); every run record carries `process_adherence`; `session-clean.sh` attaches a summary to each completed feature and archives to keep the state layer under budget; outside-agent reviews default to 300 s and failed attempts log a scrubbed `reason`. See `docs/telemetry/RELIABILITY.md` and `docs/stories/run-telemetry/drift-check.md`.
 ### What's In Progress
 
 - Nothing active (WIP=0, clean state).
@@ -37,8 +39,7 @@
 
 **Prioritized Technical Queue (WIP=1):**
 1. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
-2. **Capture gate results per task so run records have gate data.** Run `harness-verify.sh --report <path>` at the end of a task so a run record has gate data; no baseline run does.
-3. **Record the error text when an outside agent fails (`classify` stays as is, decided 2026-10-13).** An unclassified failure logs only `result: error`, so a real 429 could not be told apart afterwards. Add a scrubbed `reason` (first 200 characters) to those attempt rows; return codes, order and classification do not change. Why not widen `classify`: the kiro gateway already retries 429 three times with backoff before the caller sees it, and a `rate_limit` result would bench both kiro agents until the 1st of next month. 14 attempts so far show no 429 or auth failure; the first real one will now carry its text. Do this together with the agy and claude-kiro timeout check.
+2. **Check whether the gates are all necessary.** Remove one gate at a time on a copy of the repo, against known bad changes, and see whether another gate still catches them; start from the incident each rule in `docs/incident-rules.md` names. A gate that nothing else would replace stays even if it never fired.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
