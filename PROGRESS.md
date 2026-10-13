@@ -39,7 +39,7 @@
 
 **Prioritized Technical Queue (WIP=1):**
 1. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
-2. **Check whether the gates are all necessary.** Remove one gate at a time on a copy of the repo, against known bad changes, and see whether another gate still catches them; start from the incident each rule in `docs/incident-rules.md` names. A gate that nothing else would replace stays even if it never fired.
+2. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
