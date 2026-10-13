@@ -24,6 +24,7 @@ state_layer: [feature_list.json, PROGRESS.md]
 | **Git Policy** | Check `git log --oneline` before commit. **NEVER run `git push` without explicit user instruction.** | [Personal Conventions](agents/engineering-rules.md#part-iii-personal-conventions) |
 | **Clean State** | Verify 11 gates pass. Run `bash scripts/session-clean.sh`. Update `feature_list.json` & `PROGRESS.md`. | [End of Session](#end-of-session) |
 | **Telemetry** | Trend: `bash scripts/trace-evaluation.sh --trend`<br>Check limits: `bash scripts/trace-evaluation.sh --check-thresholds` | [Evaluation Trace](#evaluation-trace) |
+| **Gate changes** | Before removing or loosening a gate, run `python3 scripts/gate_experiment.py` (planted defects in a clone, about 17 min) and read the verdicts. | [`gate-necessity.md`](docs/stories/run-telemetry/gate-necessity.md) |
 
 Everything below the next two sections cost a real incident. The startup workflow
 and definition of done are the exception — added proactively, not from a specific

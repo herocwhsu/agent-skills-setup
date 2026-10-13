@@ -1,0 +1,173 @@
+{
+  "description": "One planted defect per case. Each is applied to a fresh clone and the full gate set is run; the tool records which gates failed. 'expect' is the gate the case was written for. A case whose expected gate does not fail is a broken case and is excluded from conclusions.",
+  "cases": [
+    {
+      "id": "registry-missing-skill",
+      "expect": "registry",
+      "incident": "registry.txt lists a skill whose SKILL.md is absent",
+      "ops": [
+        {
+          "op": "append",
+          "path": "registry.txt",
+          "text": "\nlocal ghost-skill-for-gate-experiment\n"
+        }
+      ]
+    },
+    {
+      "id": "types-error",
+      "expect": "types",
+      "incident": "a type error that tests do not exercise",
+      "ops": [
+        {
+          "op": "write",
+          "path": "scripts/gate_case_types.py",
+          "text": "def f(x: int) -> str:\n    return x\n"
+        }
+      ],
+      "stage": true
+    },
+    {
+      "id": "tests-broken-assertion",
+      "expect": "tests",
+      "incident": "a failing test",
+      "ops": [
+        {
+          "op": "write",
+          "path": "tests/test_gate_case_fail.py",
+          "text": "def test_gate_case():\n    assert 1 == 2\n"
+        }
+      ]
+    },
+    {
+      "id": "skill-path-undefined-var",
+      "expect": "skill paths",
+      "incident": "a skill recipe builds a repo path from an undefined variable, so it expands to /scripts/...",
+      "ops": [
+        {
+          "op": "write",
+          "path": "skills/gate-case-skill/SKILL.md",
+          "text": "---\nname: gate-case-skill\ndescription: planted case\n---\n\n```bash\nbash \"$NEVER_DEFINED_DIR/scripts/run.sh\"\n```\n"
+        }
+      ]
+    },
+    {
+      "id": "bash-compat-mapfile",
+      "expect": "bash compat",
+      "incident": "mapfile in a shell script aborts under macOS /bin/bash 3.2 while Linux CI stays green",
+      "ops": [
+        {
+          "op": "write",
+          "path": "scripts/gate_case_mapfile.sh",
+          "text": "#!/usr/bin/env bash\nmapfile -t lines < <(ls)\necho \"${#lines[@]}\"\n"
+        }
+      ]
+    },
+    {
+      "id": "credential-backend-missing-branch",
+      "expect": "cred backends",
+      "incident": "a credential function dispatches on the backend but forgets one (shipped twice: empty listing, delete that never happened)",
+      "ops": [
+        {
+          "op": "append",
+          "path": "scripts/credentials/_store.sh",
+          "text": "\ngate_case_fn() {\n  case \"$(_os)\" in\n    darwin) echo mac ;;\n    linux-gui) echo gui ;;\n  esac\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "hook-wiring-missing-target",
+      "expect": "hook wiring",
+      "incident": "a shipped hook.json names a script that does not exist, so the hook never fires and logs nothing",
+      "ops": [
+        {
+          "op": "write",
+          "path": "skills/gate-case-skill/hook.json",
+          "text": "{\"hooks\": {\"UserPromptSubmit\": [{\"matcher\": \"\", \"hooks\": [{\"type\": \"command\", \"command\": \"python3 ${AGENT_SKILLS_DIR}/gate-case-skill/lib/missing.py\"}]}]}}\n"
+        }
+      ]
+    },
+    {
+      "id": "state-layer-two-active",
+      "expect": "state layer",
+      "incident": "WIP=1 violated: two active features at once",
+      "ops": [
+        {
+          "op": "json_append_feature",
+          "path": "feature_list.json",
+          "feature": {
+            "id": "feat-901",
+            "name": "a",
+            "status": "active",
+            "verification": "true"
+          }
+        },
+        {
+          "op": "json_append_feature",
+          "path": "feature_list.json",
+          "feature": {
+            "id": "feat-902",
+            "name": "b",
+            "status": "active",
+            "verification": "true"
+          }
+        }
+      ]
+    },
+    {
+      "id": "state-layer-done-without-evidence",
+      "expect": "state layer",
+      "incident": "a feature marked done with no completion evidence",
+      "ops": [
+        {
+          "op": "json_append_feature",
+          "path": "feature_list.json",
+          "feature": {
+            "id": "feat-903",
+            "name": "c",
+            "status": "done",
+            "evidence": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": "clean-state-scratch-file",
+      "expect": "clean state",
+      "incident": "a scratch file left in the tree at the end of a session",
+      "ops": [
+        {
+          "op": "write",
+          "path": "scratch.txt",
+          "text": "left over\n"
+        }
+      ]
+    },
+    {
+      "id": "runtime-drift-lib-edit",
+      "expect": "runtime drift",
+      "incident": "a runtime-copied file edited in the repo but never synced to the installed copy (lib.sh and _store.sh drifted this way)",
+      "ops": [
+        {
+          "op": "append",
+          "path": "scripts/outside_agent.py",
+          "text": "\n# planted drift\n"
+        }
+      ]
+    },
+    {
+      "id": "secret-scan-key-shape",
+      "expect": "secret scan",
+      "incident": "a credential-shaped string committed to the tree",
+      "ops": [
+        {
+          "op": "write_random",
+          "path": "docs/gate_case_secret.md",
+          "prefix": "github_token = \"gh",
+          "infix": "p_",
+          "length": 36,
+          "suffix": "\"\n"
+        }
+      ]
+    }
+  ]
+}
