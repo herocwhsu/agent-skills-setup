@@ -474,3 +474,45 @@ def test_a_hostile_session_id_or_projects_dir_never_writes_outside_the_repo(
     for sid in ("../../x", "*", "", "not-a-uuid"):
         monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", sid)
         assert fr.main(["--repo", str(repo), "--projects-dir", str(tmp_path), "--pending"]) == 2
+
+
+def test_archive_stops_only_when_the_written_file_is_really_within_budget(repo):
+    for n, delta in ((10, 0), (10, 1), (12, 7), (20, 15)):
+        d = repo.parent / f"r{n}_{delta}"
+        d.mkdir()
+        feats = [
+            _feature(f"feat-{i:03d}", "completed", evidence="e" * 200) for i in range(1, n + 1)
+        ]
+        _write_features(d, feats)
+        (d / "PROGRESS.md").write_text("p" * 100)
+        budget = fr.state_tokens(d) - delta - 1
+        fr.archive_to_budget(d, token_budget=budget)
+        left = [
+            f
+            for f in json.loads((d / "feature_list.json").read_text())["features"]
+            if f["status"] == "completed"
+        ]
+        assert fr.state_tokens(d) <= budget or not left, (n, delta, fr.state_tokens(d), budget)
+
+
+def test_archive_survives_a_very_long_feature_id(repo):
+    feats = [
+        _feature("feat-" + "a" * 400, "completed", description="d" * 400),
+        _feature("k", "completed", description="d" * 400),
+    ]
+    _write_features(repo, feats)
+    (repo / "PROGRESS.md").write_text("# p\n")
+    moved = fr.archive_to_budget(repo, token_budget=60)
+    assert moved
+    for p in (repo / "docs" / "archive" / "features").glob("*.json"):
+        assert len(p.name) <= 120
+
+
+def test_archive_does_not_empty_the_feature_list_when_progress_alone_is_over_budget(repo):
+    feats = [_feature(f"feat-{i:03d}", "completed") for i in range(1, 6)]
+    _write_features(repo, feats)
+    (repo / "PROGRESS.md").write_text("p" * 40000)
+    before = (repo / "feature_list.json").read_text()
+    assert fr.archive_to_budget(repo, token_budget=6000) == []
+    assert (repo / "feature_list.json").read_text() == before
+    assert not list((repo / "docs").glob("**/*.json")) if (repo / "docs").exists() else True

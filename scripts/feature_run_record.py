@@ -121,7 +121,7 @@ def _archivable(f: dict[str, Any]) -> bool:
 
 def _archive_name(repo: Path, moved: list[dict[str, Any]]) -> str:
     ids = [str(f.get("id") or "x") for f in moved]
-    safe = [re.sub(r"[^A-Za-z0-9_-]", "", i.removeprefix("feat-")) or "x" for i in ids]
+    safe = [(re.sub(r"[^A-Za-z0-9_-]", "", i.removeprefix("feat-")) or "x")[:24] for i in ids]
     base = f"archive-feat-{safe[0]}-{safe[-1]}"
     name, n = f"{base}.json", 2
     while (repo / "docs" / "archive" / "features" / name).exists():
@@ -145,25 +145,30 @@ def archive_to_budget(
     path = repo / "feature_list.json"
     progress = trace_evaluation.estimate_tokens(repo / "PROGRESS.md")
     feats: list[Any] = data["features"]
+    refs = data.get("archive_references")
+    refs = refs if isinstance(refs, list) else []
+    placeholder = "docs/archive/features/" + "x" * 60 + ".json"
+
+    def tokens_with(features: list[Any]) -> int:
+        """Tokens of the file as it would be written once the new archive is referenced."""
+        probe = {**data, "features": features, "archive_references": [*refs, placeholder]}
+        return progress + (len(json.dumps(probe, indent=2)) + 1) // 4
+
+    movable = [f for f in feats if isinstance(f, dict) and _archivable(f)]
     kept = list(feats)
     moved: list[dict[str, Any]] = []
-    for f in feats:
-        if progress + (len(json.dumps(data, indent=2)) + 1) // 4 <= token_budget:
+    for f in movable:
+        if tokens_with(kept) <= token_budget:
             break
-        if not (isinstance(f, dict) and _archivable(f)):
-            continue
         moved.append(f)
         kept = [k for k in kept if k is not f]
-        data["features"] = kept
-    if not moved:
-        data["features"] = feats
+    if progress >= token_budget or not moved:
         return []
+    data["features"] = kept
     rel = _archive_name(repo, moved)
     out = repo / rel
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"features": moved}, indent=2) + "\n", encoding="utf-8")
-    refs = data.get("archive_references")
-    refs = refs if isinstance(refs, list) else []
     data["archive_references"] = refs if rel in refs else [*refs, rel]
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
