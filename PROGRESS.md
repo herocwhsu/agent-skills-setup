@@ -38,7 +38,7 @@
 **Prioritized Technical Queue (WIP=1):**
 1. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
 2. **Capture gate results per task so run records have gate data.** Run `harness-verify.sh --report <path>` at the end of a task so a run record has gate data; no baseline run does.
-3. **Decide whether `classify` should recognize 429 and auth failures.** `429`, `rate limit exceeded` and `Authentication failed` count as unclassified errors. Widening them would bench an agent for 5 hours to a month on one transient error, so it was left as is.
+3. **Record the error text when an outside agent fails (`classify` stays as is, decided 2026-10-13).** An unclassified failure logs only `result: error`, so a real 429 could not be told apart afterwards. Add a scrubbed `reason` (first 200 characters) to those attempt rows; return codes, order and classification do not change. Why not widen `classify`: the kiro gateway already retries 429 three times with backoff before the caller sees it, and a `rate_limit` result would bench both kiro agents until the 1st of next month. 14 attempts so far show no 429 or auth failure; the first real one will now carry its text. Do this together with the agy and claude-kiro timeout check.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
