@@ -814,3 +814,127 @@ def test_attempt_logged_for_shared_quota_skip(stubenv, monkeypatch):
         ("claude-kiro", "rate_limit"),
         ("codex-kiro", "skipped"),
     ]
+
+
+def test_error_attempt_records_a_bounded_scrubbed_reason(stubenv):
+    r, att = _run_agy(
+        stubenv,
+        "echo 'HTTP 429 Too Many Requests at /Users/bob/secret/x using sk-abcdefghijkl123' >&2; exit 1",
+    )
+    assert r.returncode == 2
+    assert [a["result"] for a in att] == ["error"]
+    reason = att[0]["reason"]
+    assert "429" in reason
+    assert "/Users/bob" not in reason and "sk-abcdefghijkl123" not in reason
+    assert len(reason) <= 200
+
+
+def test_empty_output_error_has_no_reason_but_keeps_its_result(stubenv):
+    r, att = _run_agy(stubenv, "exit 1")
+    assert [a["result"] for a in att] == ["empty"] and "reason" not in att[0]
+
+
+def test_reason_does_not_change_return_code_or_stderr_message(stubenv):
+    r, att = _run_agy(stubenv, "echo 'boom 429' >&2; exit 1")
+    assert r.returncode == 2 and "unclassified error" in r.stderr and "boom 429" in r.stderr
+
+
+@pytest.mark.parametrize(
+    "junk", ["\x1b[31mred\x1b[0m 429", "a" * 5000, "line1\nline2\n429", "tab\t429"]
+)
+def test_reason_is_single_line_and_bounded(stubenv, junk):
+    body = "printf '%s' " + json.dumps(junk) + " >&2; exit 1"
+    r, att = _run_agy(stubenv, body)
+    reason = att[0].get("reason", "")
+    assert "\n" not in reason and "\x1b" not in reason and len(reason) <= 200
+
+
+def test_review_default_timeout_is_longer_than_delegate(stubenv):
+    assert oa.default_timeout("review") > oa.default_timeout("delegate") == 110
+    assert oa.default_timeout("review") == 300
+
+
+def test_explicit_timeout_wins_over_the_purpose_default(stubenv):
+    bin_, home = stubenv
+    _stub(bin_, "agy", "sleep 30")
+    _conf(home, "agy")
+    r = cli("run", "--purpose", "review", "--from", "claude", "--timeout", "1", "--", "p")
+    assert "agy(timeout after 1s)" in r.stderr
+
+
+@pytest.mark.parametrize(
+    "text,leak",
+    [
+        ("Authorization: Bearer abcdefghijklmnop", "abcdefghijklmnop"),
+        ("AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "wJalrXUtnFEMI"),
+        ("fetch https://user:pass12345@host.example/api failed", "pass12345"),
+        ("TOKEN\u200b=supersecret", "supersecret"),
+        ("failed at C:/Users/bob/secret.txt", "bob"),
+        ('open "../private/key"', "private/key"),
+        ('error at "/Users/alice/key.pem"', "alice"),
+        ("at (C:\\data\\config.json)", "config.json"),
+        ("open \\\\server\\share\\secret.txt", "secret.txt"),
+        ("home ~alice/file", "alice"),
+        (
+            "cmd -H 'X-Auth: " + "".join(["a1b2", "c3d4", "e5f6", "g7h8"]) + "'",
+            "".join(["a1b2", "c3d4"]),
+        ),
+        (
+            "Cookie: session=" + "".join(["Zm9v", "YmFy", "YmF6", "cXV4"]) + "; theme=dark",
+            "".join(["Zm9v", "YmFy"]),
+        ),
+        (
+            "-----BEGIN "
+            + "PRIVATE"
+            + " KEY----- "
+            + "".join(["MIIE", "vQIB", "ADAN", "Bgkq"])
+            + " -----END "
+            + "PRIVATE"
+            + " KEY-----",
+            "".join(["MIIE", "vQIB"]),
+        ),
+        (
+            "token ey" + "".join(["Jh", "bGci"]) + " . ey" + "".join(["Jz", "dWIi"]) + " . sig",
+            "".join(["Jh", "bGci"]),
+        ),
+        (
+            "failed with "
+            + "".join(["QUJD", "REVG", "R0hJ", "SktM", "TU5P", "UFFS", "U1RV", "VldY"]),
+            "".join(["QUJD", "REVG"]),
+        ),
+    ],
+    ids=lambda v: "case",
+)
+def test_error_reason_redacts_common_secret_and_path_forms(text, leak):
+    assert leak not in oa.error_reason(text)
+
+
+def test_error_reason_keeps_the_error_itself_readable():
+    out = oa.error_reason("HTTP 429 Too Many Requests: slow down")
+    assert out == "HTTP 429 Too Many Requests: slow down"
+    assert "rate limit exceeded after 3 retries" in oa.error_reason(
+        "rate limit exceeded after 3 retries"
+    )
+
+
+def test_error_reason_counts_its_budget_after_collapsing_whitespace():
+    assert oa.error_reason(" " * 1600 + "boom") == "boom"
+    assert oa.error_reason("\n" * 5000 + "429") == "429"
+
+
+def test_error_reason_never_cuts_a_marker_in_half_and_stays_bounded():
+    out = oa.error_reason("/a " * 200)
+    assert len(out) <= 200 and not out.endswith("[pa") and not out.endswith("[p")
+
+
+def test_error_reason_is_linear_on_huge_single_line_output():
+    start = time.perf_counter()
+    oa.error_reason("a" * 10_000_000)
+    oa.error_reason("/" * 10_000_000)
+    oa.error_reason("token=" * 2_000_000)
+    assert time.perf_counter() - start < 2.0
+
+
+def test_error_reason_handles_non_string_and_empty_input():
+    assert oa.error_reason("") == ""
+    assert oa.error_reason("\x00\x1b[0m") is not None

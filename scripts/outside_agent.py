@@ -16,6 +16,7 @@ import sys
 import tempfile
 import threading
 import time
+import unicodedata
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, NamedTuple, NoReturn
@@ -57,6 +58,74 @@ RC0_RATE_RE = re.compile(
 SHORT = 80
 AUTH_DEMOTE = timedelta(days=7)
 SUB_COOLDOWN = timedelta(hours=5)
+REASON_MAX = 200
+REVIEW_TIMEOUT = 300
+DELEGATE_TIMEOUT = 110
+
+
+def default_timeout(purpose: str) -> int:
+    """A review reads a whole diff and was seen taking 20 to 230 s; delegated work stays short."""
+    return REVIEW_TIMEOUT if purpose == "review" else DELEGATE_TIMEOUT
+
+
+_REASON_SHAPES = re.compile(
+    r"(sk[-_][A-Za-z0-9_-]{6,}|gh[pousr]_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{12,}|xox[abprs]-[A-Za-z0-9-]{6,}"
+    r"|eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{2,}\.|AIza[A-Za-z0-9_-]{16,}|glpat-[A-Za-z0-9_-]{10,})",
+)
+_REASON_KEYWORD = re.compile(
+    r"(?:bearer|authorization|passw(?:or)?d|pwd|api[-_ ]?key|secret|token|credential|cookie"
+    r"|x-auth|auth-?token|session|private key|-----begin)",
+    re.I,
+)
+_REASON_BLOB = re.compile(r"^[A-Za-z0-9+/_=-]{24,}$")
+_REASON_PEM = re.compile(r"-----BEGIN[^-]*-----.*?(?:-----END[^-]*-----|$)", re.S)
+_REASON_URL_AUTH = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://[^\s/@]+@")
+_REASON_PATHY = re.compile(r"""[\\/~]|^[A-Za-z]:""")
+
+
+def error_reason(out: str) -> str:
+    """One bounded line of an agent's error output for the attempt log, without paths or secrets.
+
+    Works token by token: a token that looks like a path, a URL with credentials, or a credential
+    is replaced whole; the word after a secret keyword is replaced too. Bounding happens last, on
+    the cleaned text, so redaction markers are never cut and long whitespace cannot hide the text.
+    """
+    raw = "".join(
+        ch for ch in ESC_RE.sub("", out[: REASON_MAX * 40]) if unicodedata.category(ch) != "Cf"
+    )
+    raw = _REASON_PEM.sub("[redacted]", raw)
+    raw = re.sub(r"\s*\.\s*", ".", raw) if "ey" in raw else raw
+    tokens = raw.split()[: REASON_MAX * 2]
+    cleaned: list[str] = []
+    redact_left = 0
+    for tok in tokens:
+        bare = tok.strip("\"'()[]<>,;")
+        if redact_left > 0:
+            cleaned.append("[redacted]")
+            redact_left -= 1
+            continue
+        if _REASON_URL_AUTH.search(bare) or _REASON_SHAPES.search(bare):
+            cleaned.append("[redacted]")
+        elif _REASON_KEYWORD.search(bare) and re.search(r"[=:]\S", bare):
+            cleaned.append("[redacted]")
+        elif _REASON_PATHY.search(bare) and not re.fullmatch(r"[A-Za-z]+/[A-Za-z]+", bare):
+            cleaned.append("[path]")
+        elif (
+            _REASON_BLOB.match(bare) and re.search(r"[0-9]", bare) and re.search(r"[A-Za-z]", bare)
+        ):
+            cleaned.append("[redacted]")
+        elif _REASON_KEYWORD.search(bare):
+            cleaned.append(tok)
+            redact_left = 2
+        else:
+            cleaned.append(tok)
+    text = " ".join(cleaned)
+    if len(text) <= REASON_MAX:
+        return text
+    cut = text[:REASON_MAX]
+    last = cut.rfind(" ")
+    return cut[:last] if last > REASON_MAX // 2 else cut
+
 
 EVALUATOR_RUBRIC = """## Evaluator Rubric (Score each dimension 1-5):
 1. Rule Conformance (1-5): Adherence to Karpathy's 12 rules and repo invariants.
@@ -474,6 +543,8 @@ def cmd_run(a: argparse.Namespace) -> int:
     if a.cwd and not os.path.isdir(a.cwd):
         _say(f"--cwd {a.cwd} is not a directory")
         return 2
+    if a.timeout is None:
+        a.timeout = default_timeout(a.purpose)
     try:
         conf = read_conf()
     except ConfError as e:
@@ -514,7 +585,14 @@ def cmd_run(a: argparse.Namespace) -> int:
             "transient": "timeout",
             "error": "empty" if not out.strip() else "error",
         }.get(cls, cls)
-        _log_attempt(name, a.purpose, a.from_, result, elapsed_ms)
+        _log_attempt(
+            name,
+            a.purpose,
+            a.from_,
+            result,
+            elapsed_ms,
+            error_reason(out) if result == "error" else None,
+        )
         if cls == "ok":
             print(out)
             if state["auth"].pop(name, None) is not None:
@@ -670,7 +748,12 @@ def main(argv: list[str]) -> int:
     r = sub.add_parser("run")
     r.add_argument("--purpose", choices=("delegate", "review"), required=True)
     r.add_argument("--from", dest="from_", choices=FAMILIES, required=True)
-    r.add_argument("--timeout", type=_positive_int, default=110)
+    r.add_argument(
+        "--timeout",
+        type=_positive_int,
+        default=None,
+        help=f"seconds per agent (default {REVIEW_TIMEOUT} for review, {DELEGATE_TIMEOUT} for delegate)",
+    )
     r.add_argument("--cwd")
     r.add_argument("--allow-edits", action="store_true")
     r.add_argument(
