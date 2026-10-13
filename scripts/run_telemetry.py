@@ -610,14 +610,13 @@ def collect_run(
 def find_session_file(projects_dir: Path, session_id: str) -> Path | None:
     if not _UUID_RE.match(session_id):
         return None
-    for p in sorted(projects_dir.glob(f"*/{session_id}.jsonl")):
-        if p.is_file():
-            return p
-    return None
+    matches = [p for p in projects_dir.glob(f"*/{session_id}.jsonl") if p.is_file()]
+    return max(matches, key=lambda p: (p.stat().st_mtime, str(p)), default=None)
 
 
-def last_recorded_end(runs_dir: Path, short_id: str) -> str | None:
-    """Latest window end among records of this session; open-ended or unreadable records are skipped."""
+def last_recorded_end(runs_dir: Path, short_id: str, now: datetime | None = None) -> str | None:
+    """Latest window end among records of this session; open-ended, unreadable and future-dated records are skipped."""
+    limit = now or datetime.now(timezone.utc)
     best: tuple[datetime, str] | None = None
     for p in sorted(runs_dir.glob("*.json")):
         try:
@@ -627,6 +626,8 @@ def last_recorded_end(runs_dir: Path, short_id: str) -> str | None:
             end = data["window"]["end"]
             t = parse_ts(end)
         except (OSError, ValueError, RecursionError, KeyError, TypeError, AttributeError):
+            continue
+        if t > limit:
             continue
         if best is None or t > best[0]:
             best = (t, end)
@@ -677,7 +678,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"run_telemetry: bad timestamp: {e}", file=sys.stderr)
         return 2
     if args.current_session and run["parent"]["usage_rows"] == 0:
-        print("run_telemetry: no activity since the last record; nothing written")
+        print(
+            f"run_telemetry: no activity since {start or 'the start of the session'}; nothing written"
+        )
         return 0
     args.out_dir.mkdir(parents=True, exist_ok=True)
     out = args.out_dir / f"{run['run_id']}.json"

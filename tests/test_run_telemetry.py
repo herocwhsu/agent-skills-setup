@@ -965,3 +965,41 @@ def test_current_session_with_unknown_transcript_exits_2(tmp_path, monkeypatch):
 def test_session_and_current_session_are_mutually_exclusive(tmp_path, capsys):
     with pytest.raises(SystemExit):
         rt.main(["--session", str(tmp_path / "x.jsonl"), "--current-session"])
+
+
+def test_a_record_ending_in_the_future_does_not_block_later_recording(tmp_path, monkeypatch):
+    projects, runs = _projects(tmp_path, [_row(_ts(10), "m3", _usage(1, 7))]), tmp_path / "runs"
+    _prior_record(runs, _ts(3))
+    runs.joinpath("future.json").write_text(
+        json.dumps(
+            {"session_id": UUID[:8], "window": {"start": None, "end": "2099-01-01T00:00:00Z"}}
+        )
+    )
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    assert (
+        rt.main(["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)]) == 0
+    )
+    written = [
+        p for p in runs.glob("*.json") if p.name not in (f"{UUID[:8]}-aaaa.json", "future.json")
+    ]
+    assert len(written) == 1
+    assert json.loads(written[0].read_text())["window"]["start"] == _ts(3)
+
+
+def test_no_activity_message_names_the_window_start(tmp_path, monkeypatch, capsys):
+    projects, runs = _projects(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))]), tmp_path / "runs"
+    _prior_record(runs, _ts(5))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    rt.main(["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)])
+    assert _ts(5) in capsys.readouterr().out
+
+
+def test_find_session_file_prefers_the_most_recently_modified_match(tmp_path):
+    import os
+
+    projects = tmp_path / "projects"
+    old, new = projects / "a" / f"{UUID}.jsonl", projects / "b" / f"{UUID}.jsonl"
+    _write(old, [])
+    _write(new, [_row(_ts(1), "m1", _usage(1, 1))])
+    os.utime(old, (1_000_000, 1_000_000))
+    assert rt.find_session_file(projects, UUID) == new
