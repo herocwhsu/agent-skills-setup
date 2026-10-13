@@ -106,6 +106,33 @@ set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -
   && ok "triggers session telemetry trace and trend display" \
   || bad "triggers session telemetry trace and trend display" "exit $status, out: $out"
 
+# --- 8. Records a run telemetry entry for the current session; failure never blocks ---
+d=$(fixture_repo "run_telemetry_test")
+cat <<'PY' > "$d/scripts/run_telemetry.py"
+import sys
+print("MOCK_RUN_TELEMETRY " + " ".join(sys.argv[1:]))
+PY
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "MOCK_RUN_TELEMETRY --current-session --out-dir" ]] \
+  && ok "records a run telemetry entry for the current session" \
+  || bad "records a run telemetry entry for the current session" "exit $status, out: $out"
+
+d=$(fixture_repo "run_telemetry_fail")
+printf 'import sys\nsys.exit(2)\n' > "$d/scripts/run_telemetry.py"
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "ALL INVARIANTS SATISFIED" && "$out" =~ "not recorded" ]] \
+  && ok "a failing run telemetry step is reported but does not block handoff" \
+  || bad "a failing run telemetry step is reported but does not block handoff" "exit $status, out: $out"
+
+d=$(fixture_repo "run_telemetry_check_only")
+cat <<'PY' > "$d/scripts/run_telemetry.py"
+print("MOCK_RUN_TELEMETRY")
+PY
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" --check 2>&1); status=$?; set -e
+[[ $status -eq 0 && ! "$out" =~ "MOCK_RUN_TELEMETRY" ]] \
+  && ok "--check mode does not record run telemetry" \
+  || bad "--check mode does not record run telemetry" "exit $status, out: $out"
+
 echo ""
 echo "test_session_clean: $pass passed, $fail failed"
 [[ $fail -eq 0 ]] || exit 1

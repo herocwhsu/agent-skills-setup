@@ -70,7 +70,15 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
 def harness_commit(root: Path = ROOT) -> str:
     head = _git(root, "rev-parse", "--short", "HEAD").stdout.strip() or "unknown"
     dirty = _git(
-        root, "status", "--porcelain", "--", ".", ":(exclude)docs/telemetry/benchmark"
+        root,
+        "status",
+        "--porcelain",
+        "--",
+        ".",
+        ":(exclude)docs/telemetry/benchmark",
+        ":(exclude)docs/telemetry/runs",
+        ":(exclude)docs/telemetry/evaluation-trace.jsonl",
+        ":(exclude)docs/telemetry/SUMMARY.md",
     ).stdout.strip()
     return f"{head}-dirty" if dirty else head
 

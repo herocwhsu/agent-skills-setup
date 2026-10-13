@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
 import sys
 import unicodedata
@@ -606,31 +607,78 @@ def collect_run(
     }
 
 
+def find_session_file(projects_dir: Path, session_id: str) -> Path | None:
+    if not _UUID_RE.match(session_id):
+        return None
+    for p in sorted(projects_dir.glob(f"*/{session_id}.jsonl")):
+        if p.is_file():
+            return p
+    return None
+
+
+def last_recorded_end(runs_dir: Path, short_id: str) -> str | None:
+    """Latest window end among records of this session; open-ended or unreadable records are skipped."""
+    best: tuple[datetime, str] | None = None
+    for p in sorted(runs_dir.glob("*.json")):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or data.get("session_id") != short_id:
+                continue
+            end = data["window"]["end"]
+            t = parse_ts(end)
+        except (OSError, ValueError, RecursionError, KeyError, TypeError, AttributeError):
+            continue
+        if best is None or t > best[0]:
+            best = (t, end)
+    return best[1] if best else None
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description="Collect run telemetry from a Claude Code session file."
     )
-    ap.add_argument("--session", required=True, type=Path, help="session transcript .jsonl")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--session", type=Path, help="session transcript .jsonl")
+    src.add_argument(
+        "--current-session",
+        action="store_true",
+        help="use $CLAUDE_CODE_SESSION_ID, from the end of its last record until now",
+    )
+    ap.add_argument("--projects-dir", type=Path, default=Path.home() / ".claude" / "projects")
     ap.add_argument("--start", help="window start (ISO timestamp)")
     ap.add_argument("--end", help="window end (ISO timestamp)")
     ap.add_argument("--verify-report", type=Path, help="harness-verify.sh --report JSON")
     ap.add_argument("--outside-log", type=Path, help="outside-agent-runs.jsonl")
     ap.add_argument("--out-dir", type=Path, default=Path("docs/telemetry/runs"))
     args = ap.parse_args(argv)
+    start, end = args.start, args.end
+    if args.current_session:
+        session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+        found = find_session_file(args.projects_dir, session_id)
+        if found is None:
+            print("run_telemetry: no transcript for the current session id", file=sys.stderr)
+            return 2
+        args.session = found
+        short_id = session_id[:8]
+        start = start or last_recorded_end(args.out_dir, short_id)
+        end = end or datetime.now(timezone.utc).isoformat()
     if not args.session.is_file():
         print(f"run_telemetry: session file not found: {args.session}", file=sys.stderr)
         return 2
     try:
         run = collect_run(
             args.session,
-            start=args.start,
-            end=args.end,
+            start=start,
+            end=end,
             verify_report=args.verify_report,
             outside_log=args.outside_log,
         )
     except ValueError as e:
         print(f"run_telemetry: bad timestamp: {e}", file=sys.stderr)
         return 2
+    if args.current_session and run["parent"]["usage_rows"] == 0:
+        print("run_telemetry: no activity since the last record; nothing written")
+        return 0
     args.out_dir.mkdir(parents=True, exist_ok=True)
     out = args.out_dir / f"{run['run_id']}.json"
     out.write_text(json.dumps(run, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

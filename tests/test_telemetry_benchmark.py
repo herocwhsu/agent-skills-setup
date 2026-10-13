@@ -499,3 +499,14 @@ def test_non_utf8_agent_written_files_are_failed_checks_not_crashes(tmp_path):
     _apply_reference("B2", wd2)
     (wd2 / "README.md").write_bytes(b"\xff\xfe --shout shout = true")
     assert _score("B2", wd2)["readme_documents_option"] is True
+
+
+def test_harness_commit_ignores_all_telemetry_output(tmp_path):
+    repo = _git_repo(tmp_path / "r2")
+    clean = tb.harness_commit(repo)
+    for sub in ("runs", "benchmark"):
+        d = repo / "docs" / "telemetry" / sub
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "x.json").write_text("{}\n")
+    (repo / "docs" / "telemetry" / "evaluation-trace.jsonl").write_text("{}\n")
+    assert tb.harness_commit(repo) == clean

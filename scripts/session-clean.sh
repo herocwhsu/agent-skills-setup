@@ -89,6 +89,15 @@ if [[ $CHECK_ONLY -eq 0 && -f "$trace_script" ]]; then
   bash "$trace_script" --trend 2>&1 || true
 fi
 
+run_telemetry="$REPO_DIR/scripts/run_telemetry.py"
+if [[ $CHECK_ONLY -eq 0 && -f "$run_telemetry" ]]; then
+  echo ""
+  echo "==> [Run Telemetry] Recording token, time and subagent usage for this session..."
+  if ! python3 "$run_telemetry" --current-session --out-dir "$REPO_DIR/docs/telemetry/runs" 2>&1; then
+    echo "    [WARN] Run telemetry not recorded (see above); handoff is not blocked."
+  fi
+fi
+
 echo ""
 echo "================================================================================"
 echo "  CLEAN HANDOFF VERIFICATION: ALL INVARIANTS SATISFIED"

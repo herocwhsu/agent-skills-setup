@@ -862,3 +862,106 @@ def test_scrub_catches_home_prefix_paths_and_zero_width_evasion(text):
 )
 def test_scrub_keeps_token_budget_labels(text):
     assert rt._scrub(text) == text
+
+
+UUID = "0d3a322a-28ca-4d20-a88e-0ae36dde420d"
+
+
+def _projects(tmp_path: Path, rows: list[Any], session_id: str = UUID) -> Path:
+    projects = tmp_path / "projects"
+    _write(projects / "proj" / f"{session_id}.jsonl", rows)
+    return projects
+
+
+def _prior_record(runs: Path, end: str | None, session: str = UUID[:8]) -> None:
+    runs.mkdir(parents=True, exist_ok=True)
+    rec = {
+        "run_id": f"{session}-aaaa",
+        "session_id": session,
+        "window": {"start": None, "end": end},
+    }
+    (runs / f"{session}-aaaa.json").write_text(json.dumps(rec))
+
+
+def test_current_session_window_starts_where_the_last_record_ended(tmp_path, monkeypatch):
+    rows = [
+        _row(_ts(1), "m1", _usage(1, 100)),
+        _row(_ts(2), "m2", _usage(1, 200)),
+        _row(_ts(10), "m3", _usage(1, 7)),
+    ]
+    projects, runs = _projects(tmp_path, rows), tmp_path / "runs"
+    _prior_record(runs, _ts(5))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    code = rt.main(["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)])
+    assert code == 0
+    new = [p for p in runs.glob("*.json") if p.name != f"{UUID[:8]}-aaaa.json"]
+    assert len(new) == 1
+    rec = json.loads(new[0].read_text())
+    assert rec["parent"]["tokens"]["output_tokens_sum"]["value"] == 7
+    assert rec["window"]["start"] == _ts(5) and rec["window"]["end"]
+
+
+def test_current_session_uses_the_latest_end_among_several_records_and_ignores_open_windows(
+    tmp_path, monkeypatch
+):
+    projects, runs = _projects(tmp_path, [_row(_ts(10), "m3", _usage(1, 7))]), tmp_path / "runs"
+    _prior_record(runs, _ts(3))
+    (runs / "b.json").write_text(
+        json.dumps({"session_id": UUID[:8], "window": {"start": None, "end": _ts(8)}})
+    )
+    (runs / "c.json").write_text(
+        json.dumps({"session_id": UUID[:8], "window": {"start": None, "end": None}})
+    )
+    (runs / "d.json").write_text(json.dumps({"session_id": "ffffffff", "window": {"end": _ts(9)}}))
+    (runs / "e.json").write_text("[" * 50000)
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    assert (
+        rt.main(["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)]) == 0
+    )
+    starts = {
+        json.loads(p.read_text()).get("window", {}).get("start")
+        for p in runs.glob("*.json")
+        if p.stem.startswith(UUID[:8]) and p.name != f"{UUID[:8]}-aaaa.json"
+    }
+    assert _ts(8) in starts
+
+
+def test_current_session_with_no_new_activity_writes_nothing(tmp_path, monkeypatch, capsys):
+    projects, runs = _projects(tmp_path, [_row(_ts(1), "m1", _usage(1, 100))]), tmp_path / "runs"
+    _prior_record(runs, _ts(5))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    assert (
+        rt.main(["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)]) == 0
+    )
+    assert len(list(runs.glob("*.json"))) == 1
+    assert "no activity" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("value", [None, "", "../etc/passwd", "*", "not-a-uuid"])
+def test_current_session_needs_a_valid_session_id(tmp_path, monkeypatch, capsys, value):
+    projects = _projects(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))])
+    if value is None:
+        monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+    else:
+        monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", value)
+    runs = tmp_path / "runs"
+    assert (
+        rt.main(["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)]) == 2
+    )
+    assert not runs.exists() or not list(runs.glob("*.json"))
+
+
+def test_current_session_with_unknown_transcript_exits_2(tmp_path, monkeypatch):
+    projects = _projects(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))])
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "11111111-2222-3333-4444-555555555555")
+    assert (
+        rt.main(
+            ["--current-session", "--projects-dir", str(projects), "--out-dir", str(tmp_path / "r")]
+        )
+        == 2
+    )
+
+
+def test_session_and_current_session_are_mutually_exclusive(tmp_path, capsys):
+    with pytest.raises(SystemExit):
+        rt.main(["--session", str(tmp_path / "x.jsonl"), "--current-session"])
