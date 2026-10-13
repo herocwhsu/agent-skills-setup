@@ -133,6 +133,31 @@ set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" --check 2>&1); status=$
   && ok "--check mode does not record run telemetry" \
   || bad "--check mode does not record run telemetry" "exit $status, out: $out"
 
+# --- 9. Attaches feature run summaries; failure never blocks; --check does not run it ---
+d=$(fixture_repo "feature_record_test")
+cat <<'PY' > "$d/scripts/feature_run_record.py"
+import sys
+print("MOCK_FEATURE_RECORD " + " ".join(sys.argv[1:]))
+PY
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "MOCK_FEATURE_RECORD --repo" && "$out" =~ "--pending --archive" ]] \
+  && ok "attaches feature run summaries and archives to budget" \
+  || bad "attaches feature run summaries and archives to budget" "exit $status, out: $out"
+
+d=$(fixture_repo "feature_record_fail")
+printf 'import sys\nsys.exit(2)\n' > "$d/scripts/feature_run_record.py"
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "ALL INVARIANTS SATISFIED" && "$out" =~ "Feature run summaries not recorded" ]] \
+  && ok "a failing feature record step is reported but does not block handoff" \
+  || bad "a failing feature record step is reported but does not block handoff" "exit $status, out: $out"
+
+d=$(fixture_repo "feature_record_check_only")
+printf 'print("MOCK_FEATURE_RECORD")\n' > "$d/scripts/feature_run_record.py"
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" --check 2>&1); status=$?; set -e
+[[ $status -eq 0 && ! "$out" =~ "MOCK_FEATURE_RECORD" ]] \
+  && ok "--check mode does not touch feature records" \
+  || bad "--check mode does not touch feature records" "exit $status, out: $out"
+
 echo ""
 echo "test_session_clean: $pass passed, $fail failed"
 [[ $fail -eq 0 ]] || exit 1

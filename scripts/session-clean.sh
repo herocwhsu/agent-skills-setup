@@ -89,6 +89,15 @@ if [[ $CHECK_ONLY -eq 0 && -f "$trace_script" ]]; then
   bash "$trace_script" --trend 2>&1 || true
 fi
 
+feature_record="$REPO_DIR/scripts/feature_run_record.py"
+if [[ $CHECK_ONLY -eq 0 && -f "$feature_record" ]]; then
+  echo ""
+  echo "==> [Feature Telemetry] Attaching run summaries to completed features and archiving to budget..."
+  if ! (cd "$REPO_DIR/scripts" && python3 "$feature_record" --repo "$REPO_DIR" --pending --archive) 2>&1; then
+    echo "    [WARN] Feature run summaries not recorded (see above); handoff is not blocked."
+  fi
+fi
+
 run_telemetry="$REPO_DIR/scripts/run_telemetry.py"
 if [[ $CHECK_ONLY -eq 0 && -f "$run_telemetry" ]]; then
   echo ""

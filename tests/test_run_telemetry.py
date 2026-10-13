@@ -1260,3 +1260,45 @@ def test_hook_feedback_metric_is_named_for_what_it_measures(tmp_path):
         "never stopped" in pa["stop_hook_feedback"]["note"]
         or "did not stop" in pa["stop_hook_feedback"]["note"]
     )
+
+
+def _report(path: Path, ts: str, status: str = "PASS") -> Path:
+    path.write_text(
+        json.dumps(
+            {"timestamp": ts, "status": status, "total_duration_ms": 5, "gates": [], "failed": []}
+        )
+    )
+    return path
+
+
+def test_gate_report_inside_the_window_is_attached(tmp_path):
+    rep = _report(tmp_path / "r.json", _ts(6).replace(".000Z", "Z"))
+    rows = [_row(_ts(5), "m1", _usage(1, 1)), _row(_ts(8), "m2", _usage(1, 1))]
+    run = rt.collect_run(_session(tmp_path, rows), start=_ts(4), end=_ts(9), verify_report=rep)
+    assert run["gates"]["status"] == "measured" and run["gates"]["value"]["status"] == "PASS"
+
+
+def test_gate_report_older_than_the_window_is_not_attributed(tmp_path):
+    rep = _report(tmp_path / "r.json", _ts(1).replace(".000Z", "Z"))
+    rows = [_row(_ts(5), "m1", _usage(1, 1))]
+    run = rt.collect_run(_session(tmp_path, rows), start=_ts(4), end=_ts(9), verify_report=rep)
+    assert run["gates"]["status"] == "missing" and "outside this window" in run["gates"]["source"]
+
+
+def test_gate_report_without_a_usable_timestamp_is_not_attributed_to_a_window(tmp_path):
+    rep = tmp_path / "r.json"
+    rep.write_text(json.dumps({"status": "PASS", "gates": []}))
+    run = rt.collect_run(
+        _session(tmp_path, [_row(_ts(5), "m1", _usage(1, 1))]),
+        start=_ts(4),
+        end=_ts(9),
+        verify_report=rep,
+    )
+    assert run["gates"]["status"] == "missing"
+
+
+def test_gate_report_without_a_window_is_attached_as_before(tmp_path):
+    rep = tmp_path / "r.json"
+    rep.write_text(json.dumps({"status": "PASS", "gates": []}))
+    run = rt.collect_run(_session(tmp_path, [_row(_ts(5), "m1", _usage(1, 1))]), verify_report=rep)
+    assert run["gates"]["status"] == "measured"

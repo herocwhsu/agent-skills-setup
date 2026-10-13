@@ -160,8 +160,13 @@ t_verify_end=$(now_ms)
 TOTAL_MS=$(( t_verify_end - t_verify_start ))
 [[ $TOTAL_MS -lt 0 ]] && TOTAL_MS=0
 
-# Generate JSON report if requested
-if [[ -n "$REPORT_FILE" || $JSON_OUT -eq 1 ]]; then
+# The last report is also kept outside the repo so run telemetry can attach it to the window it falls in.
+LAST_REPORT="${HARNESS_VERIFY_LAST_REPORT-${HOME:-}/.agent-skills-setup/state/harness-verify-last.json}"
+KEEP_LAST=0
+[[ -n "$LAST_REPORT" && "$LAST_REPORT" != "/.agent-skills-setup/state/harness-verify-last.json" ]] && KEEP_LAST=1
+
+# Generate JSON report if requested, or to keep the last one
+if [[ -n "$REPORT_FILE" || $JSON_OUT -eq 1 || $KEEP_LAST -eq 1 ]]; then
   report_json=$(python3 -c '
 import json, sys, time
 entries_file, failed, skipped, total_ms, slow_ms = sys.argv[1:6]
@@ -194,6 +199,9 @@ print(json.dumps(report, indent=2))
   if [[ -n "$REPORT_FILE" ]]; then
     mkdir -p "$(dirname "$REPORT_FILE")"
     printf '%s\n' "$report_json" > "$REPORT_FILE"
+  fi
+  if [[ $KEEP_LAST -eq 1 ]]; then
+    { mkdir -p "$(dirname "$LAST_REPORT")" && printf '%s\n' "$report_json" > "$LAST_REPORT"; } 2>/dev/null || true
   fi
   if [[ $JSON_OUT -eq 1 ]]; then
     printf '%s\n' "$report_json"

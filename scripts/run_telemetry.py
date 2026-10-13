@@ -611,7 +611,9 @@ def _process_adherence(
     }
 
 
-def _gates(report: Path | None) -> dict[str, Any]:
+def _gates(
+    report: Path | None, start: datetime | None = None, end: datetime | None = None
+) -> dict[str, Any]:
     if report is None or not report.is_file():
         return missing("no harness-verify --report file given")
     try:
@@ -620,6 +622,18 @@ def _gates(report: Path | None) -> dict[str, Any]:
         return missing("harness-verify report is not valid JSON")
     if not isinstance(data, dict):
         return missing("harness-verify report is not a JSON object")
+    if start is not None or end is not None:
+        stamp = data.get("timestamp")
+        try:
+            t = parse_ts(stamp) if isinstance(stamp, str) else None
+        except ValueError:
+            t = None
+        if t is None:
+            return missing(
+                "harness-verify report has no usable timestamp, so it cannot be tied to this window"
+            )
+        if (start is not None and t < start) or (end is not None and t >= end):
+            return missing("harness-verify report was written outside this window")
     dur = data.get("total_duration_ms")
     gates: list[dict[str, Any]] = []
     raw_gates = data.get("gates")
@@ -711,7 +725,7 @@ def collect_run(
         "events": _event_counts(rows),
         "process_adherence": _process_adherence(rows, subs, outside_log, t_start, t_end),
         "outside_agent": _outside_agent(outside_log, t_start, t_end),
-        "gates": _gates(verify_report),
+        "gates": _gates(verify_report, t_start, t_end),
         "cost_usd": missing(
             "none",
             "no authoritative cost source; custom ANTHROPIC_BASE_URL makes public pricing a guess, so it is not estimated",

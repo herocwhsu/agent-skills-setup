@@ -10,6 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT="$SCRIPT_DIR/harness-verify.sh"
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
+# Never write the kept "last report" into the real ~/.agent-skills-setup from a test.
+export HARNESS_VERIFY_LAST_REPORT="$TMPDIR/state/harness-verify-last.json"
 
 pass=0
 fail=0
@@ -185,6 +187,43 @@ if [[ $code -eq 0 && -f "$slow_report" ]] && grep -q '"slow": true' "$slow_repor
   ok "HARNESS_VERIFY_SLOW_MS flags slow gate in JSON report"
 else
   bad "HARNESS_VERIFY_SLOW_MS flags slow gate in JSON report" "out: $out"
+fi
+
+# --- the last report is kept for run telemetry, without --report or --json ---
+stub_gates 0 0 0
+rm -f "$HARNESS_VERIFY_LAST_REPORT"
+HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 || true
+if [[ -f "$HARNESS_VERIFY_LAST_REPORT" ]] && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["status"]=="PASS" and d["timestamp"]' "$HARNESS_VERIFY_LAST_REPORT"; then
+  ok "the last report is kept with a timestamp and status"
+else
+  bad "the last report is kept with a timestamp and status" "missing or invalid: $HARNESS_VERIFY_LAST_REPORT"
+fi
+
+# --- a failing run overwrites it, so a stale PASS cannot be attributed later ---
+stub_gates 0 1 0
+HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 || true
+if python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["status"]=="FAIL"' "$HARNESS_VERIFY_LAST_REPORT"; then
+  ok "a failing run replaces the kept report"
+else
+  bad "a failing run replaces the kept report" "$(cat "$HARNESS_VERIFY_LAST_REPORT" 2>/dev/null | head -3)"
+fi
+
+# --- an unwritable location never changes the exit code or the console output ---
+stub_gates 0 0 0
+rc=0; HARNESS_VERIFY_LAST_REPORT="/proc/nope/x/last.json" HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >"$TMPDIR/out.unw" 2>&1 || rc=$?
+if [[ $rc -eq 0 ]] && grep -q "All gates passed" "$TMPDIR/out.unw"; then
+  ok "an unwritable last-report path does not affect the result"
+else
+  bad "an unwritable last-report path does not affect the result" "rc=$rc $(tail -3 "$TMPDIR/out.unw")"
+fi
+
+# --- an empty setting turns keeping off ---
+rm -f "$TMPDIR/off.json"
+rc=0; HARNESS_VERIFY_LAST_REPORT="" HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 && ! -e "$TMPDIR/off.json" && "$(ls "$TMPDIR/state" 2>/dev/null | wc -l | tr -d ' ')" -ge 0 ]]; then
+  ok "an empty HARNESS_VERIFY_LAST_REPORT keeps nothing and still passes"
+else
+  bad "an empty HARNESS_VERIFY_LAST_REPORT keeps nothing and still passes" "rc=$rc"
 fi
 
 echo ""
