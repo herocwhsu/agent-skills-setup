@@ -41,4 +41,5 @@ Produced by `scripts/run_telemetry.py`, compared by `scripts/run_report.py`. Rec
 
 - The 46,096 figure the harness reports for one subagent is context size plus output. Summing every message's input gives about 307,000. Neither is billed usage, so both are labeled and neither is called cost.
 - A conflicting duplicate row (same message id, different numbers) is handled by keeping the higher output row and recording both. It has never occurred in the 22 sessions, so that path is covered only by a synthetic test.
+- Active turn time can exceed wall time in a commit window (feat-066: 4.1 h against 3.8 h). A `turn_duration` record is stamped when the turn ends, so a turn that began before the window start is counted whole inside it, and a long turn that spans a commit boundary shifts time between two windows. Read it as a rough share of time spent in turns, not as a bound.
 - Time inside a commit window is cut by timestamp. A commit made while a subagent was running attributes that subagent to the window it started in only if the transcript's records fall inside it.
