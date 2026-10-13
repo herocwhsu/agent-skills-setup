@@ -67,34 +67,54 @@ def default_timeout(purpose: str) -> int:
     return REVIEW_TIMEOUT if purpose == "review" else DELEGATE_TIMEOUT
 
 
-_REASON_STATUS = re.compile(r"(?<![0-9A-Za-z.])(4[0-9]{2}|5[0-9]{2})(?![0-9A-Za-z.])")
-_REASON_PHRASES = (
-    ("too many requests", re.compile(r"too many requests", re.I)),
-    ("rate limit", re.compile(r"rate[- ]limit", re.I)),
-    ("monthly quota", re.compile(r"monthly (?:request )?(?:limit|quota)", re.I)),
-    ("quota", re.compile(r"quota", re.I)),
-    ("usage limit", re.compile(r"usage limit|limit reached", re.I)),
-    ("unauthorized", re.compile(r"unauthori[sz]ed", re.I)),
-    ("not logged in", re.compile(r"not logged in|/login", re.I)),
-    ("forbidden", re.compile(r"forbidden", re.I)),
-    ("unavailable", re.compile(r"unavailable|overloaded", re.I)),
-    ("connection reset", re.compile(r"connection reset|econnreset", re.I)),
-    ("connection refused", re.compile(r"connection refused|econnrefused", re.I)),
-    ("timed out", re.compile(r"timed? ?out", re.I)),
-    ("context too long", re.compile(r"context (?:length|limit|window)|too long", re.I)),
+# A status number only counts right after a status word, and only for codes a client really sees; a bare
+# 3-digit number is as likely to be a port, a line number or part of a key.
+_REASON_STATUS = re.compile(
+    r"\b(?:http|status(?: code)?|error|code|returned|response)\b[^0-9A-Za-z]{0,12}"
+    r"(400|401|403|404|408|409|413|422|429|500|502|503|504)(?![0-9A-Za-z])",
+    re.I,
 )
+# Only failures that reach error_reason: classify() already turns quota, usage-limit and login messages
+# into rate_limit or auth, and those results carry no reason.
+_REASON_PHRASES = (
+    ("too many requests", re.compile(r"too ?many ?requests", re.I)),
+    ("rate limit", re.compile(r"rate[-_ ]?limit", re.I)),
+    ("request too large", re.compile(r"request (?:is )?too large|payload too large", re.I)),
+    ("context too long", re.compile(r"context[-_ ](?:length|limit|window)|maximum context", re.I)),
+    ("payment required", re.compile(r"payment required|billing", re.I)),
+    ("insufficient credits", re.compile(r"insufficient (?:credit|fund|balance)", re.I)),
+    ("invalid api key", re.compile(r"invalid (?:api[- ]?)?(?:key|token)|incorrect api key", re.I)),
+    ("forbidden", re.compile(r"\bforbidden\b", re.I)),
+    ("server error", re.compile(r"internal server error|bad gateway|gateway time-?out", re.I)),
+    ("overloaded", re.compile(r"\boverloaded\b|service unavailable", re.I)),
+    ("connection reset", re.compile(r"connection reset|econnreset|socket hang up", re.I)),
+    ("connection refused", re.compile(r"connection refused|econnrefused", re.I)),
+    (
+        "host not found",
+        re.compile(r"\benotfound\b|name or service not known|could not resolve host", re.I),
+    ),
+    ("certificate", re.compile(r"certificate verify|self[- ]signed certificate|cert_", re.I)),
+    ("timed out", re.compile(r"\btimed[ -]out\b|\betimedout\b|\bdeadline exceeded\b", re.I)),
+)
+_REASON_SCAN = 40_000
 
 
 def error_reason(out: str) -> str:
     """What kind of failure an agent reported, for the attempt log. Never any of its text.
 
-    The result is built only from a fixed vocabulary (known phrases), HTTP-style status numbers matched
-    by a strict pattern, and the output size, so nothing the agent printed (paths, keys, headers, user
-    text) can reach the log. Anything outside the vocabulary shows up as "unrecognized" plus a length.
+    The result is built only from a fixed vocabulary (known phrases), status numbers matched by a strict
+    pattern, and the output size, so nothing the agent printed (paths, keys, headers, user text) can reach
+    the log. Anything outside the vocabulary shows up as "unrecognized" plus a length. The start and the
+    end of the output are scanned: a traceback or the final error line is usually at the end.
     """
-    text = out[: REASON_MAX * 400].strip()
-    if not text:
+    stripped = out.strip()
+    if not stripped:
         return ""
+    text = (
+        stripped
+        if len(stripped) <= 2 * _REASON_SCAN
+        else stripped[:_REASON_SCAN] + "\n" + stripped[-_REASON_SCAN:]
+    )
     found: list[str] = []
     codes: list[str] = []
     for m in _REASON_STATUS.finditer(text):

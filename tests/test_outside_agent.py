@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 import signal
 import stat
 import subprocess
@@ -862,60 +863,91 @@ def test_explicit_timeout_wins_over_the_purpose_default(stubenv):
     assert "agy(timeout after 1s)" in r.stderr
 
 
-@pytest.mark.parametrize(
-    "text",
-    [
-        'password="hunter 2 xyz"',
-        '{"password":"x y"}',
-        "DB_PASS=hunter2",
-        "api key: hunter2value",
-        "Cookie: theme=dark; session=abc123; csrf=xyz789; id=44",
-        "to" + "ken%3D" + "".join(["ab", "cd", "ef", "12", "34", "56"]),
-        "/Users/bob/My Documents/secret project/x",
-        "C:\\Users\\bob\\secret.txt",
-        "user:pass@host",
-        "-----begin private key----- QUJDREVGR0hJ",
-        "failed at /home/bob/.ssh/id_rsa with sk-abcdefghijkl123456",
-    ],
-    ids=lambda v: "case",
+_REASON_SHAPE = re.compile(
+    r"(?:http [45][0-9]{2}|[a-z][a-z ]*[a-z]|unrecognized, [0-9]+ chars)(?:; (?:http [45][0-9]{2}|[a-z][a-z ]*[a-z]))*"
 )
-def test_error_reason_never_contains_any_input_text(text):
+_HOSTILE = [
+    'password="hunter 2 xyz"',
+    '{"password":"x y"}',
+    "DB_PASS=hunter2",
+    "api key: hunter2value",
+    "Cookie: theme=dark; session=abc123; csrf=xyz789; id=44",
+    "to" + "ken%3D" + "".join(["ab", "cd", "ef", "12", "34", "56"]),
+    "/Users/bob/My Documents/secret project/x",
+    "C:\\Users\\bob\\secret.txt",
+    "user:pass@host",
+    "-----begin private key----- QUJDREVGR0hJ",
+    "failed at /home/bob/.ssh/id_rsa with sk-abcdefghijkl123456",
+    "api_key-429-secret",
+    "/build/503/output",
+    "request-id=402-test",
+    "connect localhost:500",
+    "10.0.0.1:443 refused",
+    "SyntaxError at line 404",
+    "tokens used 450 of 500",
+    "sk-ant-api03-AAAA_429_BBBB",
+    "id=503",
+    "Enjoy some time outdoors",
+    "Filename too long",
+    "request took too long",
+    "line too long (E501)",
+    "uptime out of range",
+    "cannot find module 'timeout'",
+    "method unavailable in this build",
+]
+
+
+@pytest.mark.parametrize("text", _HOSTILE, ids=lambda v: "case")
+def test_error_reason_output_has_only_the_allowed_shape(text):
     out = oa.error_reason(text)
-    for fragment in (
-        "hunter",
-        "bob",
-        "xyz",
-        "abc123",
-        "csrf",
-        "pass",
-        "QUJD",
-        "id_rsa",
-        "Documents",
-        "secret",
-    ):
-        assert fragment not in out, (fragment, out)
+    assert _REASON_SHAPE.fullmatch(out), out
+    assert len(out) <= oa.REASON_MAX and "\n" not in out
+
+
+@pytest.mark.parametrize("text", _HOSTILE, ids=lambda v: "case")
+def test_error_reason_never_reports_a_status_for_digits_that_are_not_a_status(text):
+    if text in ("SyntaxError at line 404",):
+        assert "http" not in oa.error_reason(text)
+    for fragment in ("429", "503", "402", "500", "443", "404", "450"):
+        if fragment in text and not re.search(
+            r"(?i)\b(http|status|error|code|returned)\b[^0-9]{0,12}" + fragment, text
+        ):
+            assert "http " + fragment not in oa.error_reason(text), (text, oa.error_reason(text))
 
 
 @pytest.mark.parametrize(
     "text,expected",
     [
-        ("HTTP 429 Too Many Requests: slow down", "http 429; too many requests"),
-        ("rate limit exceeded after 3 retries", "rate limit"),
-        (
-            "Monthly request limit exceeded. Account has reached its monthly quota.",
-            "monthly quota; quota",
-        ),
-        ("401 Unauthorized", "http 401; unauthorized"),
-        ("HTTP 503 Service Unavailable", "http 503; unavailable"),
-        ("connection reset by peer", "connection reset"),
-        ("Error: ECONNREFUSED 127.0.0.1:443", "connection refused"),
-        ("Not logged in - please run /login", "not logged in"),
+        ("HTTP 429 Too Many Requests: slow down", ["http 429", "too many requests"]),
+        ("Error: 429.", ["http 429"]),
+        ("status code 503.\n", ["http 503"]),
+        ("request failed with status 502", ["http 502"]),
+        ("rate_limit_error: overloaded", ["rate limit"]),
+        ("ratelimit hit", ["rate limit"]),
+        ("TooManyRequestsException", ["too many requests"]),
+        ("context_length_exceeded", ["context too long"]),
+        ("Request too large for model", ["request too large"]),
+        ("402 payment required", ["payment required"]),
+        ("insufficient credits", ["insufficient credits"]),
+        ("getaddrinfo ENOTFOUND api.example.com", ["host not found"]),
+        ("socket hang up", ["connection reset"]),
+        ("connection reset by peer", ["connection reset"]),
+        ("Error: ECONNREFUSED 127.0.0.1:443", ["connection refused"]),
+        ("certificate verify failed", ["certificate"]),
+        ("Invalid API key", ["invalid api key"]),
+        ("Internal Server Error", ["server error"]),
+        ("the command timed out after 110s", ["timed out"]),
     ],
 )
-def test_error_reason_names_only_known_kinds(text, expected):
+def test_error_reason_names_the_kinds_that_reach_it(text, expected):
     got = oa.error_reason(text)
-    for part in expected.split("; "):
+    for part in expected:
         assert part in got, (text, got)
+
+
+def test_a_status_at_the_end_of_a_very_long_output_is_still_found():
+    out = oa.error_reason(("x" * 200_000) + "\nHTTP 429 Too Many Requests")
+    assert "http 429" in out and "too many requests" in out
 
 
 def test_unrecognized_output_is_logged_by_size_only():
@@ -924,14 +956,15 @@ def test_unrecognized_output_is_logged_by_size_only():
     assert "unexpected" not in out
 
 
-def test_error_reason_is_one_short_line_from_a_fixed_vocabulary():
-    out = oa.error_reason("429 " + "x" * 5_000_000)
-    assert "\n" not in out and len(out) <= oa.REASON_MAX
-
-
 def test_error_reason_is_linear_on_huge_single_line_output():
     start = time.perf_counter()
-    for text in ("a" * 10_000_000, "/" * 10_000_000, "token=" * 2_000_000, "429 " * 2_000_000):
+    for text in (
+        "a" * 10_000_000,
+        "/" * 10_000_000,
+        "token=" * 2_000_000,
+        "429 " * 2_000_000,
+        "HTTP 4" * 1_000_000,
+    ):
         oa.error_reason(text)
     assert time.perf_counter() - start < 3.0
 
@@ -940,6 +973,22 @@ def test_error_reason_handles_empty_and_odd_input():
     assert oa.error_reason("") == ""
     assert oa.error_reason("   \n\t ") == ""
     assert oa.error_reason("\x00\x1b[0m") is not None
+    assert oa.error_reason("\ud800" * 1000) is not None
+
+
+@pytest.mark.parametrize(
+    "result_body",
+    [
+        "echo 'HTTP 429 Too Many Requests' >&2; exit 1",
+        "echo 'You have hit your usage limit' >&2; exit 1",
+        "echo '401 Unauthorized' >&2; exit 1",
+        "exit 1",
+    ],
+)
+def test_reason_is_set_only_when_the_result_is_a_plain_error(stubenv, result_body):
+    r, att = _run_agy(stubenv, result_body)
+    has_reason = "reason" in att[0]
+    assert has_reason == (att[0]["result"] == "error")
 
 
 def test_error_attempt_records_a_kind_not_the_text(stubenv):
