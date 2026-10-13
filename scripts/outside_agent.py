@@ -16,7 +16,6 @@ import sys
 import tempfile
 import threading
 import time
-import unicodedata
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, NamedTuple, NoReturn
@@ -68,63 +67,48 @@ def default_timeout(purpose: str) -> int:
     return REVIEW_TIMEOUT if purpose == "review" else DELEGATE_TIMEOUT
 
 
-_REASON_SHAPES = re.compile(
-    r"(sk[-_][A-Za-z0-9_-]{6,}|gh[pousr]_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{12,}|xox[abprs]-[A-Za-z0-9-]{6,}"
-    r"|eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{2,}\.|AIza[A-Za-z0-9_-]{16,}|glpat-[A-Za-z0-9_-]{10,})",
+_REASON_STATUS = re.compile(r"(?<![0-9A-Za-z.])(4[0-9]{2}|5[0-9]{2})(?![0-9A-Za-z.])")
+_REASON_PHRASES = (
+    ("too many requests", re.compile(r"too many requests", re.I)),
+    ("rate limit", re.compile(r"rate[- ]limit", re.I)),
+    ("monthly quota", re.compile(r"monthly (?:request )?(?:limit|quota)", re.I)),
+    ("quota", re.compile(r"quota", re.I)),
+    ("usage limit", re.compile(r"usage limit|limit reached", re.I)),
+    ("unauthorized", re.compile(r"unauthori[sz]ed", re.I)),
+    ("not logged in", re.compile(r"not logged in|/login", re.I)),
+    ("forbidden", re.compile(r"forbidden", re.I)),
+    ("unavailable", re.compile(r"unavailable|overloaded", re.I)),
+    ("connection reset", re.compile(r"connection reset|econnreset", re.I)),
+    ("connection refused", re.compile(r"connection refused|econnrefused", re.I)),
+    ("timed out", re.compile(r"timed? ?out", re.I)),
+    ("context too long", re.compile(r"context (?:length|limit|window)|too long", re.I)),
 )
-_REASON_KEYWORD = re.compile(
-    r"(?:bearer|authorization|passw(?:or)?d|pwd|api[-_ ]?key|secret|token|credential|cookie"
-    r"|x-auth|auth-?token|session|private key|-----begin)",
-    re.I,
-)
-_REASON_BLOB = re.compile(r"^[A-Za-z0-9+/_=-]{24,}$")
-_REASON_PEM = re.compile(r"-----BEGIN[^-]*-----.*?(?:-----END[^-]*-----|$)", re.S)
-_REASON_URL_AUTH = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://[^\s/@]+@")
-_REASON_PATHY = re.compile(r"""[\\/~]|^[A-Za-z]:""")
 
 
 def error_reason(out: str) -> str:
-    """One bounded line of an agent's error output for the attempt log, without paths or secrets.
+    """What kind of failure an agent reported, for the attempt log. Never any of its text.
 
-    Works token by token: a token that looks like a path, a URL with credentials, or a credential
-    is replaced whole; the word after a secret keyword is replaced too. Bounding happens last, on
-    the cleaned text, so redaction markers are never cut and long whitespace cannot hide the text.
+    The result is built only from a fixed vocabulary (known phrases), HTTP-style status numbers matched
+    by a strict pattern, and the output size, so nothing the agent printed (paths, keys, headers, user
+    text) can reach the log. Anything outside the vocabulary shows up as "unrecognized" plus a length.
     """
-    raw = "".join(
-        ch for ch in ESC_RE.sub("", out[: REASON_MAX * 40]) if unicodedata.category(ch) != "Cf"
-    )
-    raw = _REASON_PEM.sub("[redacted]", raw)
-    raw = re.sub(r"\s*\.\s*", ".", raw) if "ey" in raw else raw
-    tokens = raw.split()[: REASON_MAX * 2]
-    cleaned: list[str] = []
-    redact_left = 0
-    for tok in tokens:
-        bare = tok.strip("\"'()[]<>,;")
-        if redact_left > 0:
-            cleaned.append("[redacted]")
-            redact_left -= 1
-            continue
-        if _REASON_URL_AUTH.search(bare) or _REASON_SHAPES.search(bare):
-            cleaned.append("[redacted]")
-        elif _REASON_KEYWORD.search(bare) and re.search(r"[=:]\S", bare):
-            cleaned.append("[redacted]")
-        elif _REASON_PATHY.search(bare) and not re.fullmatch(r"[A-Za-z]+/[A-Za-z]+", bare):
-            cleaned.append("[path]")
-        elif (
-            _REASON_BLOB.match(bare) and re.search(r"[0-9]", bare) and re.search(r"[A-Za-z]", bare)
-        ):
-            cleaned.append("[redacted]")
-        elif _REASON_KEYWORD.search(bare):
-            cleaned.append(tok)
-            redact_left = 2
-        else:
-            cleaned.append(tok)
-    text = " ".join(cleaned)
-    if len(text) <= REASON_MAX:
-        return text
-    cut = text[:REASON_MAX]
-    last = cut.rfind(" ")
-    return cut[:last] if last > REASON_MAX // 2 else cut
+    text = out[: REASON_MAX * 400].strip()
+    if not text:
+        return ""
+    found: list[str] = []
+    codes: list[str] = []
+    for m in _REASON_STATUS.finditer(text):
+        if m.group(1) not in codes:
+            codes.append(m.group(1))
+        if len(codes) >= 3:
+            break
+    found.extend(f"http {c}" for c in codes)
+    for label, pat in _REASON_PHRASES:
+        if pat.search(text):
+            found.append(label)
+    if not found:
+        return f"unrecognized, {len(out)} chars"
+    return "; ".join(found)[:REASON_MAX]
 
 
 EVALUATOR_RUBRIC = """## Evaluator Rubric (Score each dimension 1-5):

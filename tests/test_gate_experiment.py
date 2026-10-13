@@ -373,3 +373,56 @@ def test_planted_files_are_staged_only_for_cases_that_ask_for_it(fake_repo, tmp_
 def test_only_the_type_case_asks_to_be_staged():
     staged = [c["id"] for c in CASES if c.get("stage")]
     assert staged == ["types-error"]
+
+
+def test_the_runtime_copy_is_taken_from_the_clone_after_the_defect_is_planted(tmp_path):
+    src = tmp_path / "src"
+    (src / "scripts").mkdir(parents=True)
+    (src / "scripts" / "outside_agent.py").write_text("v1\n")
+    (src / "lib").mkdir()
+    (src / "lib" / "lib.sh").write_text("l\n")
+    (src / "scripts" / "credentials").mkdir()
+    (src / "scripts" / "credentials" / "_store.sh").write_text("s\n")
+    (src / "scripts" / "outside-agent.sh").write_text("o\n")
+    work = tmp_path / "work"
+    work.mkdir()
+    for rel in (
+        "scripts/outside_agent.py",
+        "lib/lib.sh",
+        "scripts/credentials/_store.sh",
+        "scripts/outside-agent.sh",
+    ):
+        (work / rel).parent.mkdir(parents=True, exist_ok=True)
+        (work / rel).write_text((src / rel).read_text())
+    ge.apply_ops(
+        work, [{"op": "append", "path": "scripts/credentials/_store.sh", "text": "planted\n"}]
+    )
+    rt = tmp_path / "rt"
+    ge._seed_runtime(src, rt, work)
+    assert (rt / "_store.sh").read_text() == "s\nplanted\n"
+    ge._seed_runtime(src, tmp_path / "rt2")
+    assert (tmp_path / "rt2" / "_store.sh").read_text() == "s\n"
+
+
+def test_the_runtime_drift_case_is_the_only_one_expected_to_differ_from_the_runtime():
+    drift = [c["id"] for c in CASES if c["expect"] == "runtime drift"]
+    assert drift == ["runtime-drift-lib-edit"]
+    cred = next(c for c in CASES if c["id"] == "credential-backend-missing-branch")
+    assert cred.get("seed_after_ops") is True
+
+
+def test_staged_but_uncommitted_source_files_are_tracked_in_the_clone(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    _git(src, "init", "-q")
+    (src / "a.txt").write_text("x\n")
+    _git(src, "add", "-A")
+    _git(src, "commit", "-q", "-m", "init")
+    (src / "new.py").write_text("y = 1\n")
+    _git(src, "add", "new.py")
+    dst = tmp_path / "dst"
+    ge._clone(src, dst)
+    listed = subprocess.run(
+        ["git", "-C", str(dst), "ls-files"], capture_output=True, text=True
+    ).stdout.split()
+    assert "new.py" in listed

@@ -52,7 +52,7 @@ How often each guard returned feedback to the agent, from `stop_hook_summary` re
 
 ## Results (2026-10-13)
 
-Baseline of the unmodified tree: all 11 gates pass. Twelve cases; the full run took 20 minutes. The clean-state case was first reported as broken because the tool staged every planted file, which hid it from a gate that looks for uncommitted files; after the fix (stage only the type case) it was re-run alone and the clean-state gate caught it.
+Baseline of the unmodified tree: all 11 gates pass. Twelve cases; the full run took 20 minutes. Two cases were corrected after the full run and re-run alone: the clean-state case (the tool had staged every planted file, hiding it from a gate that looks for uncommitted files; now only the type case is staged), and the credential case (it edits a runtime-copied file, so the runtime-drift gate also fired; the runtime copy is now taken after the defect is planted, so only the drift case differs from the runtime).
 
 | Case | Written for | Caught by |
 |---|---|---|
@@ -61,7 +61,7 @@ Baseline of the unmodified tree: all 11 gates pass. Twelve cases; the full run t
 | tests-broken-assertion | tests | tests |
 | skill-path-undefined-var | skill paths | skill paths, tests |
 | bash-compat-mapfile | bash compat | bash compat, tests |
-| credential-backend-missing-branch | cred backends | cred backends, tests, runtime drift |
+| credential-backend-missing-branch | cred backends | cred backends, tests |
 | hook-wiring-missing-target | hook wiring | hook wiring, tests |
 | state-layer-two-active | state layer | state layer, tests |
 | state-layer-done-without-evidence | state layer | state layer, tests |

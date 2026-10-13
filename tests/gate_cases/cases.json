@@ -72,7 +72,8 @@
           "path": "scripts/credentials/_store.sh",
           "text": "\ngate_case_fn() {\n  case \"$(_os)\" in\n    darwin) echo mac ;;\n    linux-gui) echo gui ;;\n  esac\n}\n"
         }
-      ]
+      ],
+      "seed_after_ops": true
     },
     {
       "id": "hook-wiring-missing-target",

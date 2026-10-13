@@ -105,6 +105,18 @@ def _clone(src: Path, dst: Path) -> None:
             shutil.copy2(s, d)
         elif not s.exists() and d.exists():
             d.unlink()
+    staged = subprocess.run(
+        ["git", "-C", str(src), "diff", "--cached", "--name-only", "-z"],
+        check=True,
+        capture_output=True,
+    ).stdout.split(b"\0")
+    for raw in staged:
+        if raw and (dst / raw.decode("utf-8", errors="surrogateescape")).is_file():
+            subprocess.run(
+                ["git", "-C", str(dst), "add", "--", raw.decode("utf-8", errors="surrogateescape")],
+                check=True,
+                capture_output=True,
+            )
     venv = src / ".venv"
     if venv.exists() and not (dst / ".venv").exists():
         (dst / ".venv").symlink_to(venv)
@@ -121,6 +133,9 @@ def run_case(
     apply_ops(work, case.get("ops", []))
     if case.get("stage"):
         track(work)
+    runtime_dir = (env or {}).get("RUNTIME_DRIFT_GUARD_RUNTIME_DIR")
+    if runtime_dir:
+        _seed_runtime(src, Path(runtime_dir), work if case.get("seed_after_ops") else None)
     run_env = {**os.environ, **(env or {})}
     r = subprocess.run(
         ["bash", str(work / "scripts" / "harness-verify.sh")],
@@ -232,7 +247,6 @@ def main(argv: list[str] | None = None) -> int:
     rows = []
     for case in chosen:
         runtime_case = runtime / case["id"]
-        _seed_runtime(args.repo, runtime_case)
         env = {"HOME": str(home), "RUNTIME_DRIFT_GUARD_RUNTIME_DIR": str(runtime_case)}
         row = run_case(args.repo, case, work_root, env=env)
         shutil.rmtree(work_root / case["id"], ignore_errors=True)
@@ -250,11 +264,16 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _seed_runtime(repo: Path, dst: Path) -> None:
-    """Copy the files the runtime-drift gate compares, so a clean clone starts in sync."""
+def _seed_runtime(repo: Path, dst: Path, planted: Path | None = None) -> None:
+    """Copy the files the runtime-drift gate compares so a clean clone starts in sync.
+
+    With `planted`, copy them from the clone after the defect was planted, for cases that edit a
+    runtime-copied file for a reason other than drift; only the drift case should differ from it.
+    """
     dst.mkdir(parents=True, exist_ok=True)
+    root = planted if planted is not None else repo
     for src, name in _gate_names.RUNTIME_FILES:
-        s = repo / src
+        s = root / src
         if s.is_file():
             shutil.copy(s, dst / name)
 

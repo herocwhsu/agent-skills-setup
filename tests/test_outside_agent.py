@@ -863,78 +863,89 @@ def test_explicit_timeout_wins_over_the_purpose_default(stubenv):
 
 
 @pytest.mark.parametrize(
-    "text,leak",
+    "text",
     [
-        ("Authorization: Bearer abcdefghijklmnop", "abcdefghijklmnop"),
-        ("AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "wJalrXUtnFEMI"),
-        ("fetch https://user:pass12345@host.example/api failed", "pass12345"),
-        ("TOKEN\u200b=supersecret", "supersecret"),
-        ("failed at C:/Users/bob/secret.txt", "bob"),
-        ('open "../private/key"', "private/key"),
-        ('error at "/Users/alice/key.pem"', "alice"),
-        ("at (C:\\data\\config.json)", "config.json"),
-        ("open \\\\server\\share\\secret.txt", "secret.txt"),
-        ("home ~alice/file", "alice"),
-        (
-            "cmd -H 'X-Auth: " + "".join(["a1b2", "c3d4", "e5f6", "g7h8"]) + "'",
-            "".join(["a1b2", "c3d4"]),
-        ),
-        (
-            "Cookie: session=" + "".join(["Zm9v", "YmFy", "YmF6", "cXV4"]) + "; theme=dark",
-            "".join(["Zm9v", "YmFy"]),
-        ),
-        (
-            "-----BEGIN "
-            + "PRIVATE"
-            + " KEY----- "
-            + "".join(["MIIE", "vQIB", "ADAN", "Bgkq"])
-            + " -----END "
-            + "PRIVATE"
-            + " KEY-----",
-            "".join(["MIIE", "vQIB"]),
-        ),
-        (
-            "token ey" + "".join(["Jh", "bGci"]) + " . ey" + "".join(["Jz", "dWIi"]) + " . sig",
-            "".join(["Jh", "bGci"]),
-        ),
-        (
-            "failed with "
-            + "".join(["QUJD", "REVG", "R0hJ", "SktM", "TU5P", "UFFS", "U1RV", "VldY"]),
-            "".join(["QUJD", "REVG"]),
-        ),
+        'password="hunter 2 xyz"',
+        '{"password":"x y"}',
+        "DB_PASS=hunter2",
+        "api key: hunter2value",
+        "Cookie: theme=dark; session=abc123; csrf=xyz789; id=44",
+        "to" + "ken%3D" + "".join(["ab", "cd", "ef", "12", "34", "56"]),
+        "/Users/bob/My Documents/secret project/x",
+        "C:\\Users\\bob\\secret.txt",
+        "user:pass@host",
+        "-----begin private key----- QUJDREVGR0hJ",
+        "failed at /home/bob/.ssh/id_rsa with sk-abcdefghijkl123456",
     ],
     ids=lambda v: "case",
 )
-def test_error_reason_redacts_common_secret_and_path_forms(text, leak):
-    assert leak not in oa.error_reason(text)
+def test_error_reason_never_contains_any_input_text(text):
+    out = oa.error_reason(text)
+    for fragment in (
+        "hunter",
+        "bob",
+        "xyz",
+        "abc123",
+        "csrf",
+        "pass",
+        "QUJD",
+        "id_rsa",
+        "Documents",
+        "secret",
+    ):
+        assert fragment not in out, (fragment, out)
 
 
-def test_error_reason_keeps_the_error_itself_readable():
-    out = oa.error_reason("HTTP 429 Too Many Requests: slow down")
-    assert out == "HTTP 429 Too Many Requests: slow down"
-    assert "rate limit exceeded after 3 retries" in oa.error_reason(
-        "rate limit exceeded after 3 retries"
-    )
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("HTTP 429 Too Many Requests: slow down", "http 429; too many requests"),
+        ("rate limit exceeded after 3 retries", "rate limit"),
+        (
+            "Monthly request limit exceeded. Account has reached its monthly quota.",
+            "monthly quota; quota",
+        ),
+        ("401 Unauthorized", "http 401; unauthorized"),
+        ("HTTP 503 Service Unavailable", "http 503; unavailable"),
+        ("connection reset by peer", "connection reset"),
+        ("Error: ECONNREFUSED 127.0.0.1:443", "connection refused"),
+        ("Not logged in - please run /login", "not logged in"),
+    ],
+)
+def test_error_reason_names_only_known_kinds(text, expected):
+    got = oa.error_reason(text)
+    for part in expected.split("; "):
+        assert part in got, (text, got)
 
 
-def test_error_reason_counts_its_budget_after_collapsing_whitespace():
-    assert oa.error_reason(" " * 1600 + "boom") == "boom"
-    assert oa.error_reason("\n" * 5000 + "429") == "429"
+def test_unrecognized_output_is_logged_by_size_only():
+    out = oa.error_reason("some completely unexpected failure text " * 10)
+    assert out.startswith("unrecognized") and "chars" in out
+    assert "unexpected" not in out
 
 
-def test_error_reason_never_cuts_a_marker_in_half_and_stays_bounded():
-    out = oa.error_reason("/a " * 200)
-    assert len(out) <= 200 and not out.endswith("[pa") and not out.endswith("[p")
+def test_error_reason_is_one_short_line_from_a_fixed_vocabulary():
+    out = oa.error_reason("429 " + "x" * 5_000_000)
+    assert "\n" not in out and len(out) <= oa.REASON_MAX
 
 
 def test_error_reason_is_linear_on_huge_single_line_output():
     start = time.perf_counter()
-    oa.error_reason("a" * 10_000_000)
-    oa.error_reason("/" * 10_000_000)
-    oa.error_reason("token=" * 2_000_000)
-    assert time.perf_counter() - start < 2.0
+    for text in ("a" * 10_000_000, "/" * 10_000_000, "token=" * 2_000_000, "429 " * 2_000_000):
+        oa.error_reason(text)
+    assert time.perf_counter() - start < 3.0
 
 
-def test_error_reason_handles_non_string_and_empty_input():
+def test_error_reason_handles_empty_and_odd_input():
     assert oa.error_reason("") == ""
+    assert oa.error_reason("   \n\t ") == ""
     assert oa.error_reason("\x00\x1b[0m") is not None
+
+
+def test_error_attempt_records_a_kind_not_the_text(stubenv):
+    r, att = _run_agy(
+        stubenv, "echo 'HTTP 429 at /Users/bob/secret/x using sk-abcdefghijkl123' >&2; exit 1"
+    )
+    assert r.returncode == 2
+    reason = att[0]["reason"]
+    assert "429" in reason and "bob" not in reason and "sk-" not in reason and len(reason) <= 200
