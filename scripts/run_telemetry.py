@@ -498,6 +498,119 @@ def _outside_agent(
     }
 
 
+_GUARD_NAME_RE = re.compile(r'^\[[a-z0-9]+ "[^"\]]{0,200}/hooks/([A-Za-z0-9_-]{1,40})\.sh"\]')
+_FAMILY_RE = re.compile(r"[a-z]{2,12}")
+
+
+def _guard_name(error: Any) -> str:
+    """Name of the hook script in the leading `[cmd "path"]` of a hookErrors entry, else unknown."""
+    m = _GUARD_NAME_RE.match(error) if isinstance(error, str) else None
+    if m is None:
+        return "unknown"
+    name = m.group(1)
+    if (
+        _CREDENTIAL_SHAPES.search(name)
+        or _SECRET_WORDS.search(name)
+        or re.search(r"[0-9]{4,}|[A-Za-z0-9]{24,}", name)
+    ):
+        return "unknown"
+    return name
+
+
+def _stop_hook_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    summaries = [
+        r for r in rows if r.get("type") == "system" and r.get("subtype") == "stop_hook_summary"
+    ]
+    if not summaries:
+        gone = "no stop_hook_summary records in this window"
+        return {
+            "stop_hook_runs": missing(gone),
+            "stop_hook_feedback": missing(gone),
+            "feedback_by_guard": missing(gone),
+        }
+    by_guard: Counter[str] = Counter()
+    feedback = 0
+    for r in summaries:
+        errors = r.get("hookErrors")
+        if not isinstance(errors, list):
+            continue
+        for e in errors:
+            if not isinstance(e, str):
+                continue
+            feedback += 1
+            by_guard[_guard_name(e)] += 1
+    src = "system stop_hook_summary records"
+    return {
+        "stop_hook_runs": metric(len(summaries), src),
+        "stop_hook_feedback": metric(
+            feedback,
+            src,
+            note="hookErrors entries: a guard returned text to the agent. preventedContinuation was false in every record seen, so the session did not stop; whether the agent acted on the text is not recorded",
+        ),
+        "feedback_by_guard": metric(dict(by_guard), src),
+    }
+
+
+def _review_by_family(
+    log: Path | None, start: datetime | None, end: datetime | None
+) -> dict[str, Any]:
+    if log is None or not log.is_file():
+        gone = "outside-agent-runs.jsonl not found"
+        return {
+            "review_attempts_by_family": missing(gone),
+            "review_successes_by_family": missing(gone),
+        }
+    attempts: Counter[str] = Counter()
+    successes: Counter[str] = Counter()
+    for r in _read_rows(log)[0]:
+        if (
+            r.get("attempt") is not True
+            or r.get("purpose") != "review"
+            or not _in_window(r, start, end)
+        ):
+            continue
+        fam = r.get("family")
+        label = fam if isinstance(fam, str) and _FAMILY_RE.fullmatch(fam) else "unknown"
+        attempts[label] += 1
+        if r.get("result") == "ok":
+            successes[label] += 1
+    src = "outside-agent-runs.jsonl attempt rows with purpose=review"
+    return {
+        "review_attempts_by_family": metric(dict(attempts), src),
+        "review_successes_by_family": metric(dict(successes), src),
+    }
+
+
+def _process_adherence(
+    rows: list[dict[str, Any]],
+    subs: list[dict[str, Any]],
+    log: Path | None,
+    start: datetime | None,
+    end: datetime | None,
+) -> dict[str, Any]:
+    types: Counter[str] = Counter(
+        t if isinstance(t, str) and not t.startswith("[redacted") else "unknown"
+        for t in (s["agent_type"] for s in subs)
+    )
+    return {
+        **_stop_hook_metrics(rows),
+        **_review_by_family(log, start, end),
+        "subagents_by_type": metric(dict(types), "subagents/*.meta.json agentType"),
+        "failing_test_before_change": missing(
+            "no structured record; commit order shows only that a test file changed with the code",
+            "not derivable from session files",
+        ),
+        "pushed_without_instruction": missing(
+            "no structured record in session files",
+            "check git reflog or the remote; not derivable from the transcript",
+        ),
+        "user_corrections": missing(
+            "keyword matching cannot tell a correction from a question (about one in five messages matched in one session)",
+            "no reliable automatic source",
+        ),
+    }
+
+
 def _gates(report: Path | None) -> dict[str, Any]:
     if report is None or not report.is_file():
         return missing("no harness-verify --report file given")
@@ -596,6 +709,7 @@ def collect_run(
         "unmatched_spawns": [_tool_use_id(s) for s in spawns if s not in matched],
         "subagents_without_spawn": [s["agent_id"] for s in subs if not s["spawned_by_parent_call"]],
         "events": _event_counts(rows),
+        "process_adherence": _process_adherence(rows, subs, outside_log, t_start, t_end),
         "outside_agent": _outside_agent(outside_log, t_start, t_end),
         "gates": _gates(verify_report),
         "cost_usd": missing(

@@ -1003,3 +1003,260 @@ def test_find_session_file_prefers_the_most_recently_modified_match(tmp_path):
     _write(new, [_row(_ts(1), "m1", _usage(1, 1))])
     os.utime(old, (1_000_000, 1_000_000))
     assert rt.find_session_file(projects, UUID) == new
+
+
+def _hook_summary(ts: str, errors: list[Any] | None = None, count: int = 11) -> dict[str, Any]:
+    return {
+        "type": "system",
+        "subtype": "stop_hook_summary",
+        "timestamp": ts,
+        "hookCount": count,
+        "hookErrors": errors or [],
+        "preventedContinuation": False,
+    }
+
+
+def _guard_error(name: str) -> str:
+    return f'[bash "$CLAUDE_PROJECT_DIR/.claude/hooks/{name}.sh"]: Blocked: something'
+
+
+def _task_spawn(ts: str, tool_id: str, name: str = "Agent") -> dict[str, Any]:
+    return _row(
+        ts,
+        f"m-{tool_id}",
+        _usage(1, 1),
+        content=[{"type": "tool_use", "name": name, "id": tool_id}],
+    )
+
+
+def test_process_adherence_counts_stop_hook_blocks_per_guard(tmp_path):
+    rows = [
+        _row(_ts(1), "m1", _usage(1, 1)),
+        _hook_summary(_ts(2)),
+        _hook_summary(_ts(3), [_guard_error("commit-evidence"), _guard_error("bash-compat-guard")]),
+        _hook_summary(_ts(4), [_guard_error("commit-evidence")]),
+    ]
+    pa = rt.collect_run(_session(tmp_path, rows))["process_adherence"]
+    assert pa["stop_hook_runs"]["value"] == 3
+    assert pa["stop_hook_feedback"]["value"] == 3
+    assert pa["feedback_by_guard"]["value"] == {"commit-evidence": 2, "bash-compat-guard": 1}
+    assert pa["stop_hook_feedback"]["status"] == "measured"
+
+
+def test_process_adherence_without_hook_records_is_missing_not_zero(tmp_path):
+    pa = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))]))["process_adherence"]
+    assert pa["stop_hook_runs"]["status"] == "missing"
+    assert pa["stop_hook_feedback"]["status"] == "missing"
+    assert pa["feedback_by_guard"]["status"] == "missing"
+
+
+def test_process_adherence_counts_only_hook_records_inside_the_window(tmp_path):
+    rows = [
+        _hook_summary(_ts(1), [_guard_error("commit-evidence")]),
+        _hook_summary(_ts(6), [_guard_error("commit-evidence")]),
+        _row(_ts(7), "m7", _usage(1, 1)),
+    ]
+    run = rt.collect_run(_session(tmp_path, rows), start=_ts(5), end=_ts(9))
+    assert run["process_adherence"]["stop_hook_feedback"]["value"] == 1
+
+
+def test_process_adherence_guard_names_are_scrubbed_and_unknown_shapes_survive(tmp_path):
+    rows = [
+        _hook_summary(
+            _ts(2),
+            [
+                '[bash "/Users/bob/secret/x.sh"]: Blocked',
+                {"not": "a string"},
+                None,
+                42,
+                '[bash "$CLAUDE_PROJECT_DIR/.claude/hooks/tests-guard.sh"]: Blocked',
+            ],
+        )
+    ]
+    pa = rt.collect_run(_session(tmp_path, rows))["process_adherence"]
+    text = json.dumps(pa)
+    assert "/Users/bob" not in text
+    assert pa["feedback_by_guard"]["value"]["tests-guard"] == 1
+    assert pa["feedback_by_guard"]["value"].get("unknown", 0) >= 1
+
+
+def test_process_adherence_hook_fields_with_wrong_types_do_not_crash(tmp_path):
+    rows = [
+        {
+            "type": "system",
+            "subtype": "stop_hook_summary",
+            "timestamp": _ts(2),
+            "hookErrors": "oops",
+        },
+        {"type": "system", "subtype": "stop_hook_summary", "timestamp": _ts(3), "hookErrors": 7},
+        {"type": "system", "subtype": "stop_hook_summary", "timestamp": _ts(4)},
+    ]
+    pa = rt.collect_run(_session(tmp_path, rows))["process_adherence"]
+    assert pa["stop_hook_runs"]["value"] == 3
+    assert pa["stop_hook_feedback"]["value"] == 0
+
+
+def test_process_adherence_reviewer_families_come_from_outside_attempts(tmp_path):
+    log = tmp_path / "log.jsonl"
+    _write(
+        log,
+        [
+            {
+                "timestamp": _ts(2),
+                "attempt": True,
+                "agent": "codex-kiro",
+                "family": "openai",
+                "purpose": "review",
+                "result": "ok",
+            },
+            {
+                "timestamp": _ts(3),
+                "attempt": True,
+                "agent": "agy",
+                "family": "gemini",
+                "purpose": "review",
+                "result": "timeout",
+            },
+            {
+                "timestamp": _ts(4),
+                "attempt": True,
+                "agent": "codex-kiro",
+                "family": "openai",
+                "purpose": "delegate",
+                "result": "ok",
+            },
+            {
+                "timestamp": _ts(5),
+                "attempt": True,
+                "agent": "/Users/bob/x",
+                "family": "gemini",
+                "purpose": "review",
+                "result": "ok",
+            },
+        ],
+    )
+    pa = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))]), outside_log=log)[
+        "process_adherence"
+    ]
+    assert pa["review_attempts_by_family"]["value"] == {"openai": 1, "gemini": 2}
+    assert pa["review_successes_by_family"]["value"] == {"openai": 1, "gemini": 1}
+    assert "/Users/bob" not in json.dumps(pa)
+
+
+def test_process_adherence_without_outside_log_marks_review_families_missing(tmp_path):
+    pa = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))]))["process_adherence"]
+    assert pa["review_attempts_by_family"]["status"] == "missing"
+
+
+def test_process_adherence_counts_reviewer_subagents_by_type(tmp_path):
+    _subagent(
+        tmp_path,
+        "a1",
+        [_row(_ts(2), "s1", _usage(1, 1))],
+        tool_use_id="toolu_1",
+        agent_type="general-purpose",
+    )
+    _subagent(
+        tmp_path,
+        "a2",
+        [_row(_ts(3), "s2", _usage(1, 1))],
+        tool_use_id="toolu_2",
+        agent_type="Explore",
+    )
+    pa = rt.collect_run(
+        _session(tmp_path, [_task_spawn(_ts(1), "toolu_1"), _task_spawn(_ts(1), "toolu_2")])
+    )["process_adherence"]
+    assert pa["subagents_by_type"]["value"] == {"general-purpose": 1, "Explore": 1}
+
+
+def test_process_adherence_unmeasurable_items_are_missing_with_reasons(tmp_path):
+    pa = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))]))["process_adherence"]
+    for key in ("failing_test_before_change", "pushed_without_instruction", "user_corrections"):
+        assert pa[key]["status"] == "missing" and pa[key]["note"]
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "gh" + "p_abcdefghijkl",
+        "AK" + "IAABCDEFGHIJKLMNOP",
+        "sk" + "-abcdefghijk123",
+        "pass" + "word-hunter2xyz",
+    ],
+    ids=lambda v: "case",
+)
+def test_guard_names_that_look_like_secrets_are_not_kept(name):
+    assert rt._guard_name(f'[bash "$X/.claude/hooks/{name}.sh"]: x') == "unknown"
+
+
+def test_guard_name_comes_from_the_command_that_ran_not_from_later_text():
+    assert (
+        rt._guard_name(
+            '[python3 "$HOME/bin/other-guard.py"]: failed; see .claude/hooks/commit-evidence.sh'
+        )
+        == "unknown"
+    )
+    assert rt._guard_name('[bash "/a/hooks/aaa.sh"]: blocked by /hooks/real.sh') == "aaa"
+    assert (
+        rt._guard_name('[bash "$CLAUDE_PROJECT_DIR/.claude/hooks/commit-evidence.sh"]: New commits')
+        == "commit-evidence"
+    )
+    assert rt._guard_name("no brackets at all /hooks/x.sh") == "unknown"
+
+
+def test_family_label_with_a_trailing_newline_is_unknown(tmp_path):
+    log = tmp_path / "log.jsonl"
+    _write(
+        log,
+        [
+            {
+                "timestamp": _ts(2),
+                "attempt": True,
+                "purpose": "review",
+                "family": "openai\n",
+                "result": "ok",
+            }
+        ],
+    )
+    pa = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))]), outside_log=log)[
+        "process_adherence"
+    ]
+    assert pa["review_attempts_by_family"]["value"] == {"unknown": 1}
+
+
+def test_non_string_hook_errors_are_not_counted_as_blocks(tmp_path):
+    rows = [_hook_summary(_ts(2), [["n"], {"a": 1}, None, 5, '[bash "/x/hooks/ok.sh"]: Blocked'])]
+    pa = rt.collect_run(_session(tmp_path, rows))["process_adherence"]
+    assert pa["stop_hook_feedback"]["value"] == 1
+    assert pa["feedback_by_guard"]["value"] == {"ok": 1}
+
+
+def test_redacted_or_missing_agent_types_share_one_label(tmp_path):
+    _subagent(
+        tmp_path,
+        "a1",
+        [_row(_ts(2), "s1", _usage(1, 1))],
+        tool_use_id="toolu_1",
+        agent_type="/Users/bob/x",
+    )
+    _subagent(
+        tmp_path,
+        "a2",
+        [_row(_ts(3), "s2", _usage(1, 1))],
+        tool_use_id="toolu_2",
+        agent_type="x" * 5,
+    )
+    pa = rt.collect_run(_session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))]))["process_adherence"]
+    assert "redacted" not in json.dumps(pa["subagents_by_type"])
+    assert pa["subagents_by_type"]["value"].get("unknown") == 1
+
+
+def test_hook_feedback_metric_is_named_for_what_it_measures(tmp_path):
+    pa = rt.collect_run(
+        _session(tmp_path, [_hook_summary(_ts(2), [_guard_error("commit-evidence")])])
+    )["process_adherence"]
+    assert "stop_hook_feedback" in pa and "stop_hook_blocks" not in pa
+    assert (
+        "never stopped" in pa["stop_hook_feedback"]["note"]
+        or "did not stop" in pa["stop_hook_feedback"]["note"]
+    )

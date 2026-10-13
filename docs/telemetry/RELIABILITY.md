@@ -20,6 +20,10 @@ Produced by `scripts/run_telemetry.py`, compared by `scripts/run_report.py`. Rec
 | Retries, timeouts (agent-level) | missing | No structured record in session files. |
 | Outside-agent attempts | measured from commit `7b79512` | Earlier runs logged successes only, so they are undercounted (the log's earliest rows predate that commit). Each record states how many legacy rows it saw. |
 | Gate results | measured when a `--report` file is given, else missing | `harness-verify.sh --report <path>`. No run in the baseline has one. |
+| Stop-hook runs, feedback, feedback per guard | measured | `system` `stop_hook_summary` records. One feedback item is one string in `hookErrors`; the guard is read from the hook path at the start of that string, else `unknown`. It is named feedback, not blocks: `preventedContinuation` is false in every record seen, so the session never stopped, and whether the agent acted on the text is not recorded. Only the `stop_hook_summary` subtype was seen, so whether SubagentStop hooks produce a record of their own, and so could be counted twice, is not known. |
+| Reviews by model family (attempts, successes) | measured from commit `7b79512` | Outside-agent attempt rows with `purpose=review`. Does not count reviews by the agent's own subagents, which appear under subagents by type. |
+| Subagents by type | measured | `meta.json` `agentType`. A type is not a role: a `general-purpose` agent may be a reviewer or an implementer. |
+| Failing test written first, push without instruction, user corrections | missing | No structured record. Listed so the gap is visible in each record rather than assumed. |
 | Cost (USD) | missing | No authoritative source. Not estimated from public pricing. |
 | Human corrections, rework | missing | No reliable automatic source. |
 | Codex, Kiro, agy token usage | missing | All 152 `token_count` events in the local Codex session files have `info: null`. No usable source found for Kiro or agy. |
