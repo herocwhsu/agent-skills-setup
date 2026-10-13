@@ -37,8 +37,9 @@ Before writing code:
 2. Run `python3 scripts/state_brief.py` for the active feature and the open queue. Open
    `feature_list.json` or `PROGRESS.md` in full only when the brief is not enough.
 3. Run `./init.sh` (delegates to `scripts/harness-verify.sh`) to confirm the repo is
-   clean and verifiable before adding scope. A fresh clone first builds `.venv`;
-   the run takes about 5 minutes, so a quiet terminal is not a hang.
+   clean and verifiable before adding scope. A fresh clone first builds `.venv` and
+   takes a few minutes, so a quiet terminal is not a hang; later runs take about 90 seconds
+   (tests run in parallel).
 4. Work on one feature at a time (WIP=1). Never activate multiple features or combine
    unrelated refactorings. Active features must define an executable verification command.
 
@@ -47,8 +48,12 @@ Before writing code:
 ```bash
 bash scripts/harness-verify.sh     # registry + tests + secret scan, one exit code
 bash scripts/run-tests.sh --fast   # tests only (skips RUN_INTEGRATION=1 cases)
+bash scripts/run-tests.sh --fast --changed  # only the tests that cover your edits (use while iterating)
 bash scripts/trace-evaluation.sh --trend  # evaluation trace history, multi-agent timeline, token load
 ```
+
+Tests run in parallel (`--jobs N` or `RUN_TESTS_JOBS`, default `min(cpus, 4)`); the output order and counts
+are the same at any N. Use `--changed` while iterating and run `harness-verify.sh` once at the end.
 
 ### Three-Layer Termination Gate
 
