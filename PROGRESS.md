@@ -57,7 +57,7 @@
 3. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
 
 **Pending Owner Decisions (Blocked on Human):**
-- **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
+- **firstdigital-economics:** Decide whether to create private remote GitHub repo or remain local.
 - **Hermes cleanup:** Decide whether to drop residual `~/.hermes` configs from `skills/infra/kiro-gateway` or keep for other hosts.
 - **Handy branch:** Decide if `local/zh-tw-default` needs further integration or remains fork-only.
 
