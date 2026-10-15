@@ -162,11 +162,11 @@ if command -v agy &>/dev/null || [ -d "$GEMINI_CLI_DIR" ]; then
   AGY_STATUS_CMD="bash $GEMINI_CLI_DIR/statusline-command.sh"
 
   if [ -f "$AGY_SETTINGS" ]; then
-    MERGED=$(jq --arg cmd "$AGY_STATUS_CMD" '.statusLine = {type: "command", command: $cmd, enabled: true} | .stack_with_default = true' "$AGY_SETTINGS")
+    MERGED=$(jq --arg cmd "$AGY_STATUS_CMD" '.statusLine = {type: "command", command: $cmd, enabled: true} | .stack_with_default = false' "$AGY_SETTINGS")
     echo "$MERGED" > "$AGY_SETTINGS"
     green "  ✓ statusLine merged into $AGY_SETTINGS"
   else
-    jq -n --arg cmd "$AGY_STATUS_CMD" '{statusLine: {type: "command", command: $cmd, enabled: true}, stack_with_default: true}' > "$AGY_SETTINGS"
+    jq -n --arg cmd "$AGY_STATUS_CMD" '{statusLine: {type: "command", command: $cmd, enabled: true}, stack_with_default: false}' > "$AGY_SETTINGS"
     green "  ✓ created $AGY_SETTINGS with statusLine"
   fi
 fi
