@@ -1,0 +1,39 @@
+{
+  "features": [
+    {
+      "id": "feat-061",
+      "name": "Weekly review report and first self fine-tune",
+      "description": "Add scripts/weekly-review.sh producing docs/weekly/YYYY-Www.md (commits, churn, thresholds, feature status, stale verification paths, queue) for a scheduled weekly review; fix feat-058 references broken by the feat-059 rename.",
+      "dependencies": [
+        "feat-060"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "weekly-review.sh writes docs/weekly/YYYY-Www.md and leaves a plan marker",
+        "report flags verification-command paths that no longer exist",
+        "every completed feature's verification command resolves to existing paths",
+        "scripts/tests/test_weekly_review.sh passes and all 11 harness gates pass"
+      ],
+      "evidence": "Added scripts/weekly-review.sh and scripts/tests/test_weekly_review.sh (9/9). First weekly review (2026-W41) found feat-058 verification pointed at renamed tests/test_ratchet_loop.py; fixed to test_ratchet_loop_runner.py and added the path check so it cannot recur silently. Independently reviewed: self subagent (fresh context) found 5 reproducible defects (empty repo abort, missing PROGRESS.md truncation, root-commit empty diff, null verification crash, glob/punctuation false positives), all reproduced by hand and fixed with tests (14/14); outside agent (agy, via outside-agent.sh, exit 0) reported CLEAN on the pre-fix diff. Fixes were guards only, so no re-review.",
+      "verification": "bash scripts/tests/test_weekly_review.sh"
+    },
+    {
+      "id": "feat-062",
+      "name": "Multi-Agent Team Topologies, Hierarchical Supervisor, and Consensus Voting (Lecture 15)",
+      "description": "Port Lecture 15 Multi-Agent Team Topologies, implementing hierarchical supervisor delegation, dynamic worker pools with isolated contexts, consensus voting engine (majority quorum, security veto), and production scripts/team_runner.py with full test verification.",
+      "dependencies": [
+        "feat-061"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "docs/harness-creator/lecture-15/ contains summary.md, progress-detail.md, and code/team_topology.md",
+        "docs/harness-creator/lecture-15/code/team_engine.py implements zero-dependency team orchestrator with Supervisor, WorkerPool, and ConsensusEngine",
+        "scripts/team_runner.py and scripts/team-runner.sh provide CLI multi-agent team runner",
+        "tests/test_team_runner.py and scripts/tests/test_team_runner.sh pass 100%",
+        "All fast tests and 11 harness gates pass cleanly"
+      ],
+      "evidence": "Authored Lecture 15 study materials under docs/harness-creator/lecture-15/ (summary.md, progress-detail.md, code/team_topology.md). Implemented zero-dependency Multi-Agent Team and Consensus engine in docs/harness-creator/lecture-15/code/team_engine.py with Supervisor, WorkerPool (timeout budget checking, isolated execution, non-dict wrapping), and ConsensusEngine (majority, unanimous, and security veto quorum rules with defensive reviewer exception handling). Promoted to production CLI runner in scripts/team_runner.py and scripts/team-runner.sh. Added automated unit tests in test_team_engine.py (14/14 passed) and tests/test_team_runner.py (3/3 passed), plus shell tests in scripts/tests/test_team_runner.sh (5/5 passed across macOS system Python 3.9 and Python 3.14). Independently audited by adversarial subagent; remediated all conditional findings (reconciled topology diagram, preserved NO_QUORUM status, hardened reviewer exception handling, enforced timeout budget). All fast tests (90/90) and 11 harness gates pass cleanly.",
+      "verification": "bash scripts/tests/test_team_runner.sh && .venv/bin/pytest tests/test_team_runner.py"
+    }
+  ]
+}

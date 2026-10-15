@@ -4,44 +4,10 @@
     "docs/archive/features/archive-feat-041-050.json",
     "docs/archive/features/archive-feat-051-055.json",
     "docs/archive/features/archive-feat-056-059.json",
-    "docs/archive/features/archive-feat-060-060.json"
+    "docs/archive/features/archive-feat-060-060.json",
+    "docs/archive/features/archive-feat-061-062.json"
   ],
   "features": [
-    {
-      "id": "feat-061",
-      "name": "Weekly review report and first self fine-tune",
-      "description": "Add scripts/weekly-review.sh producing docs/weekly/YYYY-Www.md (commits, churn, thresholds, feature status, stale verification paths, queue) for a scheduled weekly review; fix feat-058 references broken by the feat-059 rename.",
-      "dependencies": [
-        "feat-060"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "weekly-review.sh writes docs/weekly/YYYY-Www.md and leaves a plan marker",
-        "report flags verification-command paths that no longer exist",
-        "every completed feature's verification command resolves to existing paths",
-        "scripts/tests/test_weekly_review.sh passes and all 11 harness gates pass"
-      ],
-      "evidence": "Added scripts/weekly-review.sh and scripts/tests/test_weekly_review.sh (9/9). First weekly review (2026-W41) found feat-058 verification pointed at renamed tests/test_ratchet_loop.py; fixed to test_ratchet_loop_runner.py and added the path check so it cannot recur silently. Independently reviewed: self subagent (fresh context) found 5 reproducible defects (empty repo abort, missing PROGRESS.md truncation, root-commit empty diff, null verification crash, glob/punctuation false positives), all reproduced by hand and fixed with tests (14/14); outside agent (agy, via outside-agent.sh, exit 0) reported CLEAN on the pre-fix diff. Fixes were guards only, so no re-review.",
-      "verification": "bash scripts/tests/test_weekly_review.sh"
-    },
-    {
-      "id": "feat-062",
-      "name": "Multi-Agent Team Topologies, Hierarchical Supervisor, and Consensus Voting (Lecture 15)",
-      "description": "Port Lecture 15 Multi-Agent Team Topologies, implementing hierarchical supervisor delegation, dynamic worker pools with isolated contexts, consensus voting engine (majority quorum, security veto), and production scripts/team_runner.py with full test verification.",
-      "dependencies": [
-        "feat-061"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "docs/harness-creator/lecture-15/ contains summary.md, progress-detail.md, and code/team_topology.md",
-        "docs/harness-creator/lecture-15/code/team_engine.py implements zero-dependency team orchestrator with Supervisor, WorkerPool, and ConsensusEngine",
-        "scripts/team_runner.py and scripts/team-runner.sh provide CLI multi-agent team runner",
-        "tests/test_team_runner.py and scripts/tests/test_team_runner.sh pass 100%",
-        "All fast tests and 11 harness gates pass cleanly"
-      ],
-      "evidence": "Authored Lecture 15 study materials under docs/harness-creator/lecture-15/ (summary.md, progress-detail.md, code/team_topology.md). Implemented zero-dependency Multi-Agent Team and Consensus engine in docs/harness-creator/lecture-15/code/team_engine.py with Supervisor, WorkerPool (timeout budget checking, isolated execution, non-dict wrapping), and ConsensusEngine (majority, unanimous, and security veto quorum rules with defensive reviewer exception handling). Promoted to production CLI runner in scripts/team_runner.py and scripts/team-runner.sh. Added automated unit tests in test_team_engine.py (14/14 passed) and tests/test_team_runner.py (3/3 passed), plus shell tests in scripts/tests/test_team_runner.sh (5/5 passed across macOS system Python 3.9 and Python 3.14). Independently audited by adversarial subagent; remediated all conditional findings (reconciled topology diagram, preserved NO_QUORUM status, hardened reviewer exception handling, enforced timeout budget). All fast tests (90/90) and 11 harness gates pass cleanly.",
-      "verification": "bash scripts/tests/test_team_runner.sh && .venv/bin/pytest tests/test_team_runner.py"
-    },
     {
       "id": "feat-063",
       "name": "Extract state-layer checks into scripts/state_layer_check.py",
@@ -160,6 +126,25 @@
       ],
       "evidence": "Full gate time fell from about 220 s to 75-85 s (tests gate 70 s); 93 test files, identical ordered output at 1 and 4 jobs, 12 jobs x5 stress, SIGINT/SIGTERM leave no process. process_adherence measured on 76 real sessions with no change to existing fields. feature_run_record.py: 30 tests, 3,324 budget cases with no loss and none left over budget. outside_agent.py: 131 tests. Reviews by a fresh subagent, codex-kiro and agy found about 30 defects across the rounds (lost features without an id, archive overwrite and path escape, kill diagnostics interleaving, --jobs swallowing a flag, orphaned queue after SIGTERM, credential-shaped guard names, unscrubbed error text); each got a failing test first. Not done: the 5-runs-per-version benchmark comparison, SubagentStop double counting is unverified, claude-kiro is not an independent reviewer for a Claude caller by design. Gate-necessity experiment (scripts/gate_experiment.py, 12 planted-defect cases, 32 tests): baseline passes; types, clean state, runtime drift and secret scan are each the only catch for their defect; registry, skill paths, bash compat, cred backends, hook wiring and state layer overlap with the tests gate but together cost about 2 s, so nothing is recommended for removal. A fresh subagent found three cases that could not trigger their gate, a missing baseline, and a clone of HEAD instead of the working tree; all fixed with tests.",
       "verification": "bash scripts/harness-verify.sh"
+    },
+    {
+      "id": "feat-068",
+      "name": "AGY statusline: one adaptive line with model, context, quota",
+      "description": "AGY's custom statusline shows only user@host:cwd and [ctx]. With stack_with_default true it is one row inside a block AGY owns, so it shifts when the native part changes height. Render one line from the AGY payload (model, effort, context percent and tokens, lowest 5h quota, git branch), dropping fields by priority to fit terminal_width, and stop stacking with the native line.",
+      "dependencies": [
+        "feat-067"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "the script prints exactly one line (no newline) that fits terminal_width at 60, 80 and 160 columns, dropping fields in a fixed priority order",
+        "AGY payload fields render: model.display_name, context_window.used_percentage with used/total tokens, and the lowest remaining 5h quota",
+        "Claude Code payloads, which lack quota and model.effort, still render cwd and context as before",
+        "the script still returns without waiting for EOF when stdin stays open",
+        "install_statusline writes and refreshes stack_with_default false for gemini",
+        "all 11 harness gates pass"
+      ],
+      "verification": "bash scripts/tests/test_statusline_command.sh && bash scripts/harness-verify.sh",
+      "evidence": "scripts/tests/test_statusline_command.sh: 28 passed (failed first: 17 of 24 before the rewrite, 4 of 28 after the review). One adaptive line from the AGY payload (model, bar, used/total, lowest 5h quota, git branch), dropping bar, branch, quota, model, cwd, token detail to fit terminal_width; install_statusline and setup-host.sh write stack_with_default false. Live agy in a detached tmux pane after install.sh: 160 cols shows all fields, 70 cols drops bar and branch. A fresh subagent found 3 defects (zero-token fresh session dropped context and quota, CJK width counted in characters, trailing-slash or root cwd showed no directory); each got a failing test first. Live long-response probe (agy in tmux, 30 rows): the row went to the bottom once the pane filled and stayed there with the new script, the old script with stacking off, and the old script with stacking on, so the movement was not reproduced; in one longer run the row ended one line above the bottom after the response finished, not compared against the old script. One full-gate run reported 94 passed, 1 failed in the tests gate; the failing test name was lost because the output was cut with tail; a rerun of harness-verify.sh and five consecutive run-tests.sh --fast runs all passed 95/95, so the failure is unreproduced and unattributed. Not done: current_usage is null before the first turn and filled after it (input_tokens, output_tokens), so an out figure is available but not shown; the one-line-above-bottom end state is unexplained."
     }
   ]
 }
