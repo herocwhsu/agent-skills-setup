@@ -1,0 +1,54 @@
+{
+  "features": [
+    {
+      "id": "feat-063",
+      "name": "Extract state-layer checks into scripts/state_layer_check.py",
+      "description": "Move the feature_list.json validation out of the inline heredoc in harness/guards/state-layer-guard.sh into scripts/state_layer_check.py with unchanged behavior, refactor scripts/trace_evaluation.py, and make doc links repo-relative.",
+      "dependencies": [
+        "feat-062"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "state-layer-guard.sh blocks with exit 2 for every failure, including a crashing checker and a missing python3",
+        "check order and stderr headers match the old heredoc",
+        "no file:///Users/... links remain in AGENTS.md or lecture docs",
+        "test_state_layer_guard.sh passes on bash 5 and /bin/bash 3.2, and all 11 harness gates pass"
+      ],
+      "evidence": "Added scripts/state_layer_check.py; the guard now calls it and maps any non-zero status to exit 2. Independent review (fresh-context subagent plus codex-kiro) found the guard exited 1 or 127 when the checker crashed or python3 was missing, which does not block; fixed with tests, and a self-referential trace_row test now asserts literal values. test_state_layer_guard.sh 44/44 on bash 5 and /bin/bash 3.2, test_session_clean.sh 8/8, tests/test_trace_evaluation.py 7/7. Converted 9 AGENTS.md and 6 lecture-doc file:/// links to relative paths. Dropped the redundant Write() deny rule in .claude/settings.json because Claude Code only consults Edit(path) rules.",
+      "verification": "bash harness/guards/tests/test_state_layer_guard.sh && .venv/bin/pytest tests/test_trace_evaluation.py",
+      "execution_summary": {
+        "run_id": "0d3a322a-072f3a3203",
+        "output_tokens": 3208,
+        "wall_time_ms": 3443402,
+        "active_turn_time_ms": 2398291,
+        "subagents": 1,
+        "subagent_output_tokens": 871
+      }
+    },
+    {
+      "id": "feat-064",
+      "name": "One place per record: remove duplicated docs and lecture engine copies",
+      "description": "Remove records that duplicate another source: recent-tasks-summary.md, the lecture 13/14/15 engine copies and their tests, and the decisions section of progress-archive.md. Record the one-place rule in AGENTS.md.",
+      "dependencies": [
+        "feat-063"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "scripts/*_runner.py are the only copies of the ratchet, graph and team engines, and the lecture docs link to them",
+        "no reference to a deleted file remains outside historical evidence text",
+        "AGENTS.md has a one-place-per-record table; docs/decisions.md holds superseded decisions",
+        "all 11 harness gates pass"
+      ],
+      "evidence": "Folded the motivation text into docs/architecture.md section 5 and deleted docs/improvements/recent-tasks-summary.md with its AGENTS.md references. Deleted the lecture 13/14/15 engines and their 28 tests; the runner suites (37 tests) and three shell suites still pass. Moved Archived Decisions to docs/decisions.md. Added docs/harness-creator/README.md marking the lectures frozen. Known coverage gaps after the deletion: the checkpoint save-and-resume path of the graph runner is only covered indirectly, and the goal-template.md parse assertions were not ported (docs/goals/TEMPLATE.md is covered by test_ratchet_loop.sh).",
+      "verification": "bash scripts/harness-verify.sh",
+      "execution_summary": {
+        "run_id": "0d3a322a-3d87c84240",
+        "output_tokens": 12702,
+        "wall_time_ms": 13770684,
+        "active_turn_time_ms": 3196265,
+        "subagents": 0,
+        "subagent_output_tokens": null
+      }
+    }
+  ]
+}

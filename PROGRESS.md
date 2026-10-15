@@ -33,6 +33,8 @@
 - [x] feat-067: Faster gates and automatic run records. Tests run in parallel (gates take about 80 s instead of 220 s); every run record carries `process_adherence`; `session-clean.sh` attaches a summary to each completed feature and archives to keep the state layer under budget; outside-agent reviews default to 300 s and failed attempts log a scrubbed `reason`. See `docs/telemetry/RELIABILITY.md` and `docs/stories/run-telemetry/drift-check.md`.
 - [x] feat-068: AGY statusline is one adaptive line (`[model] cwd git:(branch)   bar pct used/total │ 5h quota`) built from AGY's JSON payload, dropping fields to fit `terminal_width`. `install_statusline` and `setup-host.sh` now set `stack_with_default` false so AGY's native line no longer stacks with ours. Live check outstanding: whether the row still moves during a long response.
 
+- [x] feat-069: AGY statusline shows output tokens (`out N`, dropped with the branch when narrow). The row-position check compared old and new scripts live: all ended on the bottom line, so nothing was changed for it and the one-off shift stays unexplained.
+
 ### What's In Progress
 
 - Nothing active (WIP=0, clean state).
@@ -40,7 +42,7 @@
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-0. **AGY statusline follow-ups (from feat-068).** (a) Show output tokens: `context_window.total_output_tokens` is always present; `current_usage` is null until the first turn. (b) Find out why the row ended one line above the bottom after a long response, comparing against the old script. (c) An unreproduced one-off tests-gate failure (94/1) during feat-068: when running the gates, save the full output to a file so a failing test name is not lost.
+0. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
 1. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
 2. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
 
