@@ -42,9 +42,10 @@
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-0. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
-1. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
-2. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
+1. **Run-summary ordering bug (seen on feat-068 and feat-069).** `session-clean.sh` run before the completion commit writes the run record for the whole work window with no feature to attach it to; the rerun after the commit finds only the seconds since and attaches a tiny summary (feat-068: 38 s) or none (feat-069: "no activity"). The real records are `docs/telemetry/runs/d3a07c08-bbd58116d2.json` (feat-068) and `d3a07c08-bd5f953d79.json` (feat-069). Fix idea: let `feature_run_record.py` attach the unclaimed record whose window ends at the feature's completion time, with a failing test first.
+2. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
+3. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
+4. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.
