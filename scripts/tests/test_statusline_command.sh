@@ -119,6 +119,21 @@ out=$(printf '%s' '{"cwd":"/tmp/proj/","terminal_width":80}' | bash "$SCRIPT" | 
 out=$(printf '%s' '{"cwd":"/","terminal_width":80}' | bash "$SCRIPT" | plain)
 [[ "$out" == *"/"* ]] && ok "root cwd shows /" || bad "root cwd shows /" "[$out]"
 
+# output tokens: shown when above 0, dropped before the token detail when narrow
+out=$(agy_payload "$REPO_CWD" 160 | bash "$SCRIPT" | plain)
+[[ "$out" == *"out 500"* ]] && ok "160 cols shows output tokens" || bad "160 cols shows output tokens" "$out"
+out=$(agy_payload "$REPO_CWD" 60 | bash "$SCRIPT" | plain)
+[[ "$out" != *"out "* && "$out" == *"70k/1.0M"* ]] \
+  && ok "60 cols drops output tokens before the token detail" || bad "60 cols drops output tokens before the token detail" "$out"
+out=$(printf '%s' "$FRESH" | bash "$SCRIPT" | plain)
+[[ "$out" != *"out "* ]] && ok "zero output tokens are not shown" || bad "zero output tokens are not shown" "$out"
+
+# a count that rounds up to a million reads 1.0M, not 1000k
+NEAR='{"cwd":"/tmp/a","context_window":{"total_input_tokens":999600,"total_output_tokens":999500,"context_window_size":1048576,"used_percentage":95},"terminal_width":120}'
+out=$(printf '%s' "$NEAR" | bash "$SCRIPT" | plain)
+[[ "$out" != *"1000k"* && "$out" == *"1.0M/1.0M"* && "$out" == *"out 1.0M"* ]] \
+  && ok "counts near a million read 1.0M" || bad "counts near a million read 1.0M" "$out"
+
 # install_statusline, each case in its own HOME so real ~/.gemini and ~/.claude
 # are never touched.
 # fresh AGY install writes the object form; AGY runs it (verified in a live session)

@@ -27,7 +27,7 @@ else
 fi
 
 # One jq pass; unit separator keeps empty fields from collapsing in `read`.
-IFS=$'\x1f' read -r cwd model pct used total quota term_width < <(
+IFS=$'\x1f' read -r cwd model pct used total quota out_tok term_width < <(
   printf '%s' "$input" | jq -r '
     [
       (.cwd // ""),
@@ -52,6 +52,7 @@ IFS=$'\x1f' read -r cwd model pct used total quota term_width < <(
           | .value.remaining_fraction | select(. != null)]
         | if length == 0 then "" else ((min * 100) | round) end
       ),
+      (.context_window.total_output_tokens // ""),
       (.terminal_width // "")
     ] | map(tostring) | join("\u001f")
   ' 2>/dev/null || true
@@ -64,7 +65,7 @@ fi
 
 fmt_tokens() {
   local n=$1 t
-  if [ "$n" -ge 1000000 ]; then
+  if [ "$n" -ge 999500 ]; then
     t=$(( (n * 10 + 500000) / 1000000 ))
     printf '%d.%dM' $((t / 10)) $((t % 10))
   elif [ "$n" -ge 1000 ]; then
@@ -92,6 +93,10 @@ if [ -n "$used" ] && [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
   have_ctx=1
   [ -z "$pct" ] && pct=$(( (used * 100 + total / 2) / total ))
   ctx_detail="${pct}% $(fmt_tokens "$used")/$(fmt_tokens "$total")"
+  ctx_full="$ctx_detail"
+  if [ -n "$out_tok" ] && [ "$out_tok" -gt 0 ] 2>/dev/null; then
+    ctx_full="$ctx_detail out $(fmt_tokens "$out_tok")"
+  fi
   if [ "$pct" -ge 85 ]; then ctx_color=31; elif [ "$pct" -ge 70 ]; then ctx_color=33; else ctx_color=32; fi
   filled=$(( (pct + 5) / 10 )); [ "$filled" -gt 10 ] && filled=10
   bar=""; i=0
@@ -106,7 +111,7 @@ model_w=0; dir_w=0; branch_w=0
 [ -n "$dir" ] && dir_w=$(cells "$dir")
 [ -n "$branch" ] && branch_w=$(cells "$branch")
 
-# Drop order, first to last: bar, branch, quota, model, cwd, token detail.
+# Drop order, first to last: bar and output tokens, branch, quota, model, cwd, token detail.
 for lvl in 0 1 2 3 4 5 6; do
   left=""; left_len=0; right=""; right_len=0
 
@@ -123,7 +128,7 @@ for lvl in 0 1 2 3 4 5 6; do
   fi
 
   if [ "$have_ctx" -eq 1 ]; then
-    ctx_text="${pct}%"; [ "$lvl" -le 5 ] && ctx_text="$ctx_detail"
+    ctx_text="${pct}%"; [ "$lvl" -le 5 ] && ctx_text="$ctx_detail"; [ "$lvl" -le 1 ] && ctx_text="$ctx_full"
     if [ "$lvl" -eq 0 ]; then
       right="$(printf '\033[%sm%s\033[00m ' "$ctx_color" "$bar")"; right_len=11
     fi
