@@ -396,6 +396,33 @@ def test_main_finds_the_gate_runs_log_next_to_the_gate_report(repo, tmp_path, mo
     assert _run_record(repo)["gate_runs"]["value"]["count"] == 1
 
 
+def test_main_follows_harness_verify_last_report_and_an_empty_value_means_no_log(
+    repo, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)
+    projects = _complete_with_activity(repo, tmp_path)
+    state = tmp_path / "custom"
+    state.mkdir()
+    (state / "harness-verify-runs.jsonl").write_text(
+        json.dumps({"timestamp": "2026-10-01T11:00:00Z", "status": "PASS", "failed": []}) + "\n"
+    )
+    monkeypatch.setenv("HARNESS_VERIFY_LAST_REPORT", str(state / "last.json"))
+    args = ["--repo", str(repo), "--projects-dir", str(projects), "--pending"]
+    args += ["--outside-log", str(tmp_path / "none.jsonl")]
+    assert fr.main(args) == 0
+    assert _run_record(repo)["gate_runs"]["value"]["count"] == 1
+
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    _commit(repo, "2026-10-01T09:00:00+00:00", "reopen")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    _commit(repo, "2026-10-01T12:30:00+00:00", "complete again")
+    monkeypatch.setenv("HARNESS_VERIFY_LAST_REPORT", "")
+    for p in (repo / "docs" / "telemetry" / "runs").glob("*.json"):
+        p.unlink()
+    assert fr.main(args) == 0
+    assert _run_record(repo)["gate_runs"]["status"] == "missing"
+
+
 def test_pending_features_are_the_completed_ones_without_a_summary(repo):
     _write_features(
         repo,

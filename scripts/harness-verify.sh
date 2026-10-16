@@ -202,12 +202,14 @@ print(json.dumps(report, indent=2))
   fi
   if [[ $KEEP_LAST -eq 1 ]]; then
     { mkdir -p "$(dirname "$LAST_REPORT")" && printf '%s\n' "$report_json" > "$LAST_REPORT"; } 2>/dev/null || true
-    printf '%s' "$report_json" | python3 -c '
+    {
+      printf '%s' "$report_json" | python3 -c '
 import json, sys
 r = json.load(sys.stdin)
 keep = {k: r.get(k) for k in ("timestamp", "status", "total_duration_ms", "failed", "skipped")}
 print(json.dumps(keep, separators=(",", ":")))
-' >> "$(dirname "$LAST_REPORT")/harness-verify-runs.jsonl" 2>/dev/null || true
+' >> "$(dirname "$LAST_REPORT")/harness-verify-runs.jsonl"
+    } 2>/dev/null || true
   fi
   if [[ $JSON_OUT -eq 1 ]]; then
     printf '%s\n' "$report_json"

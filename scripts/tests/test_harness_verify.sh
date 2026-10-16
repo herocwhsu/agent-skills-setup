@@ -256,6 +256,13 @@ else
     "$(wc -l < "$fake_home/.agent-skills-setup/state/harness-verify-runs.jsonl") fake gate runs written"
 fi
 
+# --- an unwritable state dir must not print anything the old script did not ---
+if ! grep -q "runs.jsonl" "$TMPDIR/out.unw"; then
+  ok "an unwritable state dir prints no error about the runs log"
+else
+  bad "an unwritable state dir prints no error about the runs log" "$(grep runs.jsonl "$TMPDIR/out.unw" | head -2)"
+fi
+
 echo ""
 echo "test_harness_verify: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

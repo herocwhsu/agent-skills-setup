@@ -100,7 +100,7 @@ if [[ $CHECK_ONLY -eq 0 && -f "$feature_record" ]]; then
   else
     echo "$feature_out"
   fi
-  if [[ "$feature_out" == *"completion not committed"* ]]; then
+  if printf '%s\n' "$feature_out" | grep -q ': completion not committed$'; then
     uncommitted_completion=1
     echo "    [WARN] A completed feature is not committed yet, so its run summary could not be attached." >&2
     echo "    [WARN] Commit the completion first, then run session-clean.sh again. No run record is written now," >&2
@@ -112,9 +112,12 @@ run_telemetry="$REPO_DIR/scripts/run_telemetry.py"
 if [[ $CHECK_ONLY -eq 0 && $uncommitted_completion -eq 0 && -f "$run_telemetry" ]]; then
   echo ""
   echo "==> [Run Telemetry] Recording token, time and subagent usage for this session..."
-  gate_runs_log="${HARNESS_VERIFY_LAST_REPORT:-${HOME:-}/.agent-skills-setup/state/harness-verify-last.json}"
-  gate_runs_log="$(dirname "$gate_runs_log")/harness-verify-runs.jsonl"
-  if ! python3 "$run_telemetry" --current-session --out-dir "$REPO_DIR/docs/telemetry/runs" --gate-runs-log "$gate_runs_log" 2>&1; then
+  gate_runs_args=()
+  gate_report="${HARNESS_VERIFY_LAST_REPORT-${HOME:-}/.agent-skills-setup/state/harness-verify-last.json}"
+  if [[ -n "$gate_report" ]]; then
+    gate_runs_args=(--gate-runs-log "$(dirname "$gate_report")/harness-verify-runs.jsonl")
+  fi
+  if ! python3 "$run_telemetry" --current-session --out-dir "$REPO_DIR/docs/telemetry/runs" ${gate_runs_args[@]+"${gate_runs_args[@]}"} 2>&1; then
     echo "    [WARN] Run telemetry not recorded (see above); handoff is not blocked."
   fi
 fi

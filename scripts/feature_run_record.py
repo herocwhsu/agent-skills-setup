@@ -309,8 +309,12 @@ def main(argv: list[str] | None = None) -> int:
         )
     gate = args.gate_report
     if gate is None:
-        gate = Path.home() / ".agent-skills-setup" / "state" / "harness-verify-last.json"
-    runs_log = gate.parent / "harness-verify-runs.jsonl"
+        env_report = os.environ.get("HARNESS_VERIFY_LAST_REPORT")
+        if env_report is None:
+            gate = Path.home() / ".agent-skills-setup" / "state" / "harness-verify-last.json"
+        elif env_report:
+            gate = Path(env_report)
+    runs_log = gate.parent / "harness-verify-runs.jsonl" if gate is not None else None
     order = sorted(ids, key=lambda i: completion_time(repo, i) or "")
     for fid in order:
         result = record_feature(repo, fid, session_id, args.projects_dir, log, gate, runs_log)

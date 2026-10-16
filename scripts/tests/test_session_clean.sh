@@ -175,6 +175,27 @@ set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -
   && ok "a committed completion still records the run" \
   || bad "a committed completion still records the run" "exit $status, out: $out"
 
+# --- 10. The gate runs log follows HARNESS_VERIFY_LAST_REPORT; empty means no log ---
+d=$(fixture_repo "gate_log_env")
+printf 'import sys\nprint("MOCK_RUN_TELEMETRY " + " ".join(sys.argv[1:]))\n' > "$d/scripts/run_telemetry.py"
+set +e; out=$(HARNESS_VERIFY_LAST_REPORT="$TMP/custom/last.json" SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "--gate-runs-log $TMP/custom/harness-verify-runs.jsonl" ]] \
+  && ok "the gate runs log sits next to a custom report path" \
+  || bad "the gate runs log sits next to a custom report path" "exit $status, out: $out"
+set +e; out=$(HARNESS_VERIFY_LAST_REPORT="" SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "MOCK_RUN_TELEMETRY" && ! "$out" =~ "--gate-runs-log" ]] \
+  && ok "an empty HARNESS_VERIFY_LAST_REPORT passes no gate runs log" \
+  || bad "an empty HARNESS_VERIFY_LAST_REPORT passes no gate runs log" "exit $status, out: $out"
+
+# --- 11. Only a status line ending in the status counts, not the phrase anywhere in the output ---
+d=$(fixture_repo "phrase_in_prose")
+printf 'print("note: a completion not committed yet is explained in the docs")\nprint("feat-9: recorded")\n' > "$d/scripts/feature_run_record.py"
+printf 'print("MOCK_RUN_TELEMETRY")\n' > "$d/scripts/run_telemetry.py"
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "MOCK_RUN_TELEMETRY" && ! "$out" =~ "not committed yet, so" ]] \
+  && ok "the phrase inside other text does not skip the run record" \
+  || bad "the phrase inside other text does not skip the run record" "exit $status, out: $out"
+
 echo ""
 echo "test_session_clean: $pass passed, $fail failed"
 [[ $fail -eq 0 ]] || exit 1
