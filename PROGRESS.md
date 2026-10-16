@@ -39,6 +39,8 @@
 
 - [x] feat-071: AGY `stack_with_default` fixed. AGY ignores it at the top level and drops a `false` inside `statusLine`, so the installer now writes no key and removes any stale one; `setup-host.sh` leaves a foreign AGY `statusLine` alone. feat-068's claim that stacking was turned off was wrong in effect (corrected in its evidence).
 
+- [x] feat-072: AGY statusline shows the current model family's own 5-hour limit (Gemini -> `gemini-5h`, Claude/GPT -> `3p-5h`, else the lowest) instead of the lowest across families, which showed `5h 0%` on a Gemini session with 59% left. Out-of-range quota values and a non-object `model` no longer break the line. Open: the `3p-5h` mapping for Claude/GPT names is unconfirmed; the model's own weekly limit is not shown.
+
 ### What's In Progress
 
 - Nothing active (WIP=0, clean state).

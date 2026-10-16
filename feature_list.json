@@ -91,6 +91,25 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-072",
+      "name": "AGY statusline: show the 5-hour limit of the current model's family, not the lowest across families",
+      "description": "The statusline showed the lowest *-5h bucket in agy's payload. agy keeps two separate 5-hour limits (Gemini models and Claude/GPT models, the payload's 3p-5h), so on a Gemini session with 59% left it showed '5h 0%' whenever the Claude/GPT limit was used up. Pick the bucket by model family and fall back to the lowest only when that bucket is missing.",
+      "dependencies": [
+        "feat-071"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "a model name starting with 'Gemini' shows the gemini-5h remaining percentage even when 3p-5h is lower",
+        "a model name starting with 'Claude' or 'GPT' shows the 3p-5h remaining percentage even when gemini-5h is lower; a name that is none of Gemini, Claude or GPT shows the lowest *-5h bucket, because the 3p mapping is not confirmed for other names",
+        "if the chosen bucket is missing, or the model name is empty, the lowest *-5h bucket is shown as before",
+        "a payload without quota (Claude Code) still renders cwd and context, and a malformed quota never blanks the line",
+        "the width, EOF and Claude Code cases in test_statusline_command.sh still pass",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/tests/test_statusline_command.sh && bash scripts/harness-verify.sh",
+      "evidence": "Found by capturing every statusline call in live agy: the line showed '5h 0%' on a Gemini session that agy's own /quota reported at 59% five-hour remaining, because the script took the lowest *-5h bucket and agy keeps a separate Claude/GPT limit (payload 3p-5h) that was used up; it had looked right earlier only because 3p-5h happened to be full. The line now shows the model family's own bucket (Gemini -> gemini-5h, Claude/GPT -> 3p-5h, any other name or missing bucket -> lowest). After install, live agy showed 5h 57% while agy -p /quota showed Gemini five-hour remaining 57%; run time 65 ms. scripts/test_statusline_command.sh 49 passed (failed first: 4, then 4 after the review). A fresh subagent found remaining_fraction was not range-checked (-0.5 printed '5h -50%', 1.5 printed '5h 150%', and an out-of-range own bucket hid a valid fallback) and, as a pre-existing case, a non-object model blanked the whole line; both fixed with failing tests first. harness-verify.sh passed all 11 gates with output saved to a file. Also learned: before the first message agy's first payloads have agent_state authenticating, context_window_size 0 and no quota, so the line shows only [model] cwd git:(branch) for about 4 s (12 s once, cause not found); the script takes 60-90 ms per call and is not the cause. Not done: the 3p-5h mapping for Claude and GPT names is a guess, since agy -p /model lists only the current model and no Claude or GPT display name was seen; the model's own weekly limit (agy shows 'Gemini 4 Argon Weekly Limit 0%') is not displayed; the 12 s startup case and the occasional higher row are unexplained."
     }
   ]
 }
