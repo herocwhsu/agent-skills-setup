@@ -41,6 +41,8 @@
 
 - [x] feat-072: AGY statusline shows the current model family's own 5-hour limit (Gemini -> `gemini-5h`, Claude/GPT -> `3p-5h`, else the lowest) instead of the lowest across families, which showed `5h 0%` on a Gemini session with 59% left. Out-of-range quota values and a non-object `model` no longer break the line. Open: the `3p-5h` mapping for Claude/GPT names is unconfirmed; the model's own weekly limit is not shown.
 
+- [x] feat-073: The runtime drift gate also compares the installed AGY and Claude `statusline-command.sh` with `config/statusline-command.sh`, but only where `bash scripts/install.sh` can repair it (main checkout, agent in the saved selection, settings name the copy exactly). Prompted by the installed AGY copy running an older script after feat-072.
+
 ### What's In Progress
 
 - Nothing active (WIP=0, clean state).

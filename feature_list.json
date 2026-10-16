@@ -93,6 +93,25 @@
         "subagents": 1,
         "subagent_output_tokens": 701
       }
+    },
+    {
+      "id": "feat-073",
+      "name": "Runtime drift gate also checks the installed statusline scripts",
+      "description": "After the last edit of config/statusline-command.sh the installed AGY copy was never refreshed, so the live line ran an older version until a later review noticed. The runtime-drift gate compared only the flat runtime copies. Make it also compare each installed statusline-command.sh (AGY and Claude) with config/statusline-command.sh, but only when that agent's settings.json points at our copy, so a foreign statusLine is never flagged.",
+      "dependencies": [
+        "feat-072"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "the gate blocks (exit 2) and names the file when an installed statusline-command.sh that settings.json names exactly (statusLine.command == 'bash <copy>', and the path appears literally in the file) differs from config/statusline-command.sh or is missing, for an agent in the saved selection (none saved means claude), in a main checkout with jq available",
+        "the gate passes when the copy matches, with a foreign or non-object statusLine, our path in another key, a longer path, a tilde form, absent, truncated or non-object settings.json, an agent outside the saved selection, a linked worktree, a non-default branch, a repo without config/statusline-command.sh, or an unset HOME",
+        "the existing runtime-copy checks and their tests are unchanged, and an absent runtime dir is still a SKIP for that part only",
+        "gate_experiment.py still reports the runtime drift gate as catching its planted defect, and the clean baseline still passes",
+        "a fresh subagent and a different model family review the change (it is a gate)",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash harness/guards/tests/test_runtime_drift_guard.sh && bash scripts/harness-verify.sh",
+      "evidence": "Incident: after config/statusline-command.sh changed, the installed AGY copy ran an older script until a later review noticed. The gate now also compares each installed statusline-command.sh with config/statusline-command.sh. harness/guards/tests/test_runtime_drift_guard.sh 43 passed (22 first; failed first: 6, then 9 after the first review, then 2 after the second). Built in a fake repo on main so the result does not depend on the branch or worktree. Two reviews (fresh subagent, codex-kiro) of the first version found the gate would block on things bash scripts/install.sh cannot clear, which would keep a Stop hook blocking the agent: linked worktree or non-default branch (install.sh refuses), an agent outside the saved selection, a missing repo source file, a substring match that took our path in another key or a .sh.bak path or truncated JSON as ours, and the tilde form; all reproduced and fixed with tests first. A re-review (fresh subagent and codex-kiro) found two more: no saved selection means a bare non-interactive install.sh selects claude only (confirmed), and a HOME that JSON escapes (wire_hook writes \\u00e9) is found by jq but not by install_statusline's literal grep, so the block could never clear (confirmed with the real functions); both fixed with tests first. Four mutations of the final guard (literal grep, no-selection default, selection check, worktree check) are each caught. Real machine: guard exit 0. Throwaway HOME built by the real install.sh: clean install passes, a stale copy blocks naming the file, and the hinted bash scripts/install.sh clears it. scripts/gate_experiment.py --case runtime-drift-lib-edit: the planted drift is still caught and runtime drift is rated needed. harness-verify.sh passed all 11 gates with output saved to a file, run alone. One earlier full-gate run failed scripts/tests/test_run_tests_parallel.sh (SIGTERM test, queue left=1) while a review and a gate experiment ran at the same time; solo it passed 3 of 3 and two concurrent copies passed 3 rounds of 3, so it is unattributed and may be a load flake (same family as the 94/1 seen in feat-068). Not done: with HOME unset and no RUNTIME_DRIFT_GUARD_RUNTIME_DIR the guard exits 1 at skills_runtime_dir (also true before this change; the test for unset HOME only covers the statusline part); a selection file with spaces or CRLF is not trimmed like install.sh trims it (only a hand-edited file); install.sh against a throwaway HOME runs a slow live agent probe."
     }
   ]
 }
