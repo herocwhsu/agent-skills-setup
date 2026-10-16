@@ -11,62 +11,10 @@
     "docs/archive/features/archive-feat-067-067.json",
     "docs/archive/features/archive-feat-068-068.json",
     "docs/archive/features/archive-feat-069-069.json",
-    "docs/archive/features/archive-feat-070-070.json"
+    "docs/archive/features/archive-feat-070-070.json",
+    "docs/archive/features/archive-feat-071-072.json"
   ],
   "features": [
-    {
-      "id": "feat-071",
-      "name": "AGY stack_with_default: AGY ignores it at the top level and drops a false value; setup-host keeps a foreign statusLine",
-      "description": "A live probe showed AGY reads stack_with_default only inside the statusLine object; the installer and setup-host.sh wrote it at the top level, where AGY ignores it, so the 'stop stacking' part of feat-068 changed nothing. Write it as false inside statusLine, remove the inert top-level key we wrote, correct the feat-068 evidence, and stop setup-host.sh from replacing a foreign AGY statusLine.",
-      "dependencies": [
-        "feat-070"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "install_statusline for gemini leaves stack_with_default out of settings.json on a fresh file, on a jq merge, on the refresh of our own script, and on the python fallback, and removes the top-level and the nested key if present",
-        "no other key in settings.json changes, and a foreign statusLine stays untouched by install_statusline and by setup-host.sh",
-        "a live agy session with the installed settings shows only our line (no native '? for shortcuts' line)",
-        "the feat-068 evidence no longer claims the installer turned stacking off",
-        "all 11 harness gates pass, with gate output saved to a file"
-      ],
-      "verification": "bash scripts/tests/test_statusline_command.sh && bash scripts/harness-verify.sh",
-      "evidence": "Live probes in agy under tmux (160 cols): top-level stack_with_default true shows only our line; nested statusLine.stack_with_default true shows AGY's native line ('? for shortcuts', model) above ours; neither shows only ours. So the key must sit inside statusLine, and feat-068's top-level write never did anything. A first attempt wrote nested false; the installed file was clean right after install.sh but agy rewrote settings.json within about 20 s of a running session and removed the false (omitempty). The installer therefore writes no key at all, which is what 'off' means to AGY, and removes both the top-level and a nested true. scripts/tests/test_statusline_command.sh 38 passed (failed first: 4, then 5 after the rule changed): fresh, jq merge, refresh, old top-level true, nested true, python fallback without jq, foreign AGY statusLine left alone by install_statusline and by setup-host.sh (run against a throwaway HOME with closed stdin; the first version of that test hung on setup-host's ntfy prompt and was killed, real settings untouched). setup-host.sh now skips an AGY settings.json whose statusLine is not ours. harness-verify.sh passed all 11 gates with output saved to a file. feat-068's evidence carries a correction. Not done: no outside-model review (install-script change, one codex-kiro pass was run on feat-068 and its findings drove this); before the first message agy sends a payload the script shows only the left part of the line (unverified why, probably no context_window_size yet); the cause of the row sometimes sitting higher is still unknown and not reproduced; the Claude-side install paths are unchanged.",
-      "execution_summary": {
-        "run_id": "d3a07c08-4fc11167c9",
-        "output_tokens": 2913,
-        "wall_time_ms": 3960483,
-        "active_turn_time_ms": 1059384,
-        "subagents": 0,
-        "subagent_output_tokens": 0
-      }
-    },
-    {
-      "id": "feat-072",
-      "name": "AGY statusline: show the 5-hour limit of the current model's family, not the lowest across families",
-      "description": "The statusline showed the lowest *-5h bucket in agy's payload. agy keeps two separate 5-hour limits (Gemini models and Claude/GPT models, the payload's 3p-5h), so on a Gemini session with 59% left it showed '5h 0%' whenever the Claude/GPT limit was used up. Pick the bucket by model family and fall back to the lowest only when that bucket is missing.",
-      "dependencies": [
-        "feat-071"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "a model name starting with 'Gemini' shows the gemini-5h remaining percentage even when 3p-5h is lower",
-        "a model name starting with 'Claude' or 'GPT' shows the 3p-5h remaining percentage even when gemini-5h is lower; a name that is none of Gemini, Claude or GPT shows the lowest *-5h bucket, because the 3p mapping is not confirmed for other names",
-        "if the chosen bucket is missing, or the model name is empty, the lowest *-5h bucket is shown as before",
-        "a payload without quota (Claude Code) still renders cwd and context, and a malformed quota never blanks the line",
-        "the width, EOF and Claude Code cases in test_statusline_command.sh still pass",
-        "all 11 harness gates pass, with gate output saved to a file"
-      ],
-      "verification": "bash scripts/tests/test_statusline_command.sh && bash scripts/harness-verify.sh",
-      "evidence": "Found by capturing every statusline call in live agy: the line showed '5h 0%' on a Gemini session that agy's own /quota reported at 59% five-hour remaining, because the script took the lowest *-5h bucket and agy keeps a separate Claude/GPT limit (payload 3p-5h) that was used up; it had looked right earlier only because 3p-5h happened to be full. The line now shows the model family's own bucket (Gemini -> gemini-5h, Claude/GPT -> 3p-5h, any other name or missing bucket -> lowest). After install, live agy showed 5h 57% while agy -p /quota showed Gemini five-hour remaining 57%; run time 65 ms. scripts/test_statusline_command.sh 49 passed (failed first: 4, then 4 after the review). A fresh subagent found remaining_fraction was not range-checked (-0.5 printed '5h -50%', 1.5 printed '5h 150%', and an out-of-range own bucket hid a valid fallback) and, as a pre-existing case, a non-object model blanked the whole line; both fixed with failing tests first. harness-verify.sh passed all 11 gates with output saved to a file. Also learned: before the first message agy's first payloads have agent_state authenticating, context_window_size 0 and no quota, so the line shows only [model] cwd git:(branch) for about 4 s (12 s once, cause not found); the script takes 60-90 ms per call and is not the cause. Not done: the 3p-5h mapping for Claude and GPT names is a guess, since agy -p /model lists only the current model and no Claude or GPT display name was seen; the model's own weekly limit (agy shows 'Gemini 4 Argon Weekly Limit 0%') is not displayed; the 12 s startup case and the occasional higher row are unexplained.",
-      "execution_summary": {
-        "run_id": "d3a07c08-76f93baa23",
-        "output_tokens": 2074,
-        "wall_time_ms": 1535453,
-        "active_turn_time_ms": 1751535,
-        "subagents": 1,
-        "subagent_output_tokens": 701
-      }
-    },
     {
       "id": "feat-073",
       "name": "Runtime drift gate also checks the installed statusline scripts",
@@ -112,7 +60,15 @@
         "all 11 harness gates pass, with gate output saved to a file, run with nothing else running"
       ],
       "verification": "python3 -m pytest tests/test_feature_run_record.py tests/test_run_telemetry.py -q && bash scripts/tests/test_harness_verify.sh && bash scripts/tests/test_session_clean.sh && bash scripts/harness-verify.sh",
-      "evidence": "Measured first: of 39 run records, 29 were unclaimed and 21 of those had under 10 usage rows and no subagent or outside attempt; none of the 21 was claimed by a feature. --min-rows 10 skips only that kind. Tests first (each failed before the code): 202 pytest (tests/test_feature_run_record.py, tests/test_run_telemetry.py), test_harness_verify.sh 30, test_session_clean.sh 26. mypy clean. harness-verify.sh passed all 11 gates, run alone with nothing else running, output saved to a file. Reviews: three rounds, each a fresh subagent and codex-kiro. Round 1 found the first log cap lost a concurrently appended line (reproduced by forcing the interleaving), missing git crashed the recorder, a bare or unreadable repo was called 'not a git repository', session-clean did not pass --outside-log, and a window with zero parent rows but a subagent was dropped. Round 2 found the mkdir lock I added was unsound: a stale-lock takeover race, a killed holder blocking for up to two minutes (find -mmin +1 means stale after about 120 s, measured), ten-second stalls on an unwritable directory, and a lost line if the holder pauses. I dropped the lock instead of patching it a third time: the log is now one append-only file per month, so there is nothing to lock or rewrite, at the cost of retention by age (twelve months) instead of the newest 1000 lines. Round 3 found git commands inherit GIT_DIR and GIT_WORK_TREE and could read another repository (reproduced), another session's outside-agent attempt could force a record for an idle window (the log is machine-wide), and a directory named like a monthly file reported 'measured, 0 runs' instead of missing; all fixed with a failing test first. A race test that I first ran against a broken mutation died before its first assertion and proved nothing; the valid mutation (lock removed) failed the race test as it should. Not fixed: a legacy row copied into a monthly file would be counted twice (rows have no run id; nothing here copies rows); monthly retention keeps 13 files in January; git's 'not a git repository' is told from an unreadable repo by finding a .git entry in the directory or a parent, so a plain directory under a stray parent .git reads as unreadable (it skips the run record, which is the safe side); GNU find and bash 3.2 were not run for the new code beyond the existing portability gate. One earlier full-gate run failed test_run_tests_parallel.sh while a review and a gate experiment ran at the same time; solo it passed 9 of 9 runs, so it is recorded as an unattributed load flake."
+      "evidence": "Measured first: of 39 run records, 29 were unclaimed and 21 of those had under 10 usage rows and no subagent or outside attempt; none of the 21 was claimed by a feature. --min-rows 10 skips only that kind. Tests first (each failed before the code): 202 pytest (tests/test_feature_run_record.py, tests/test_run_telemetry.py), test_harness_verify.sh 30, test_session_clean.sh 26. mypy clean. harness-verify.sh passed all 11 gates, run alone with nothing else running, output saved to a file. Reviews: three rounds, each a fresh subagent and codex-kiro. Round 1 found the first log cap lost a concurrently appended line (reproduced by forcing the interleaving), missing git crashed the recorder, a bare or unreadable repo was called 'not a git repository', session-clean did not pass --outside-log, and a window with zero parent rows but a subagent was dropped. Round 2 found the mkdir lock I added was unsound: a stale-lock takeover race, a killed holder blocking for up to two minutes (find -mmin +1 means stale after about 120 s, measured), ten-second stalls on an unwritable directory, and a lost line if the holder pauses. I dropped the lock instead of patching it a third time: the log is now one append-only file per month, so there is nothing to lock or rewrite, at the cost of retention by age (twelve months) instead of the newest 1000 lines. Round 3 found git commands inherit GIT_DIR and GIT_WORK_TREE and could read another repository (reproduced), another session's outside-agent attempt could force a record for an idle window (the log is machine-wide), and a directory named like a monthly file reported 'measured, 0 runs' instead of missing; all fixed with a failing test first. A race test that I first ran against a broken mutation died before its first assertion and proved nothing; the valid mutation (lock removed) failed the race test as it should. Not fixed: a legacy row copied into a monthly file would be counted twice (rows have no run id; nothing here copies rows); monthly retention keeps 13 files in January; git's 'not a git repository' is told from an unreadable repo by finding a .git entry in the directory or a parent, so a plain directory under a stray parent .git reads as unreadable (it skips the run record, which is the safe side); GNU find and bash 3.2 were not run for the new code beyond the existing portability gate. One earlier full-gate run failed test_run_tests_parallel.sh while a review and a gate experiment ran at the same time; solo it passed 9 of 9 runs, so it is recorded as an unattributed load flake.",
+      "execution_summary": {
+        "run_id": "d3a07c08-fbef7b8103",
+        "output_tokens": 3542,
+        "wall_time_ms": 4275562,
+        "active_turn_time_ms": 7454284,
+        "subagents": 3,
+        "subagent_output_tokens": 3598
+      }
     }
   ]
 }
