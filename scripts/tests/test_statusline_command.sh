@@ -134,6 +134,40 @@ out=$(printf '%s' "$NEAR" | bash "$SCRIPT" | plain)
 [[ "$out" != *"1000k"* && "$out" == *"1.0M/1.0M"* && "$out" == *"out 1.0M"* ]] \
   && ok "counts near a million read 1.0M" || bad "counts near a million read 1.0M" "$out"
 
+# the 5h limit shown follows the model's family, not the lowest of all buckets
+quota_payload() {
+  jq -nc --arg m "$1" --argjson q "$2" '{cwd:"/tmp/a", terminal_width:160, model:{display_name:$m},
+    context_window:{total_input_tokens:1000, context_window_size:200000, used_percentage:1}, quota:$q}'
+}
+Q_BOTH='{"gemini-5h":{"remaining_fraction":0.59},"3p-5h":{"remaining_fraction":0},"gemini-weekly":{"remaining_fraction":0.88}}'
+Q_3P_HIGH='{"gemini-5h":{"remaining_fraction":0.1},"3p-5h":{"remaining_fraction":0.8}}'
+out=$(quota_payload "Gemini 4 Argon (Medium)" "$Q_BOTH" | bash "$SCRIPT" | plain)
+[[ "$out" == *"5h 59%"* ]] && ok "a Gemini model shows gemini-5h, not the lower 3p-5h" || bad "a Gemini model shows gemini-5h, not the lower 3p-5h" "$out"
+out=$(quota_payload "Claude Opus 5" "$Q_3P_HIGH" | bash "$SCRIPT" | plain)
+[[ "$out" == *"5h 80%"* ]] && ok "a Claude model shows 3p-5h, not the lower gemini-5h" || bad "a Claude model shows 3p-5h, not the lower gemini-5h" "$out"
+out=$(quota_payload "GPT-6" "$Q_3P_HIGH" | bash "$SCRIPT" | plain)
+[[ "$out" == *"5h 80%"* ]] && ok "a GPT model shows 3p-5h" || bad "a GPT model shows 3p-5h" "$out"
+out=$(quota_payload "Mystery Model" "$Q_3P_HIGH" | bash "$SCRIPT" | plain)
+[[ "$out" == *"5h 10%"* ]] && ok "an unknown model name shows the lowest 5h bucket" || bad "an unknown model name shows the lowest 5h bucket" "$out"
+out=$(quota_payload "Gemini 4 Argon (Medium)" '{"3p-5h":{"remaining_fraction":0.3}}' | bash "$SCRIPT" | plain)
+[[ "$out" == *"5h 30%"* ]] && ok "a missing family bucket falls back to the lowest" || bad "a missing family bucket falls back to the lowest" "$out"
+out=$(quota_payload "" "$Q_BOTH" | bash "$SCRIPT" | plain)
+[[ "$out" == *"5h 0%"* ]] && ok "an empty model name falls back to the lowest" || bad "an empty model name falls back to the lowest" "$out"
+out=$(quota_payload "Gemini 4 Argon (Medium)" '{"gemini-5h":"x","3p-5h":null}' | bash "$SCRIPT" | plain)
+[[ "$out" == *"1% 1k/200k"* && "$out" != *"5h "* ]] && ok "a malformed quota does not blank the line" || bad "a malformed quota does not blank the line" "$out"
+
+# out-of-range fractions are ignored, so the valid fallback bucket still shows
+out=$(quota_payload "Gemini 4 Argon (Medium)" '{"gemini-5h":{"remaining_fraction":-0.5}}' | bash "$SCRIPT" | plain)
+[[ "$out" == *"1% 1k/200k"* && "$out" != *"5h "* ]] && ok "a negative remaining_fraction shows no quota" || bad "a negative remaining_fraction shows no quota" "$out"
+out=$(quota_payload "Gemini 4 Argon (Medium)" '{"gemini-5h":{"remaining_fraction":1.5},"3p-5h":{"remaining_fraction":0.4}}' | bash "$SCRIPT" | plain)
+[[ "$out" == *"5h 40%"* ]] && ok "an over-range own bucket falls back to the valid lowest one" || bad "an over-range own bucket falls back to the valid lowest one" "$out"
+out=$(quota_payload "Gemini 4 Argon (Medium)" '{"gemini-5h":{"remaining_fraction":1e999}}' | bash "$SCRIPT" | plain)
+[[ "$out" != *"e+"* && "$out" != *"5h "* ]] && ok "an infinite remaining_fraction shows no quota" || bad "an infinite remaining_fraction shows no quota" "$out"
+
+# a model that is not an object must not blank the whole line
+out=$(printf '%s' '{"cwd":"/tmp/a","terminal_width":160,"model":"Gemini","context_window":{"total_input_tokens":1000,"context_window_size":200000,"used_percentage":1}}' | bash "$SCRIPT" | plain)
+[[ "$out" == *"1% 1k/200k"* ]] && ok "a string model does not blank the line" || bad "a string model does not blank the line" "[$out]"
+
 # install_statusline, each case in its own HOME so real ~/.gemini and ~/.claude
 # are never touched.
 # fresh AGY install writes the object form; AGY runs it (verified in a live session)

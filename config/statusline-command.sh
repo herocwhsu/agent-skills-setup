@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Claude Code / AGY statusLine — one line: [model] cwd git:(branch)   context | 5h quota
 # Fields are dropped by priority until the line fits the terminal width.
+# The 5h limit is the model family's own bucket (gemini-5h, or 3p-5h for Claude/GPT), else the lowest.
 
 # Antigravity CLI never closes stdin, so `cat` (or jq) would block until the host
 # kills the command. Stop reading once the top-level JSON object closes.
@@ -29,9 +30,10 @@ fi
 # One jq pass; unit separator keeps empty fields from collapsing in `read`.
 IFS=$'\x1f' read -r cwd model pct used total quota out_tok term_width < <(
   printf '%s' "$input" | jq -r '
+    def frac: if type == "object" then .remaining_fraction else null end | select(type == "number" and . >= 0 and . <= 1);
     [
       (.cwd // ""),
-      (.model.display_name // ""),
+      ((.model | if type == "object" then .display_name else null end) // "" | tostring),
       (.context_window.used_percentage | if . == null then "" else round end),
       (
         if ((.context_window.total_input_tokens // 0) > 0) then
@@ -48,9 +50,16 @@ IFS=$'\x1f' read -r cwd model pct used total quota out_tok term_width < <(
       ),
       (.context_window.context_window_size // ""),
       (
-        [(.quota // {}) | to_entries[] | select(.key | endswith("-5h"))
-          | .value.remaining_fraction | select(. != null)]
-        | if length == 0 then "" else ((min * 100) | round) end
+        ((.model | if type == "object" then .display_name else null end) // "" | tostring) as $m
+        | ((.quota | if type == "object" then . else {} end)) as $q
+        | (if ($m | startswith("Gemini")) then "gemini-5h"
+           elif ($m | test("^(Claude|GPT)")) then "3p-5h"
+           else "" end) as $key
+        | ([$q[$key] | frac] | .[0]) as $own
+        | ([$q | to_entries[] | select(.key | endswith("-5h")) | .value | frac]
+           | if length == 0 then null else min end) as $low
+        | ($own // $low)
+        | if . == null then "" else ((. * 100) | round) end
       ),
       (.context_window.total_output_tokens // ""),
       (.terminal_width // "")
