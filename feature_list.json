@@ -10,37 +10,10 @@
     "docs/archive/features/archive-feat-065-066.json",
     "docs/archive/features/archive-feat-067-067.json",
     "docs/archive/features/archive-feat-068-068.json",
-    "docs/archive/features/archive-feat-069-069.json"
+    "docs/archive/features/archive-feat-069-069.json",
+    "docs/archive/features/archive-feat-070-070.json"
   ],
   "features": [
-    {
-      "id": "feat-070",
-      "name": "Run records that attach to the right feature and show gate runs",
-      "description": "feat-068 and feat-069 got a wrong or missing run summary because session-clean ran before the completion commit existed: the feature step said 'not completed' and the run step still wrote a record nobody claimed. Report that case under its own status, do not write the stray record, record how many gate runs fell in a window, correct the two summaries from their real records, and put the order in AGENTS.md.",
-      "dependencies": [
-        "feat-069"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "a completed feature whose completion is not committed reports 'completion not committed', not 'not completed', and a feature that is not completed still reports 'not completed'",
-        "session-clean.sh prints a loud warning for uncommitted completions and writes no run-telemetry record in that case",
-        "each run record carries gate_runs (count, passed, failed, failed gate names) from a log that harness-verify.sh appends to, measured when the log exists and missing otherwise",
-        "the feat-068 and feat-069 summaries are rebuilt from their real records with summary_from_record, no numbers typed by hand",
-        "AGENTS.md End of Session gives the order: commit the completion, run session-clean.sh, commit the telemetry files",
-        "an outside-agent review of the install-script changes from feat-068 is run, or its absence is stated in the evidence",
-        "all 11 harness gates pass, with gate output saved to a file"
-      ],
-      "verification": "python3 -m pytest tests/test_feature_run_record.py tests/test_run_telemetry.py -q && bash scripts/harness-verify.sh",
-      "evidence": "Failing tests first, then code: tests/test_feature_run_record.py (2 new), tests/test_run_telemetry.py (3 new, gate_runs), scripts/tests/test_session_clean.sh (2 new), scripts/tests/test_harness_verify.sh (2 new); 180 pytest and all shell tests pass, mypy clean, harness-verify.sh passed all 11 gates with output saved to a file. A completion not yet committed now reports 'completion not committed' and session-clean.sh warns and writes no run record; harness-verify.sh appends one line per run to ~/.agent-skills-setup/state/harness-verify-runs.jsonl and each run record carries gate_runs (count, passed, failed, failed gate names). feat-068 and feat-069 summaries were rebuilt from their real records with summary_from_record (feat-068: 5097 output tokens, 15.3e6 ms wall; feat-069: 1669, 1.99e6 ms); the stray records 57f13686b4, f9dc9c7a13 and cb5536ef29 stay in docs/telemetry/runs as unclaimed. AGENTS.md End of Session now gives the order. A new test found that harness/guards/tests/test_stop_verify.sh ran the real harness-verify.sh against the caller's HOME and wrote 4 fake gate runs per run-tests.sh call; it now uses a temp report path. Outside review of feat-068 (codex-kiro) gave 3 findings, none introduced by it: setup-host.sh overwrites a foreign AGY statusLine and install_statusline leaves stack_with_default alone when the statusLine is foreign (both as before feat-068), and the refresh path has no Python fallback without jq (also as before; the statusline script itself needs jq and renders nothing without it). Not fixed, queued. Review by a fresh-context subagent (no outside model; the change is telemetry and test plumbing, not hooks or permissions) found 5 points; 4 reproduced and fixed with a failing test first (a1683a1): (1) an unwritable state dir printed a redirect error from the new log append, so console output changed; (2) feature_run_record.py ignored HARNESS_VERIFY_LAST_REPORT while harness-verify.sh and session-clean.sh honored it; (3) an empty HARNESS_VERIFY_LAST_REPORT meant 'keep nothing' in harness-verify.sh but fell back to the real log in session-clean.sh; (4) session-clean.sh matched the phrase 'completion not committed' anywhere in the output, now only a status line ending in it. Also found by running the close in the new order: the feature record built its own run record without the gate runs log, so gate_runs was missing from feat-070's record; fixed with a failing test first (ea4bb74). Not fixed: a completed feature in a repo where git fails or feature_list.json is untracked reports 'completion not committed' (true in the sense that no commit shows it, but the cause is not named); harness-verify-runs.jsonl is never rotated and is read whole for each record (about 1 line per gate run); every session-clean.sh run writes one small tail record that no feature claims; the order (commit, then session-clean) is a warning and a rule in AGENTS.md, not a block.",
-      "execution_summary": {
-        "run_id": "d3a07c08-22ba089a9d",
-        "output_tokens": 3287,
-        "wall_time_ms": 61707096,
-        "active_turn_time_ms": 923043,
-        "subagents": 0,
-        "subagent_output_tokens": 0
-      }
-    },
     {
       "id": "feat-071",
       "name": "AGY stack_with_default: AGY ignores it at the top level and drops a false value; setup-host keeps a foreign statusLine",
@@ -111,7 +84,15 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "bash harness/guards/tests/test_runtime_drift_guard.sh && bash scripts/harness-verify.sh",
-      "evidence": "Incident: after config/statusline-command.sh changed, the installed AGY copy ran an older script until a later review noticed. The gate now also compares each installed statusline-command.sh with config/statusline-command.sh. harness/guards/tests/test_runtime_drift_guard.sh 43 passed (22 first; failed first: 6, then 9 after the first review, then 2 after the second). Built in a fake repo on main so the result does not depend on the branch or worktree. Two reviews (fresh subagent, codex-kiro) of the first version found the gate would block on things bash scripts/install.sh cannot clear, which would keep a Stop hook blocking the agent: linked worktree or non-default branch (install.sh refuses), an agent outside the saved selection, a missing repo source file, a substring match that took our path in another key or a .sh.bak path or truncated JSON as ours, and the tilde form; all reproduced and fixed with tests first. A re-review (fresh subagent and codex-kiro) found two more: no saved selection means a bare non-interactive install.sh selects claude only (confirmed), and a HOME that JSON escapes (wire_hook writes \\u00e9) is found by jq but not by install_statusline's literal grep, so the block could never clear (confirmed with the real functions); both fixed with tests first. Four mutations of the final guard (literal grep, no-selection default, selection check, worktree check) are each caught. Real machine: guard exit 0. Throwaway HOME built by the real install.sh: clean install passes, a stale copy blocks naming the file, and the hinted bash scripts/install.sh clears it. scripts/gate_experiment.py --case runtime-drift-lib-edit: the planted drift is still caught and runtime drift is rated needed. harness-verify.sh passed all 11 gates with output saved to a file, run alone. One earlier full-gate run failed scripts/tests/test_run_tests_parallel.sh (SIGTERM test, queue left=1) while a review and a gate experiment ran at the same time; solo it passed 3 of 3 and two concurrent copies passed 3 rounds of 3, so it is unattributed and may be a load flake (same family as the 94/1 seen in feat-068). Not done: with HOME unset and no RUNTIME_DRIFT_GUARD_RUNTIME_DIR the guard exits 1 at skills_runtime_dir (also true before this change; the test for unset HOME only covers the statusline part); a selection file with spaces or CRLF is not trimmed like install.sh trims it (only a hand-edited file); install.sh against a throwaway HOME runs a slow live agent probe."
+      "evidence": "Incident: after config/statusline-command.sh changed, the installed AGY copy ran an older script until a later review noticed. The gate now also compares each installed statusline-command.sh with config/statusline-command.sh. harness/guards/tests/test_runtime_drift_guard.sh 43 passed (22 first; failed first: 6, then 9 after the first review, then 2 after the second). Built in a fake repo on main so the result does not depend on the branch or worktree. Two reviews (fresh subagent, codex-kiro) of the first version found the gate would block on things bash scripts/install.sh cannot clear, which would keep a Stop hook blocking the agent: linked worktree or non-default branch (install.sh refuses), an agent outside the saved selection, a missing repo source file, a substring match that took our path in another key or a .sh.bak path or truncated JSON as ours, and the tilde form; all reproduced and fixed with tests first. A re-review (fresh subagent and codex-kiro) found two more: no saved selection means a bare non-interactive install.sh selects claude only (confirmed), and a HOME that JSON escapes (wire_hook writes \\u00e9) is found by jq but not by install_statusline's literal grep, so the block could never clear (confirmed with the real functions); both fixed with tests first. Four mutations of the final guard (literal grep, no-selection default, selection check, worktree check) are each caught. Real machine: guard exit 0. Throwaway HOME built by the real install.sh: clean install passes, a stale copy blocks naming the file, and the hinted bash scripts/install.sh clears it. scripts/gate_experiment.py --case runtime-drift-lib-edit: the planted drift is still caught and runtime drift is rated needed. harness-verify.sh passed all 11 gates with output saved to a file, run alone. One earlier full-gate run failed scripts/tests/test_run_tests_parallel.sh (SIGTERM test, queue left=1) while a review and a gate experiment ran at the same time; solo it passed 3 of 3 and two concurrent copies passed 3 rounds of 3, so it is unattributed and may be a load flake (same family as the 94/1 seen in feat-068). Not done: with HOME unset and no RUNTIME_DRIFT_GUARD_RUNTIME_DIR the guard exits 1 at skills_runtime_dir (also true before this change; the test for unset HOME only covers the statusline part); a selection file with spaces or CRLF is not trimmed like install.sh trims it (only a hand-edited file); install.sh against a throwaway HOME runs a slow live agent probe.",
+      "execution_summary": {
+        "run_id": "d3a07c08-a4ce703085",
+        "output_tokens": 2730,
+        "wall_time_ms": 7318832,
+        "active_turn_time_ms": 1810715,
+        "subagents": 2,
+        "subagent_output_tokens": 1797
+      }
     }
   ]
 }
