@@ -43,6 +43,8 @@
 
 - [x] feat-073: The runtime drift gate also compares the installed AGY and Claude `statusline-command.sh` with `config/statusline-command.sh`, but only where `bash scripts/install.sh` can repair it (main checkout, agent in the saved selection, settings name the copy exactly). Prompted by the installed AGY copy running an older script after feat-072.
 
+- [x] feat-074: Telemetry housekeeping. The gate-runs log is one append-only file per month (no lock, twelve months kept); a completed feature with no completion commit now says why (`completion not committed`, `feature_list.json is not tracked by git`, `git cannot read this repository`, `git is not available`, `no work tree...`, `not a git repository`) and `session-clean.sh` skips the run record for all but the last; `--min-rows 10` stops the small tail records nobody claims. A first lock-based log cap was dropped after two reviews showed it unsound.
+
 ### What's In Progress
 
 - Nothing active (WIP=0, clean state).
@@ -50,10 +52,9 @@
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-1. **Telemetry housekeeping (from the feat-070 review).** Rotate or cap `harness-verify-runs.jsonl`; name the cause when git fails or `feature_list.json` is untracked instead of `completion not committed`; each `session-clean.sh` run leaves a small unclaimed tail record in `docs/telemetry/runs/`.
-2. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
-3. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
-4. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
+1. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
+2. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
+3. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **daily-ai-video-pipeline:** Decide whether to create private remote GitHub repo or remain local.

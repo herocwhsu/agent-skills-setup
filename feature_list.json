@@ -93,6 +93,26 @@
         "subagents": 2,
         "subagent_output_tokens": 1797
       }
+    },
+    {
+      "id": "feat-074",
+      "name": "Telemetry housekeeping: capped gate-runs log, named git failures, no tiny tail records",
+      "description": "Three leftovers from the feat-070 review. (1) harness-verify-runs.jsonl grows by a line per gate run and is read whole for every record: cap it. (2) A completed feature in a repo where git fails or feature_list.json is untracked reports 'completion not committed', which names the wrong cause: report each cause. (3) Every session-clean.sh run writes a small run record for the seconds since the completion commit that no feature claims: skip a window with almost no activity, since the next record's window starts at the last recorded end and absorbs it.",
+      "dependencies": [
+        "feat-073"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "harness-verify.sh appends each run to harness-verify-runs-YYYYMM.jsonl (one short append, no lock, nothing rewritten) and deletes monthly files older than twelve months, leaves no temp file, and changes neither exit code nor console output; run_telemetry.py reads the old unsuffixed file and every monthly file beside it",
+        "feature_run_record.py reports 'completion not committed' only for a tracked feature_list.json whose completion no commit shows, 'feature_list.json is not tracked by git' when it is untracked, and a no-git status when the directory is not a repository or git is missing",
+        "session-clean.sh skips the run record and warns for every git status except 'not a git repository' (completion not committed, feature_list.json is not tracked by git, git cannot read this repository, git is not available, no work tree to read feature_list.json from)",
+        "run_telemetry.py --current-session --min-rows N writes nothing when the window has fewer than N usage rows, no subagent and no outside-agent attempt; a window with zero parent rows is skipped unless it has a subagent (an outside-agent attempt is machine-wide, so it does not count for that rule); without the flag nothing else changes; the next record's window starts at the last recorded end and counts the skipped rows",
+        "session-clean.sh passes --min-rows 10",
+        "a fresh subagent and a different model family review the change (it edits the gate runner and the session close)",
+        "all 11 harness gates pass, with gate output saved to a file, run with nothing else running"
+      ],
+      "verification": "python3 -m pytest tests/test_feature_run_record.py tests/test_run_telemetry.py -q && bash scripts/tests/test_harness_verify.sh && bash scripts/tests/test_session_clean.sh && bash scripts/harness-verify.sh",
+      "evidence": "Measured first: of 39 run records, 29 were unclaimed and 21 of those had under 10 usage rows and no subagent or outside attempt; none of the 21 was claimed by a feature. --min-rows 10 skips only that kind. Tests first (each failed before the code): 202 pytest (tests/test_feature_run_record.py, tests/test_run_telemetry.py), test_harness_verify.sh 30, test_session_clean.sh 26. mypy clean. harness-verify.sh passed all 11 gates, run alone with nothing else running, output saved to a file. Reviews: three rounds, each a fresh subagent and codex-kiro. Round 1 found the first log cap lost a concurrently appended line (reproduced by forcing the interleaving), missing git crashed the recorder, a bare or unreadable repo was called 'not a git repository', session-clean did not pass --outside-log, and a window with zero parent rows but a subagent was dropped. Round 2 found the mkdir lock I added was unsound: a stale-lock takeover race, a killed holder blocking for up to two minutes (find -mmin +1 means stale after about 120 s, measured), ten-second stalls on an unwritable directory, and a lost line if the holder pauses. I dropped the lock instead of patching it a third time: the log is now one append-only file per month, so there is nothing to lock or rewrite, at the cost of retention by age (twelve months) instead of the newest 1000 lines. Round 3 found git commands inherit GIT_DIR and GIT_WORK_TREE and could read another repository (reproduced), another session's outside-agent attempt could force a record for an idle window (the log is machine-wide), and a directory named like a monthly file reported 'measured, 0 runs' instead of missing; all fixed with a failing test first. A race test that I first ran against a broken mutation died before its first assertion and proved nothing; the valid mutation (lock removed) failed the race test as it should. Not fixed: a legacy row copied into a monthly file would be counted twice (rows have no run id; nothing here copies rows); monthly retention keeps 13 files in January; git's 'not a git repository' is told from an unreadable repo by finding a .git entry in the directory or a parent, so a plain directory under a stray parent .git reads as unreadable (it skips the run record, which is the safe side); GNU find and bash 3.2 were not run for the new code beyond the existing portability gate. One earlier full-gate run failed test_run_tests_parallel.sh while a review and a gate experiment ran at the same time; solo it passed 9 of 9 runs, so it is recorded as an unattributed load flake."
     }
   ]
 }
