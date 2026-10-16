@@ -339,6 +339,63 @@ def test_main_prints_the_uncommitted_completion_status(repo, tmp_path, monkeypat
     assert "feat-001: completion not committed" in capsys.readouterr().out
 
 
+def _complete_with_activity(repo: Path, tmp_path: Path) -> Path:
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    _commit(repo, "2026-10-01T10:00:00+00:00")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    _commit(repo, "2026-10-01T12:00:00+00:00")
+    return _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+
+
+def _run_record(repo: Path) -> dict[str, Any]:
+    run_id = json.loads((repo / "feature_list.json").read_text())["features"][0][
+        "execution_summary"
+    ]["run_id"]
+    return json.loads((repo / "docs" / "telemetry" / "runs" / f"{run_id}.json").read_text())
+
+
+def test_record_feature_carries_the_gate_runs_of_its_window(repo, tmp_path):
+    projects = _complete_with_activity(repo, tmp_path)
+    log = tmp_path / "harness-verify-runs.jsonl"
+    log.write_text(
+        json.dumps({"timestamp": "2026-10-01T11:00:00Z", "status": "PASS", "failed": []})
+        + "\n"
+        + json.dumps({"timestamp": "2026-10-02T11:00:00Z", "status": "FAIL", "failed": ["tests"]})
+        + "\n"
+    )
+    out = fr.record_feature(
+        repo, "feat-001", SESSION, projects, outside_log=None, gate_runs_log=log
+    )
+    assert out["status"] == "recorded"
+    g = _run_record(repo)["gate_runs"]
+    assert g["status"] == "measured" and g["value"]["count"] == 1 and g["value"]["passed"] == 1
+
+
+def test_main_finds_the_gate_runs_log_next_to_the_gate_report(repo, tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)
+    projects = _complete_with_activity(repo, tmp_path)
+    state = tmp_path / "state"
+    state.mkdir()
+    (state / "harness-verify-runs.jsonl").write_text(
+        json.dumps({"timestamp": "2026-10-01T11:00:00Z", "status": "PASS", "failed": []}) + "\n"
+    )
+    code = fr.main(
+        [
+            "--repo",
+            str(repo),
+            "--projects-dir",
+            str(projects),
+            "--pending",
+            "--gate-report",
+            str(state / "harness-verify-last.json"),
+            "--outside-log",
+            str(tmp_path / "none.jsonl"),
+        ]
+    )
+    assert code == 0
+    assert _run_record(repo)["gate_runs"]["value"]["count"] == 1
+
+
 def test_pending_features_are_the_completed_ones_without_a_summary(repo):
     _write_features(
         repo,

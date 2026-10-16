@@ -210,6 +210,7 @@ def record_feature(
     projects_dir: Path,
     outside_log: Path | None,
     gate_report: Path | None = None,
+    gate_runs_log: Path | None = None,
 ) -> dict[str, str]:
     data = _load(repo)
     target = next((f for f in _features(data) if f.get("id") == feature_id), None)
@@ -247,7 +248,12 @@ def record_feature(
     )
     try:
         rec = run_telemetry.collect_run(
-            transcript, start=start, end=end, outside_log=outside_log, verify_report=gate_report
+            transcript,
+            start=start,
+            end=end,
+            outside_log=outside_log,
+            verify_report=gate_report,
+            gate_runs_log=gate_runs_log,
         )
     except ValueError:
         return {"feature": feature_id, "status": "bad window"}
@@ -304,9 +310,10 @@ def main(argv: list[str] | None = None) -> int:
     gate = args.gate_report
     if gate is None:
         gate = Path.home() / ".agent-skills-setup" / "state" / "harness-verify-last.json"
+    runs_log = gate.parent / "harness-verify-runs.jsonl"
     order = sorted(ids, key=lambda i: completion_time(repo, i) or "")
     for fid in order:
-        result = record_feature(repo, fid, session_id, args.projects_dir, log, gate)
+        result = record_feature(repo, fid, session_id, args.projects_dir, log, gate, runs_log)
         print(f"{result['feature']}: {result['status']}")
     if args.archive:
         moved = archive_to_budget(repo)
