@@ -146,11 +146,77 @@ res=$( HOME="$h"; export HOME
 [[ "$res" == "command bash $h/.gemini/antigravity-cli/statusline-command.sh" ]] \
   && ok "gemini fresh install writes command-object statusLine" \
   || bad "gemini fresh install writes command-object statusLine" "$res"
-[[ "$(jq -r '.stack_with_default' "$h/.gemini/antigravity-cli/settings.json")" == "false" ]] \
-  && ok "gemini fresh install turns stack_with_default off" \
-  || bad "gemini fresh install turns stack_with_default off" "not false"
+[[ "$(jq '.statusLine | has("stack_with_default")' "$h/.gemini/antigravity-cli/settings.json")" == "false" \
+   && "$(jq 'has("stack_with_default")' "$h/.gemini/antigravity-cli/settings.json")" == "false" ]] \
+  && ok "gemini fresh install writes no stack_with_default anywhere (absent is off)" \
+  || bad "gemini fresh install writes no stack_with_default anywhere (absent is off)" "$(cat "$h/.gemini/antigravity-cli/settings.json")"
 
-# settings already point at our script: the stale copy gets refreshed and stack_with_default turned off
+# an old install left stack_with_default true at the top level, where AGY ignores it
+h="$TMP/legacy"; d="$h/.gemini/antigravity-cli"; mkdir -p "$d"
+printf '{"statusLine":{"type":"command","command":"bash %s","enabled":true},"stack_with_default":true,"model":"m"}\n' \
+  "$d/statusline-command.sh" > "$d/settings.json"
+( HOME="$h"; export HOME
+  source "$REPO_DIR/scripts/_lib.sh"
+  install_statusline gemini "$REPO_DIR" >/dev/null )
+[[ "$(jq '.statusLine | has("stack_with_default")' "$d/settings.json")" == "false" \
+   && "$(jq 'has("stack_with_default")' "$d/settings.json")" == "false" \
+   && "$(jq -r '.model' "$d/settings.json")" == "m" ]] \
+  && ok "an old top-level stack_with_default true is removed" \
+  || bad "an old top-level stack_with_default true is removed" "$(cat "$d/settings.json")"
+
+# a nested true left by hand would draw AGY's own line above ours: our statusLine owns the row, so it goes
+h="$TMP/nested-true"; d="$h/.gemini/antigravity-cli"; mkdir -p "$d"
+printf '{"statusLine":{"type":"command","command":"bash %s","enabled":true,"stack_with_default":true},"model":"m"}\n' \
+  "$d/statusline-command.sh" > "$d/settings.json"
+( HOME="$h"; export HOME
+  source "$REPO_DIR/scripts/_lib.sh"
+  install_statusline gemini "$REPO_DIR" >/dev/null )
+[[ "$(jq '.statusLine | has("stack_with_default")' "$d/settings.json")" == "false" \
+   && "$(jq -r '.model' "$d/settings.json")" == "m" ]] \
+  && ok "a nested stack_with_default true is removed on refresh" \
+  || bad "a nested stack_with_default true is removed on refresh" "$(cat "$d/settings.json")"
+
+# no jq: the python fallback writes the same shape
+h="$TMP/nojq"; d="$h/.gemini/antigravity-cli"; mkdir -p "$d" "$TMP/nojq-bin"
+REAL_PY=$(python3 -c 'import sys; print(sys.executable)')
+for t in bash cp chmod mkdir dirname grep cat; do p=$(command -v "$t") && ln -sf "$p" "$TMP/nojq-bin/$t"; done
+ln -sf "$REAL_PY" "$TMP/nojq-bin/python3"
+printf '{"colorScheme":"dark","stack_with_default":true}\n' > "$d/settings.json"
+( HOME="$h"; export HOME; PATH="$TMP/nojq-bin"
+  source "$REPO_DIR/scripts/_lib.sh"
+  install_statusline gemini "$REPO_DIR" >/dev/null 2>&1 )
+[[ "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print("stack_with_default" in d["statusLine"], "stack_with_default" in d, d["colorScheme"])' "$d/settings.json")" == "False False dark" ]] \
+  && ok "python fallback writes no stack_with_default and removes the top-level one" \
+  || bad "python fallback writes no stack_with_default and removes the top-level one" "$(cat "$d/settings.json")"
+
+# a foreign AGY statusLine is left alone, including by setup-host.sh
+h="$TMP/foreign-agy"; d="$h/.gemini/antigravity-cli"; mkdir -p "$d"
+printf '{"statusLine":{"type":"command","command":"node custom.js"},"theme":"dark"}\n' > "$d/settings.json"
+before=$(cat "$d/settings.json")
+( HOME="$h"; export HOME
+  source "$REPO_DIR/scripts/_lib.sh"
+  install_statusline gemini "$REPO_DIR" >/dev/null )
+[[ "$(cat "$d/settings.json")" == "$before" ]] \
+  && ok "install_statusline leaves a foreign AGY statusLine untouched" \
+  || bad "install_statusline leaves a foreign AGY statusLine untouched" "$(cat "$d/settings.json")"
+# setup-host.sh runs interactively and also touches tmux/MCP: give it a throwaway HOME,
+# a PATH with only agy and the basics, and closed stdin so no prompt can wait.
+sh_bin="$TMP/sethost-bin"; mkdir -p "$sh_bin"
+for t in bash jq cp chmod mkdir dirname basename grep sed cat ls sort tail head tr mv rm date uname env awk; do
+  tp=$(command -v "$t") && ln -sf "$tp" "$sh_bin/$t"
+done
+ln -sf "$REAL_PY" "$sh_bin/python3"
+printf '#!/bin/sh\nexit 0\n' > "$sh_bin/agy"; chmod +x "$sh_bin/agy"
+sh_out=$( HOME="$h" PATH="$sh_bin" NTFY_URL="https://ntfy.invalid/t" NTFY_TOKEN="x" \
+  bash "$REPO_DIR/scripts/setup-host.sh" </dev/null 2>&1 ) || true
+[[ "$sh_out" == *"Patching ~/.gemini/antigravity-cli/settings.json"* ]] \
+  && ok "setup-host.sh reached the AGY settings step in the test" \
+  || bad "setup-host.sh reached the AGY settings step in the test" "$(printf '%s' "$sh_out" | tail -4)"
+[[ "$(cat "$d/settings.json")" == "$before" ]] \
+  && ok "setup-host.sh leaves a foreign AGY statusLine untouched" \
+  || bad "setup-host.sh leaves a foreign AGY statusLine untouched" "$(cat "$d/settings.json")"
+
+# settings already point at our script: the stale copy gets refreshed and stack_with_default removed
 h="$TMP/stale"; d="$h/.gemini/antigravity-cli"; mkdir -p "$d"
 echo "stale" > "$d/statusline-command.sh"
 printf '{"statusLine":{"type":"command","command":"bash %s","enabled":true},"colorScheme":"dark"}\n' \
@@ -161,9 +227,11 @@ printf '{"statusLine":{"type":"command","command":"bash %s","enabled":true},"col
 cmp -s "$d/statusline-command.sh" "$REPO_DIR/config/statusline-command.sh" \
   && ok "stale installed script is refreshed" \
   || bad "stale installed script is refreshed" "copy differs from config/statusline-command.sh"
-[[ "$(jq -r '.stack_with_default' "$d/settings.json")" == "false" ]] \
-  && ok "refresh sets stack_with_default to false" \
-  || bad "refresh sets stack_with_default to false" "not false"
+[[ "$(jq '.statusLine | has("stack_with_default")' "$d/settings.json")" == "false" \
+   && "$(jq 'has("stack_with_default")' "$d/settings.json")" == "false" \
+   && "$(jq -r '.colorScheme' "$d/settings.json")" == "dark" ]] \
+  && ok "refresh removes stack_with_default and keeps other keys" \
+  || bad "refresh removes stack_with_default and keeps other keys" "$(cat "$d/settings.json")"
 
 # a foreign statusLine (e.g. claude-hud) is left alone and no script is copied
 h="$TMP/foreign"; mkdir -p "$h/.claude"

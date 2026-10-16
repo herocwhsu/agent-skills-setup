@@ -162,11 +162,15 @@ if command -v agy &>/dev/null || [ -d "$GEMINI_CLI_DIR" ]; then
   AGY_STATUS_CMD="bash $GEMINI_CLI_DIR/statusline-command.sh"
 
   if [ -f "$AGY_SETTINGS" ]; then
-    MERGED=$(jq --arg cmd "$AGY_STATUS_CMD" '.statusLine = {type: "command", command: $cmd, enabled: true} | .stack_with_default = false' "$AGY_SETTINGS")
-    echo "$MERGED" > "$AGY_SETTINGS"
-    green "  ✓ statusLine merged into $AGY_SETTINGS"
+    if jq -e '.statusLine != null and ((.statusLine.command // "") | contains("antigravity-cli/statusline-command.sh") | not)' "$AGY_SETTINGS" >/dev/null 2>&1; then
+      yellow "  ⚠ $AGY_SETTINGS has its own statusLine — left unchanged"
+    else
+      MERGED=$(jq --arg cmd "$AGY_STATUS_CMD" '.statusLine = {type: "command", command: $cmd, enabled: true} | del(.stack_with_default)' "$AGY_SETTINGS")
+      echo "$MERGED" > "$AGY_SETTINGS"
+      green "  ✓ statusLine merged into $AGY_SETTINGS"
+    fi
   else
-    jq -n --arg cmd "$AGY_STATUS_CMD" '{statusLine: {type: "command", command: $cmd, enabled: true}, stack_with_default: false}' > "$AGY_SETTINGS"
+    jq -n --arg cmd "$AGY_STATUS_CMD" '{statusLine: {type: "command", command: $cmd, enabled: true}}' > "$AGY_SETTINGS"
     green "  ✓ created $AGY_SETTINGS with statusLine"
   fi
 fi

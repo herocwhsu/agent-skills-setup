@@ -985,7 +985,7 @@ install_statusline() {
       chmod +x "$status_script"
       if [[ "$agent" == "gemini" ]] && command -v jq &>/dev/null; then
         local merged
-        merged=$(jq '.stack_with_default = false' "$settings" 2>/dev/null)
+        merged=$(jq 'del(.stack_with_default) | del(.statusLine.stack_with_default)' "$settings" 2>/dev/null)
         [[ -n "$merged" ]] && echo "$merged" > "$settings"
       fi
       echo "  ✓ refreshed statusline script for $agent"
@@ -1000,14 +1000,14 @@ install_statusline() {
   mkdir -p "$(dirname "$settings")"
   if [[ ! -f "$settings" ]]; then
     if [[ "$agent" == "gemini" ]]; then
-      printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s",\n    "enabled": true\n  },\n  "stack_with_default": false\n}\n' "$status_cmd" > "$settings"
+      printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s",\n    "enabled": true\n  }\n}\n' "$status_cmd" > "$settings"
     else
       printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s",\n    "enabled": true\n  }\n}\n' "$status_cmd" > "$settings"
     fi
   elif command -v jq &>/dev/null; then
     local merged
     if [[ "$agent" == "gemini" ]]; then
-      merged=$(jq --arg cmd "$status_cmd" '.statusLine = {type: "command", command: $cmd, enabled: true} | .stack_with_default = false' "$settings" 2>/dev/null)
+      merged=$(jq --arg cmd "$status_cmd" '.statusLine = {type: "command", command: $cmd, enabled: true} | del(.stack_with_default)' "$settings" 2>/dev/null)
     else
       merged=$(jq --arg cmd "$status_cmd" '.statusLine = {type: "command", command: $cmd, enabled: true}' "$settings" 2>/dev/null)
     fi
@@ -1027,7 +1027,7 @@ except Exception:
     d = {}
 d['statusLine'] = {'type': 'command', 'command': cmd, 'enabled': True}
 if agent == 'gemini':
-    d['stack_with_default'] = False
+    d.pop('stack_with_default', None)
 with open(p, 'w') as f:
     json.dump(d, f, indent=2)
 " "$settings" "$status_cmd" "$agent" 2>/dev/null || true
