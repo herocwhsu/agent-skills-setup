@@ -35,6 +35,8 @@
 
 - [x] feat-069: AGY statusline shows output tokens (`out N`, dropped with the branch when narrow). The row-position check compared old and new scripts live: all ended on the bottom line, so nothing was changed for it and the one-off shift stays unexplained.
 
+- [x] feat-070: Run records attach to the right feature. A completion that is not committed reports `completion not committed` and `session-clean.sh` writes no run record then; `harness-verify.sh` logs every run and each record shows `gate_runs`; the feat-068 and feat-069 summaries are rebuilt from their real records. Order at session end: commit the completion, run `session-clean.sh`, commit the telemetry (AGENTS.md).
+
 ### What's In Progress
 
 - Nothing active (WIP=0, clean state).
@@ -42,7 +44,7 @@
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-1. **Run-summary ordering bug (seen on feat-068 and feat-069).** `session-clean.sh` run before the completion commit writes the run record for the whole work window with no feature to attach it to; the rerun after the commit finds only the seconds since and attaches a tiny summary (feat-068: 38 s) or none (feat-069: "no activity"). The real records are `docs/telemetry/runs/d3a07c08-bbd58116d2.json` (feat-068) and `d3a07c08-bd5f953d79.json` (feat-069). Fix idea: let `feature_run_record.py` attach the unclaimed record whose window ends at the feature's completion time, with a failing test first.
+1. **AGY statusline install gaps (outside review of feat-068).** `setup-host.sh` replaces a foreign AGY `statusLine`; `install_statusline` leaves `stack_with_default` alone when the `statusLine` is foreign; its refresh path has no Python fallback without `jq`. All three predate feat-068 and are unfixed. Decide first whether a foreign statusLine should keep stacking.
 2. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
 3. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
 4. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
