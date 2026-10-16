@@ -9,35 +9,10 @@
     "docs/archive/features/archive-feat-063-064.json",
     "docs/archive/features/archive-feat-065-066.json",
     "docs/archive/features/archive-feat-067-067.json",
-    "docs/archive/features/archive-feat-068-068.json"
+    "docs/archive/features/archive-feat-068-068.json",
+    "docs/archive/features/archive-feat-069-069.json"
   ],
   "features": [
-    {
-      "id": "feat-069",
-      "name": "AGY statusline follow-ups: end-of-response row position and output tokens",
-      "description": "From feat-068. (b) After a long response the status row ended one line above the bottom in one live run; compare the old and new script with the same prompt to learn whether the script causes it. (a) Show output tokens from context_window.total_output_tokens, which is present before and after the first turn.",
-      "dependencies": [
-        "feat-068"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "the same long prompt is run live against the old script, the new script and the old script with stacking on, and the end-of-response row of each is recorded",
-        "if the new script causes the shift it is fixed with a failing test first; if AGY's own layout causes it, that is recorded and no script change is made",
-        "the status line shows output tokens when total_output_tokens is above 0, and drops them before the token detail when the width is short",
-        "Claude Code payloads and the stdin-held-open case still pass",
-        "all 11 harness gates pass, with gate output saved to a file"
-      ],
-      "verification": "bash scripts/tests/test_statusline_command.sh && bash scripts/harness-verify.sh",
-      "evidence": "Row position: the same long prompt (numbers 1-80 plus a 25-line poem) in live agy under tmux, 30 rows, two rounds each: the new script, the old script with stacking off, and the old script with stacking on all ended with the status row on the bottom line (row 30); intermediate rows 14-19 appear in all three, so they come from the pane filling. The one-line-above-bottom end state seen once earlier did not reproduce in six runs, so no script change was made for it and its cause is unknown. Output tokens: scripts/tests/test_statusline_command.sh 32 passed (failed first: 1 of 31, then 1 of 32). The line shows 'out N' from context_window.total_output_tokens only above 0 and drops it with the branch, before quota, model, cwd and token detail; a fresh subagent found a count of 999500 rendering as 1000k, fixed with a failing test first. harness-verify.sh passed all 11 gates with its output saved to a file. Not done: a non-integer total_output_tokens is not shown (AGY sends integers); the shift seen once is unexplained; saving gate output to a file is done by hand, harness-verify.sh does not do it.",
-      "execution_summary": {
-        "run_id": "d3a07c08-bd5f953d79",
-        "output_tokens": 1669,
-        "wall_time_ms": 1992800,
-        "active_turn_time_ms": 1172676,
-        "subagents": 1,
-        "subagent_output_tokens": 608
-      }
-    },
     {
       "id": "feat-070",
       "name": "Run records that attach to the right feature and show gate runs",
@@ -109,7 +84,15 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "bash scripts/tests/test_statusline_command.sh && bash scripts/harness-verify.sh",
-      "evidence": "Found by capturing every statusline call in live agy: the line showed '5h 0%' on a Gemini session that agy's own /quota reported at 59% five-hour remaining, because the script took the lowest *-5h bucket and agy keeps a separate Claude/GPT limit (payload 3p-5h) that was used up; it had looked right earlier only because 3p-5h happened to be full. The line now shows the model family's own bucket (Gemini -> gemini-5h, Claude/GPT -> 3p-5h, any other name or missing bucket -> lowest). After install, live agy showed 5h 57% while agy -p /quota showed Gemini five-hour remaining 57%; run time 65 ms. scripts/test_statusline_command.sh 49 passed (failed first: 4, then 4 after the review). A fresh subagent found remaining_fraction was not range-checked (-0.5 printed '5h -50%', 1.5 printed '5h 150%', and an out-of-range own bucket hid a valid fallback) and, as a pre-existing case, a non-object model blanked the whole line; both fixed with failing tests first. harness-verify.sh passed all 11 gates with output saved to a file. Also learned: before the first message agy's first payloads have agent_state authenticating, context_window_size 0 and no quota, so the line shows only [model] cwd git:(branch) for about 4 s (12 s once, cause not found); the script takes 60-90 ms per call and is not the cause. Not done: the 3p-5h mapping for Claude and GPT names is a guess, since agy -p /model lists only the current model and no Claude or GPT display name was seen; the model's own weekly limit (agy shows 'Gemini 4 Argon Weekly Limit 0%') is not displayed; the 12 s startup case and the occasional higher row are unexplained."
+      "evidence": "Found by capturing every statusline call in live agy: the line showed '5h 0%' on a Gemini session that agy's own /quota reported at 59% five-hour remaining, because the script took the lowest *-5h bucket and agy keeps a separate Claude/GPT limit (payload 3p-5h) that was used up; it had looked right earlier only because 3p-5h happened to be full. The line now shows the model family's own bucket (Gemini -> gemini-5h, Claude/GPT -> 3p-5h, any other name or missing bucket -> lowest). After install, live agy showed 5h 57% while agy -p /quota showed Gemini five-hour remaining 57%; run time 65 ms. scripts/test_statusline_command.sh 49 passed (failed first: 4, then 4 after the review). A fresh subagent found remaining_fraction was not range-checked (-0.5 printed '5h -50%', 1.5 printed '5h 150%', and an out-of-range own bucket hid a valid fallback) and, as a pre-existing case, a non-object model blanked the whole line; both fixed with failing tests first. harness-verify.sh passed all 11 gates with output saved to a file. Also learned: before the first message agy's first payloads have agent_state authenticating, context_window_size 0 and no quota, so the line shows only [model] cwd git:(branch) for about 4 s (12 s once, cause not found); the script takes 60-90 ms per call and is not the cause. Not done: the 3p-5h mapping for Claude and GPT names is a guess, since agy -p /model lists only the current model and no Claude or GPT display name was seen; the model's own weekly limit (agy shows 'Gemini 4 Argon Weekly Limit 0%') is not displayed; the 12 s startup case and the occasional higher row are unexplained.",
+      "execution_summary": {
+        "run_id": "d3a07c08-76f93baa23",
+        "output_tokens": 2074,
+        "wall_time_ms": 1535453,
+        "active_turn_time_ms": 1751535,
+        "subagents": 1,
+        "subagent_output_tokens": 701
+      }
     }
   ]
 }
