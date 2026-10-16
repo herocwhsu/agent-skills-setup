@@ -203,12 +203,27 @@ print(json.dumps(report, indent=2))
   if [[ $KEEP_LAST -eq 1 ]]; then
     { mkdir -p "$(dirname "$LAST_REPORT")" && printf '%s\n' "$report_json" > "$LAST_REPORT"; } 2>/dev/null || true
     {
+      # One append-only file per month: a short single write is atomic, so concurrent runs need no
+      # lock, and nothing is rewritten. Months older than twelve are deleted whole.
+      state_dir="$(dirname "$LAST_REPORT")"
+      month=$(date -u +%Y%m)
       printf '%s' "$report_json" | python3 -c '
 import json, sys
 r = json.load(sys.stdin)
 keep = {k: r.get(k) for k in ("timestamp", "status", "total_duration_ms", "failed", "skipped")}
 print(json.dumps(keep, separators=(",", ":")))
-' >> "$(dirname "$LAST_REPORT")/harness-verify-runs.jsonl"
+' >> "$state_dir/harness-verify-runs-$month.jsonl"
+      cutoff=$(python3 -c '
+import datetime
+d = datetime.datetime.now(datetime.timezone.utc)
+t = d.year * 12 + d.month - 1 - 12
+print("%04d%02d" % (t // 12, t % 12 + 1))
+')
+      for f in "$state_dir"/harness-verify-runs-[0-9][0-9][0-9][0-9][0-9][0-9].jsonl; do
+        [[ -e "$f" ]] || continue
+        m="${f##*harness-verify-runs-}"; m="${m%.jsonl}"
+        [[ "$m" < "$cutoff" ]] && rm -f "$f"
+      done
     } 2>/dev/null || true
   fi
   if [[ $JSON_OUT -eq 1 ]]; then

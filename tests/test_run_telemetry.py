@@ -926,6 +926,132 @@ def test_current_session_uses_the_latest_end_among_several_records_and_ignores_o
     assert _ts(8) in starts
 
 
+def test_min_rows_skips_a_tiny_window_and_the_next_record_absorbs_it(tmp_path, monkeypatch, capsys):
+    rows = [_row(_ts(1), "m1", _usage(1, 100)), _row(_ts(10), "m2", _usage(1, 7))]
+    projects, runs = _projects(tmp_path, rows), tmp_path / "runs"
+    _prior_record(runs, _ts(5))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    args = ["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)]
+    assert rt.main([*args, "--min-rows", "5"]) == 0
+    assert "fewer than 5" in capsys.readouterr().out
+    assert [p.name for p in runs.glob("*.json")] == [f"{UUID[:8]}-aaaa.json"]
+    assert rt.main([*args, "--min-rows", "1"]) == 0
+    new = [p for p in runs.glob("*.json") if p.name != f"{UUID[:8]}-aaaa.json"]
+    assert len(new) == 1
+    assert json.loads(new[0].read_text())["window"]["start"] == _ts(5)
+
+
+def test_min_rows_still_records_a_small_window_that_has_a_subagent(tmp_path, monkeypatch):
+    rows = [_row(_ts(10), "m2", _usage(1, 7))]
+    projects, runs = _projects(tmp_path, rows), tmp_path / "runs"
+    _prior_record(runs, _ts(5))
+    sub = projects / "proj" / UUID / "subagents"
+    _write(sub / "agent-a1.jsonl", [_row(_ts(11), "s1", _usage(1, 3))])
+    (sub / "agent-a1.meta.json").write_text(json.dumps({"agentType": "general-purpose"}))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    args = ["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)]
+    assert rt.main([*args, "--min-rows", "50"]) == 0
+    assert len(list(runs.glob("*.json"))) == 2
+
+
+def test_min_rows_counts_an_outside_agent_attempt_given_by_log(tmp_path, monkeypatch):
+    rows = [_row(_ts(10), "m2", _usage(1, 7))]
+    projects, runs = _projects(tmp_path, rows), tmp_path / "runs"
+    _prior_record(runs, _ts(5))
+    log = tmp_path / "outside.jsonl"
+    log.write_text(json.dumps({"timestamp": _ts(8), "attempt": True, "result": "ok"}) + "\n")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    args = ["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)]
+    assert rt.main([*args, "--min-rows", "50", "--outside-log", str(log)]) == 0
+    assert len(list(runs.glob("*.json"))) == 2
+
+
+def test_a_window_with_only_a_subagent_is_recorded_even_with_no_parent_rows(tmp_path, monkeypatch):
+    projects, runs = _projects(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))]), tmp_path / "runs"
+    _prior_record(runs, _ts(5))
+    sub = projects / "proj" / UUID / "subagents"
+    _write(sub / "agent-a1.jsonl", [_row(_ts(11), "s1", _usage(1, 3))])
+    (sub / "agent-a1.meta.json").write_text(json.dumps({"agentType": "general-purpose"}))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    args = ["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)]
+    assert rt.main([*args, "--min-rows", "10"]) == 0
+    new = [p for p in runs.glob("*.json") if p.name != f"{UUID[:8]}-aaaa.json"]
+    assert len(new) == 1
+    assert json.loads(new[0].read_text())["subagent_count"]["value"] == 1
+
+
+def test_gate_runs_read_the_monthly_files_next_to_the_base_name(tmp_path):
+    z = lambda m: _ts(m).replace(".000Z", "Z")  # noqa: E731
+    row = lambda m, status, failed: json.dumps(  # noqa: E731
+        {"timestamp": z(m), "status": status, "failed": failed}
+    )
+    (tmp_path / "harness-verify-runs-202610.jsonl").write_text(row(5, "PASS", []) + "\n")
+    (tmp_path / "harness-verify-runs-202609.jsonl").write_text(row(6, "FAIL", ["tests"]) + "\n")
+    (tmp_path / "harness-verify-runs.jsonl").write_text(row(7, "PASS", []) + "\n")
+    (tmp_path / "harness-verify-runs-notes.txt").write_text("not a log")
+    rows = [_row(_ts(5), "m1", _usage(1, 1))]
+    run = rt.collect_run(
+        _session(tmp_path, rows),
+        start=_ts(4),
+        end=_ts(9),
+        gate_runs_log=tmp_path / "harness-verify-runs.jsonl",
+    )
+    assert run["gate_runs"]["status"] == "measured"
+    assert run["gate_runs"]["value"]["count"] == 3
+    assert run["gate_runs"]["value"]["failed_gates"] == {"tests": 1}
+
+
+def test_gate_runs_work_with_only_monthly_files(tmp_path):
+    (tmp_path / "harness-verify-runs-202610.jsonl").write_text(
+        json.dumps({"timestamp": _ts(5).replace(".000Z", "Z"), "status": "PASS", "failed": []})
+        + "\n"
+    )
+    rows = [_row(_ts(5), "m1", _usage(1, 1))]
+    run = rt.collect_run(
+        _session(tmp_path, rows),
+        start=_ts(4),
+        end=_ts(9),
+        gate_runs_log=tmp_path / "harness-verify-runs.jsonl",
+    )
+    assert run["gate_runs"]["value"]["count"] == 1
+
+
+def test_another_sessions_outside_attempt_does_not_force_a_record_for_an_idle_window(
+    tmp_path, monkeypatch
+):
+    projects, runs = _projects(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))]), tmp_path / "runs"
+    _prior_record(runs, _ts(5))
+    log = tmp_path / "outside.jsonl"
+    log.write_text(json.dumps({"timestamp": _ts(8), "attempt": True, "result": "ok"}) + "\n")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    args = ["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)]
+    assert rt.main([*args, "--outside-log", str(log)]) == 0
+    assert [p.name for p in runs.glob("*.json")] == [f"{UUID[:8]}-aaaa.json"]
+
+
+def test_a_directory_named_like_a_monthly_file_is_not_data(tmp_path):
+    (tmp_path / "harness-verify-runs-202601.jsonl").mkdir()
+    rows = [_row(_ts(5), "m1", _usage(1, 1))]
+    run = rt.collect_run(
+        _session(tmp_path, rows),
+        start=_ts(4),
+        end=_ts(9),
+        gate_runs_log=tmp_path / "harness-verify-runs.jsonl",
+    )
+    assert run["gate_runs"]["status"] == "missing"
+
+
+def test_without_min_rows_a_tiny_window_is_recorded_as_before(tmp_path, monkeypatch):
+    rows = [_row(_ts(10), "m2", _usage(1, 7))]
+    projects, runs = _projects(tmp_path, rows), tmp_path / "runs"
+    _prior_record(runs, _ts(5))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", UUID)
+    assert (
+        rt.main(["--current-session", "--projects-dir", str(projects), "--out-dir", str(runs)]) == 0
+    )
+    assert len(list(runs.glob("*.json"))) == 2
+
+
 def test_current_session_with_no_new_activity_writes_nothing(tmp_path, monkeypatch, capsys):
     projects, runs = _projects(tmp_path, [_row(_ts(1), "m1", _usage(1, 100))]), tmp_path / "runs"
     _prior_record(runs, _ts(5))

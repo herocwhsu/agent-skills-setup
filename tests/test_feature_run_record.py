@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -327,6 +328,152 @@ def test_a_completion_that_is_not_committed_is_reported_as_such(repo, tmp_path, 
     _write_features(repo, [_feature("feat-001", "in_progress")])
     out = fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=None)
     assert out["status"] == "not completed"
+
+
+def test_an_untracked_feature_list_is_named_not_called_an_uncommitted_completion(repo, tmp_path):
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "init", when="2026-10-01T09:00:00+00:00")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+    out = fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=None)
+    assert out["status"] == "feature_list.json is not tracked by git"
+
+
+def test_a_directory_that_is_not_a_repository_is_named(tmp_path):
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    _write_features(plain, [_feature("feat-001", "completed")])
+    projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+    out = fr.record_feature(plain, "feat-001", SESSION, projects, outside_log=None)
+    assert out["status"] == "not a git repository"
+
+
+def test_missing_git_is_named_not_a_crash(repo, tmp_path, monkeypatch):
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    _commit(repo, "2026-10-01T10:00:00+00:00")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+    monkeypatch.setenv("PATH", str(tmp_path / "nowhere"))
+    out = fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=None)
+    assert out["status"] == "git is not available"
+
+
+def test_a_repository_git_refuses_to_read_is_not_called_not_a_repository(
+    repo, tmp_path, monkeypatch
+):
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    _commit(repo, "2026-10-01T10:00:00+00:00")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+    monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+    out = fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=None)
+    assert out["status"] == "git cannot read this repository"
+
+
+def test_a_bare_repository_is_named_for_what_it_is(tmp_path):
+    bare = tmp_path / "bare.git"
+    _git(tmp_path, "init", "-q", "--bare", str(bare))
+    (bare / "feature_list.json").write_text(
+        json.dumps({"features": [_feature("feat-001", "completed")]})
+    )
+    projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+    out = fr.record_feature(bare, "feat-001", SESSION, projects, outside_log=None)
+    assert out["status"] == "no work tree to read feature_list.json from"
+
+
+def _fake_git(tmp_path: Path, monkeypatch, message: str) -> None:
+    bindir = tmp_path / "fakebin"
+    bindir.mkdir()
+    g = bindir / "git"
+    g.write_text(f'#!/bin/sh\necho "{message}" >&2\nexit 128\n')
+    g.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bindir}:{os.environ['PATH']}")
+
+
+def test_inherited_git_dir_does_not_redirect_the_recorder(repo, tmp_path, monkeypatch):
+    other = tmp_path / "other"
+    other.mkdir()
+    _git(other, "init", "-q")
+    (other / "feature_list.json").write_text(
+        json.dumps({"features": [_feature("feat-001", "completed")]})
+    )
+    _git(other, "add", "-A")
+    _git(other, "commit", "-q", "-m", "m", when="2026-10-01T12:00:00+00:00")
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    _write_features(plain, [_feature("feat-001", "completed")])
+    projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+    monkeypatch.setenv("GIT_DIR", str(other / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(other))
+    out = fr.record_feature(plain, "feat-001", SESSION, projects, outside_log=None)
+    assert out["status"] == "not a git repository"
+    assert (
+        "execution_summary"
+        not in json.loads((plain / "feature_list.json").read_text())["features"][0]
+    )
+
+
+def test_another_sessions_outside_attempt_does_not_make_an_idle_feature_window_a_record(
+    repo, tmp_path
+):
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    _commit(repo, "2026-10-01T10:00:00+00:00")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    _commit(repo, "2026-10-01T12:00:00+00:00")
+    projects = _projects(tmp_path, [_usage_row("2026-10-05T10:00:00Z", "m1", 10)])
+    log = tmp_path / "outside.jsonl"
+    log.write_text(
+        json.dumps({"timestamp": "2026-10-01T11:00:00Z", "attempt": True, "result": "ok"}) + "\n"
+    )
+    out = fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=log)
+    assert out["status"] == "no activity"
+
+
+def test_the_cause_does_not_depend_on_git_speaking_english(repo, tmp_path, monkeypatch):
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    _commit(repo, "2026-10-01T10:00:00+00:00")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    _write_features(plain, [_feature("feat-001", "completed")])
+    projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+    _fake_git(
+        tmp_path, monkeypatch, "fatal: kein Git-Repository (oder irgendein Elternverzeichnis)"
+    )
+    assert (
+        fr.record_feature(plain, "feat-001", SESSION, projects, outside_log=None)["status"]
+        == "not a git repository"
+    )
+    assert (
+        fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=None)["status"]
+        == "git cannot read this repository"
+    )
+
+
+def test_a_window_with_only_subagent_work_is_recorded_for_a_feature(repo, tmp_path):
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    _commit(repo, "2026-10-01T10:00:00+00:00")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    _commit(repo, "2026-10-01T12:00:00+00:00")
+    projects = _projects(tmp_path, [_usage_row("2026-10-05T10:00:00Z", "m1", 10)])
+    sub = projects / "proj" / SESSION / "subagents"
+    sub.mkdir(parents=True)
+    (sub / "agent-a1.jsonl").write_text(
+        json.dumps(_usage_row("2026-10-01T11:00:00Z", "s1", 5)) + "\n"
+    )
+    (sub / "agent-a1.meta.json").write_text(json.dumps({"agentType": "general-purpose"}))
+    out = fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=None)
+    assert out["status"] == "recorded"
+    feat = json.loads((repo / "feature_list.json").read_text())["features"][0]
+    assert feat["execution_summary"]["subagents"] == 1
+
+
+def test_a_tracked_feature_list_whose_completion_is_not_committed_keeps_its_wording(repo, tmp_path):
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    _commit(repo, "2026-10-01T10:00:00+00:00")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+    out = fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=None)
+    assert out["status"] == "completion not committed"
 
 
 def test_main_prints_the_uncommitted_completion_status(repo, tmp_path, monkeypatch, capsys):

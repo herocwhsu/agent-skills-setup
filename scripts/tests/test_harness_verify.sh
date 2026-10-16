@@ -227,7 +227,7 @@ else
 fi
 
 # --- every run appends one line to a runs log next to the kept report ---
-RUNS_LOG="$(dirname "$HARNESS_VERIFY_LAST_REPORT")/harness-verify-runs.jsonl"
+RUNS_LOG="$(dirname "$HARNESS_VERIFY_LAST_REPORT")/harness-verify-runs-$(date -u +%Y%m).jsonl"
 rm -f "$RUNS_LOG"
 stub_gates 0 0 0
 HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 || true
@@ -249,18 +249,58 @@ fi
 GUARD_TEST="$SCRIPT_DIR/../harness/guards/tests/test_stop_verify.sh"
 fake_home="$TMPDIR/guard-home"; mkdir -p "$fake_home"
 env -u HARNESS_VERIFY_LAST_REPORT HOME="$fake_home" bash "$GUARD_TEST" >/dev/null 2>&1 </dev/null || true
-if [[ ! -e "$fake_home/.agent-skills-setup/state/harness-verify-runs.jsonl" ]]; then
+if ! ls "$fake_home/.agent-skills-setup/state/" 2>/dev/null | grep -q harness-verify-runs; then
   ok "the stop guard test leaves the state dir of its caller alone"
 else
   bad "the stop guard test leaves the state dir of its caller alone" \
-    "$(wc -l < "$fake_home/.agent-skills-setup/state/harness-verify-runs.jsonl") fake gate runs written"
+    "fake gate runs written: $(ls "$fake_home/.agent-skills-setup/state/")"
 fi
 
 # --- an unwritable state dir must not print anything the old script did not ---
-if ! grep -q "runs.jsonl" "$TMPDIR/out.unw"; then
+if ! grep -q "harness-verify-runs" "$TMPDIR/out.unw"; then
   ok "an unwritable state dir prints no error about the runs log"
 else
-  bad "an unwritable state dir prints no error about the runs log" "$(grep runs.jsonl "$TMPDIR/out.unw" | head -2)"
+  bad "an unwritable state dir prints no error about the runs log" "$(grep harness-verify-runs "$TMPDIR/out.unw" | head -2)"
+fi
+
+# --- one append-only file per month; months older than twelve are deleted whole ---
+STATE_DIR="$(dirname "$HARNESS_VERIFY_LAST_REPORT")"
+months_ago() { python3 -c 'import sys,datetime; d=datetime.datetime.now(datetime.timezone.utc); t=d.year*12+d.month-1-int(sys.argv[1]); print("%04d%02d" % (t//12, t%12+1))' "$1"; }
+rm -f "$STATE_DIR"/harness-verify-runs*.jsonl
+printf '{"x":"old"}\n' > "$STATE_DIR/harness-verify-runs-200001.jsonl"
+printf '{"x":"13"}\n'  > "$STATE_DIR/harness-verify-runs-$(months_ago 13).jsonl"
+printf '{"x":"11"}\n'  > "$STATE_DIR/harness-verify-runs-$(months_ago 11).jsonl"
+printf '{"x":"legacy"}\n' > "$STATE_DIR/harness-verify-runs.jsonl"
+stub_gates 0 0 0
+HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 || true
+CUR="$STATE_DIR/harness-verify-runs-$(months_ago 0).jsonl"
+if [[ ! -e "$STATE_DIR/harness-verify-runs-200001.jsonl" && ! -e "$STATE_DIR/harness-verify-runs-$(months_ago 13).jsonl" \
+      && -e "$STATE_DIR/harness-verify-runs-$(months_ago 11).jsonl" && -e "$STATE_DIR/harness-verify-runs.jsonl" \
+      && -e "$STATE_DIR/harness-verify-last.json" && "$(wc -l < "$CUR" | tr -d ' ')" -eq 1 ]]; then
+  ok "months older than twelve are deleted; newer months, the legacy file and the last report stay"
+else
+  bad "months older than twelve are deleted; newer months, the legacy file and the last report stay" "$(ls "$STATE_DIR")"
+fi
+
+# --- runs finishing together lose no line (a short O_APPEND write is atomic) ---
+rm -f "$CUR"
+for k in 1 2 3 4 5 6; do HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 </dev/null & done
+wait
+good=$(python3 -c 'import json,sys; print(sum(1 for l in open(sys.argv[1]) if json.loads(l)["status"]=="PASS"))' "$CUR" 2>/dev/null || echo 0)
+stray=$(ls "$STATE_DIR" | grep -cE 'tmp|\.lock' || true)
+if [[ "$good" -eq 6 && "$stray" -eq 0 ]]; then
+  ok "six runs finishing together keep all six lines and leave nothing behind"
+else
+  bad "six runs finishing together keep all six lines and leave nothing behind" "lines=$good stray=$stray"
+fi
+
+# --- an unwritable state dir neither stalls nor prints ---
+SECONDS=0
+HARNESS_VERIFY_LAST_REPORT="/proc/nope/x/last.json" HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >"$TMPDIR/out.slow" 2>&1 || true
+if [[ $SECONDS -lt 5 ]] && ! grep -q "harness-verify-runs" "$TMPDIR/out.slow"; then
+  ok "an unwritable state dir costs no time and prints nothing about the log (${SECONDS}s)"
+else
+  bad "an unwritable state dir costs no time and prints nothing about the log" "${SECONDS}s: $(grep harness-verify-runs "$TMPDIR/out.slow" | head -2)"
 fi
 
 echo ""

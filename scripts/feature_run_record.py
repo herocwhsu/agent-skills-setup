@@ -24,8 +24,23 @@ DONE = ("completed", "done")
 _UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 
 
+def _git_env() -> dict[str, str]:
+    """The environment without variables that point git at some other repository."""
+    drop = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR")
+    return {k: v for k, v in os.environ.items() if k not in drop}
+
+
 def _git(repo: Path, *args: str) -> str:
-    r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=False)
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(repo), *args],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=_git_env(),
+        )
+    except OSError:
+        return ""
     return r.stdout if r.returncode == 0 else ""
 
 
@@ -57,6 +72,43 @@ def completion_time(repo: Path, feature_id: str) -> str | None:
             if f.get("id") == feature_id and f.get("status") in DONE:
                 return when
     return None
+
+
+def _why_no_completion(repo: Path) -> str:
+    """Name the cause when no commit shows the feature completed."""
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=_git_env(),
+        )
+    except OSError:
+        return "git is not available"
+    if r.returncode != 0:
+        probe = repo
+        for _ in range(64):
+            if (probe / ".git").exists():
+                return "git cannot read this repository"
+            if probe.parent == probe:
+                break
+            probe = probe.parent
+        return "not a git repository"
+    if r.stdout.strip() != "true":
+        return "no work tree to read feature_list.json from"
+    tracked = subprocess.run(
+        ["git", "-C", str(repo), "ls-files", "--error-unmatch", "feature_list.json"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_git_env(),
+    )
+    return (
+        "completion not committed"
+        if tracked.returncode == 0
+        else "feature_list.json is not tracked by git"
+    )
 
 
 def windows_by_commit(repo: Path, feature_ids: list[str]) -> dict[str, list[str]]:
@@ -220,7 +272,7 @@ def record_feature(
         return {"feature": feature_id, "status": "already recorded"}
     end = completion_time(repo, feature_id)
     if end is None:
-        return {"feature": feature_id, "status": "completion not committed"}
+        return {"feature": feature_id, "status": _why_no_completion(repo)}
     sibling = _recorded_sibling(repo, feature_id, end)
     if sibling is not None:
         shared = {"run_id": sibling["execution_summary"]["run_id"], "shared_with": sibling["id"]}
@@ -257,7 +309,7 @@ def record_feature(
         )
     except ValueError:
         return {"feature": feature_id, "status": "bad window"}
-    if rec["parent"]["usage_rows"] == 0:
+    if rec["parent"]["usage_rows"] == 0 and not (rec["subagent_count"].get("value") or 0):
         return {"feature": feature_id, "status": "no activity"}
     runs_dir.mkdir(parents=True, exist_ok=True)
     (runs_dir / f"{rec['run_id']}.json").write_text(

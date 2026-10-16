@@ -661,11 +661,21 @@ def _gates(
 
 
 def _gate_runs(log: Path | None, start: datetime | None, end: datetime | None) -> dict[str, Any]:
-    if log is None or not log.is_file():
-        return missing("harness-verify-runs.jsonl not found")
+    files = (
+        [
+            log,
+            *sorted(log.parent.glob(f"{log.stem}-[0-9][0-9][0-9][0-9][0-9][0-9]{log.suffix}")),
+        ]
+        if log is not None
+        else []
+    )
+    files = [f for f in files if f.is_file()]
+    if not files:
+        return missing("harness-verify-runs*.jsonl not found")
     count = passed = failed = 0
     names: Counter[str] = Counter()
-    for r in _read_rows(log)[0]:
+    all_rows = [r for f in files for r in _read_rows(f)[0]]
+    for r in all_rows:
         if not _in_window(r, start, end):
             continue
         count += 1
@@ -761,6 +771,12 @@ def collect_run(
     }
 
 
+def _attempts(run: dict[str, Any]) -> int:
+    logged = run.get("outside_agent", {}).get("attempts_logged")
+    value = logged.get("value") if isinstance(logged, dict) else None
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
 def find_session_file(projects_dir: Path, session_id: str) -> Path | None:
     if not _UUID_RE.match(session_id):
         return None
@@ -806,6 +822,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--outside-log", type=Path, help="outside-agent-runs.jsonl")
     ap.add_argument("--gate-runs-log", type=Path, help="harness-verify-runs.jsonl")
     ap.add_argument("--out-dir", type=Path, default=Path("docs/telemetry/runs"))
+    ap.add_argument(
+        "--min-rows",
+        type=int,
+        default=0,
+        help="with --current-session, write nothing for a window with fewer usage rows "
+        "than this and no subagent or outside-agent attempt; the next record absorbs it",
+    )
     args = ap.parse_args(argv)
     start, end = args.start, args.end
     if args.current_session:
@@ -833,7 +856,23 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as e:
         print(f"run_telemetry: bad timestamp: {e}", file=sys.stderr)
         return 2
-    if args.current_session and run["parent"]["usage_rows"] == 0:
+    if (
+        args.current_session
+        and 0 < args.min_rows
+        and run["parent"]["usage_rows"] < args.min_rows
+        and not (run["subagent_count"].get("value") or 0)
+        and not _attempts(run)
+    ):
+        print(
+            f"run_telemetry: fewer than {args.min_rows} usage rows since "
+            f"{start or 'the start of the session'}; nothing written, the next record will include them"
+        )
+        return 0
+    if (
+        args.current_session
+        and run["parent"]["usage_rows"] == 0
+        and not (run["subagent_count"].get("value") or 0)
+    ):
         print(
             f"run_telemetry: no activity since {start or 'the start of the session'}; nothing written"
         )

@@ -196,6 +196,49 @@ set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -
   && ok "the phrase inside other text does not skip the run record" \
   || bad "the phrase inside other text does not skip the run record" "exit $status, out: $out"
 
+# --- 12. A feature_list.json git does not track also skips the run record; no git does not ---
+d=$(fixture_repo "untracked_list")
+printf 'print("feat-9: feature_list.json is not tracked by git")\n' > "$d/scripts/feature_run_record.py"
+printf 'print("MOCK_RUN_TELEMETRY")\n' > "$d/scripts/run_telemetry.py"
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "not committed yet" && ! "$out" =~ "MOCK_RUN_TELEMETRY" ]] \
+  && ok "an untracked feature_list.json warns and skips the run record" \
+  || bad "an untracked feature_list.json warns and skips the run record" "exit $status, out: $out"
+d=$(fixture_repo "no_git")
+printf 'print("feat-9: not a git repository")\n' > "$d/scripts/feature_run_record.py"
+printf 'print("MOCK_RUN_TELEMETRY")\n' > "$d/scripts/run_telemetry.py"
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "MOCK_RUN_TELEMETRY" && ! "$out" =~ "not committed yet" ]] \
+  && ok "a missing git still records the run" \
+  || bad "a missing git still records the run" "exit $status, out: $out"
+
+# --- 13. The run record skips a window with almost no activity ---
+d=$(fixture_repo "min_rows")
+printf 'import sys\nprint("MOCK_RUN_TELEMETRY " + " ".join(sys.argv[1:]))\n' > "$d/scripts/run_telemetry.py"
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "--min-rows 10" ]] \
+  && ok "the run record is asked to skip windows under 10 usage rows" \
+  || bad "the run record is asked to skip windows under 10 usage rows" "exit $status, out: $out"
+
+# --- 14. The run record is told where the outside-agent log is ---
+d=$(fixture_repo "outside_log")
+printf 'import sys\nprint("MOCK_RUN_TELEMETRY " + " ".join(sys.argv[1:]))\n' > "$d/scripts/run_telemetry.py"
+set +e; out=$(HOME="$TMP/oh" OUTSIDE_AGENT_DIR="$TMP/oad" SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "--outside-log $TMP/oad/state/outside-agent-runs.jsonl" ]] \
+  && ok "the run record gets the outside-agent log path" \
+  || bad "the run record gets the outside-agent log path" "exit $status, out: $out"
+
+# --- 15. Every git status except "not a git repository" skips the run record: the completion cannot be dated ---
+for st in "git cannot read this repository" "git is not available" "no work tree to read feature_list.json from"; do
+  d=$(fixture_repo "st_${st// /_}")
+  printf 'print("feat-9: %s")\n' "$st" > "$d/scripts/feature_run_record.py"
+  printf 'print("MOCK_RUN_TELEMETRY")\n' > "$d/scripts/run_telemetry.py"
+  set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+  [[ $status -eq 0 && "$out" =~ "not committed yet" && ! "$out" =~ "MOCK_RUN_TELEMETRY" ]] \
+    && ok "status '$st' warns and skips the run record" \
+    || bad "status '$st' warns and skips the run record" "exit $status, out: $out"
+done
+
 echo ""
 echo "test_session_clean: $pass passed, $fail failed"
 [[ $fail -eq 0 ]] || exit 1
