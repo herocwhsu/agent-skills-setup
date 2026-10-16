@@ -6,59 +6,10 @@
     "docs/archive/features/archive-feat-056-059.json",
     "docs/archive/features/archive-feat-060-060.json",
     "docs/archive/features/archive-feat-061-062.json",
-    "docs/archive/features/archive-feat-063-064.json"
+    "docs/archive/features/archive-feat-063-064.json",
+    "docs/archive/features/archive-feat-065-066.json"
   ],
   "features": [
-    {
-      "id": "feat-065",
-      "name": "Run telemetry: read-only collector, comparison report, outside-agent attempt log",
-      "description": "Measure token use, duration, subagents and gate results per run from Claude Code session files without relying on the agent's own estimates, keep detail outside the state layer, and record every outside-agent attempt.",
-      "dependencies": [
-        "feat-064"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "scripts/run_telemetry.py deduplicates usage by (scope, message id), flags conflicting rows, never reports an unavailable metric as 0, and keeps parent and subagent usage separate",
-        "scripts/run_report.py prints missing metrics as n/a and compares runs in one table",
-        "cmd_run records every outside-agent attempt (including failures, timeouts, skips, interruptions) without changing return codes or candidate order",
-        "state layer stays within its 6,000-token budget and all 11 harness gates pass"
-      ],
-      "evidence": "Collector, report and 53 tests (tests/test_run_telemetry.py, tests/test_run_report.py); 24 baseline records in docs/telemetry/runs/ from 22 existing sessions, with docs/telemetry/RELIABILITY.md listing each metric as measured, ambiguous or missing. Reviews: a fresh subagent and codex-kiro on the first draft found 12 defects (synthetic rows reported a context size of 0 in 4 sessions, 4 nested workflow subagents never read, crashes on non-hashable ids and NaN durations, committed records carrying agent type and session id verbatim, window boundary rows counted twice); each got a failing test first and a fix. Attempt logging for outside_agent.py got a subagent and codex-kiro review; the SIGTERM path was found by both and fixed. Not done: USD cost (no authoritative source), outcome and retries (no structured record), Codex/Kiro/agy token usage (none usable), and running the fixed benchmark defined in docs/stories/run-telemetry/benchmark.md.",
-      "verification": "bash scripts/harness-verify.sh && python3 -m pytest tests/test_run_telemetry.py tests/test_run_report.py tests/test_outside_agent.py -q",
-      "execution_summary": {
-        "run_id": "0d3a322a-ecdf41782a",
-        "output_tokens": 14051,
-        "wall_time_ms": 8965820,
-        "active_turn_time_ms": 4968660,
-        "subagents": 5,
-        "subagent_output_tokens": 4321
-      }
-    },
-    {
-      "id": "feat-066",
-      "name": "Fixed telemetry benchmark: five tasks, scripted checks, runner and comparison",
-      "description": "Answer whether a harness change made the next task of the same difficulty faster, cheaper or more reliable, using fixed prompts, frozen fixtures, hidden checks and no model-based scoring.",
-      "dependencies": [
-        "feat-065"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "each of B1-B5 has a frozen prompt, a fixture, and scripted checks that fail on the untouched fixture and pass on a reference solution",
-        "compare prints no verdict with fewer than 5 runs per version, and only between runs that share model and suite hash",
-        "a run's telemetry counts only that run's outside-agent attempts",
-        "all 11 harness gates pass"
-      ],
-      "evidence": "scripts/telemetry_benchmark.py, benchmarks/telemetry/ (suite, fixtures, hidden tests, reference solutions; python files stored as *.fixture so mypy and the bash guard skip them), tests/test_telemetry_benchmark.py (38 tests, fake agent, no tokens). One real run of each task on claude-sonnet-5.5 passed. Two defects found by the smoke runs (B2 check rejected a legitimate added test; run telemetry counted the global outside-agent log) and 8 more by a fresh subagent plus codex-kiro (hidden dir exposed via BENCH_DIR, first-pass compared as a point, missing subagents read as 0, harness commit turned -dirty by its own output, missing agent binary crashed the batch, B1 accepted a hard-coded answer, B3 matched negated sentences, B5 only checked that ids survived); each got a failing test first. Not done: the 5-runs-per-version comparison itself (about 50 sessions, run it when a harness change needs measuring), gate results per task (fixture repos have no gates), a second harness version to compare against. B3 scoring is keyword-based and can misjudge unusual phrasing.",
-      "verification": "bash scripts/harness-verify.sh && python3 -m pytest tests/test_telemetry_benchmark.py -q",
-      "execution_summary": {
-        "run_id": "0d3a322a-133f013804",
-        "output_tokens": 7099,
-        "wall_time_ms": 13733827,
-        "active_turn_time_ms": 14911002,
-        "subagents": 5,
-        "subagent_output_tokens": 6501
-      }
-    },
     {
       "id": "feat-067",
       "name": "Faster gates and automatic run records: parallel tests, process adherence, feature summaries, review timeout",
@@ -149,7 +100,15 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "python3 -m pytest tests/test_feature_run_record.py tests/test_run_telemetry.py -q && bash scripts/harness-verify.sh",
-      "evidence": "Failing tests first, then code: tests/test_feature_run_record.py (2 new), tests/test_run_telemetry.py (3 new, gate_runs), scripts/tests/test_session_clean.sh (2 new), scripts/tests/test_harness_verify.sh (2 new); 180 pytest and all shell tests pass, mypy clean, harness-verify.sh passed all 11 gates with output saved to a file. A completion not yet committed now reports 'completion not committed' and session-clean.sh warns and writes no run record; harness-verify.sh appends one line per run to ~/.agent-skills-setup/state/harness-verify-runs.jsonl and each run record carries gate_runs (count, passed, failed, failed gate names). feat-068 and feat-069 summaries were rebuilt from their real records with summary_from_record (feat-068: 5097 output tokens, 15.3e6 ms wall; feat-069: 1669, 1.99e6 ms); the stray records 57f13686b4, f9dc9c7a13 and cb5536ef29 stay in docs/telemetry/runs as unclaimed. AGENTS.md End of Session now gives the order. A new test found that harness/guards/tests/test_stop_verify.sh ran the real harness-verify.sh against the caller's HOME and wrote 4 fake gate runs per run-tests.sh call; it now uses a temp report path. Outside review of feat-068 (codex-kiro) gave 3 findings, none introduced by it: setup-host.sh overwrites a foreign AGY statusLine and install_statusline leaves stack_with_default alone when the statusLine is foreign (both as before feat-068), and the refresh path has no Python fallback without jq (also as before; the statusline script itself needs jq and renders nothing without it). Not fixed, queued. Not done: the ordering is enforced by a warning and AGENTS.md, not blocked; the first real use of the new order is this feature's own close. Reviewer for this feature's code: none yet beyond the tests and gates."
+      "evidence": "Failing tests first, then code: tests/test_feature_run_record.py (2 new), tests/test_run_telemetry.py (3 new, gate_runs), scripts/tests/test_session_clean.sh (2 new), scripts/tests/test_harness_verify.sh (2 new); 180 pytest and all shell tests pass, mypy clean, harness-verify.sh passed all 11 gates with output saved to a file. A completion not yet committed now reports 'completion not committed' and session-clean.sh warns and writes no run record; harness-verify.sh appends one line per run to ~/.agent-skills-setup/state/harness-verify-runs.jsonl and each run record carries gate_runs (count, passed, failed, failed gate names). feat-068 and feat-069 summaries were rebuilt from their real records with summary_from_record (feat-068: 5097 output tokens, 15.3e6 ms wall; feat-069: 1669, 1.99e6 ms); the stray records 57f13686b4, f9dc9c7a13 and cb5536ef29 stay in docs/telemetry/runs as unclaimed. AGENTS.md End of Session now gives the order. A new test found that harness/guards/tests/test_stop_verify.sh ran the real harness-verify.sh against the caller's HOME and wrote 4 fake gate runs per run-tests.sh call; it now uses a temp report path. Outside review of feat-068 (codex-kiro) gave 3 findings, none introduced by it: setup-host.sh overwrites a foreign AGY statusLine and install_statusline leaves stack_with_default alone when the statusLine is foreign (both as before feat-068), and the refresh path has no Python fallback without jq (also as before; the statusline script itself needs jq and renders nothing without it). Not fixed, queued. Not done: the ordering is enforced by a warning and AGENTS.md, not blocked; the first real use of the new order is this feature's own close. Reviewer for this feature's code: none yet beyond the tests and gates.",
+      "execution_summary": {
+        "run_id": "d3a07c08-22ba089a9d",
+        "output_tokens": 3287,
+        "wall_time_ms": 61707096,
+        "active_turn_time_ms": 923043,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
     }
   ]
 }

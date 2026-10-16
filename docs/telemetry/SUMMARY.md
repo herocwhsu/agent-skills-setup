@@ -4,9 +4,6 @@
 
 | Commit | Timestamp (UTC) | Agent | Subagents | Spent Time | Est. Tokens | `feature_list.json` | `PROGRESS.md` | Done (Active) | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `3328839` | 2026-10-10 09:14:02 | `claude` | - | 48.1s | ~8,890 tok | 254 lines | 138 lines | 13 (0 act) | **WARN** |
-| `d27fa7f` | 2026-10-10 09:22:15 | `agy` | - | 18.5s | ~9,010 tok | 254 lines | 142 lines | 13 (0 act) | **WARN** |
-| `b48d188` | 2026-10-10 09:28:40 | `agy` | - | 14.2s | ~9,140 tok | 254 lines | 146 lines | 13 (0 act) | **WARN** |
 | `1f91780` | 2026-10-10 09:33:05 | `agy` | - | 22.1s | ~9,290 tok | 254 lines | 150 lines | 13 (0 act) | **WARN** |
 | `63c6395` | 2026-10-10 09:37:09 | `agy` | - | 35.0s | ~10,630 tok | 254 lines | 154 lines | 13 (0 act) | **WARN** |
 | `63c6395` | 2026-10-10 10:03:21 | `agy` | - | 18.2s | ~4,350 tok | 81 lines | 139 lines | 4 (0 act) | **OK** |
@@ -24,5 +21,8 @@
 | `bc96a61` | 2026-10-15 07:24:03 | `claude` | - | 1m 25s | ~5,851 tok | 150 lines | 95 lines | 6 (0 act) | **OK** |
 | `cc5959c` | 2026-10-15 07:57:42 | `claude` | - | 38.0s | ~6,527 tok | 176 lines | 97 lines | 7 (0 act) | **WARN** |
 | `db4384e` | 2026-10-15 07:58:07 | `claude` | - | 25.2s | ~5,620 tok | 127 lines | 97 lines | 5 (0 act) | **OK** |
+| `71d63e8` | 2026-10-16 01:07:03 | `claude` | 1 out (codex-kiro) | - | ~6,770 tok | 155 lines | 100 lines | 6 (0 act) | **WARN** |
+| `71d63e8` | 2026-10-16 01:08:44 | `claude` | - | 1m 40s | ~5,606 tok | 106 lines | 100 lines | 4 (0 act) | **OK** |
+| `ea4bb74` | 2026-10-16 01:10:50 | `claude` | - | 2m 6s | ~5,667 tok | 114 lines | 100 lines | 4 (0 act) | **OK** |
 
 ✅ **Status:** All state layer metrics are within clean-state limits.
