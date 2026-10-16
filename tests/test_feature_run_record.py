@@ -314,6 +314,31 @@ def test_record_feature_with_no_activity_in_the_window_writes_nothing(repo, tmp_
     )
 
 
+def test_a_completion_that_is_not_committed_is_reported_as_such(repo, tmp_path, capsys):
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    _commit(repo, "2026-10-01T10:00:00+00:00")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+    out = fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=None)
+    assert out["status"] == "completion not committed"
+    feat = json.loads((repo / "feature_list.json").read_text())["features"][0]
+    assert "execution_summary" not in feat
+    # a feature that is not completed keeps the old wording
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    out = fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=None)
+    assert out["status"] == "not completed"
+
+
+def test_main_prints_the_uncommitted_completion_status(repo, tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)
+    _write_features(repo, [_feature("feat-001", "in_progress")])
+    _commit(repo, "2026-10-01T10:00:00+00:00")
+    _write_features(repo, [_feature("feat-001", "completed")])
+    projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
+    assert fr.main(["--repo", str(repo), "--projects-dir", str(projects), "--pending"]) == 0
+    assert "feat-001: completion not committed" in capsys.readouterr().out
+
+
 def test_pending_features_are_the_completed_ones_without_a_summary(repo):
     _write_features(
         repo,

@@ -80,6 +80,7 @@ Before ending a session:
 
 - Update `PROGRESS.md` with what's done, in progress, and next.
 - Update `feature_list.json` with new feature status and evidence.
+- Commit the finished work and the `feature_list.json` completion first. Then run `bash scripts/session-clean.sh`, then commit the telemetry files it writes. Run before the completion commit, it prints `completion not committed` and writes no run record, because the feature's window ends at that commit.
 - Run `bash scripts/session-clean.sh` to purge ephemeral caches, sync runtime copies, record the session telemetry snapshot and a run record (`docs/telemetry/runs/`, tokens, time and subagents since the last record of this session; a failure there warns but does not block), and verify the 5 clean-state invariants.
 - The state of the repo — not chat history — is what the next session reads.
 

@@ -6,6 +6,10 @@ HOOK="$(cd "$(dirname "$0")/.." && pwd)/stop-verify.sh"
 PASS=0
 FAIL=0
 
+STATE_TMP=$(mktemp -d)
+trap 'rm -rf "$STATE_TMP"' EXIT
+export HARNESS_VERIFY_LAST_REPORT="$STATE_TMP/harness-verify-last.json"
+
 # Test 1: Clean harness verify allows under Claude/Codex (exit 0)
 clean_claude_case() {
   local mock_hooks; mock_hooks=$(mktemp -d)

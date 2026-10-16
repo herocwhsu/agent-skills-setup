@@ -226,6 +226,36 @@ else
   bad "an empty HARNESS_VERIFY_LAST_REPORT keeps nothing and still passes" "rc=$rc"
 fi
 
+# --- every run appends one line to a runs log next to the kept report ---
+RUNS_LOG="$(dirname "$HARNESS_VERIFY_LAST_REPORT")/harness-verify-runs.jsonl"
+rm -f "$RUNS_LOG"
+stub_gates 0 0 0
+HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 || true
+stub_gates 0 1 0
+HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 || true
+if [[ -f "$RUNS_LOG" ]] && python3 -c '
+import json, sys
+rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
+assert [r["status"] for r in rows] == ["PASS", "FAIL"], rows
+assert all(r["timestamp"] and "failed" in r and "total_duration_ms" in r for r in rows), rows
+assert "\n" not in open(sys.argv[1]).read().strip().split("\n")[0]
+' "$RUNS_LOG"; then
+  ok "each run appends one JSON line to the runs log"
+else
+  bad "each run appends one JSON line to the runs log" "$(cat "$RUNS_LOG" 2>/dev/null | head -5)"
+fi
+
+# --- a test that runs the stop guard must not write gate runs into the real state dir ---
+GUARD_TEST="$SCRIPT_DIR/../harness/guards/tests/test_stop_verify.sh"
+fake_home="$TMPDIR/guard-home"; mkdir -p "$fake_home"
+env -u HARNESS_VERIFY_LAST_REPORT HOME="$fake_home" bash "$GUARD_TEST" >/dev/null 2>&1 </dev/null || true
+if [[ ! -e "$fake_home/.agent-skills-setup/state/harness-verify-runs.jsonl" ]]; then
+  ok "the stop guard test leaves the state dir of its caller alone"
+else
+  bad "the stop guard test leaves the state dir of its caller alone" \
+    "$(wc -l < "$fake_home/.agent-skills-setup/state/harness-verify-runs.jsonl") fake gate runs written"
+fi
+
 echo ""
 echo "test_harness_verify: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

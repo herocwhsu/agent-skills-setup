@@ -219,7 +219,7 @@ def record_feature(
         return {"feature": feature_id, "status": "already recorded"}
     end = completion_time(repo, feature_id)
     if end is None:
-        return {"feature": feature_id, "status": "not completed"}
+        return {"feature": feature_id, "status": "completion not committed"}
     sibling = _recorded_sibling(repo, feature_id, end)
     if sibling is not None:
         shared = {"run_id": sibling["execution_summary"]["run_id"], "shared_with": sibling["id"]}

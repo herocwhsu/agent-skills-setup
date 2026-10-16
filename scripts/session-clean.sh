@@ -90,19 +90,31 @@ if [[ $CHECK_ONLY -eq 0 && -f "$trace_script" ]]; then
 fi
 
 feature_record="$REPO_DIR/scripts/feature_run_record.py"
+uncommitted_completion=0
 if [[ $CHECK_ONLY -eq 0 && -f "$feature_record" ]]; then
   echo ""
   echo "==> [Feature Telemetry] Attaching run summaries to completed features and archiving to budget..."
-  if ! (cd "$REPO_DIR/scripts" && python3 "$feature_record" --repo "$REPO_DIR" --pending --archive) 2>&1; then
+  if ! feature_out=$(cd "$REPO_DIR/scripts" && python3 "$feature_record" --repo "$REPO_DIR" --pending --archive 2>&1); then
+    echo "$feature_out"
     echo "    [WARN] Feature run summaries not recorded (see above); handoff is not blocked."
+  else
+    echo "$feature_out"
+  fi
+  if [[ "$feature_out" == *"completion not committed"* ]]; then
+    uncommitted_completion=1
+    echo "    [WARN] A completed feature is not committed yet, so its run summary could not be attached." >&2
+    echo "    [WARN] Commit the completion first, then run session-clean.sh again. No run record is written now," >&2
+    echo "    [WARN] because it would claim the whole work window and no feature could use it." >&2
   fi
 fi
 
 run_telemetry="$REPO_DIR/scripts/run_telemetry.py"
-if [[ $CHECK_ONLY -eq 0 && -f "$run_telemetry" ]]; then
+if [[ $CHECK_ONLY -eq 0 && $uncommitted_completion -eq 0 && -f "$run_telemetry" ]]; then
   echo ""
   echo "==> [Run Telemetry] Recording token, time and subagent usage for this session..."
-  if ! python3 "$run_telemetry" --current-session --out-dir "$REPO_DIR/docs/telemetry/runs" 2>&1; then
+  gate_runs_log="${HARNESS_VERIFY_LAST_REPORT:-${HOME:-}/.agent-skills-setup/state/harness-verify-last.json}"
+  gate_runs_log="$(dirname "$gate_runs_log")/harness-verify-runs.jsonl"
+  if ! python3 "$run_telemetry" --current-session --out-dir "$REPO_DIR/docs/telemetry/runs" --gate-runs-log "$gate_runs_log" 2>&1; then
     echo "    [WARN] Run telemetry not recorded (see above); handoff is not blocked."
   fi
 fi

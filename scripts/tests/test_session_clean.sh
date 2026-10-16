@@ -158,6 +158,23 @@ set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" --check 2>&1); status=$
   && ok "--check mode does not touch feature records" \
   || bad "--check mode does not touch feature records" "exit $status, out: $out"
 
+# --- 9. An uncommitted completion warns loudly and writes no run record ---
+d=$(fixture_repo "uncommitted_completion")
+printf 'print("feat-9: completion not committed")\n' > "$d/scripts/feature_run_record.py"
+printf 'print("MOCK_RUN_TELEMETRY")\n' > "$d/scripts/run_telemetry.py"
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "not committed yet" && ! "$out" =~ "MOCK_RUN_TELEMETRY" ]] \
+  && ok "an uncommitted completion warns and skips the run record" \
+  || bad "an uncommitted completion warns and skips the run record" "exit $status, out: $out"
+
+d=$(fixture_repo "committed_completion")
+printf 'print("feat-9: recorded")\n' > "$d/scripts/feature_run_record.py"
+printf 'print("MOCK_RUN_TELEMETRY")\n' > "$d/scripts/run_telemetry.py"
+set +e; out=$(SESSION_CLEAN_REPO_DIR="$d" bash "$SCRIPT" 2>&1); status=$?; set -e
+[[ $status -eq 0 && "$out" =~ "feat-9: recorded" && "$out" =~ "MOCK_RUN_TELEMETRY" && ! "$out" =~ "not committed yet" ]] \
+  && ok "a committed completion still records the run" \
+  || bad "a committed completion still records the run" "exit $status, out: $out"
+
 echo ""
 echo "test_session_clean: $pass passed, $fail failed"
 [[ $fail -eq 0 ]] || exit 1

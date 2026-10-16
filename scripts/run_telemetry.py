@@ -660,6 +660,30 @@ def _gates(
     )
 
 
+def _gate_runs(log: Path | None, start: datetime | None, end: datetime | None) -> dict[str, Any]:
+    if log is None or not log.is_file():
+        return missing("harness-verify-runs.jsonl not found")
+    count = passed = failed = 0
+    names: Counter[str] = Counter()
+    for r in _read_rows(log)[0]:
+        if not _in_window(r, start, end):
+            continue
+        count += 1
+        if r.get("status") == "PASS":
+            passed += 1
+        elif r.get("status") == "FAIL":
+            failed += 1
+        listed = r.get("failed")
+        for name in listed if isinstance(listed, list) else []:
+            label = _scrub(name, 40)
+            if label:
+                names[label] += 1
+    return metric(
+        {"count": count, "passed": passed, "failed": failed, "failed_gates": dict(names)},
+        "harness-verify-runs.jsonl, one line per run",
+    )
+
+
 def collect_run(
     session_file: Path,
     *,
@@ -667,6 +691,7 @@ def collect_run(
     end: str | None = None,
     verify_report: Path | None = None,
     outside_log: Path | None = None,
+    gate_runs_log: Path | None = None,
 ) -> dict[str, Any]:
     t_start = parse_ts(start) if start else None
     t_end = parse_ts(end) if end else None
@@ -726,6 +751,7 @@ def collect_run(
         "process_adherence": _process_adherence(rows, subs, outside_log, t_start, t_end),
         "outside_agent": _outside_agent(outside_log, t_start, t_end),
         "gates": _gates(verify_report, t_start, t_end),
+        "gate_runs": _gate_runs(gate_runs_log, t_start, t_end),
         "cost_usd": missing(
             "none",
             "no authoritative cost source; custom ANTHROPIC_BASE_URL makes public pricing a guess, so it is not estimated",
@@ -778,6 +804,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--end", help="window end (ISO timestamp)")
     ap.add_argument("--verify-report", type=Path, help="harness-verify.sh --report JSON")
     ap.add_argument("--outside-log", type=Path, help="outside-agent-runs.jsonl")
+    ap.add_argument("--gate-runs-log", type=Path, help="harness-verify-runs.jsonl")
     ap.add_argument("--out-dir", type=Path, default=Path("docs/telemetry/runs"))
     args = ap.parse_args(argv)
     start, end = args.start, args.end
@@ -801,6 +828,7 @@ def main(argv: list[str] | None = None) -> int:
             end=end,
             verify_report=args.verify_report,
             outside_log=args.outside_log,
+            gate_runs_log=args.gate_runs_log,
         )
     except ValueError as e:
         print(f"run_telemetry: bad timestamp: {e}", file=sys.stderr)

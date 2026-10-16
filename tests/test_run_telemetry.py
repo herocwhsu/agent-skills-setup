@@ -1297,6 +1297,62 @@ def test_gate_report_without_a_usable_timestamp_is_not_attributed_to_a_window(tm
     assert run["gates"]["status"] == "missing"
 
 
+def _gate_runs_log(path: Path, rows: list[dict[str, Any]]) -> Path:
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    return path
+
+
+def test_gate_runs_count_the_runs_inside_the_window(tmp_path):
+    log = _gate_runs_log(
+        tmp_path / "runs.jsonl",
+        [
+            {"timestamp": _ts(1).replace(".000Z", "Z"), "status": "PASS", "failed": []},
+            {"timestamp": _ts(5).replace(".000Z", "Z"), "status": "FAIL", "failed": ["tests"]},
+            {"timestamp": _ts(6).replace(".000Z", "Z"), "status": "PASS", "failed": []},
+            {"timestamp": _ts(9).replace(".000Z", "Z"), "status": "PASS", "failed": []},
+        ],
+    )
+    rows = [_row(_ts(5), "m1", _usage(1, 1))]
+    run = rt.collect_run(_session(tmp_path, rows), start=_ts(4), end=_ts(9), gate_runs_log=log)
+    g = run["gate_runs"]
+    assert g["status"] == "measured"
+    assert g["value"] == {"count": 2, "passed": 1, "failed": 1, "failed_gates": {"tests": 1}}
+
+
+def test_gate_runs_are_missing_without_a_log_and_zero_when_none_ran(tmp_path):
+    rows = [_row(_ts(5), "m1", _usage(1, 1))]
+    run = rt.collect_run(_session(tmp_path, rows), start=_ts(4), end=_ts(9))
+    assert run["gate_runs"]["status"] == "missing"
+    log = _gate_runs_log(
+        tmp_path / "runs.jsonl",
+        [{"timestamp": _ts(1).replace(".000Z", "Z"), "status": "PASS", "failed": []}],
+    )
+    run = rt.collect_run(_session(tmp_path, rows), start=_ts(4), end=_ts(9), gate_runs_log=log)
+    assert run["gate_runs"]["status"] == "measured" and run["gate_runs"]["value"]["count"] == 0
+
+
+def test_gate_runs_ignore_hostile_lines_and_scrub_names(tmp_path):
+    ts = _ts(5).replace(".000Z", "Z")
+    log = tmp_path / "runs.jsonl"
+    log.write_text(
+        "\n".join(
+            [
+                "not json",
+                "[" * 5000,
+                json.dumps({"timestamp": ts, "status": "FAIL", "failed": ["/Users/x/secret", 7]}),
+                json.dumps({"timestamp": "bad", "status": "PASS", "failed": []}),
+                json.dumps({"timestamp": ts, "status": True, "failed": "tests"}),
+            ]
+        )
+        + "\n"
+    )
+    rows = [_row(_ts(5), "m1", _usage(1, 1))]
+    run = rt.collect_run(_session(tmp_path, rows), start=_ts(4), end=_ts(9), gate_runs_log=log)
+    text = json.dumps(run["gate_runs"])
+    assert "/Users/x" not in text
+    assert run["gate_runs"]["value"]["count"] == 2
+
+
 def test_gate_report_without_a_window_is_attached_as_before(tmp_path):
     rep = tmp_path / "r.json"
     rep.write_text(json.dumps({"status": "PASS", "gates": []}))
