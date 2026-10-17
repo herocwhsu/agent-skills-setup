@@ -12,36 +12,10 @@
     "docs/archive/features/archive-feat-068-068.json",
     "docs/archive/features/archive-feat-069-069.json",
     "docs/archive/features/archive-feat-070-070.json",
-    "docs/archive/features/archive-feat-071-072.json"
+    "docs/archive/features/archive-feat-071-072.json",
+    "docs/archive/features/archive-feat-073-073.json"
   ],
   "features": [
-    {
-      "id": "feat-073",
-      "name": "Runtime drift gate also checks the installed statusline scripts",
-      "description": "After the last edit of config/statusline-command.sh the installed AGY copy was never refreshed, so the live line ran an older version until a later review noticed. The runtime-drift gate compared only the flat runtime copies. Make it also compare each installed statusline-command.sh (AGY and Claude) with config/statusline-command.sh, but only when that agent's settings.json points at our copy, so a foreign statusLine is never flagged.",
-      "dependencies": [
-        "feat-072"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "the gate blocks (exit 2) and names the file when an installed statusline-command.sh that settings.json names exactly (statusLine.command == 'bash <copy>', and the path appears literally in the file) differs from config/statusline-command.sh or is missing, for an agent in the saved selection (none saved means claude), in a main checkout with jq available",
-        "the gate passes when the copy matches, with a foreign or non-object statusLine, our path in another key, a longer path, a tilde form, absent, truncated or non-object settings.json, an agent outside the saved selection, a linked worktree, a non-default branch, a repo without config/statusline-command.sh, or an unset HOME",
-        "the existing runtime-copy checks and their tests are unchanged, and an absent runtime dir is still a SKIP for that part only",
-        "gate_experiment.py still reports the runtime drift gate as catching its planted defect, and the clean baseline still passes",
-        "a fresh subagent and a different model family review the change (it is a gate)",
-        "all 11 harness gates pass, with gate output saved to a file"
-      ],
-      "verification": "bash harness/guards/tests/test_runtime_drift_guard.sh && bash scripts/harness-verify.sh",
-      "evidence": "Incident: after config/statusline-command.sh changed, the installed AGY copy ran an older script until a later review noticed. The gate now also compares each installed statusline-command.sh with config/statusline-command.sh. harness/guards/tests/test_runtime_drift_guard.sh 43 passed (22 first; failed first: 6, then 9 after the first review, then 2 after the second). Built in a fake repo on main so the result does not depend on the branch or worktree. Two reviews (fresh subagent, codex-kiro) of the first version found the gate would block on things bash scripts/install.sh cannot clear, which would keep a Stop hook blocking the agent: linked worktree or non-default branch (install.sh refuses), an agent outside the saved selection, a missing repo source file, a substring match that took our path in another key or a .sh.bak path or truncated JSON as ours, and the tilde form; all reproduced and fixed with tests first. A re-review (fresh subagent and codex-kiro) found two more: no saved selection means a bare non-interactive install.sh selects claude only (confirmed), and a HOME that JSON escapes (wire_hook writes \\u00e9) is found by jq but not by install_statusline's literal grep, so the block could never clear (confirmed with the real functions); both fixed with tests first. Four mutations of the final guard (literal grep, no-selection default, selection check, worktree check) are each caught. Real machine: guard exit 0. Throwaway HOME built by the real install.sh: clean install passes, a stale copy blocks naming the file, and the hinted bash scripts/install.sh clears it. scripts/gate_experiment.py --case runtime-drift-lib-edit: the planted drift is still caught and runtime drift is rated needed. harness-verify.sh passed all 11 gates with output saved to a file, run alone. One earlier full-gate run failed scripts/tests/test_run_tests_parallel.sh (SIGTERM test, queue left=1) while a review and a gate experiment ran at the same time; solo it passed 3 of 3 and two concurrent copies passed 3 rounds of 3, so it is unattributed and may be a load flake (same family as the 94/1 seen in feat-068). Not done: with HOME unset and no RUNTIME_DRIFT_GUARD_RUNTIME_DIR the guard exits 1 at skills_runtime_dir (also true before this change; the test for unset HOME only covers the statusline part); a selection file with spaces or CRLF is not trimmed like install.sh trims it (only a hand-edited file); install.sh against a throwaway HOME runs a slow live agent probe.",
-      "execution_summary": {
-        "run_id": "d3a07c08-a4ce703085",
-        "output_tokens": 2730,
-        "wall_time_ms": 7318832,
-        "active_turn_time_ms": 1810715,
-        "subagents": 2,
-        "subagent_output_tokens": 1797
-      }
-    },
     {
       "id": "feat-074",
       "name": "Telemetry housekeeping: capped gate-runs log, named git failures, no tiny tail records",
@@ -89,7 +63,15 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "python3 -m pytest tests/test_repo_audit.py -q && bash scripts/harness-verify.sh",
-      "evidence": "tests/test_repo_audit.py 6 passed; it failed first (module missing). Three mutations are each caught by one test: counting skill bodies, not ignoring the repo config block, counting an @import twice. mypy (whole tree) and ruff check/format clean on the new files; runs on /usr/bin/python3 3.9.6 with no third-party package. Baselines saved in docs/telemetry/repos/{hangar,atelier,agent-skills-setup}/2026-10-17.json. hangar: always-loaded ~5,403 tokens (instruction files 3,023, 34 skills 2,380), state files 3,870; hooks 4 identical, 2 drifted (sh-check.sh, yaml-validate.sh), 2 local; claude only wired. atelier: ~4,998 always-loaded, state 1,251; 4 identical, 6 drifted (migration-guard, py-guard, ruff-fix, sh-check, ts-fix, ts-guard); claude only. Finding: drift runs both ways. hangar yaml-validate/sh-check and atelier migration-guard/sh-check are older copies (July/August), but atelier rewrote py-guard and ts-guard on 2026-10-13 to be monorepo-aware and never upstreamed them; the templates' 2026-10-10 date is only the feat-050 relocation. So T2 cannot overwrite repo copies; it must upstream atelier's versions first. repo_audit reports 'drifted' without a direction; git dates had to be read by hand. agent-skills-setup itself shows 3 drifted (harness/guards py-check, secret-scan, sh-check vs templates/hooks), not yet looked at. harness-verify.sh: first run failed one test, skills/utils/confluence-tree/tests/test_push.sh test 5 (expected exit 6, got 1, http read on the mock server), a file this change does not touch; solo it passed 5 of 5, so it is recorded as an unattributed load flake. Second run, alone: all 11 gates passed, output saved to a file. Not done: token counts are chars/4 estimates, not a tokenizer; plugin and built-in skills are not counted; only top-level SKILL.md files are counted, as Claude Code lists them."
+      "evidence": "tests/test_repo_audit.py 6 passed; it failed first (module missing). Three mutations are each caught by one test: counting skill bodies, not ignoring the repo config block, counting an @import twice. mypy (whole tree) and ruff check/format clean on the new files; runs on /usr/bin/python3 3.9.6 with no third-party package. Baselines saved in docs/telemetry/repos/{hangar,atelier,agent-skills-setup}/2026-10-17.json. hangar: always-loaded ~5,403 tokens (instruction files 3,023, 34 skills 2,380), state files 3,870; hooks 4 identical, 2 drifted (sh-check.sh, yaml-validate.sh), 2 local; claude only wired. atelier: ~4,998 always-loaded, state 1,251; 4 identical, 6 drifted (migration-guard, py-guard, ruff-fix, sh-check, ts-fix, ts-guard); claude only. Finding: drift runs both ways. hangar yaml-validate/sh-check and atelier migration-guard/sh-check are older copies (July/August), but atelier rewrote py-guard and ts-guard on 2026-10-13 to be monorepo-aware and never upstreamed them; the templates' 2026-10-10 date is only the feat-050 relocation. So T2 cannot overwrite repo copies; it must upstream atelier's versions first. repo_audit reports 'drifted' without a direction; git dates had to be read by hand. agent-skills-setup itself shows 3 drifted (harness/guards py-check, secret-scan, sh-check vs templates/hooks), not yet looked at. harness-verify.sh: first run failed one test, skills/utils/confluence-tree/tests/test_push.sh test 5 (expected exit 6, got 1, http read on the mock server), a file this change does not touch; solo it passed 5 of 5, so it is recorded as an unattributed load flake. Second run, alone: all 11 gates passed, output saved to a file. Not done: token counts are chars/4 estimates, not a tokenizer; plugin and built-in skills are not counted; only top-level SKILL.md files are counted, as Claude Code lists them.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-ec73a5038f",
+        "output_tokens": 1295843,
+        "wall_time_ms": 1447397686,
+        "active_turn_time_ms": 48485076,
+        "subagents": 3,
+        "subagent_output_tokens": 1159
+      }
     }
   ]
 }
