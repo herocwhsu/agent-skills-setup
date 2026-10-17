@@ -80,7 +80,7 @@ the next task is planned from measured cost and effect.
 | T3 harness version: tags + install records installed commit | I4 | version recorded | — |
 | T4 `agent-harness.json` schema, reader, files for hangar and atelier | I6, I12, I13 | both validate | D1, D6 |
 | T5 per-repo hook values move from hook files into the file; drift check = byte compare; drop `shared-hook-drift.sh` | I2, I5 | harness copies identical | D2 |
-| T6 `update.sh` syncs registered repos and writes hooks for every agent | I3, I6 | agents with hooks 1 → 3 | D3, D4 |
+| T6 `update.sh` syncs registered repos and writes hooks for every supported agent, installed or not | I3, I6 | agents with hooks 1 → 3 | D3 |
 | T7 SessionStart preflight + state brief; startup rule reads the brief | I9 | hangar startup-read ~3,900 → ~300 tokens | D9 |
 | T8 Stop runs `verify`; gate runs recorded centrally per repo | I11 | gate runs logged for target repos | D8 |
 | T9 check per-repo skill support in codex, agy, kiro | (T10 input) | facts recorded | — |
@@ -94,7 +94,9 @@ the next task is planned from measured cost and effect.
 - D1 file format: **`agent-harness.json`** (system Python 3.9 reads it) vs YAML (needs PyYAML).
 - D2 per-repo hook values move into the file: **yes**.
 - D3 `update.sh` syncs **every registered repo, printing what changed** vs one repo per run.
-- D4 agents used in hangar/atelier: claude only, or claude + codex + agy. (no default)
+- D4 ✅ decided 2026-10-17: **every supported agent, whatever a host has installed.** A target repo
+  gets hook settings for claude, codex and agy (kiro has no hook equivalent) even on a host with
+  only claude and agy, so a repo works the same on any machine or clone.
 - D5 commit format: **global rule everywhere, repo keeps only its exceptions**.
 - D6 hangar `feature_list.json`: intended or missing. (no default)
 - D7 spec-gated pack: company repos only, or atelier too. (no default)
