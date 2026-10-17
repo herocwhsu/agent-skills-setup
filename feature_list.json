@@ -69,6 +69,27 @@
         "subagents": 3,
         "subagent_output_tokens": 3598
       }
+    },
+    {
+      "id": "feat-075",
+      "name": "repo_audit.py: measure a target repo's context cost, hook drift and agent hook coverage",
+      "description": "T1 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md. Every later task of the two-layer harness must show its effect on a target repo (hangar, atelier), and nothing measures that today. Add scripts/repo_audit.py: for one repo it reports the always-loaded context (global CLAUDE.md, the repo's CLAUDE.md and its @imports, skill name+description from global and repo skills) and the state files, in estimated tokens; each .claude/hooks file as identical/drifted/local against templates/hooks (the repo config block ignored); and which agents (claude, codex, agy) have hooks wired. --save writes the JSON under docs/telemetry/repos/<repo>/<date>.json as the baseline.",
+      "dependencies": [
+        "feat-074"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "for a fake repo and HOME, the always-loaded estimate counts global CLAUDE.md, the repo CLAUDE.md, every file it @-imports (relative to the repo, each once), and the name+description of each global and repo skill, never a skill body",
+        "state files PROGRESS.md and feature_list.json are reported separately and only when present",
+        "a hook identical to its template apart from the repo config block is identical; any other difference is drifted; a hook with no template of that name is local",
+        "an agent counts as wired only when its settings file has at least one hook command (claude .claude/settings.json, codex .codex/hooks.json, agy .agents/hooks.json)",
+        "tokens are marked estimated (chars/4); a missing or unreadable file is reported as missing, never as zero tokens",
+        "run on the real hangar and atelier it reports sh-check.sh as drifted and only claude as wired; both baselines are saved",
+        "runs on macOS system Python 3.9 with no third-party package; mypy and ruff clean",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_repo_audit.py -q && bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }
