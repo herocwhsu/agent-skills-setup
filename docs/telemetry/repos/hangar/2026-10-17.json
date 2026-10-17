@@ -1,0 +1,248 @@
+{
+  "schema_version": 1,
+  "repo": "hangar",
+  "always_loaded": {
+    "estimate": "chars/4",
+    "tokens": 5403,
+    "files": [
+      {
+        "file": "~/.claude/CLAUDE.md",
+        "tokens": 1827
+      },
+      {
+        "file": "CLAUDE.md",
+        "tokens": 2
+      },
+      {
+        "file": "AGENTS.md",
+        "tokens": 1194
+      }
+    ],
+    "skill_tokens": 2380,
+    "skills": [
+      {
+        "name": "ai-stack",
+        "source": "global",
+        "tokens": 65
+      },
+      {
+        "name": "apidog",
+        "source": "global",
+        "tokens": 103
+      },
+      {
+        "name": "audit",
+        "source": "global",
+        "tokens": 79
+      },
+      {
+        "name": "brainstorming",
+        "source": "global",
+        "tokens": 58
+      },
+      {
+        "name": "diagnosing-superpowers",
+        "source": "global",
+        "tokens": 104
+      },
+      {
+        "name": "dispatching-parallel-agents",
+        "source": "global",
+        "tokens": 38
+      },
+      {
+        "name": "executing-plans",
+        "source": "global",
+        "tokens": 51
+      },
+      {
+        "name": "experiment-iteration",
+        "source": "global",
+        "tokens": 95
+      },
+      {
+        "name": "external",
+        "source": "global",
+        "tokens": 77
+      },
+      {
+        "name": "finishing-a-development-branch",
+        "source": "global",
+        "tokens": 37
+      },
+      {
+        "name": "infra",
+        "source": "global",
+        "tokens": 108
+      },
+      {
+        "name": "intake",
+        "source": "global",
+        "tokens": 92
+      },
+      {
+        "name": "jira",
+        "source": "global",
+        "tokens": 75
+      },
+      {
+        "name": "kanban-ai",
+        "source": "global",
+        "tokens": 85
+      },
+      {
+        "name": "linear",
+        "source": "global",
+        "tokens": 46
+      },
+      {
+        "name": "progress",
+        "source": "global",
+        "tokens": 84
+      },
+      {
+        "name": "receiving-code-review",
+        "source": "global",
+        "tokens": 68
+      },
+      {
+        "name": "release",
+        "source": "global",
+        "tokens": 75
+      },
+      {
+        "name": "repo",
+        "source": "global",
+        "tokens": 94
+      },
+      {
+        "name": "requesting-code-review",
+        "source": "global",
+        "tokens": 37
+      },
+      {
+        "name": "review",
+        "source": "global",
+        "tokens": 94
+      },
+      {
+        "name": "spec-workflow",
+        "source": "global",
+        "tokens": 133
+      },
+      {
+        "name": "sre-migration",
+        "source": "global",
+        "tokens": 119
+      },
+      {
+        "name": "subagent-driven-development",
+        "source": "global",
+        "tokens": 33
+      },
+      {
+        "name": "systematic-debugging",
+        "source": "global",
+        "tokens": 32
+      },
+      {
+        "name": "test-driven-development",
+        "source": "global",
+        "tokens": 30
+      },
+      {
+        "name": "testing",
+        "source": "global",
+        "tokens": 70
+      },
+      {
+        "name": "using-git-worktrees",
+        "source": "global",
+        "tokens": 58
+      },
+      {
+        "name": "using-superpowers",
+        "source": "global",
+        "tokens": 47
+      },
+      {
+        "name": "utils",
+        "source": "global",
+        "tokens": 105
+      },
+      {
+        "name": "verification-before-completion",
+        "source": "global",
+        "tokens": 68
+      },
+      {
+        "name": "webapp-testing",
+        "source": "global",
+        "tokens": 59
+      },
+      {
+        "name": "writing-plans",
+        "source": "global",
+        "tokens": 29
+      },
+      {
+        "name": "writing-skills",
+        "source": "global",
+        "tokens": 32
+      }
+    ]
+  },
+  "state_files": [
+    {
+      "file": "PROGRESS.md",
+      "tokens": 3870
+    }
+  ],
+  "hooks": [
+    {
+      "file": "checkov-guard.sh",
+      "status": "identical",
+      "template": "k8s/checkov-guard.sh"
+    },
+    {
+      "file": "full-validate.sh",
+      "status": "local",
+      "template": null
+    },
+    {
+      "file": "placeholder-guard.sh",
+      "status": "identical",
+      "template": "k8s/placeholder-guard.sh"
+    },
+    {
+      "file": "secret-scan.sh",
+      "status": "identical",
+      "template": "common/secret-scan.sh"
+    },
+    {
+      "file": "semgrep-guard.sh",
+      "status": "identical",
+      "template": "common/semgrep-guard.sh"
+    },
+    {
+      "file": "sh-check.sh",
+      "status": "drifted",
+      "template": "common/sh-check.sh"
+    },
+    {
+      "file": "shared-hook-drift.sh",
+      "status": "local",
+      "template": null
+    },
+    {
+      "file": "yaml-validate.sh",
+      "status": "drifted",
+      "template": "k8s/yaml-validate.sh"
+    }
+  ],
+  "agent_hooks": {
+    "claude": true,
+    "codex": false,
+    "agy": false
+  }
+}
