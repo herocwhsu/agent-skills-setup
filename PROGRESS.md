@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-17
-**Active Feature:** feat-075 (repo_audit.py, T1 of the two-layer harness)
+**Active Feature:** none
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
 - Lecture 11 (making the agent's runtime observable) closed: runtime_logger ported (13/13 tests, clean ruff/mypy), sprint contract & evaluator rubric documented.
@@ -45,14 +45,16 @@
 
 - [x] feat-074: Telemetry housekeeping. The gate-runs log is one append-only file per month (no lock, twelve months kept); a completed feature with no completion commit now says why (`completion not committed`, `feature_list.json is not tracked by git`, `git cannot read this repository`, `git is not available`, `no work tree...`, `not a git repository`) and `session-clean.sh` skips the run record for all but the last; `--min-rows 10` stops the small tail records nobody claims. A first lock-based log cap was dropped after two reviews showed it unsound.
 
+- [x] feat-075: `scripts/repo_audit.py <repo> [--save]` measures a target repo: always-loaded tokens (rules, @imports, skill descriptions), state files, each hook identical/drifted/local against `templates/hooks`, and which agents have hooks. Baselines for hangar, atelier and this repo in `docs/telemetry/repos/`. It found drift both ways: atelier's `py-guard`/`ts-guard` are newer than the templates, so T2 must upstream before syncing.
+
 ### What's In Progress
 
-- feat-075: `scripts/repo_audit.py`, the per-repo baseline (T1 of [two-layer harness](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md)).
+- Nothing active (WIP=0, clean state).
 
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-0. **Two-layer harness, T2-T12** (hook sync, version, `agent-harness.json`, preflight, skill packs, cross-repo telemetry): tasks, metrics and open decisions D1-D9 in [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md). Each task saves a `repo_audit.py` before/after.
+0. **Two-layer harness, T2-T12** (hook sync, version, `agent-harness.json`, preflight, skill packs, cross-repo telemetry): tasks, metrics and open decisions D1-D9 in [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md). Each task saves a `repo_audit.py` before/after. Next: T2, upstream atelier's newer hooks, then sync the stale copies.
 1. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
 2. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
 3. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.

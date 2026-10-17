@@ -57,6 +57,17 @@ harness repo (agent-skills-setup)          target repo (hangar, atelier, ...)
   blocks) → work (skills, per-edit hooks) → Stop gate runs the file's `verify`
   (blocks) → gate run recorded centrally → end of session updates `PROGRESS.md`.
 
+## Baseline (2026-10-17, `repo_audit.py`)
+
+| Repo | Always loaded | State files | Hooks identical / drifted / local | Agents with hooks |
+|---|---|---|---|---|
+| hangar | ~5,400 tok | ~3,870 | 4 / 2 / 2 | claude |
+| atelier | ~5,000 tok | ~1,250 | 4 / 6 / 0 | claude |
+
+Drift runs both ways: some repo copies are older than the template, but atelier's
+`py-guard`/`ts-guard` (2026-10-13, monorepo-aware) are newer and were never
+upstreamed. A sync must never just overwrite a repo copy.
+
 ## Tasks (WIP=1, in order)
 
 Each task records `repo_audit` before and after, plus its own run record, so
@@ -64,8 +75,8 @@ the next task is planned from measured cost and effect.
 
 | Task | Fixes | Metric it must move | Needs decision |
 |---|---|---|---|
-| T1 `repo_audit.py`: per-repo metrics (always-loaded tokens, startup-read tokens, hook drift vs harness, agents with hooks) | baseline for all | exists, reproducible | — |
-| T2 sync drifted shared hooks into hangar, atelier | I1 | drift 1 → 0 per repo | — |
+| T1 ✅ feat-075 `repo_audit.py`: per-repo metrics (always-loaded tokens, state-file tokens, hook drift vs harness, agents with hooks) | baseline for all | baselines 2026-10-17 in `docs/telemetry/repos/` | — |
+| T2 upstream atelier's newer hooks (py-guard, ts-guard, …) into templates, then sync the older copies in hangar and atelier | I1 | drifted hooks hangar 2 → 0, atelier 6 → 0 | — |
 | T3 harness version: tags + install records installed commit | I4 | version recorded | — |
 | T4 `agent-harness.json` schema, reader, files for hangar and atelier | I6, I12, I13 | both validate | D1, D6 |
 | T5 per-repo hook values move from hook files into the file; drift check = byte compare; drop `shared-hook-drift.sh` | I2, I5 | harness copies identical | D2 |

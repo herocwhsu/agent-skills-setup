@@ -77,7 +77,7 @@
       "dependencies": [
         "feat-074"
       ],
-      "status": "active",
+      "status": "completed",
       "acceptance_criteria": [
         "for a fake repo and HOME, the always-loaded estimate counts global CLAUDE.md, the repo CLAUDE.md, every file it @-imports (relative to the repo, each once), and the name+description of each global and repo skill, never a skill body",
         "state files PROGRESS.md and feature_list.json are reported separately and only when present",
@@ -89,7 +89,7 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "python3 -m pytest tests/test_repo_audit.py -q && bash scripts/harness-verify.sh",
-      "evidence": ""
+      "evidence": "tests/test_repo_audit.py 6 passed; it failed first (module missing). Three mutations are each caught by one test: counting skill bodies, not ignoring the repo config block, counting an @import twice. mypy (whole tree) and ruff check/format clean on the new files; runs on /usr/bin/python3 3.9.6 with no third-party package. Baselines saved in docs/telemetry/repos/{hangar,atelier,agent-skills-setup}/2026-10-17.json. hangar: always-loaded ~5,403 tokens (instruction files 3,023, 34 skills 2,380), state files 3,870; hooks 4 identical, 2 drifted (sh-check.sh, yaml-validate.sh), 2 local; claude only wired. atelier: ~4,998 always-loaded, state 1,251; 4 identical, 6 drifted (migration-guard, py-guard, ruff-fix, sh-check, ts-fix, ts-guard); claude only. Finding: drift runs both ways. hangar yaml-validate/sh-check and atelier migration-guard/sh-check are older copies (July/August), but atelier rewrote py-guard and ts-guard on 2026-10-13 to be monorepo-aware and never upstreamed them; the templates' 2026-10-10 date is only the feat-050 relocation. So T2 cannot overwrite repo copies; it must upstream atelier's versions first. repo_audit reports 'drifted' without a direction; git dates had to be read by hand. agent-skills-setup itself shows 3 drifted (harness/guards py-check, secret-scan, sh-check vs templates/hooks), not yet looked at. harness-verify.sh: first run failed one test, skills/utils/confluence-tree/tests/test_push.sh test 5 (expected exit 6, got 1, http read on the mock server), a file this change does not touch; solo it passed 5 of 5, so it is recorded as an unattributed load flake. Second run, alone: all 11 gates passed, output saved to a file. Not done: token counts are chars/4 estimates, not a tokenizer; plugin and built-in skills are not counted; only top-level SKILL.md files are counted, as Claude Code lists them."
     }
   ]
 }
