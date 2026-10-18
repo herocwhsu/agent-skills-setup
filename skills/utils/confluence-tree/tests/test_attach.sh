@@ -140,6 +140,8 @@ import http.server, os, sys, threading
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def do_POST(self):
+        # read the body first, or the OS can reset the connection (see test_push.sh)
+        self.rfile.read(int(self.headers.get("Content-Length", 0)))
         self.send_response(401); self.end_headers(); self.wfile.write(b"unauthorized")
 port = int(os.environ["PORT"])
 srv = http.server.HTTPServer(("127.0.0.1", port), H)

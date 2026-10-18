@@ -157,6 +157,9 @@ import http.server, os, sys, threading
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def do_POST(self):
+        # Read the body first: answering with it unread makes the OS reset the
+        # connection now and then, and the client fails on that instead (exit 1).
+        self.rfile.read(int(self.headers.get("Content-Length", 0)))
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
