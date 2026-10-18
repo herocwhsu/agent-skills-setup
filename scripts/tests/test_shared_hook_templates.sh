@@ -161,6 +161,110 @@ else
   bad "secret-scan runs gitleaks as --source . from the repo root" "got: $(tr '\n' ' ' < "$LOGSTUB/args" 2>/dev/null)"
 fi
 
+# py-guard / ts-guard: gate on the app folders in APP_DIRS whose files changed
+# against the upstream merge-base. Failing stubs for every tool they call: a hook
+# that opened its gate blocks (exit 2), one that gated itself off exits 0.
+TOOLS="$TMPDIR/tools"; mkdir -p "$TOOLS"
+for t in ruff bandit pip-audit pytest node npm npx; do
+  printf '#!/usr/bin/env bash\necho STUB-FAIL-%s\nexit 1\n' "$t" > "$TOOLS/$t"; chmod +x "$TOOLS/$t"
+done
+# Only what the hooks need besides the tools, so a tool installed on this machine
+# can't stand in for a missing one.
+MINPATH="$TMPDIR/minpath"; mkdir -p "$MINPATH"
+for t in bash git grep sort head tail cat dirname env; do ln -sf "$(command -v "$t")" "$MINPATH/$t"; done
+
+configured() { # <template> <app dirs, e.g. '"apps/api"'> -> path of a configured copy
+  local out; out="$TMPDIR/cfg-$(basename "$1" .sh)-$RANDOM.sh"
+  sed "s|^APP_DIRS=.*|APP_DIRS=($2)|" "$HOOKS_SRC/$1" > "$out"
+  echo "$out"
+}
+
+app_repo() { # <file> [file...] -> clone with these files committed and pushed
+  local up cl f
+  up=$(mktemp -d "$TMPDIR/up.XXXX"); cl=$(mktemp -d "$TMPDIR/cl.XXXX")
+  git -C "$up" init -q --bare
+  git clone -q "$up" "$cl/w" 2>/dev/null
+  for f in "$@"; do mkdir -p "$(dirname "$cl/w/$f")"; printf 'x = 1\n' > "$cl/w/$f"; done
+  printf '{}\n' > "$cl/w/tsconfig.json"; mkdir -p "$cl/w/apps/web"; printf '{}\n' > "$cl/w/apps/web/tsconfig.json"
+  git -C "$cl/w" add -A
+  git -C "$cl/w" -c user.email=t@example.com -c user.name=test commit -q -m init
+  git -C "$cl/w" push -q -u origin "$(git -C "$cl/w" rev-parse --abbrev-ref HEAD)" 2>/dev/null
+  echo "$cl/w"
+}
+
+guard_rc() { # <hook path> <repo> [PATH] -> exit code
+  ( cd "$2" && printf '{}' | PATH="${3:-$TOOLS:$PATH}" bash "$1" >/dev/null 2>&1 ); echo $?
+}
+
+expect() { # <name> <want> <got>
+  if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "want exit $2, got $3"; fi
+}
+
+for spec in "python/py-guard.sh:src/a.py:src/b.py:apps/api/src/a.py:apps/other/a.py:\"apps/api\"" \
+            "js/ts-guard.sh:src/a.ts:src/b.ts:apps/web/src/a.ts:apps/other/src/a.ts:\"apps/web\""; do
+  IFS=: read -r h tracked fresh app_file other_file dirs <<< "$spec"
+  b=$(basename "$h")
+  W=$(app_repo "$tracked")
+  expect "$b (APP_DIRS=.) exits 0 when nothing changed" 0 "$(guard_rc "$HOOKS_SRC/$h" "$W")"
+  printf '# edit\n' >> "$W/$tracked"
+  expect "$b (APP_DIRS=.) blocks on a tracked edit" 2 "$(guard_rc "$HOOKS_SRC/$h" "$W")"
+  W=$(app_repo "$tracked"); printf '# new\n' > "$W/$fresh"
+  expect "$b (APP_DIRS=.) blocks on an untracked file" 2 "$(guard_rc "$HOOKS_SRC/$h" "$W")"
+  W=$(app_repo "$tracked"); printf '# edit\n' >> "$W/$tracked"
+  git -C "$W" -c user.email=t@example.com -c user.name=test commit -qam work
+  expect "$b (APP_DIRS=.) blocks on a committed but unpushed edit" 2 "$(guard_rc "$HOOKS_SRC/$h" "$W")"
+
+  cfg=$(configured "$h" "$dirs")
+  W=$(app_repo "$app_file" "$other_file"); printf '# edit\n' >> "$W/$other_file"
+  expect "$b (APP_DIRS=$dirs) ignores a change outside its folders" 0 "$(guard_rc "$cfg" "$W")"
+  printf '# edit\n' >> "$W/$app_file"
+  expect "$b (APP_DIRS=$dirs) blocks on a change in its folder" 2 "$(guard_rc "$cfg" "$W")"
+
+  W=$(app_repo "$tracked"); printf '# edit\n' >> "$W/$tracked"
+  out=$( cd "$W" && printf '{}' | PATH="$MINPATH" bash "$HOOKS_SRC/$h" 2>&1 ); rc=$?
+  if [[ $rc -eq 0 && "$out" == *SKIP* ]]; then
+    ok "$b says SKIP and does not block when its tools are missing"
+  else
+    bad "$b says SKIP and does not block when its tools are missing" "exit $rc: $out"
+  fi
+done
+
+W=$(app_repo src/a.py); printf '# edit\n' >> "$W/src/a.py"
+out=$( cd "$W" && printf '{}' | PATH="$TOOLS:$PATH" bash "$HOOKS_SRC/python/py-guard.sh" 2>&1 >/dev/null )
+if [[ "$out" == *STUB-FAIL-ruff* ]]; then
+  ok "py-guard shows the failing tool's output"
+else
+  bad "py-guard shows the failing tool's output" "stderr: $out"
+fi
+
+# ts-fix: the prettier of the APP_DIRS folder that holds the file, nothing outside.
+prettier_stub() { # <dir> : a prettier that records the file it was given
+  mkdir -p "$1/node_modules/.bin"
+  # shellcheck disable=SC2016  # the stub's own $@ and $f must stay unexpanded
+  printf '#!/usr/bin/env bash\nfor a in "$@"; do f="$a"; done\necho "$f" >> "%s/prettier.log"\n' "$TMPDIR" \
+    > "$1/node_modules/.bin/prettier"
+  chmod +x "$1/node_modules/.bin/prettier"
+}
+TF=$(repo ts-fix); prettier_stub "$TF"; prettier_stub "$TF/apps/web"
+mkdir -p "$TF/apps/web/src" "$TF/apps/other"
+printf 'x\n' > "$TF/a.ts"; printf 'x\n' > "$TF/apps/web/src/a.ts"; printf 'x\n' > "$TF/apps/other/a.ts"
+rm -f "$TMPDIR/prettier.log"
+edit_hook js/ts-fix.sh "$TF" "$TF/a.ts" >/dev/null
+if grep -qx "$TF/a.ts" "$TMPDIR/prettier.log" 2>/dev/null; then
+  ok "ts-fix (APP_DIRS=.) formats a file with the root prettier"
+else
+  bad "ts-fix (APP_DIRS=.) formats a file with the root prettier" "log: $(cat "$TMPDIR/prettier.log" 2>/dev/null)"
+fi
+cfg=$(configured js/ts-fix.sh '"apps/web"')
+rm -f "$TMPDIR/prettier.log"
+( cd "$TF" && printf '{"tool_input":{"file_path":"%s"}}' "$TF/apps/web/src/a.ts" | bash "$cfg" >/dev/null 2>&1 )
+( cd "$TF" && printf '{"tool_input":{"file_path":"%s"}}' "$TF/apps/other/a.ts" | bash "$cfg" >/dev/null 2>&1 )
+if [[ "$(cat "$TMPDIR/prettier.log" 2>/dev/null)" == "$TF/apps/web/src/a.ts" ]]; then
+  ok "ts-fix (APP_DIRS=apps/web) formats only files in that folder"
+else
+  bad "ts-fix (APP_DIRS=apps/web) formats only files in that folder" "log: $(cat "$TMPDIR/prettier.log" 2>/dev/null)"
+fi
+
 echo ""
 echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]
