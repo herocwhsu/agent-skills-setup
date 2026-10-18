@@ -87,7 +87,15 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "bash scripts/harness-verify.sh",
-      "evidence": "hangar bee4e75 and atelier 9babdd9: Commit format sections now say the global rule applies and keep only each repo's exceptions (lowercase summary; hangar's merge/squash exemption and its paragraph on why no commit-msg hook exists). atelier's 'max 72 chars' and type list without ci/security are gone; its own last 40 subjects already ran to 129 chars and include a ci: commit, all lowercase, so the new text matches practice. AGENTS.md tokens: hangar 1,229 -> 1,200, atelier 820 -> 824 (the gain is the removed conflict, not size). Standing decisions in AGENTS.md were left: each is a two-line summary pointing at PROGRESS.md, not a copy. Startup / Done / End of Session not templated (short, repo-specific since feat-081). Both ./init.sh exit 0. harness-verify.sh: all 11 gates passed, output saved to a file."
+      "evidence": "hangar bee4e75 and atelier 9babdd9: Commit format sections now say the global rule applies and keep only each repo's exceptions (lowercase summary; hangar's merge/squash exemption and its paragraph on why no commit-msg hook exists). atelier's 'max 72 chars' and type list without ci/security are gone; its own last 40 subjects already ran to 129 chars and include a ci: commit, all lowercase, so the new text matches practice. AGENTS.md tokens: hangar 1,229 -> 1,200, atelier 820 -> 824 (the gain is the removed conflict, not size). Standing decisions in AGENTS.md were left: each is a two-line summary pointing at PROGRESS.md, not a copy. Startup / Done / End of Session not templated (short, repo-specific since feat-081). Both ./init.sh exit 0. harness-verify.sh: all 11 gates passed, output saved to a file.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-ca65af1386",
+        "output_tokens": 4694,
+        "wall_time_ms": 316404,
+        "active_turn_time_ms": null,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
     }
   ]
 }
