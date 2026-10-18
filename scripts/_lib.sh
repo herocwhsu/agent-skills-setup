@@ -74,6 +74,36 @@ skills_runtime_dir() {
   echo "$HOME/.${id:-agent-skills-setup}"
 }
 
+# record_harness_version <repo_dir>
+#   Write <runtime-dir>/harness-version.json: the commit this install came from,
+#   so a target repo can tell whether its harness copies match what is installed.
+#   Outside a git checkout it records commit null and warns; the install goes on.
+record_harness_version() {
+  local repo_dir="$1" out commit="" short="" describe="" dirty=false
+  out="$(skills_runtime_dir "$repo_dir")/harness-version.json"
+  mkdir -p "$(dirname "$out")"
+  if commit=$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null); then
+    short=$(git -C "$repo_dir" rev-parse --short HEAD)
+    describe=$(git -C "$repo_dir" describe --tags --always 2>/dev/null || echo "$short")
+    git -C "$repo_dir" diff --quiet HEAD -- 2>/dev/null || dirty=true
+  else
+    commit=""
+    echo "  WARN  $repo_dir is not a git checkout; harness version recorded as unknown" >&2
+  fi
+  python3 - "$out" "$commit" "$short" "$describe" "$dirty" <<'PY'
+import datetime, json, sys
+out, commit, short, describe, dirty = sys.argv[1:6]
+data = {"commit": commit or None, "short": short or None, "describe": describe or None,
+        "dirty": dirty == "true",
+        "installed_at": datetime.datetime.now().astimezone().isoformat(timespec="seconds")}
+if not commit:
+    data["reason"] = "not a git checkout"
+with open(out, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+PY
+}
+
 # ---------------------------------------------------------------------------
 # _other_skills_runtimes <own_runtime_dir>
 #   Echo each other installed repo's runtime dir, one per line. A runtime dir is

@@ -70,6 +70,7 @@ bash "$REPO_DIR/scripts/validate-registry.sh"
 echo ""
 echo "==> Installing runtime helpers..."
 install_runtime_dir "$REPO_DIR"
+record_harness_version "$REPO_DIR"
 
 echo ""
 echo "==> Migrating keychain entries (if any)..."
