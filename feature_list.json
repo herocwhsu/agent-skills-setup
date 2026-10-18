@@ -19,35 +19,10 @@
     "docs/archive/features/archive-feat-076-077.json",
     "docs/archive/features/archive-feat-078-079.json",
     "docs/archive/features/archive-feat-080-080.json",
-    "docs/archive/features/archive-feat-081-081.json"
+    "docs/archive/features/archive-feat-081-081.json",
+    "docs/archive/features/archive-feat-082-082.json"
   ],
   "features": [
-    {
-      "id": "feat-082",
-      "name": "verify-gate: Stop runs the repo's verify commands and logs each run centrally",
-      "description": "T8 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md (D8: central, per repo). New template common/verify-gate.sh (Stop): when the turn changed a path matching RELEVANT_RE (its repo config block; changes measured against the upstream merge-base plus untracked files, like the other Stop guards), it runs each verify command from agent-harness.json at the repo root, blocks with exit 2 and the failing command's last lines, and appends one JSON line per run to <runtime>/telemetry/<repo>/verify-runs-YYYYMM.jsonl when the harness is installed. Hook entries take an optional timeout (seconds), passed to every agent's wiring, so a long verify is not cut off by a default hook timeout. hangar replaces its local full-validate.sh (validate.sh, 41s) with verify-gate running ./init.sh (validate.sh + hook tests, 97s) on the same paths plus .claude/hooks; atelier adds it (./init.sh, 10s) on any change.",
-      "dependencies": [
-        "feat-081"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "verify-gate exits 0 with a SKIP line when the turn changed nothing matching RELEVANT_RE; otherwise runs every verify command in order and exits 2 naming the first failing one with its last 40 lines, or 0 when all pass",
-        "each run that executes commands appends one line (time, repo, commit, result, duration, each command with rc and duration) to the central log; nothing is written when harness-version.json is missing",
-        "hook entries accept an optional positive integer timeout; check rejects anything else; sync writes it into the claude, codex and agy wiring",
-        "hangar: full-validate.sh gone, verify-gate wired with timeout 300 and RELEVANT_RE covering what full-validate covered plus .claude/hooks; atelier: verify-gate wired with timeout 120; both ./init.sh pass; a real Stop run is logged",
-        "all 11 harness gates pass, with gate output saved to a file"
-      ],
-      "verification": "bash scripts/tests/test_verify_gate.sh && python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/harness-verify.sh",
-      "evidence": "templates/hooks/common/verify-gate.sh (Stop): when the turn changed a path matching RELEVANT_RE (merge-base plus untracked), runs agent-harness.json verify commands in order, blocks with exit 2 naming the first failing one and its last 40 lines, and with the harness installed appends one line per run to ~/.agent-skills-setup/telemetry/<repo>/verify-runs-YYYYMM.jsonl (ts, repo, commit, result, duration, per-command rc and duration). Adapter hook entries take an optional positive integer timeout, written into claude, codex and agy wiring. Tests failed first: test_verify_gate.sh 6 of 8, tests/test_harness_adapter.py 1 (timeout); now 8 and 29 passed. Mutations caught: ignoring a failing command, dropping the turn scope. hangar 9f46b84: full-validate.sh removed; verify-gate wired with timeout 300 and RELEVANT_RE = full-validate's paths plus .claude/hooks; test-hooks.sh cases 1-3 now test verify-gate with a fixture verify (29 passed). atelier 1844622: verify-gate with timeout 120, any change. Real Stop runs logged: atelier pass 10s; hangar pass 91s (an earlier hangar run failed, logged, because my first fixture made the shared clean test repo dirty for secret-scan; fixed by hiding the fixture through .git/info/exclude). My first version of hangar's tests ran verify-gate with the real HOME and wrote three test rows into the real telemetry dir; those cases now use a scratch HOME and the three dirs (all 'echo FAILED' fixture rows) were deleted. Cost: hangar Stop now runs ./init.sh (validate.sh + hook tests, ~91-97s) instead of validate.sh (~41s) when relevant paths change. Both ./init.sh exit 0; drift none. harness-verify.sh: all 11 gates passed, output saved to a file. Not done: the other Stop guards are not logged (only verify runs are); agy and codex Stop with a 300 s timeout were not run live.",
-      "execution_summary": {
-        "run_id": "5a0ad1e4-650aa0330b",
-        "output_tokens": 22369,
-        "wall_time_ms": 966160,
-        "active_turn_time_ms": null,
-        "subagents": 0,
-        "subagent_output_tokens": 0
-      }
-    },
     {
       "id": "feat-083",
       "name": "Record where each agent reads per-repo skills",
@@ -88,7 +63,15 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "python3 -m pytest tests/test_harness_adapter.py tests/test_repo_audit.py -q && bash scripts/harness-verify.sh",
-      "evidence": "config/skill-packs.json: core (16 skills that stay global, incl. spec-workflow as the router the global rules name, utils, experiment-iteration) and opt-in packs spec-gated (10), sre, ai, frontend, infra, tracking (kanban-ai, linear), harness-dev. Every name is installed on this machine and every installed skill is in a pack (checked against ~/.claude/skills; a unit test checks only that no skill is in two packs, since superpowers skills are not in this repo). agent-harness.json takes optional skill_packs, rejected when unknown or core. repo_audit.py adds each skill's pack and skill_tokens_scoped. Tests: 41 passed (tests/test_repo_audit.py, tests/test_harness_adapter.py); the new scoped-token and pack-check cases failed first (3; the invalid-pack cases passed early only because skill_packs was then an unknown key). Declared: hangar infra + spec-gated (e0e1468), atelier ai + frontend + spec-gated (0826503) - spec-gated kept in both as the least change while D7 is open. Measured (estimated tokens): skill list hangar 2,380 -> 1,870 scoped, 1,027 without spec-gated; atelier 2,380 -> 1,886, 1,043 without spec-gated. harness-verify.sh: all 11 gates passed, output saved to a file. Not done (second half, waits for owner decisions D7 and what unregistered repos keep): removing pack skills from the global installs and linking them into each registered repo's .claude/skills, .agents/skills and .kiro/skills. Until then nothing an agent loads has changed."
+      "evidence": "config/skill-packs.json: core (16 skills that stay global, incl. spec-workflow as the router the global rules name, utils, experiment-iteration) and opt-in packs spec-gated (10), sre, ai, frontend, infra, tracking (kanban-ai, linear), harness-dev. Every name is installed on this machine and every installed skill is in a pack (checked against ~/.claude/skills; a unit test checks only that no skill is in two packs, since superpowers skills are not in this repo). agent-harness.json takes optional skill_packs, rejected when unknown or core. repo_audit.py adds each skill's pack and skill_tokens_scoped. Tests: 41 passed (tests/test_repo_audit.py, tests/test_harness_adapter.py); the new scoped-token and pack-check cases failed first (3; the invalid-pack cases passed early only because skill_packs was then an unknown key). Declared: hangar infra + spec-gated (e0e1468), atelier ai + frontend + spec-gated (0826503) - spec-gated kept in both as the least change while D7 is open. Measured (estimated tokens): skill list hangar 2,380 -> 1,870 scoped, 1,027 without spec-gated; atelier 2,380 -> 1,886, 1,043 without spec-gated. harness-verify.sh: all 11 gates passed, output saved to a file. Not done (second half, waits for owner decisions D7 and what unregistered repos keep): removing pack skills from the global installs and linking them into each registered repo's .claude/skills, .agents/skills and .kiro/skills. Until then nothing an agent loads has changed.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-e1922d11af",
+        "output_tokens": 12144,
+        "wall_time_ms": 290461,
+        "active_turn_time_ms": null,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
     }
   ]
 }
