@@ -640,8 +640,11 @@ install_runtime_dir() {
 #   uninstall. No-op if INSTALLED_LIST is unset.
 # ---------------------------------------------------------------------------
 record_installed() {
-  [[ -n "${INSTALLED_LIST:-}" ]] || return 0
   local name="$1"
+  # Per agent, for store-packs: the shared list cannot tell which agent's dir a
+  # name was installed into.
+  if [[ -n "${AGENT_INSTALLED:-}" ]]; then echo "$name" >> "$AGENT_INSTALLED"; fi
+  [[ -n "${INSTALLED_LIST:-}" ]] || return 0
   if [[ -f "$INSTALLED_LIST" ]] && grep -Fxq "$name" "$INSTALLED_LIST"; then
     return 0
   fi
@@ -963,11 +966,13 @@ wire_global_hooks() {
     *)      return 0 ;;
   esac
   [[ "$mode" == --remove && ! -f "$settings" ]] && return 0
-  local prune=()
-  [[ "$mode" == --merge ]] && prune=(--prune-marker /hooks/global-hook.sh)
+  local hooks_dir prune=()
+  hooks_dir="$(skills_runtime_dir "$repo_dir")/hooks"
+  # This runtime's path only: another installed harness repo wires its own copy.
+  [[ "$mode" == --merge ]] && prune=(--prune-marker "$hooks_dir/global-hook.sh")
   tmp=$(mktemp /tmp/hook-XXXXXX)
   if python3 "$repo_dir/scripts/harness_adapter.py" global-wiring --agent "$agent" \
-       --hooks-dir "$(skills_runtime_dir "$repo_dir")/hooks" > "$tmp" \
+       --hooks-dir "$hooks_dir" > "$tmp" \
      && python3 "$repo_dir/scripts/_settings_merge.py" "$mode" "$tmp" "$settings" \
        --agent "$agent" --hook-name harness-global ${prune[@]+"${prune[@]}"}; then
     echo "  ✓ global hooks ${mode#--} ($agent) → $settings"

@@ -97,6 +97,7 @@ echo "==> Installing per-agent skills from registry.txt..."
 
 for agent in "${SELECTED_AGENTS[@]}"; do
   target_dir=$(agent_skills_dir "$agent")
+  AGENT_INSTALLED=$(mktemp /tmp/installed-XXXXXX)
   echo ""
   echo "  Agent: $agent → $target_dir"
 
@@ -155,7 +156,8 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   # list it: move those out of the global dir; harness_adapter.py sync links them
   # into each repo.
   python3 "$REPO_DIR/scripts/harness_adapter.py" store-packs --agent "$agent" \
-    --skills-dir "$target_dir" --installed "$INSTALLED_LIST" --repo-dir "$REPO_DIR" || echo "  WARNING: pack skills left global for $agent" >&2
+    --skills-dir "$target_dir" --installed "$AGENT_INSTALLED" --repo-dir "$REPO_DIR" || echo "  WARNING: pack skills left global for $agent" >&2
+  rm -f "$AGENT_INSTALLED"; AGENT_INSTALLED=
   if [[ "$agent" == "kiro" ]]; then
     install_kiro_agent_config "$target_dir"
   fi

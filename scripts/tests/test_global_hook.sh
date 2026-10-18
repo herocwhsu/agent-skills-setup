@@ -135,6 +135,24 @@ g = json.load(open(h + "/.gemini/config/hooks.json"))
 print(sorted(c), "harness-global" in g, "polish-input" in g)' "$FH")
 if [[ "$got" == "['Stop'] False True" ]]; then ok "--remove takes out only the global hooks"; else bad "remove" "$got"; fi
 
+# A changed command of THIS runtime is replaced, not kept next to the new one;
+# another installed harness repo's global hook (its own runtime dir) stays.
+python3 - "$FH" "$rt" <<'PY'
+import json, sys
+h, rt = sys.argv[1], sys.argv[2]
+e = lambda c: {"hooks": [{"type": "command", "command": c}]}
+json.dump({"hooks": {"Stop": [e(f'bash "{rt}/global-hook.sh" claude stop --old'),
+                              e('bash "/x/.other-rt/hooks/global-hook.sh" claude stop')]}},
+          open(f"{h}/.claude/settings.json", "w"))
+PY
+wire
+got=$(python3 -c '
+import json, sys
+c = json.load(open(sys.argv[1] + "/.claude/settings.json"))["hooks"]["Stop"]
+print([k["command"] for x in c for k in x["hooks"]])' "$FH")
+want="['bash \"/x/.other-rt/hooks/global-hook.sh\" claude stop', 'bash \"$rt/global-hook.sh\" claude stop']"
+if [[ "$got" == "$want" ]]; then ok "a changed global hook command is replaced; another runtime's is kept"; else bad "prune" "$got"; fi
+
 echo ""
 echo "Results: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

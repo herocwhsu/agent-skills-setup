@@ -130,6 +130,15 @@ check "kiro config lists a core skill on the first install" yes \
 check "kiro config names no pack skill" no \
   "$([[ "$kiro_res" == *"/skills/jira/SKILL.md"* ]] && echo yes || echo no)"
 
+# store-packs moves only what this install put in THIS agent's dir: installing
+# audit for claude must not make codex's own audit/ look installed (it was moved
+# to the pack store, then deleted on the next install).
+mkdir -p "$TMP/h9/.codex/skills/audit"
+echo mine > "$TMP/h9/.codex/skills/audit/SKILL.md"
+check "two-agent install succeeds" 0 "$(run_install "$main_repo" "$TMP/h9" --agent claude,codex)"
+check "a user's own same-name skill stays in place" mine \
+  "$(cat "$TMP/h9/.codex/skills/audit/SKILL.md" 2>/dev/null || echo moved)"
+
 if [[ $fails -gt 0 ]]; then
   echo ""
   echo "$fails check(s) failed"

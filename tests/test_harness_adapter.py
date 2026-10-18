@@ -463,6 +463,25 @@ def test_sync_refuses_to_overwrite_a_malformed_agent_file(tmp_path: Path, rel: s
     assert (repo / rel).read_text() == bad
 
 
+def test_sync_writes_nothing_when_one_agent_file_is_malformed(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    ha.sync(repo, templates=templates, runtime=runtime)
+    claude = repo / ".claude/settings.json"
+    claude.write_text('{"hooks": {}}\n')  # sync would rewrite this
+    (repo / ".agents/hooks.json").write_text("{,}")
+    with pytest.raises(ha.AdapterError):
+        ha.sync(repo, templates=templates, runtime=runtime)
+    assert claude.read_text() == '{"hooks": {}}\n'
+
+
+def test_sync_treats_an_empty_agent_file_as_empty(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    (repo / ".codex").mkdir(exist_ok=True)
+    (repo / ".codex/hooks.json").write_text("")
+    ha.sync(repo, templates=templates, runtime=runtime)
+    assert "hooks" in json.loads((repo / ".codex/hooks.json").read_text())
+
+
 def _exclude(repo: Path) -> str:
     return (repo / ".git/info/exclude").read_text()
 

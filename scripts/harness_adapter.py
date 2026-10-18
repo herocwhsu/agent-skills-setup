@@ -439,10 +439,12 @@ AGY_GROUPS = ("harness-edit", "harness-stop")
 
 
 def _load_json(path: Path) -> dict[str, Any]:
-    """A missing file is empty; a malformed one stops sync so it is not overwritten."""
+    """A missing or blank file is empty; a malformed one stops sync so it is not overwritten."""
     try:
         text = path.read_text(encoding="utf-8")
     except OSError:
+        return {}
+    if not text.strip():
         return {}
     try:
         data = json.loads(text)
@@ -462,6 +464,12 @@ def sync(repo: Path, templates: Path, runtime: Path) -> list[str]:
     if result.problems or result.data is None:
         raise AdapterError(f"{repo / FILENAME}: " + "; ".join(result.problems))
     data = result.data
+    # Read every agent file before writing any: a malformed one must stop sync
+    # with nothing half-applied.
+    settings = repo / ".claude/settings.json"
+    claude = _load_json(settings)
+    codex = _load_json(repo / ".codex/hooks.json")
+    agy_file = _load_json(repo / ".agents/hooks.json")
     changes: list[str] = []
     hooks_dir = repo / ".claude/hooks"
     for rel in [h["template"] for h in data["hooks"] if "template" in h] + [WRAPPER]:
@@ -472,8 +480,6 @@ def sync(repo: Path, templates: Path, runtime: Path) -> list[str]:
         )
 
     wiring = _wiring(data["hooks"])
-    settings = repo / ".claude/settings.json"
-    claude = _load_json(settings)
     # The Claude file's "hooks" belong to agent-harness.json entirely (the repo
     # declares every Claude hook there); its other keys are kept.
     if claude.get("hooks") != wiring["claude"]:
@@ -481,10 +487,9 @@ def sync(repo: Path, templates: Path, runtime: Path) -> list[str]:
         _write_if_changed(settings, _dump(claude), changes, repo)
     # Replace only what sync owns (codex's "hooks", agy's harness-* groups) and
     # keep the rest of each file.
-    codex = _load_json(repo / ".codex/hooks.json")
     codex["hooks"] = wiring["codex"]["hooks"]
     _write_if_changed(repo / ".codex/hooks.json", _dump(codex), changes, repo)
-    agy = {k: v for k, v in _load_json(repo / ".agents/hooks.json").items() if k not in AGY_GROUPS}
+    agy = {k: v for k, v in agy_file.items() if k not in AGY_GROUPS}
     agy.update(wiring["agy"])
     _write_if_changed(repo / ".agents/hooks.json", _dump(agy), changes, repo)
     committed = bool(changes)  # pack links and info/exclude are not committed files
