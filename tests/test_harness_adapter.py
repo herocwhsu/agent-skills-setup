@@ -108,7 +108,7 @@ def test_version_in_sync_and_differs(tmp_path: Path) -> None:
         json.dumps({"commit": "def5678ffff", "short": "def5678"})
     )
     r = ha.check(repo, templates=templates, runtime=runtime)
-    assert r.version_status == "differs: repo synced at abc1234, installed def5678"
+    assert r.version_status == "last changed by abc1234, installed def5678"
     assert r.problems == []
 
 
@@ -189,6 +189,32 @@ def test_sync_copies_templates_keeping_config_block_and_is_idempotent(tmp_path: 
     assert ".claude/hooks/sh-check.sh" in changes and ".claude/hooks/agent-hook.sh" in changes
     assert json.loads((repo / ha.FILENAME).read_text())["harness"]["version"] == "def5678"
     assert ha.sync(repo, templates=templates, runtime=runtime) == []
+
+
+def test_sync_bumps_the_version_only_with_a_real_change(tmp_path: Path) -> None:
+    # A bump alone would leave every target repo with an uncommitted change after
+    # each unattended update.sh, which blocks their own `git pull --ff-only`.
+    repo, templates, runtime = _sync_setup(tmp_path)
+    ha.sync(repo, templates=templates, runtime=runtime)
+    newer = {"commit": "fff0000aa", "short": "fff0000"}
+    (runtime / "harness-version.json").write_text(json.dumps(newer))
+    assert ha.sync(repo, templates=templates, runtime=runtime) == []
+    assert json.loads((repo / ha.FILENAME).read_text())["harness"]["version"] == "def5678"
+    # a new pack link is not a committed file either
+    (runtime / ha.PACK_STORE / "claude/linear").mkdir(parents=True)
+    d = json.loads((repo / ha.FILENAME).read_text())
+    d["skill_packs"] = ["tracking"]
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    assert ha.sync(repo, templates=templates, runtime=runtime) == [
+        ".claude/skills/linear",
+        ".agents/skills/linear",
+        ".kiro/skills/linear",
+    ]
+    assert json.loads((repo / ha.FILENAME).read_text())["harness"]["version"] == "def5678"
+    (templates / "common/sh-check.sh").write_text(TEMPLATE.replace("echo check", "echo newer"))
+    changes = ha.sync(repo, templates=templates, runtime=runtime)
+    assert changes == [".claude/hooks/sh-check.sh", ha.FILENAME]
+    assert json.loads((repo / ha.FILENAME).read_text())["harness"]["version"] == "fff0000"
 
 
 ROOT = 'cd "$(git rev-parse --show-toplevel)" && '

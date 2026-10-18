@@ -58,7 +58,7 @@ run
 has "says when the harness is not installed" "harness not installed on this host"
 run "" "$H"
 if [[ $RC -eq 0 ]]; then ok "exits 0 with problems found"; else bad "exits 0 with problems found" "rc=$RC"; fi
-has "reports version drift" "differs: repo synced at old1234, installed new5678"
+has "reports version drift" "last changed by old1234, installed new5678"
 has "reports hook drift" ".claude/hooks/x.sh differs"
 has "reports a missing state file" "PROGRESS.md"
 

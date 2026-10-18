@@ -130,7 +130,9 @@ def _version_status(data: dict[str, Any], runtime: Path) -> str:
     short = str(installed.get("short") or commit[:7])
     if ours and commit and (commit.startswith(ours) or ours == installed.get("describe")):
         return "in sync"
-    return f"differs: repo synced at {ours or '?'}, installed {short or '?'}"
+    # sync bumps the version only with a real change, so a newer install is normal
+    # here; whether anything is out of date is drift's call.
+    return f"last changed by {ours or '?'}, installed {short or '?'}"
 
 
 def check(repo: Path, templates: Path, runtime: Path) -> Result:
@@ -447,13 +449,16 @@ def sync(repo: Path, templates: Path, runtime: Path) -> list[str]:
         _write_if_changed(settings, _dump(claude), changes, repo)
     _write_if_changed(repo / ".codex/hooks.json", _dump(wiring["codex"]), changes, repo)
     _write_if_changed(repo / ".agents/hooks.json", _dump(wiring["agy"]), changes, repo)
+    committed = bool(changes)  # pack links and info/exclude are not committed files
     _link_pack_skills(repo, data, runtime, changes)
 
     try:
         installed = json.loads((runtime / "harness-version.json").read_text()).get("short")
     except (OSError, ValueError):
         installed = None
-    if installed and data["harness"]["version"] != installed:
+    # Only alongside a real change: a bump alone would leave the repo with an
+    # uncommitted change after every unattended update.sh.
+    if installed and committed and data["harness"]["version"] != installed:
         data["harness"]["version"] = installed
         _write_if_changed(repo / FILENAME, _dump(data), changes, repo)
     return changes
