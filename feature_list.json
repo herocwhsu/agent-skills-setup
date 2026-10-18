@@ -97,6 +97,25 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-079",
+      "name": "Hook drift is checked against the harness templates, not between sibling repos",
+      "description": "T5 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md, with D2 changed: the per-repo values stay in each hook's repo config block (they are bash: arrays, regexes, $REPO_ROOT paths; moving them to JSON needs an eval loader in every hook), and that block stays the only part a repo may edit. What caused the drift was comparing hangar with atelier instead of with the harness. harness_adapter.py drift <repo> [--file F] compares each template hook listed in agent-harness.json with its template outside the config block. New shared hook templates/hooks/common/harness-drift.sh runs it on edit, finding the harness through harness-version.json (now also recording source_dir); with no harness installed (top2, vm1 clones) it does nothing. hangar drops shared-hook-drift.sh and its tests; its nightly security-check.sh compares both repos with the harness.",
+      "dependencies": [
+        "feat-078"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "harness-version.json records source_dir, the harness checkout that was installed",
+        "drift exits 0 when every listed template hook matches its template outside the repo config block, and 2 naming each file and its template otherwise; --file limits it to one file and exits 0 for a file that is not a listed template hook",
+        "harness-drift.sh blocks (exit 2, message on stderr) an edit that makes a template hook differ, allows an edit inside the config block, ignores other files, and exits 0 when harness-version.json or its source_dir is missing",
+        "hangar: shared-hook-drift.sh, its settings.json wiring and its test-hooks.sh cases are gone; harness-drift.sh is wired on edit in hangar and atelier settings.json and agent-harness.json; hangar docs/hooks.md and security-check.sh compare with the harness",
+        "hangar and atelier ./init.sh pass; harness_adapter.py check and drift pass for both",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/tests/test_record_harness_version.sh && python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/tests/test_shared_hook_templates.sh && python3 scripts/harness_adapter.py drift ../hangar && python3 scripts/harness_adapter.py drift ../atelier && bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }
