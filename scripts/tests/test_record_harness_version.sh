@@ -44,4 +44,5 @@ check "outside git: commit null" "null" "$(field "$OUT" commit)"
 check "outside git: reason given" "not a git checkout" "$(field "$OUT" reason)"
 check "outside git: warns" "yes" "$( [[ "$msg" == *WARN* ]] && echo yes)"
 
-[[ $fails -eq 0 ]] && echo "test_record_harness_version: all passed" || { echo "test_record_harness_version: $fails failed"; exit 1; }
+if [[ $fails -ne 0 ]]; then echo "test_record_harness_version: $fails failed"; exit 1; fi
+echo "test_record_harness_version: all passed"

@@ -81,7 +81,7 @@
       "dependencies": [
         "feat-076"
       ],
-      "status": "active",
+      "status": "completed",
       "acceptance_criteria": [
         "record_harness_version in scripts/_lib.sh writes harness-version.json with commit equal to git rev-parse HEAD, short, describe (a tag when HEAD is tagged), dirty true only with uncommitted changes to tracked files, and installed_at",
         "outside a git checkout it writes commit null with a reason and prints a warning instead of failing the install",
@@ -90,7 +90,7 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "bash scripts/tests/test_record_harness_version.sh && bash scripts/harness-verify.sh",
-      "evidence": ""
+      "evidence": "scripts/_lib.sh record_harness_version writes <runtime dir>/harness-version.json (commit, short, describe, dirty, installed_at; outside git: commit null, reason, a WARN, install continues); install.sh calls it once after install_runtime_dir. scripts/tests/test_record_harness_version.sh 10 checks; it failed 9 of them before the function existed. The repo path in the test holds spaces and quotes; JSON is written by python3, which install.sh already requires. Real install: bash scripts/install.sh exit 0, ~/.agent-skills-setup/harness-version.json commit 1a23b64 = git rev-parse HEAD, dirty false. harness-verify.sh: all 11 gates passed, output saved to a file. Not done: no tags exist yet, so describe prints the short commit; the dirty check covers tracked files only (untracked files are not part of an install)."
     }
   ]
 }

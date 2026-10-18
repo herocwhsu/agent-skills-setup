@@ -77,7 +77,7 @@ the next task is planned from measured cost and effect.
 |---|---|---|---|
 | T1 ✅ feat-075 `repo_audit.py`: per-repo metrics (always-loaded tokens, state-file tokens, hook drift vs harness, agents with hooks) | baseline for all | baselines 2026-10-17 in `docs/telemetry/repos/` | — |
 | T2 ✅ feat-076 upstream atelier's newer hooks (py-guard, ts-guard, …) into templates, then sync the older copies in hangar and atelier | I1 | drifted hooks hangar 2 → 0, atelier 6 → 0 | — |
-| T3 harness version: tags + install records installed commit | I4 | version recorded | — |
+| T3 ✅ feat-077 harness version: tags + install records installed commit | I4 | version recorded | — |
 | T4 `agent-harness.json` schema, reader, files for hangar and atelier | I6, I12, I13 | both validate | D1, D6 |
 | T5 per-repo hook values move from hook files into the file; drift check = byte compare; drop `shared-hook-drift.sh` | I2, I5 | harness copies identical | D2 |
 | T6 `update.sh` syncs registered repos and writes hooks for every supported agent, installed or not | I3, I6 | agents with hooks 1 → 3 | D3 |
