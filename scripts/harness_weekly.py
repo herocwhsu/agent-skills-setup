@@ -17,6 +17,7 @@ import argparse
 import datetime
 import json
 import re
+import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -27,6 +28,18 @@ import repo_trend
 
 HARNESS = Path(__file__).resolve().parent.parent
 TOKEN_GROWTH = 0.10
+# Changes the global rules want an outside review for: hooks and gates, the shipped
+# rules, install scripts, agent settings, CI, migrations.
+RISKY_RE = re.compile(
+    r"^(\.claude/hooks/|\.claude/settings|\.agents/|\.codex/|templates/hooks/|harness/guards/"
+    r"|\.github/workflows/|agents/engineering-rules\.md$|agent-harness\.json$"
+    r"|scripts/(install|uninstall|update|_lib|setup-[^/]*)\.sh$|scripts/_settings_merge\.py$"
+    r"|scripts/harness_adapter\.py$)|(^|/)migrations/"
+)
+BOT_RE = re.compile(r"\[bot\]$|^renovate", re.IGNORECASE)
+# A review counts for a commit when it ran in the same repo within this window
+# after it: the rules ask for one review per branch before finishing, not per commit.
+REVIEW_WINDOW = datetime.timedelta(days=2)
 
 
 def update_regressions(log: str, rc: int) -> list[str]:
@@ -72,6 +85,84 @@ def repo_regressions(
     return found
 
 
+def _parse_ts(value: str) -> datetime.datetime:
+    # macOS system Python 3.9: fromisoformat reads no "Z" and datetime.UTC is 3.11+
+    ts = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))  # noqa: FURB162
+    return ts if ts.tzinfo else ts.replace(tzinfo=datetime.timezone.utc)  # noqa: UP017
+
+
+def review_coverage(
+    repo: Path, runs: list[dict[str, Any]], since: datetime.datetime
+) -> dict[str, Any]:
+    """Risky commits since `since`, and how many an outside-agent review followed."""
+    out = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "log",
+            f"--since={since.isoformat()}",
+            "--name-only",
+            "--format=%x1e%h%x1f%cI%x1f%an%x1f%s",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    me = repo.resolve()
+    reviews = []
+    for r in runs:
+        try:
+            same = Path(str(r.get("repo"))).resolve() == me
+            if r.get("purpose") == "review" and r.get("exit_code") == 0 and same:
+                reviews.append(_parse_ts(str(r["timestamp"])))
+        except (KeyError, ValueError):
+            continue
+    risky = reviewed = 0
+    unreviewed: list[str] = []
+    for rec in out.split("\x1e")[1:]:
+        head, _, files = rec.partition("\n")
+        sha, when, author, subject = head.split("\x1f", 3)
+        if BOT_RE.search(author) or not any(RISKY_RE.search(f) for f in files.split()):
+            continue
+        risky += 1
+        t = _parse_ts(when)
+        if any(t <= r <= t + REVIEW_WINDOW for r in reviews):
+            reviewed += 1
+        else:
+            unreviewed.append(f"{sha} {subject}")
+    return {"risky": risky, "reviewed": reviewed, "unreviewed": unreviewed}
+
+
+def _review_section(repos: list[Path], runtime: Path, since: datetime.datetime) -> list[str]:
+    runs: list[dict[str, Any]] = []
+    log = runtime / "state/outside-agent-runs.jsonl"
+    for line in log.read_text().splitlines() if log.is_file() else []:
+        try:
+            runs.append(json.loads(line))
+        except ValueError:
+            continue
+    rows = []
+    for repo in repos:
+        try:
+            c = review_coverage(repo, runs, since)
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        latest = "; ".join(c["unreviewed"][:5]) or "-"
+        rows.append(f"| {repo.name} | {c['risky']} | {c['reviewed']} | {latest} |")
+    return [
+        "## Outside reviews of risky commits",
+        "",
+        "Measured, not enforced. Only outside-agent reviews are logged; a subagent",
+        "review leaves no record. Renovate's commits are left out.",
+        "",
+        "| repo | risky commits | with an outside review | unreviewed (latest 5) |",
+        "|---|---|---|---|",
+        *rows,
+        "",
+    ]
+
+
 def _registered(runtime: Path) -> list[Path]:
     path = runtime / "target-repos.txt"
     lines = path.read_text().splitlines() if path.is_file() else []
@@ -101,6 +192,7 @@ def run(
     today: str,
     days: int = 7,
     audit_fn: Callable[[Path], dict[str, Any]] | None = None,
+    extra_repos: tuple[Path, ...] = (HARNESS,),
 ) -> tuple[str, list[str]]:
     audit_fn = audit_fn or (lambda r: repo_audit.audit(r, Path.home(), HARNESS / "templates/hooks"))
     found = update_regressions(update_log, update_rc)
@@ -124,6 +216,9 @@ def run(
     lines = [f"# Harness weekly {today}", "", "## Regressions", ""]
     lines += [f"- {f}" for f in found] or ["No regressions."]
     lines += ["", "## Target repos", "", table, ""]
+    since = _parse_ts(f"{today}T00:00:00") - datetime.timedelta(days=days)
+    repos = [r for r in [*_registered(runtime), *extra_repos] if r.is_dir()]
+    lines += _review_section(repos, runtime, since)
     return "\n".join(lines), found
 
 

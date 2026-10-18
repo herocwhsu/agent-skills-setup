@@ -108,3 +108,87 @@ def test_main_writes_the_report_and_exits_1_only_on_regressions(tmp_path: Path) 
     log.write_text(UPDATE_OK + "ERROR: boom\n")
     assert hw.main([*args, "--update-rc", "3", "--out", str(out), "--today", "2026-10-19"]) == 1
     assert "update.sh failed (exit 3): ERROR: boom" in out.read_text()
+
+
+def _git(repo: Path, *args: str, date: str | None = None) -> None:
+    import os
+    import subprocess
+
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "dev",
+        "GIT_AUTHOR_EMAIL": "d@example.com",
+        "GIT_COMMITTER_NAME": "dev",
+        "GIT_COMMITTER_EMAIL": "d@example.com",
+    }
+    if date:
+        env |= {"GIT_AUTHOR_DATE": date, "GIT_COMMITTER_DATE": date}
+    subprocess.run(["git", "-C", str(repo), *args], check=True, env=env, capture_output=True)
+
+
+def _commit(repo: Path, path: str, date: str, author: str = "dev") -> None:
+    f = repo / path
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(date)
+    _git(repo, "add", "-A")
+    _git(
+        repo,
+        "-c",
+        f"user.name={author}",
+        "commit",
+        "-q",
+        "--author",
+        f"{author} <a@example.com>",
+        "-m",
+        path,
+        date=date,
+    )
+
+
+def test_review_coverage_counts_risky_commits_and_matching_outside_reviews(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _commit(repo, "docs/a.md", "2026-10-13T10:00:00+08:00")  # not risky
+    _commit(repo, ".claude/hooks/x.sh", "2026-10-14T10:00:00+08:00")  # reviewed next day
+    _commit(repo, "scripts/install.sh", "2026-10-15T10:00:00+08:00")  # never reviewed
+    _commit(repo, ".github/workflows/ci.yml", "2026-10-16T10:00:00+08:00", author="renovate[bot]")
+    runs = [
+        {
+            "purpose": "review",
+            "repo": str(repo),
+            "exit_code": 0,
+            "timestamp": "2026-10-15T01:00:00+00:00",
+        },
+        {
+            "purpose": "review",
+            "repo": "/elsewhere",
+            "exit_code": 0,
+            "timestamp": "2026-10-16T01:00:00+00:00",
+        },
+        {
+            "purpose": "delegate",
+            "repo": str(repo),
+            "exit_code": 0,
+            "timestamp": "2026-10-16T01:00:00+00:00",
+        },
+    ]
+    since = hw._parse_ts("2026-10-12T00:00:00+08:00")
+    c = hw.review_coverage(repo, runs, since)
+    assert (c["risky"], c["reviewed"]) == (2, 1)
+    assert [u.split(" ", 1)[1] for u in c["unreviewed"]] == ["scripts/install.sh"]
+    # a failed review run is no review
+    runs[0]["exit_code"] = 2
+    assert hw.review_coverage(repo, runs, since)["reviewed"] == 0
+
+
+def test_run_reports_review_coverage_without_counting_it_as_a_regression(tmp_path: Path) -> None:
+    runtime, repo = _runtime(tmp_path)
+    _git(repo, "init", "-q")
+    _commit(repo, ".claude/hooks/x.sh", "2026-10-18T10:00:00+08:00")
+    report, found = hw.run(
+        runtime, UPDATE_OK, 0, today="2026-10-19", audit_fn=lambda r: _audit(4100), extra_repos=()
+    )
+    assert found == []
+    assert "## Outside reviews of risky commits" in report
+    assert "| hangar | 1 | 0 |" in report
