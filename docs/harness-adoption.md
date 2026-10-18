@@ -38,9 +38,19 @@ each `{"template": "<stack>/<file>"}` or `{"local": "<path>"}` with `"event": "e
 - A template copy may differ from its template only inside its repo config block.
   `harness-drift.sh` blocks an edit that changes anything else; change the template
   here and sync instead.
-- `agent-hook.sh` runs the same Claude-shaped hooks under codex and agy. Replayed with
-  agy- and codex-shaped input on 2026-10-18 (sh-check blocked a broken file under
-  both); a live agy session was not run, and codex is not installed here.
+- `agent-hook.sh` runs the same Claude-shaped hooks under codex and agy. agy runs a
+  hook from the folder holding its hooks.json (`.agents/`, or `~/.gemini/config` for
+  global hooks) and takes Stop hooks as a flat list, so generated commands start
+  with `cd "$(git rev-parse --show-toplevel)"`. Checked with live agy sessions on
+  2026-10-18 (feat-087); replays from the repo root missed both bugs. codex is not
+  installed here.
+- Global hooks (`templates/hooks/global/global-hook.sh`, installed to
+  `~/.agent-skills-setup/hooks/`) run `sh-check`, `secret-scan` and `preflight` for
+  every repo; a repo that wires a hook of the same name keeps its own (feat-088).
+- Skill packs (`config/skill-packs.json`): every pack but core leaves the global
+  skills dirs; `sync` links the packs a repo lists into `.claude/skills`,
+  `.agents/skills` and `.kiro/skills`, which agents load when the session starts in
+  that repo (feat-090).
 
 ## Rules that cost an incident
 
