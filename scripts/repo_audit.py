@@ -11,6 +11,10 @@ Reports, as JSON:
                  config block ignored), or local when no template has its name
   agent_hooks    which agents have at least one hook command wired
 
+skill_tokens_scoped is what the skill list would cost with only the core pack,
+the repo's skill_packs (agent-harness.json), unassigned global skills and the
+repo's own skills (packs: config/skill-packs.json).
+
 Tokens are estimates (chars/4). A missing file is reported as missing, never 0.
 
 Usage: repo_audit.py <repo> [--save]
@@ -100,6 +104,25 @@ def _skill_header(text: str) -> str:
     return "\n".join(keep)
 
 
+def load_packs(path: Path | None = None) -> dict[str, list[str]]:
+    """config/skill-packs.json without its comment; {} when absent."""
+    try:
+        data = json.loads((path or HARNESS / "config/skill-packs.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {k: v for k, v in data.items() if not k.startswith("_") and isinstance(v, list)}
+
+
+def _repo_packs(repo: Path) -> list[str]:
+    try:
+        packs = json.loads((repo / "agent-harness.json").read_text(encoding="utf-8")).get(
+            "skill_packs"
+        )
+    except (OSError, ValueError, AttributeError):
+        return []
+    return [p for p in packs if isinstance(p, str)] if isinstance(packs, list) else []
+
+
 def _skills(repo: Path, home: Path) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for source, root in (("global", home / ".claude/skills"), ("repo", repo / ".claude/skills")):
@@ -175,11 +198,20 @@ def _agent_hooks(repo: Path) -> dict[str, bool]:
     return out
 
 
-def audit(repo: Path, home: Path, templates: Path) -> dict[str, Any]:
+def audit(
+    repo: Path, home: Path, templates: Path, packs: dict[str, list[str]] | None = None
+) -> dict[str, Any]:
     repo = repo.resolve()
     files = [_file_entry(p, repo, home) for p in _instruction_files(repo, home)]
     skills = _skills(repo, home)
     skill_tokens = sum(s["tokens"] for s in skills)
+    pack_of = {
+        n: k for k, names in (load_packs() if packs is None else packs).items() for n in names
+    }
+    keep = {"core", None, *_repo_packs(repo)}
+    for s in skills:
+        s["pack"] = pack_of.get(s["name"])
+    scoped = sum(s["tokens"] for s in skills if s["source"] == "repo" or s["pack"] in keep)
     return {
         "schema_version": 1,
         "repo": repo.name,
@@ -188,6 +220,7 @@ def audit(repo: Path, home: Path, templates: Path) -> dict[str, Any]:
             "tokens": skill_tokens + sum(f["tokens"] or 0 for f in files),
             "files": files,
             "skill_tokens": skill_tokens,
+            "skill_tokens_scoped": scoped,
             "skills": skills,
         },
         "state_files": [

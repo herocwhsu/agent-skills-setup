@@ -180,17 +180,19 @@ def test_compare_reports_sla_breach(tmp_path: Path) -> None:
 
 def test_cli_execution_and_output(sample_suite_file: Path, tmp_path: Path) -> None:
     out_file = tmp_path / "out.json"
-    ret = main([
-        "--suite",
-        str(sample_suite_file),
-        "-n",
-        "1",
-        "--task",
-        "fast_echo",
-        "-o",
-        str(out_file),
-        "--quiet",
-    ])
+    ret = main(
+        [
+            "--suite",
+            str(sample_suite_file),
+            "-n",
+            "1",
+            "--task",
+            "fast_echo",
+            "-o",
+            str(out_file),
+            "--quiet",
+        ]
+    )
     assert ret == 0
     assert out_file.exists()
     data = json.loads(out_file.read_text(encoding="utf-8"))

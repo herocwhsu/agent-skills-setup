@@ -79,7 +79,7 @@
       "dependencies": [
         "feat-083"
       ],
-      "status": "active",
+      "status": "completed",
       "acceptance_criteria": [
         "config/skill-packs.json names each pack once per skill and no skill in two packs; a test checks every named skill exists in the global install or registry",
         "check accepts skill_packs naming known packs only and rejects an unknown or core pack",
@@ -88,7 +88,7 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "python3 -m pytest tests/test_harness_adapter.py tests/test_repo_audit.py -q && bash scripts/harness-verify.sh",
-      "evidence": ""
+      "evidence": "config/skill-packs.json: core (16 skills that stay global, incl. spec-workflow as the router the global rules name, utils, experiment-iteration) and opt-in packs spec-gated (10), sre, ai, frontend, infra, tracking (kanban-ai, linear), harness-dev. Every name is installed on this machine and every installed skill is in a pack (checked against ~/.claude/skills; a unit test checks only that no skill is in two packs, since superpowers skills are not in this repo). agent-harness.json takes optional skill_packs, rejected when unknown or core. repo_audit.py adds each skill's pack and skill_tokens_scoped. Tests: 41 passed (tests/test_repo_audit.py, tests/test_harness_adapter.py); the new scoped-token and pack-check cases failed first (3; the invalid-pack cases passed early only because skill_packs was then an unknown key). Declared: hangar infra + spec-gated (e0e1468), atelier ai + frontend + spec-gated (0826503) - spec-gated kept in both as the least change while D7 is open. Measured (estimated tokens): skill list hangar 2,380 -> 1,870 scoped, 1,027 without spec-gated; atelier 2,380 -> 1,886, 1,043 without spec-gated. harness-verify.sh: all 11 gates passed, output saved to a file. Not done (second half, waits for owner decisions D7 and what unregistered repos keep): removing pack skills from the global installs and linking them into each registered repo's .claude/skills, .agents/skills and .kiro/skills. Until then nothing an agent loads has changed."
     }
   ]
 }

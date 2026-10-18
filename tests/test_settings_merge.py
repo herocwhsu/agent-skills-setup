@@ -156,7 +156,10 @@ def test_merge_and_remove_env_keys(tmp_path):
     settings = tmp_path / "settings.json"
     settings.write_text("{}")
     hook = tmp_path / "hook.json"
-    write_json(hook, {"env": {"POLISH_REPLACE": "1"}, "hooks": {"UserPromptSubmit": [{"command": "polish.py"}]}})
+    write_json(
+        hook,
+        {"env": {"POLISH_REPLACE": "1"}, "hooks": {"UserPromptSubmit": [{"command": "polish.py"}]}},
+    )
 
     run_helper("--merge", str(hook), str(settings))
     data = read_json(settings)
@@ -165,7 +168,6 @@ def test_merge_and_remove_env_keys(tmp_path):
     run_helper("--remove", str(hook), str(settings))
     data = read_json(settings)
     assert "env" not in data
-
 
 
 def _wrapped(cmd: str) -> dict:
@@ -194,7 +196,9 @@ def test_merge_collapses_existing_duplicate_of_its_own_hook(tmp_path):
     hook = tmp_path / "hook.json"
     write_json(hook, {"hooks": {"UserPromptSubmit": [_wrapped("polish.py")]}})
     settings = tmp_path / "settings.json"
-    write_json(settings, {"hooks": {"UserPromptSubmit": [_wrapped("polish.py"), _wrapped("polish.py")]}})
+    write_json(
+        settings, {"hooks": {"UserPromptSubmit": [_wrapped("polish.py"), _wrapped("polish.py")]}}
+    )
 
     result = run_helper("--merge", str(hook), str(settings))
     assert result.returncode == 0, result.stderr
@@ -222,11 +226,29 @@ def test_gemini_rewire_collapses_duplicate(tmp_path):
     hook = tmp_path / "hook.json"
     write_json(hook, {"hooks": {"PreInvocation": [{"type": "command", "command": fresh}]}})
     settings = tmp_path / "hooks.json"
-    write_json(settings, {"p": {"PreInvocation": [
-        {"type": "command", "command": fresh}, {"type": "command", "command": stale}]}})
+    write_json(
+        settings,
+        {
+            "p": {
+                "PreInvocation": [
+                    {"type": "command", "command": fresh},
+                    {"type": "command", "command": stale},
+                ]
+            }
+        },
+    )
 
-    result = run_helper("--rewire", str(hook), str(settings), "--skills-dir", str(skills),
-                        "--agent", "gemini", "--hook-name", "p")
+    result = run_helper(
+        "--rewire",
+        str(hook),
+        str(settings),
+        "--skills-dir",
+        str(skills),
+        "--agent",
+        "gemini",
+        "--hook-name",
+        "p",
+    )
     assert result.returncode == 0, result.stderr
 
     assert read_json(settings)["p"]["PreInvocation"] == [{"type": "command", "command": fresh}]

@@ -119,3 +119,26 @@ def test_save_writes_dated_baseline(tmp_path: Path) -> None:
     out = ra.save(report, tmp_path / "telemetry", today="2026-10-17")
     assert out == tmp_path / "telemetry/repo/2026-10-17.json"
     assert json.loads(out.read_text())["repo"] == "repo"
+
+
+def test_scoped_skill_tokens_count_core_packs_unassigned_and_repo(tmp_path: Path) -> None:
+    home, repo, templates = _setup(tmp_path)
+    _skill(home / ".claude/skills", "gamma", "g" * 400, "")
+    _skill(home / ".claude/skills", "delta", "h" * 800, "")
+    _skill(home / ".claude/skills", "free", "f" * 40, "")
+    packs = {"core": ["alpha"], "p1": ["gamma"], "p2": ["delta"]}
+    _write(repo / "agent-harness.json", json.dumps({"skill_packs": ["p1"]}))
+    loaded = ra.audit(repo, home=home, templates=templates, packs=packs)["always_loaded"]
+    by = {s["name"]: s for s in loaded["skills"]}
+    assert (
+        by["alpha"]["pack"] == "core" and by["delta"]["pack"] == "p2" and by["free"]["pack"] is None
+    )
+    scoped = sum(by[n]["tokens"] for n in ("alpha", "gamma", "free", "beta"))
+    assert loaded["skill_tokens_scoped"] == scoped
+    assert loaded["skill_tokens"] - loaded["skill_tokens_scoped"] == by["delta"]["tokens"]
+
+
+def test_pack_file_is_consistent() -> None:
+    packs = ra.load_packs()
+    names = [n for k, v in packs.items() for n in v]
+    assert "core" in packs and len(names) == len(set(names))

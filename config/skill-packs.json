@@ -1,0 +1,17 @@
+{
+  "_comment": "core stays in every agent's global skills; other packs are opt-in per repo through agent-harness.json skill_packs. A global skill no pack names stays global. Read by scripts/harness_adapter.py and scripts/repo_audit.py.",
+  "core": [
+    "brainstorming", "dispatching-parallel-agents", "executing-plans",
+    "experiment-iteration", "finishing-a-development-branch", "receiving-code-review",
+    "requesting-code-review", "spec-workflow", "subagent-driven-development",
+    "systematic-debugging", "test-driven-development", "using-git-worktrees",
+    "using-superpowers", "utils", "verification-before-completion", "writing-plans"
+  ],
+  "spec-gated": ["apidog", "audit", "external", "intake", "jira", "progress", "release", "repo", "review", "testing"],
+  "sre": ["sre-migration"],
+  "ai": ["ai-stack"],
+  "frontend": ["webapp-testing"],
+  "infra": ["infra"],
+  "tracking": ["kanban-ai", "linear"],
+  "harness-dev": ["diagnosing-superpowers", "writing-skills"]
+}

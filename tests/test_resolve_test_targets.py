@@ -68,4 +68,3 @@ def test_nested_subcommand_skill_resolves_tests():
 def test_unknown_skill_script_falls_back_to_all():
     targets = resolve_all_targets(["skills/unknown-tool/do_magic.sh"])
     assert targets == ["ALL"]
-

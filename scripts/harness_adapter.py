@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from repo_audit import CONFIG_END_RE, CONFIG_START, _strip_config
+from repo_audit import CONFIG_END_RE, CONFIG_START, _strip_config, load_packs
 
 HARNESS = Path(__file__).resolve().parent.parent
 FILENAME = "agent-harness.json"
@@ -127,7 +127,14 @@ def check(repo: Path, templates: Path, runtime: Path) -> Result:
         return Result(problems=[f"{path}: top level must be an object"])
 
     problems: list[str] = []
-    problems += [f"unknown key {k!r}" for k in data if k not in KEYS]
+    problems += [f"unknown key {k!r}" for k in data if k not in KEYS and k != "skill_packs"]
+    if "skill_packs" in data:
+        known = set(load_packs()) - {"core"}
+        sp = data["skill_packs"]
+        if not isinstance(sp, list) or not all(isinstance(p, str) and p in known for p in sp):
+            problems.append(
+                f"skill_packs must list packs from config/skill-packs.json: {sorted(known)}"
+            )
     for key, typ in KEYS.items():
         if key not in data:
             problems.append(f"missing key {key!r}")

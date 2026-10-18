@@ -305,3 +305,13 @@ def test_timeout_is_checked_and_wired(tmp_path: Path) -> None:
     assert codex["Stop"][0]["hooks"][0]["timeout"] == 300
     agy = json.loads((repo / ".agents/hooks.json").read_text())
     assert agy["harness-stop"]["Stop"][0]["hooks"][0]["timeout"] == 300
+
+
+@pytest.mark.parametrize(
+    "packs, ok", [(["infra"], True), (["nope"], False), (["core"], False), ("infra", False)]
+)
+def test_skill_packs_are_checked(tmp_path: Path, packs: Any, ok: bool) -> None:
+    d = _valid()
+    d["skill_packs"] = packs
+    problems = _check(tmp_path, d).problems
+    assert (problems == []) is ok, problems
