@@ -144,6 +144,24 @@
       ],
       "verification": "python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/tests/test_install_source_guard.sh && bash scripts/harness-verify.sh",
       "evidence": "Tests first: 3 new adapter tests failed (no store-packs or linking), 39 passed after; test_install_source_guard.sh kiro case failed on the old install order and passes after. Two tests used pack skills as samples (infra as a valid pack, apidog as an installed local skill); now tracking and spec-workflow. Live probe before building: a skill in <repo>/.claude/skills and .agents/skills loads for claude (-p, haiku) and agy when the session starts in the repo, and not from its parent folder. After install.sh --agent all and sync-all: 17 pack skills moved out of ~/.claude/skills, ~/.gemini/antigravity-cli/skills, ~/.codex/skills and ~/.kiro/skills (global entries 35 -> 18); hangar links kanban-ai and linear, atelier ai-stack and webapp-testing, for all three agent dirs, git status clean. Live: claude in hangar sees linear (YES), from ~/projects not (NO), jira from ~/projects NO; agy in atelier sees ai-stack (YES), in hangar NO. kiro default.json: 18 resources, no moved skill. repo_audit 2026-10-18: hangar skills 34 -> 19, skill-description tokens 2380 -> 1158, always-loaded 5389 -> 4167; atelier 34 -> 19, 2380 -> 1151, 5014 -> 3785. Known limits: a session started outside a repo (e.g. ~/projects) gets no pack skills; uninstall.sh leaves <runtime>/pack-skills and the repo links in place; codex not live-tested."
+    },
+    {
+      "id": "feat-091",
+      "name": "Pack skills in the repos' shared parent; uninstall removes pack links",
+      "description": "Follow-ups to feat-090. A session started in the folder above the repos (~/projects) loaded no pack skills, since agents read skills from the folder the session starts in. sync-all now links the union of the registered repos' packs into their shared parent, unless that folder is at or above HOME, the filesystem root, or inside a git repo. uninstall.sh runs `harness_adapter.py unlink-packs --agent A` per agent: it removes that agent's stored pack skills and every repo or parent link into them, and rewrites each repo's .git/info/exclude block to the links that remain.",
+      "dependencies": [
+        "feat-090"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "sync-all links every listed pack into the shared parent and drops packs no repo lists any more",
+        "nothing is linked when the shared parent is HOME or inside a git repo",
+        "unlink-packs removes one agent's store and only the links into it, and updates the exclude block",
+        "live: claude and agy started in ~/projects see a pack skill",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/tests/test_uninstall_globals.sh && bash scripts/harness-verify.sh",
+      "evidence": "Tests first: the shared-parent test failed (no links), the unlink test failed (no function); 43 passed after. Mutations: dropping the HOME check and dropping the git check each fail one case. Real sync-all linked ai-stack, kanban-ai, linear and webapp-testing into ~/projects/.claude/skills, .agents/skills and .kiro/skills; live claude -p (haiku) and agy -p started in ~/projects answer YES for linear (both NO before). test_uninstall_globals.sh passes (fake HOME). harness-verify.sh: all 11 gates passed, output saved to a file. Same round, outside this feature: atelier's Stop block fixed in atelier 0413080 (lockfile-only update of undici, js-yaml, brace-expansion, browserslist; two react-router advisories recorded as not applicable until 2027-01-18 in apps/firstdigital/osv-scanner.toml, since 6.x has no fix; typecheck, 12 tests, build and ./init.sh pass). Not done: deploying the global rules and editing agents/engineering-rules.md were both denied by the auto-mode classifier as self-modification; the owner applies them."
     }
   ]
 }

@@ -76,7 +76,7 @@
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-0. **Two-layer harness, T2-T15 done** (hook sync, version, `agent-harness.json`, preflight, global hooks, skill packs, cross-repo telemetry): [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md), D1-D11. Owner calls left: redeploy the global rules (`install-agents-md.sh`; the deployed copy predates the source, see feat-089) and then move the Startup / End of Session wording shared by hangar and atelier into them; whether a session started in `~/projects` should see pack skills (today it does not).
+0. **Two-layer harness, T2-T15 done** (hook sync, version, `agent-harness.json`, preflight, global hooks, skill packs, cross-repo telemetry): [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md), D1-D11. Owner action left: the global rules. Editing `agents/engineering-rules.md` and running `install-agents-md.sh` are denied to the agent as self-modification; the deployed copy predates the source (feat-089). After the owner deploys, add the shared repo-workflow rule (text in feat-091's session) and cut the Startup / End of Session wording from hangar and atelier. Also: atelier's react-router exceptions expire 2027-01-18; the real fix is react-router 7.
    - *Metric caveat:* feat-075's run record (`5a0ad1e4-ec73a5038f`, 1.3M output tokens, ~17 days) covers this whole long session from its start (hangar UPS work included), because the session had no earlier record. Start each T-task in a fresh session, or mark the window at activation, so its record measures only that task.
 1. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
 2. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
@@ -84,7 +84,6 @@
 
 - **Flaky: `skills/utils/confluence-tree/tests/test_push.sh` test 5** (expected exit 6, got 1; an http read on its mock server) failed under parallel load in feat-075 and feat-080, passes alone. Make the mock server deterministic before it hides a real failure.
 
-- **atelier Stop is blocked for every agent:** `secret-scan.sh` exits 2 on a clean tree on new osv-scanner advisories in `apps/firstdigital/package-lock.json` (undici, js-yaml, brace-expansion, browserslist, react-router). Bump or baseline them in atelier (feat-087).
 - **Live-run each agent's hooks after a wiring change**, not only replays from the repo root: replays missed both agy bugs in feat-087. A live agy run in a scratch clone (`agy -p ... --mode accept-edits`) is enough; a codex one when codex is installed.
 
 - **Codex user skills path:** `agent_skills_dir codex` installs to `~/.codex/skills`; current Codex docs read `~/.agents/skills` (docs/harness-adoption.md). Codex is not installed here; check on a host that has it before changing the path.
