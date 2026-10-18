@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-17
-**Active Feature:** feat-081
+**Active Feature:** none
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
 - Lecture 11 (making the agent's runtime observable) closed: runtime_logger ported (13/13 tests, clean ruff/mypy), sprint contract & evaluator rubric documented.
@@ -57,14 +57,16 @@
 
 - [x] feat-080: `harness_adapter.py sync/register/sync-all` + `common/agent-hook.sh`; hangar and atelier now wire their hooks for claude, codex and agy; `update.sh` syncs registered repos.
 
+- [x] feat-081: `common/preflight.sh` at session start (Claude SessionStart; other agents via AGENTS.md): version, drift, and a PROGRESS.md brief, hangar ~476 tokens instead of 3,870.
+
 ### What's In Progress
 
-- feat-081: T7, `common/preflight.sh` (version, drift, state brief) as Claude SessionStart; AGENTS.md startup step for every agent.
+- Nothing active (WIP=0, clean state).
 
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-0. **Two-layer harness, T2-T12** (hook sync, version, `agent-harness.json`, preflight, skill packs, cross-repo telemetry): tasks, metrics and open decisions D1-D9 in [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md). Each task saves a `repo_audit.py` before/after. Next: T7, SessionStart preflight and a short state brief in target repos.
+0. **Two-layer harness, T2-T12** (hook sync, version, `agent-harness.json`, preflight, skill packs, cross-repo telemetry): tasks, metrics and open decisions D1-D9 in [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md). Each task saves a `repo_audit.py` before/after. Next: T8, Stop runs the file's `verify`; gate runs recorded centrally per repo.
    - *Metric caveat:* feat-075's run record (`5a0ad1e4-ec73a5038f`, 1.3M output tokens, ~17 days) covers this whole long session from its start (hangar UPS work included), because the session had no earlier record. Start each T-task in a fresh session, or mark the window at activation, so its record measures only that task.
 1. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
 2. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.

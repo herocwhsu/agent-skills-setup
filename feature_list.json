@@ -54,7 +54,7 @@
       "dependencies": [
         "feat-080"
       ],
-      "status": "active",
+      "status": "completed",
       "acceptance_criteria": [
         "preflight.sh prints the brief for a PROGRESS.md with those sections: top-level bullets or numbered items only, each clipped to 160 characters, at most 4/8/5/6 items per section, and says which sections are missing",
         "with the harness installed it reports version status, drift and missing state files; without it it says so in one line; it exits 0 in every case, including a missing PROGRESS.md",
@@ -63,7 +63,7 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "bash scripts/tests/test_preflight.sh && python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/harness-verify.sh",
-      "evidence": ""
+      "evidence": "templates/hooks/common/preflight.sh: harness version, hook drift and adapter problems as warnings (only when harness-version.json names an installed harness; otherwise one line says so), then a brief of PROGRESS.md (Current state 4, In flight 8, Next 5, Standing decisions 6 items; wrapped lines and paragraphs joined, nested list items skipped, each clipped to 160 chars, '(+N more)'); always exits 0. Adapter event start, wired as Claude SessionStart only; codex and agy have no session-start event verified here, so hangar and atelier AGENTS.md startup step 1 now says other agents run bash .claude/hooks/preflight.sh and to open PROGRESS.md in full only when the brief is not enough. Tests failed first: test_preflight.sh 11 of 15, then 2 more cases (wrapped item, prose paragraph) failed after the first real run on hangar showed '(none)' for its prose Current state and items cut at the first wrapped line; 18 passed now. tests/test_harness_adapter.py 28 passed (start wires SessionStart for Claude only); a vacuous 'or True' assertion I first wrote was removed. Measured: hangar brief ~476 estimated tokens against 3,870 for PROGRESS.md in full; atelier ~116 tokens against 1,251 (PROGRESS.md + feature_list.json). Synced via update path (install, sync-all): preflight.sh, .claude/settings.json (SessionStart added) and agent-harness.json in both; atelier's compact settings.json is now in the generator's indent-2 format. hangar a65fe08, atelier ae6dd26; both ./init.sh exit 0. harness-verify.sh: all 11 gates passed, output saved to a file. Not done: a fresh Claude session was not started to see the SessionStart output land in context (stdout of SessionStart is documented to join it); token counts are chars/4."
     }
   ]
 }

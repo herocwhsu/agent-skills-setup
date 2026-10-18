@@ -3,7 +3,7 @@
   "repo": "hangar",
   "always_loaded": {
     "estimate": "chars/4",
-    "tokens": 5403,
+    "tokens": 5438,
     "files": [
       {
         "file": "~/.claude/CLAUDE.md",
@@ -15,7 +15,7 @@
       },
       {
         "file": "AGENTS.md",
-        "tokens": 1194
+        "tokens": 1229
       }
     ],
     "skill_tokens": 2380,
@@ -223,6 +223,11 @@
       "file": "placeholder-guard.sh",
       "status": "identical",
       "template": "k8s/placeholder-guard.sh"
+    },
+    {
+      "file": "preflight.sh",
+      "status": "identical",
+      "template": "common/preflight.sh"
     },
     {
       "file": "secret-scan.sh",
