@@ -4,7 +4,7 @@
 The file is for the harness, not the agent (the agent reads AGENTS.md). It says
 which harness commit the repo was synced to, its state files, its verify
 commands, and its hooks in wiring order: each a shared template under
-templates/hooks/<stack>/ or a repo-local file, run on `edit` or `stop`.
+templates/hooks/<stack>/ or a repo-local file, run on `edit`, `stop` or `start` (session start).
 
 Usage: harness_adapter.py check <repo> [--templates DIR] [--runtime DIR]
        harness_adapter.py drift <repo> [--templates DIR] [--file PATH]
@@ -33,7 +33,7 @@ from repo_audit import CONFIG_END_RE, CONFIG_START, _strip_config
 HARNESS = Path(__file__).resolve().parent.parent
 FILENAME = "agent-harness.json"
 SCHEMA_VERSION = 1
-EVENTS = ("edit", "stop")
+EVENTS = ("edit", "stop", "start")  # start: Claude SessionStart only
 WRAPPER = "common/agent-hook.sh"
 REGISTRY = "target-repos.txt"
 EDIT_MATCHERS = {
@@ -236,6 +236,10 @@ def _wiring(hooks: list[dict[str, Any]]) -> dict[str, Any]:
             ]
         if paths["stop"]:
             out["Stop"] = [_group([cmd("stop", p) for p in paths["stop"]])]
+        # codex and agy have no session-start event verified here; their AGENTS.md
+        # startup step runs the same script instead.
+        if paths["start"] and agent == "claude":
+            out["SessionStart"] = [_group([cmd("start", p) for p in paths["start"]])]
         return out
 
     agy = events("agy")

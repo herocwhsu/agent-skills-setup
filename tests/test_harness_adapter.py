@@ -270,3 +270,18 @@ def test_sync_writes_no_group_for_an_event_without_hooks(tmp_path: Path) -> None
     assert "Stop" not in json.loads((repo / ".claude/settings.json").read_text())["hooks"]
     assert "Stop" not in json.loads((repo / ".codex/hooks.json").read_text())["hooks"]
     assert list(json.loads((repo / ".agents/hooks.json").read_text())) == ["harness-edit"]
+
+
+def test_start_hooks_wire_claude_session_start_only(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    (templates / "common/preflight.sh").write_text("#!/bin/bash\n")
+    d = json.loads((repo / ha.FILENAME).read_text())
+    d["hooks"].append({"template": "common/preflight.sh", "event": "start"})
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    # sync runs check first, so this also proves the schema accepts "start"
+    ha.sync(repo, templates=templates, runtime=runtime)
+    claude = json.loads((repo / ".claude/settings.json").read_text())["hooks"]
+    assert _commands(claude["SessionStart"]) == ["bash .claude/hooks/preflight.sh"]
+    codex = json.loads((repo / ".codex/hooks.json").read_text())["hooks"]
+    assert "SessionStart" not in codex
+    assert "preflight" not in (repo / ".agents/hooks.json").read_text()
