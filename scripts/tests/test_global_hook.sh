@@ -69,6 +69,16 @@ run "{\"toolCall\":{\"args\":{\"TargetFile\":\"$REPO/sub/bad.sh\"}},\"conversati
 if [[ $RC -eq 0 && "$OUT" == "{}" && ! -s "$LOG" ]]; then ok "a hook the repo wires itself is skipped"; else bad "repo override" "rc=$RC out=$OUT log=$(cat "$LOG")"; fi
 rm -rf "$REPO/.agents"
 
+# Only the running agent's own repo settings count: a repo that wires sh-check for
+# Claude alone still gets the global one under agy.
+mkdir -p "$REPO/.claude"
+echo '{"hooks":{"PostToolUse":[{"hooks":[{"command":"bash .claude/hooks/sh-check.sh"}]}]}}' > "$REPO/.claude/settings.json"
+run "{\"toolCall\":{\"args\":{\"TargetFile\":\"$REPO/sub/a.sh\"}},\"conversationId\":\"c\"}" agy edit
+if [[ $RC -eq 0 && "$(cat "$LOG")" == "sh-check $REPO $REPO/sub/a.sh" ]]; then ok "a hook wired for another agent only does not turn the global one off"; else bad "per-agent override" "rc=$RC log=$(cat "$LOG")"; fi
+run "{\"tool_input\":{\"file_path\":\"$REPO/sub/a.sh\"}}" claude edit
+if [[ $RC -eq 0 && ! -s "$LOG" ]]; then ok "claude skips the global hook its repo settings wire"; else bad "claude override" "rc=$RC log=$(cat "$LOG")"; fi
+rm -rf "$REPO/.claude"
+
 run "{\"cwd\":\"$REPO\",\"hook_event_name\":\"SessionStart\"}" claude start
 if [[ $RC -eq 0 && -z "$OUT" && ! -s "$LOG" ]]; then ok "start says nothing in a repo without PROGRESS.md or agent-harness.json"; else bad "start silent" "rc=$RC out=$OUT log=$(cat "$LOG")"; fi
 

@@ -21,8 +21,8 @@ UPDATE_OK = """==> Detecting outside agents...
 
 
 def _audit(tokens: int = 4000, drifted: tuple[str, ...] = ()) -> dict[str, Any]:
-    hooks = [{"copy": ".claude/hooks/ok.sh", "status": "identical"}] + [
-        {"copy": f".claude/hooks/{h}", "status": "drifted"} for h in drifted
+    hooks = [{"file": "ok.sh", "status": "identical"}] + [
+        {"file": h, "status": "drifted"} for h in drifted
     ]
     return {"always_loaded": {"tokens": tokens}, "hooks": hooks}
 
@@ -48,6 +48,25 @@ def test_update_failures_and_agent_changes_are_regressions() -> None:
     assert hw.update_regressions(
         UPDATE_OK.replace("/r/hangar: up to date", "/r/hangar: missing"), 0
     ) == ["sync failed: /r/hangar: missing"]
+    # outside_agent.py joins several names with spaces
+    many = (
+        "[outside-agent] detected but not listed: codex kiro; listed but not found: gemini claude"
+    )
+    assert hw.update_regressions(many, 0) == [
+        (
+            "new agent detected: codex kiro; add it to "
+            "~/.agent-skills-setup/outside-agents.conf where it should rank"
+        ),
+        "listed agent not answering: gemini claude",
+    ]
+    # sync-all crashing outright: update.sh swallows it into a WARN line and exits 0
+    crash = (
+        UPDATE_OK
+        + "Traceback (most recent call last):\n  WARN  a registered target repo is missing or failed to sync (see above)\n"
+    )
+    assert hw.update_regressions(crash, 0) == [
+        "sync failed: WARN  a registered target repo is missing or failed to sync (see above)"
+    ]
 
 
 def test_repo_regressions_drift_token_growth_and_a_failed_last_verify() -> None:
@@ -83,6 +102,33 @@ def _runtime(tmp_path: Path) -> tuple[Path, Path]:
         + "\n"
     )
     return runtime, repo
+
+
+def test_real_audit_shape_reports_a_drifted_hook(tmp_path: Path) -> None:
+    import repo_audit
+
+    repo, templates = tmp_path / "repo", tmp_path / "templates"
+    (templates / "common").mkdir(parents=True)
+    (templates / "common/x.sh").write_text("#!/bin/bash\necho template\n")
+    (repo / ".claude/hooks").mkdir(parents=True)
+    (repo / ".claude/hooks/x.sh").write_text("#!/bin/bash\necho changed\n")
+    (repo / "agent-harness.json").write_text(
+        json.dumps({"hooks": [{"template": "common/x.sh", "event": "edit"}]})
+    )
+    cur = repo_audit.audit(repo, tmp_path / "home", templates)
+    assert hw.repo_regressions("r", None, cur, None) == ["r: hook drifted from its template: x.sh"]
+
+
+def test_run_flags_a_repo_left_with_uncommitted_changes(tmp_path: Path) -> None:
+    # sync never commits: a template change leaves the copies for someone to review
+    runtime, repo = _runtime(tmp_path)
+    _git(repo, "init", "-q")
+    _commit(repo, "AGENTS.md", "2026-10-18T10:00:00+08:00")
+    (repo / "AGENTS.md").write_text("edited by sync")
+    _, found = hw.run(
+        runtime, UPDATE_OK, 0, today="2026-10-19", audit_fn=lambda r: _audit(4100), extra_repos=()
+    )
+    assert found == ["hangar: uncommitted changes after sync, commit or revert them: AGENTS.md"]
 
 
 def test_run_saves_this_weeks_audit_and_reports_against_last_weeks(tmp_path: Path) -> None:

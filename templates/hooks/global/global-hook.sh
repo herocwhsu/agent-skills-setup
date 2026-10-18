@@ -4,8 +4,8 @@
 # into each agent's user settings (config/global-hooks.json).
 # Usage: global-hook.sh <claude|agy|codex> <edit|stop|start>
 # The repo comes from the hook input, not the working directory: agy runs global
-# hooks in ~/.gemini/config. A repo that wires a hook of the same name itself keeps
-# its own, with its config block, and the global one is skipped.
+# hooks in ~/.gemini/config. A repo that wires a hook of the same name for this
+# agent keeps its own, with its config block, and the global one is skipped.
 set -uo pipefail
 
 agent="${1:-}" event="${2:-}"
@@ -44,7 +44,14 @@ else:
 root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || root="$dir"
 cd "$root" || skip
 
-for f in .claude/settings.json .claude/settings.local.json .agents/hooks.json .codex/hooks.json; do
+# Only this agent's own repo settings: a repo that wires a hook for Claude alone
+# must not turn the global one off for agy or codex.
+case "$agent" in
+  claude) own=(.claude/settings.json .claude/settings.local.json) ;;
+  agy)    own=(.agents/hooks.json) ;;
+  codex)  own=(.codex/hooks.json) ;;
+esac
+for f in "${own[@]}"; do
   grep -qsF "$hook" "$f" && skip
 done
 [[ "$event" == start && ! -f PROGRESS.md && ! -f agent-harness.json ]] && skip

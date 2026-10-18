@@ -293,7 +293,7 @@ def _wiring(hooks: list[dict[str, Any]]) -> dict[str, Any]:
         "codex": {"hooks": events("codex")},
         "agy": {
             name: {ev: agy[ev]}
-            for name, ev in (("harness-edit", "PostToolUse"), ("harness-stop", "Stop"))
+            for name, ev in zip(AGY_GROUPS, ("PostToolUse", "Stop"))
             if ev in agy
         },
     }
@@ -418,6 +418,17 @@ def global_wiring(agent: str, hooks_dir: Path) -> dict[str, Any]:
     return {"hooks": out}
 
 
+AGY_GROUPS = ("harness-edit", "harness-stop")
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _dump(data: Any) -> str:
     return json.dumps(data, indent=2) + "\n"
 
@@ -447,8 +458,14 @@ def sync(repo: Path, templates: Path, runtime: Path) -> list[str]:
     if claude.get("hooks") != wiring["claude"]:
         claude["hooks"] = wiring["claude"]
         _write_if_changed(settings, _dump(claude), changes, repo)
-    _write_if_changed(repo / ".codex/hooks.json", _dump(wiring["codex"]), changes, repo)
-    _write_if_changed(repo / ".agents/hooks.json", _dump(wiring["agy"]), changes, repo)
+    # Like the Claude file: replace only what sync owns (codex's "hooks", agy's
+    # harness-* groups) and keep the rest of each file.
+    codex = _load_json(repo / ".codex/hooks.json")
+    codex["hooks"] = wiring["codex"]["hooks"]
+    _write_if_changed(repo / ".codex/hooks.json", _dump(codex), changes, repo)
+    agy = {k: v for k, v in _load_json(repo / ".agents/hooks.json").items() if k not in AGY_GROUPS}
+    agy.update(wiring["agy"])
+    _write_if_changed(repo / ".agents/hooks.json", _dump(agy), changes, repo)
     committed = bool(changes)  # pack links and info/exclude are not committed files
     _link_pack_skills(repo, data, runtime, changes)
 

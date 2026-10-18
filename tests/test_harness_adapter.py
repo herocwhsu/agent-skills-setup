@@ -552,3 +552,29 @@ def test_unlink_packs_removes_one_agents_store_and_every_link_into_it(
     assert f"{a}/.claude/skills/linear" in removed
     assert "/.claude/skills/linear\n" not in _exclude(a)
     assert "/.agents/skills/linear\n" in _exclude(a)
+
+
+def test_sync_keeps_what_it_does_not_own_in_the_agy_and_codex_files(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    mine = {"PreInvocation": [{"type": "command", "command": "echo mine"}]}
+    (repo / ".agents").mkdir()
+    (repo / ".agents/hooks.json").write_text(
+        json.dumps({"repo-own": mine, "harness-edit": {"PostToolUse": []}})
+    )
+    (repo / ".codex").mkdir()
+    (repo / ".codex/hooks.json").write_text(json.dumps({"note": "kept", "hooks": {"Old": []}}))
+    ha.sync(repo, templates=templates, runtime=runtime)
+    agy = json.loads((repo / ".agents/hooks.json").read_text())
+    assert agy["repo-own"] == mine
+    assert set(agy) == {"repo-own", "harness-edit", "harness-stop"}
+    codex = json.loads((repo / ".codex/hooks.json").read_text())
+    assert codex["note"] == "kept" and "Old" not in codex["hooks"]
+    # no stop hooks any more: the harness group goes, the repo's own stays
+    d = json.loads((repo / ha.FILENAME).read_text())
+    d["hooks"] = [h for h in d["hooks"] if h["event"] != "stop"]
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    ha.sync(repo, templates=templates, runtime=runtime)
+    assert set(json.loads((repo / ".agents/hooks.json").read_text())) == {
+        "repo-own",
+        "harness-edit",
+    }

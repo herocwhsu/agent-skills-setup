@@ -18,6 +18,8 @@ its skill-relative suffix, so a stale prefix is recognised and replaced. An
 entry that was never wired stays unwired.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import sys

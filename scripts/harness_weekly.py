@@ -47,7 +47,10 @@ def update_regressions(log: str, rc: int) -> list[str]:
     if rc != 0:
         errors = [ln.strip() for ln in log.splitlines() if ln.strip().startswith("ERROR")]
         found.append(f"update.sh failed (exit {rc}): {errors[-1] if errors else 'no ERROR line'}")
-    m = re.search(r"detected but not listed: (\S+); listed but not found: (\S+)", log)
+    # outside_agent.py joins several names with spaces
+    m = re.search(
+        r"detected but not listed: (.+?); listed but not found: (.+?)\s*$", log, re.MULTILINE
+    )
     if m:
         add, gone = m.group(1), m.group(2)
         if add != "-":
@@ -61,6 +64,8 @@ def update_regressions(log: str, rc: int) -> list[str]:
         f"sync failed: {ln.strip()}"
         for ln in log.splitlines()
         if re.match(r"^\s+\S+: (error: |missing$)", ln)
+        # sync-all crashed outright: update.sh turns that into this line and exits 0
+        or re.match(r"^\s+WARN\s+a registered target repo", ln)
     ]
     return found
 
@@ -69,7 +74,7 @@ def repo_regressions(
     repo: str, prev: dict[str, Any] | None, cur: dict[str, Any], last_verify: dict[str, Any] | None
 ) -> list[str]:
     found = [
-        f"{repo}: hook drifted from its template: {Path(h['copy']).name}"
+        f"{repo}: hook drifted from its template: {h.get('file')}"
         for h in cur.get("hooks", [])
         if h.get("status") == "drifted"
     ]
@@ -163,6 +168,20 @@ def _review_section(repos: list[Path], runtime: Path, since: datetime.datetime) 
     ]
 
 
+def _uncommitted(repo: Path) -> list[str]:
+    """Files git sees as changed. sync never commits, so a template change shows here."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    return [ln[3:] for ln in out.splitlines() if ln.strip()]
+
+
 def _registered(runtime: Path) -> list[Path]:
     path = runtime / "target-repos.txt"
     lines = path.read_text().splitlines() if path.is_file() else []
@@ -210,6 +229,12 @@ def run(
         audits.mkdir(parents=True, exist_ok=True)
         (audits / f"{today}.json").write_text(json.dumps(cur, indent=2) + "\n")
         found += repo_regressions(repo.name, prev, cur, _last_verify(runtime, repo.name))
+        dirty = _uncommitted(repo)
+        if dirty:
+            found.append(
+                f"{repo.name}: uncommitted changes after sync, commit or revert them: "
+                + ", ".join(dirty[:10])
+            )
     table = repo_trend.render(
         runtime / "audits", runtime, days, today=datetime.date.fromisoformat(today)
     )

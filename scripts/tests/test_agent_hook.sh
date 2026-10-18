@@ -59,6 +59,12 @@ patch2='*** Begin Patch\n*** Update File: /r/one.sh\n*** Update File: /r/bad.sh\
 run "{\"tool_name\":\"apply_patch\",\"tool_input\":{\"input\":\"$patch2\"}}" codex edit "$TMP/hook.sh"
 if [[ $RC -eq 2 && "$ERR" == *"bad.sh"* ]]; then ok "codex edit blocks when any patched file fails"; else bad "codex edit failure" "rc=$RC err=$ERR"; fi
 
+# apply_patch names files relative to the session's folder (its "cwd"), which can
+# be a subfolder: the repo wiring runs this from the repo root.
+patch3='*** Begin Patch\n*** Update File: lib/one.sh\n*** End Patch'
+run "{\"cwd\":\"/r/sub\",\"tool_name\":\"apply_patch\",\"tool_input\":{\"input\":\"$patch3\"}}" codex edit "$TMP/hook.sh"
+if [[ $RC -eq 0 && "$(cat "$LOG")" == "/r/sub/lib/one.sh" ]]; then ok "codex edit makes a relative patch path absolute against the input's cwd"; else bad "codex relative path" "rc=$RC log=$(cat "$LOG")"; fi
+
 run '{"tool_name":"Edit","tool_input":{"file_path":"/r/direct.sh"}}' codex edit "$TMP/hook.sh"
 if [[ $RC -eq 0 && "$(cat "$LOG")" == "/r/direct.sh" ]]; then ok "codex edit passes a plain file_path through"; else bad "codex edit file_path" "rc=$RC log=$(cat "$LOG")"; fi
 

@@ -33,16 +33,19 @@ if [[ "$event" == stop ]]; then
 fi
 
 files=$(printf '%s' "$input" | python3 -c '
-import json, re, sys
+import json, os, re, sys
 try:
     d = json.load(sys.stdin)
 except ValueError:
     sys.exit(0)
+# codex names patched files relative to its session folder, which this script
+# (run from the repo root) may not be in; the hooks match on absolute paths.
+base = d.get("cwd") or os.getcwd()
 i = d.get("tool_input") or {}
 a = (d.get("toolCall") or {}).get("args") or {}
 direct = i.get("file_path") or i.get("path") or a.get("TargetFile") or a.get("AbsolutePath")
 if isinstance(direct, str) and direct:
-    print(direct)
+    print(os.path.join(base, direct))
     sys.exit(0)
 seen = []
 def walk(v):
@@ -55,7 +58,7 @@ def walk(v):
     elif isinstance(v, list):
         for x in v: walk(x)
 walk(i)
-print("\n".join(seen))
+print("\n".join(os.path.join(base, p) for p in seen))
 ')
 
 errors="" blocked=0
