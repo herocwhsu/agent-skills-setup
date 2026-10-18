@@ -442,15 +442,19 @@ def _load_json(path: Path) -> dict[str, Any]:
     """A missing or blank file is empty; a malformed one stops sync so it is not overwritten."""
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError:
+    except FileNotFoundError:
         return {}
+    except (OSError, ValueError) as e:  # ValueError: not UTF-8
+        raise AdapterError(f"{path} cannot be read ({e}); fix it, then sync again") from e
     if not text.strip():
         return {}
     try:
         data = json.loads(text)
     except ValueError as e:
         raise AdapterError(f"{path} is not valid JSON ({e}); fix it, then sync again") from e
-    return data if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        raise AdapterError(f"{path} is not a JSON object; fix it, then sync again")
+    return data
 
 
 def _dump(data: Any) -> str:

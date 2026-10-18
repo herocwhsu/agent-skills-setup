@@ -463,6 +463,16 @@ def test_sync_refuses_to_overwrite_a_malformed_agent_file(tmp_path: Path, rel: s
     assert (repo / rel).read_text() == bad
 
 
+@pytest.mark.parametrize("raw", [b"\xff\xfe{\x00}\x00", b'["keep me"]\n'], ids=["utf16", "not-object"])
+def test_sync_refuses_an_agent_file_it_cannot_read_as_an_object(tmp_path: Path, raw: bytes) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    ha.sync(repo, templates=templates, runtime=runtime)
+    (repo / ".codex/hooks.json").write_bytes(raw)
+    with pytest.raises(ha.AdapterError):
+        ha.sync(repo, templates=templates, runtime=runtime)
+    assert (repo / ".codex/hooks.json").read_bytes() == raw
+
+
 def test_sync_writes_nothing_when_one_agent_file_is_malformed(tmp_path: Path) -> None:
     repo, templates, runtime = _sync_setup(tmp_path)
     ha.sync(repo, templates=templates, runtime=runtime)
