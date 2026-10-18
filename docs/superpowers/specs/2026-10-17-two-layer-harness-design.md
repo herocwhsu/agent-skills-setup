@@ -87,7 +87,7 @@ the next task is planned from measured cost and effect.
 | T11 ✅ feat-085 trim `AGENTS.md`: one commit rule, shared sections from a template | I7, I8 | repo `AGENTS.md` tokens down, no conflicts | D5 |
 | T12 ✅ feat-086 cross-repo trend in `trace-evaluation.sh` and the weekly review | I11 | one trend over all repos | — |
 | T13 ✅ feat-088 global hooks: one dispatcher in the runtime dir, wired for claude, agy, codex; repo hook of the same name wins | D10 | unregistered repos get edit + Stop checks; live run per agent | D11 |
-| T14 feat-089 repos drop what the global layer now does: global hooks, rules repeated from the global rules | D10 | hangar and atelier `AGENTS.md`/`CLAUDE.md` tokens down, no hook runs twice | — |
+| T14 ✅ feat-089 repos drop what the global layer now does: global hooks, rules repeated from the global rules | D10 | hangar and atelier `AGENTS.md`/`CLAUDE.md` tokens down, no hook runs twice | — |
 | T15 feat-090 pack skills leave the global install and are linked into each repo that lists them | I10 | hangar skill list ~2,380 → ~1,027 tokens | D7 |
 | later | ansible, c-cpp packs when a repo needs them | I14 | — | — |
 

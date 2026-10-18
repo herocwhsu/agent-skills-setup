@@ -3,7 +3,7 @@
   "repo": "hangar",
   "always_loaded": {
     "estimate": "chars/4",
-    "tokens": 5438,
+    "tokens": 5389,
     "files": [
       {
         "file": "~/.claude/CLAUDE.md",
@@ -15,7 +15,7 @@
       },
       {
         "file": "AGENTS.md",
-        "tokens": 1229
+        "tokens": 1180
       }
     ],
     "skill_tokens": 2380,
@@ -255,11 +255,6 @@
       "template": "k8s/placeholder-guard.sh"
     },
     {
-      "file": "preflight.sh",
-      "status": "identical",
-      "template": "common/preflight.sh"
-    },
-    {
       "file": "secret-scan.sh",
       "status": "identical",
       "template": "common/secret-scan.sh"
@@ -268,11 +263,6 @@
       "file": "semgrep-guard.sh",
       "status": "identical",
       "template": "common/semgrep-guard.sh"
-    },
-    {
-      "file": "sh-check.sh",
-      "status": "identical",
-      "template": "common/sh-check.sh"
     },
     {
       "file": "verify-gate.sh",

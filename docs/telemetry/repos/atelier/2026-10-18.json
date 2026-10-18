@@ -3,7 +3,7 @@
   "repo": "atelier",
   "always_loaded": {
     "estimate": "chars/4",
-    "tokens": 5029,
+    "tokens": 5014,
     "files": [
       {
         "file": "~/.claude/CLAUDE.md",
@@ -15,7 +15,7 @@
       },
       {
         "file": "AGENTS.md",
-        "tokens": 820
+        "tokens": 805
       }
     ],
     "skill_tokens": 2380,
@@ -264,11 +264,6 @@
       "template": "k8s/placeholder-guard.sh"
     },
     {
-      "file": "preflight.sh",
-      "status": "identical",
-      "template": "common/preflight.sh"
-    },
-    {
       "file": "py-guard.sh",
       "status": "identical",
       "template": "python/py-guard.sh"
@@ -287,11 +282,6 @@
       "file": "semgrep-guard.sh",
       "status": "identical",
       "template": "common/semgrep-guard.sh"
-    },
-    {
-      "file": "sh-check.sh",
-      "status": "identical",
-      "template": "common/sh-check.sh"
     },
     {
       "file": "ts-fix.sh",
