@@ -267,6 +267,11 @@
       "file": "ts-guard.sh",
       "status": "identical",
       "template": "js/ts-guard.sh"
+    },
+    {
+      "file": "verify-gate.sh",
+      "status": "identical",
+      "template": "common/verify-gate.sh"
     }
   ],
   "agent_hooks": {

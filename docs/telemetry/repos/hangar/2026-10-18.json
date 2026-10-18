@@ -210,11 +210,6 @@
       "template": "k8s/checkov-guard.sh"
     },
     {
-      "file": "full-validate.sh",
-      "status": "local",
-      "template": null
-    },
-    {
       "file": "harness-drift.sh",
       "status": "identical",
       "template": "common/harness-drift.sh"
@@ -243,6 +238,11 @@
       "file": "sh-check.sh",
       "status": "identical",
       "template": "common/sh-check.sh"
+    },
+    {
+      "file": "verify-gate.sh",
+      "status": "identical",
+      "template": "common/verify-gate.sh"
     },
     {
       "file": "yaml-validate.sh",
