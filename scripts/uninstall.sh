@@ -83,6 +83,7 @@ echo ""
 echo "==> Un-wiring hooks..."
 for agent in "${SELECTED_AGENTS[@]}"; do
   unwire_hook "polish-input" "$REPO_DIR" "$agent"
+  wire_global_hooks "$REPO_DIR" "$agent" --remove
 done
 
 if [[ $WITH_AGENTS_MD -eq 1 ]]; then

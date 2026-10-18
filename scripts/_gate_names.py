@@ -19,4 +19,9 @@ RUNTIME_FILES = (
     ("scripts/credentials/_store.sh", "_store.sh"),
     ("scripts/outside-agent.sh", "outside-agent.sh"),
     ("scripts/outside_agent.py", "outside_agent.py"),
+    ("templates/hooks/global/global-hook.sh", "hooks/global-hook.sh"),
+    ("templates/hooks/common/agent-hook.sh", "hooks/agent-hook.sh"),
+    ("templates/hooks/common/sh-check.sh", "hooks/sh-check.sh"),
+    ("templates/hooks/common/secret-scan.sh", "hooks/secret-scan.sh"),
+    ("templates/hooks/common/preflight.sh", "hooks/preflight.sh"),
 )

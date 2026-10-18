@@ -54,7 +54,7 @@ FAKE="$TMP/fake"; make_fake "$FAKE" main
 SL="$FAKE/config/statusline-command.sh"
 FRT="$TMP/fake-rt"   # in sync with the fake repo and selecting every agent, so only the statusline part can differ
 mkdir -p "$FRT"
-while read -r src dst; do cp "$FAKE/$src" "$FRT/$dst"; done < <(runtime_files)
+while read -r src dst; do mkdir -p "$(dirname "$FRT/$dst")"; cp "$FAKE/$src" "$FRT/$dst"; done < <(runtime_files)
 echo "all" > "$FRT/agent-selection.txt"
 frc() { set +e; HOME="$TMP/home" RUNTIME_DRIFT_GUARD_RUNTIME_DIR="${RTDIR:-$FRT}" bash "$FAKE/harness/guards/runtime-drift-guard.sh" >"$TMP/out" 2>&1; echo $?; set -e; }
 AGY="$TMP/home/.gemini/antigravity-cli"; CLD="$TMP/home/.claude"
@@ -102,7 +102,7 @@ expect "and still says SKIP for the runtime part" yes "$(said SKIP)"
 
 # the saved agent selection decides which agents install.sh refreshes
 mkdir -p "$TMP/sel"; RTDIR="$TMP/sel"
-while read -r src dst; do cp "$FAKE/$src" "$TMP/sel/$dst"; done < <(runtime_files)
+while read -r src dst; do mkdir -p "$(dirname "$TMP/sel/$dst")"; cp "$FAKE/$src" "$TMP/sel/$dst"; done < <(runtime_files)
 echo "gemini" > "$TMP/sel/agent-selection.txt"
 cp "$SL" "$CLD/statusline-command.sh"
 expect "control: the runtime part is clean and a matching copy passes" 0 "$(frc)"

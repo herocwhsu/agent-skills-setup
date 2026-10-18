@@ -596,6 +596,11 @@ lib/lib.sh lib.sh
 scripts/credentials/_store.sh _store.sh
 scripts/outside-agent.sh outside-agent.sh
 scripts/outside_agent.py outside_agent.py
+templates/hooks/global/global-hook.sh hooks/global-hook.sh
+templates/hooks/common/agent-hook.sh hooks/agent-hook.sh
+templates/hooks/common/sh-check.sh hooks/sh-check.sh
+templates/hooks/common/secret-scan.sh hooks/secret-scan.sh
+templates/hooks/common/preflight.sh hooks/preflight.sh
 EOF
 }
 
@@ -610,6 +615,7 @@ install_runtime_dir() {
   rtdir=$(skills_runtime_dir "$repo_dir")
   mkdir -p "$rtdir"
   while read -r src dst; do
+    mkdir -p "$(dirname "$rtdir/$dst")"
     cp -f "$repo_dir/$src" "$rtdir/$dst"
   done < <(runtime_files)
   # Identity of the tree this runtime was installed from. setup_repo_dir reads it
@@ -939,6 +945,34 @@ except Exception:
   fi
 
   echo "  Hook wired."
+}
+
+# ---------------------------------------------------------------------------
+# wire_global_hooks <repo_dir> <agent_name> [--merge|--remove]
+#   Merge (or remove) the harness's global hooks in the agent's user hook
+#   settings: <runtime>/hooks/global-hook.sh on edit, Stop and (claude) session
+#   start, shaped per agent by `harness_adapter.py global-wiring`. Kiro has no
+#   hook settings and is skipped. Never fails the install.
+# ---------------------------------------------------------------------------
+wire_global_hooks() {
+  local repo_dir="$1" agent="$2" mode="${3:---merge}" settings tmp
+  case "$agent" in
+    gemini) settings="${GEMINI_CONFIG_DIR:-$HOME/.gemini/config}/hooks.json" ;;
+    claude) settings="$HOME/.claude/settings.json" ;;
+    codex)  settings="${CODEX_HOME:-$HOME/.codex}/hooks.json" ;;
+    *)      return 0 ;;
+  esac
+  [[ "$mode" == --remove && ! -f "$settings" ]] && return 0
+  tmp=$(mktemp /tmp/hook-XXXXXX)
+  if python3 "$repo_dir/scripts/harness_adapter.py" global-wiring --agent "$agent" \
+       --hooks-dir "$(skills_runtime_dir "$repo_dir")/hooks" > "$tmp" \
+     && python3 "$repo_dir/scripts/_settings_merge.py" "$mode" "$tmp" "$settings" \
+       --agent "$agent" --hook-name harness-global; then
+    echo "  ✓ global hooks ${mode#--} ($agent) → $settings"
+  else
+    echo "  WARNING: global hooks not ${mode#--}d for $agent" >&2
+  fi
+  rm -f "$tmp"
 }
 
 # ---------------------------------------------------------------------------

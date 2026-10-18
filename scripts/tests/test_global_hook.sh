@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# test_global_hook.sh — global/global-hook.sh runs the global hooks in the repo the
+# agent works in (found from the hook input, not the working directory), and
+# skips any hook the repo wires itself.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+TEMPLATES="$(cd "$SCRIPT_DIR/../templates/hooks" && pwd)"
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+TMP=$(cd -P "$TMP" && pwd)
+
+pass=0; fail=0
+ok()  { echo "  PASS  $1"; pass=$((pass + 1)); }
+bad() { echo "  FAIL  $1: $2"; fail=$((fail + 1)); }
+
+# The installed layout: the dispatcher next to the hooks it runs.
+H="$TMP/hooks"
+mkdir -p "$H"
+cp "$TEMPLATES/global/global-hook.sh" "$TEMPLATES/common/agent-hook.sh" "$H/"
+for name in sh-check secret-scan preflight; do
+  cat > "$H/$name.sh" <<HOOK
+#!/usr/bin/env bash
+in=\$(cat)
+f=\$(printf '%s' "\$in" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("tool_input") or {}).get("file_path",""))' 2>/dev/null)
+echo "$name \$PWD \$f" >> "\$LOG"
+[[ -e "\$PWD/FAIL" || "\$f" == *bad* ]] && { echo "$name says no" >&2; exit 2; }
+echo "$name ran"
+exit 0
+HOOK
+done
+export LOG="$TMP/log"
+
+REPO="$TMP/repo"
+mkdir -p "$REPO/sub" "$TMP/elsewhere" "$TMP/plain"
+git init -q "$REPO"
+
+run() { # <stdin> <args...> -> sets RC OUT ERR; runs from an unrelated folder, like agy
+  local in="$1"; shift
+  : > "$LOG"
+  OUT=$(cd "$TMP/elsewhere" && printf '%s' "$in" | bash "$H/global-hook.sh" "$@" 2>"$TMP/err"); RC=$?
+  ERR=$(cat "$TMP/err")
+}
+
+run "{\"tool_input\":{\"file_path\":\"$REPO/sub/a.sh\"}}" claude edit
+if [[ $RC -eq 0 && "$(cat "$LOG")" == "sh-check $REPO $REPO/sub/a.sh" ]]; then ok "claude edit runs sh-check in the edited file's repo root"; else bad "claude edit" "rc=$RC log=$(cat "$LOG")"; fi
+
+run "{\"tool_input\":{\"file_path\":\"$REPO/sub/bad.sh\"}}" claude edit
+if [[ $RC -eq 2 && "$ERR" == *"sh-check says no"* ]]; then ok "claude edit blocks with exit 2 and the hook's stderr"; else bad "claude edit block" "rc=$RC err=$ERR"; fi
+
+run "{\"toolCall\":{\"name\":\"write_to_file\",\"args\":{\"TargetFile\":\"$REPO/sub/a.sh\"}},\"conversationId\":\"c\"}" agy edit
+if [[ $RC -eq 0 && "$OUT" == "{}" && "$(cat "$LOG")" == "sh-check $REPO $REPO/sub/a.sh" ]]; then ok "agy edit finds the repo from TargetFile and prints {}"; else bad "agy edit" "rc=$RC out=$OUT log=$(cat "$LOG")"; fi
+
+touch "$REPO/FAIL"
+run "{\"conversationId\":\"c\",\"workspacePaths\":[\"$REPO\"]}" agy stop
+dec=$(printf '%s' "$OUT" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("decision"), "says no" in d.get("reason",""))' 2>/dev/null)
+if [[ $RC -eq 0 && "$dec" == "continue True" && "$(cat "$LOG")" == "secret-scan $REPO " ]]; then ok "agy stop runs secret-scan in workspacePaths[0] and answers continue"; else bad "agy stop" "rc=$RC out=$OUT log=$(cat "$LOG")"; fi
+
+run "{\"cwd\":\"$REPO/sub\",\"hook_event_name\":\"Stop\"}" claude stop
+if [[ $RC -eq 2 && "$(cat "$LOG")" == "secret-scan $REPO " ]]; then ok "claude stop runs in the repo root of the input's cwd and blocks"; else bad "claude stop" "rc=$RC log=$(cat "$LOG")"; fi
+rm -f "$REPO/FAIL"
+
+run "{\"cwd\":\"$REPO\"}" codex stop
+if [[ $RC -eq 0 && "$(cat "$LOG")" == "secret-scan $REPO " ]]; then ok "codex stop runs in the input's cwd"; else bad "codex stop" "rc=$RC log=$(cat "$LOG")"; fi
+
+mkdir -p "$REPO/.agents"
+echo '{"x":{"PostToolUse":[{"hooks":[{"command":"bash .claude/hooks/sh-check.sh"}]}]}}' > "$REPO/.agents/hooks.json"
+run "{\"toolCall\":{\"args\":{\"TargetFile\":\"$REPO/sub/bad.sh\"}},\"conversationId\":\"c\"}" agy edit
+if [[ $RC -eq 0 && "$OUT" == "{}" && ! -s "$LOG" ]]; then ok "a hook the repo wires itself is skipped"; else bad "repo override" "rc=$RC out=$OUT log=$(cat "$LOG")"; fi
+rm -rf "$REPO/.agents"
+
+run "{\"cwd\":\"$REPO\",\"hook_event_name\":\"SessionStart\"}" claude start
+if [[ $RC -eq 0 && -z "$OUT" && ! -s "$LOG" ]]; then ok "start says nothing in a repo without PROGRESS.md or agent-harness.json"; else bad "start silent" "rc=$RC out=$OUT log=$(cat "$LOG")"; fi
+
+touch "$REPO/PROGRESS.md"
+run "{\"cwd\":\"$REPO/sub\",\"hook_event_name\":\"SessionStart\"}" claude start
+if [[ $RC -eq 0 && "$OUT" == "preflight ran" && "$(cat "$LOG")" == "preflight $REPO " ]]; then ok "start runs preflight in a repo with PROGRESS.md"; else bad "start" "rc=$RC out=$OUT log=$(cat "$LOG")"; fi
+
+run "{\"tool_input\":{\"file_path\":\"$TMP/plain/a.sh\"}}" claude edit
+if [[ $RC -eq 0 && "$(cat "$LOG")" == "sh-check $TMP/plain $TMP/plain/a.sh" ]]; then ok "an edit outside any repo runs in the file's folder"; else bad "no repo" "rc=$RC log=$(cat "$LOG")"; fi
+
+run '{}' claude nope
+if [[ $RC -eq 1 && "$ERR" == *usage* ]]; then ok "bad arguments print usage and do not block"; else bad "usage" "rc=$RC err=$ERR"; fi
+
+# wire_global_hooks merges per-agent settings next to existing hooks, once, and removes only its own.
+FH="$TMP/home"
+mkdir -p "$FH/.claude" "$FH/.gemini/config" "$FH/.codex"
+echo '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"mine"}]}]}}' > "$FH/.claude/settings.json"
+echo '{"polish-input":{"PreInvocation":[{"type":"command","command":"polish"}]}}' > "$FH/.gemini/config/hooks.json"
+wire() { HOME="$FH" bash -c 'source "$0" >/dev/null 2>&1; for a in claude gemini codex kiro; do wire_global_hooks "$1" "$a" "${2:-}" >/dev/null 2>&1; done' "$SCRIPT_DIR/_lib.sh" "$SCRIPT_DIR/.." "$@"; }
+wire; wire
+rt="$FH/.agent-skills-setup/hooks"
+got=$(python3 - "$FH" "$rt" <<'PY'
+import json, sys
+h, rt = sys.argv[1], sys.argv[2]
+c = json.load(open(f"{h}/.claude/settings.json"))["hooks"]
+g = json.load(open(f"{h}/.gemini/config/hooks.json"))
+x = json.load(open(f"{h}/.codex/hooks.json"))["hooks"]
+cmds = lambda gs: [k["command"] for e in gs for k in e.get("hooks", [e])]
+print(cmds(c["Stop"]) == ["mine", f'bash "{rt}/global-hook.sh" claude stop'],
+      cmds(c["SessionStart"]) == [f'bash "{rt}/global-hook.sh" claude start'],
+      g["harness-global"]["Stop"] == [{"type": "command", "command": f'bash "{rt}/global-hook.sh" agy stop', "timeout": 120}],
+      "polish-input" in g,
+      x["PostToolUse"][0]["matcher"].startswith("apply_patch"))
+PY
+)
+if [[ "$got" == "True True True True True" ]]; then ok "wire_global_hooks writes each agent's shape once, keeping existing hooks"; else bad "wire" "$got"; fi
+wire --remove
+got=$(python3 -c '
+import json, sys
+h = sys.argv[1]
+c = json.load(open(h + "/.claude/settings.json"))["hooks"]
+g = json.load(open(h + "/.gemini/config/hooks.json"))
+print(sorted(c), "harness-global" in g, "polish-input" in g)' "$FH")
+if [[ "$got" == "['Stop'] False True" ]]; then ok "--remove takes out only the global hooks"; else bad "remove" "$got"; fi
+
+echo ""
+echo "Results: $pass passed, $fail failed"
+[[ $fail -eq 0 ]]

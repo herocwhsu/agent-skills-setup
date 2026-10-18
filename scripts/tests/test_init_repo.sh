@@ -61,14 +61,15 @@ fi
 # "full — everything" is the documented contract. Deriving the expectation from
 # the template tree rather than a hardcoded count means adding a template
 # without wiring it into the full profile fails here — the exact mistake that
-# left py-check.sh uncopied when it was first written.
+# left py-check.sh uncopied when it was first written. global/ is the user-level
+# dispatcher install.sh puts in the runtime dir, never a repo hook.
 t=$(target full)
 if out=$(bash "$SCRIPT" full "$t" 2>&1); then
   missing=""
   while IFS= read -r src; do
     b=$(basename "$src")
     [[ -f "$t/.claude/hooks/$b" ]] || missing="$missing $b"
-  done < <(find "$HOOKS_SRC" -name '*.sh' -type f)
+  done < <(find "$HOOKS_SRC" -name '*.sh' -type f -not -path '*/global/*')
   if [[ -z "$missing" ]]; then
     ok "profile full copies every template"
   else
@@ -130,7 +131,7 @@ drift=""
 while IFS= read -r src; do
   b=$(basename "$src")
   cmp -s "$src" "$t/.claude/hooks/$b" || drift="$drift $b"
-done < <(find "$HOOKS_SRC" -name '*.sh' -type f)
+done < <(find "$HOOKS_SRC" -name '*.sh' -type f -not -path '*/global/*')
 if [[ -z "$drift" ]]; then
   ok "copied hooks match templates byte-for-byte"
 else

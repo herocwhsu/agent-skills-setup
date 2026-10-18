@@ -83,9 +83,12 @@ the next task is planned from measured cost and effect.
 | T7 ✅ feat-081 SessionStart preflight + state brief; startup rule reads the brief | I9 | hangar startup-read ~3,900 → ~300 tokens | D9 |
 | T8 ✅ feat-082 Stop runs `verify`; gate runs recorded centrally per repo | I11 | gate runs logged for target repos | D8 |
 | T9 ✅ feat-083 check per-repo skill support in codex, agy, kiro | (T10 input) | facts recorded | — |
-| T10 ½ feat-084 skill packs per repo: packs, `skill_packs`, projection done; global switch waits for D7 | I10 | hangar skill descriptions ~2,100 → ~700 tokens | D7 |
+| T10 ½ feat-084 skill packs per repo: packs, `skill_packs`, projection done; global switch is T15 | I10 | hangar skill descriptions ~2,100 → ~700 tokens | D7 |
 | T11 ✅ feat-085 trim `AGENTS.md`: one commit rule, shared sections from a template | I7, I8 | repo `AGENTS.md` tokens down, no conflicts | D5 |
 | T12 ✅ feat-086 cross-repo trend in `trace-evaluation.sh` and the weekly review | I11 | one trend over all repos | — |
+| T13 feat-088 global hooks: one dispatcher in the runtime dir, wired for claude, agy, codex; repo hook of the same name wins | D10 | unregistered repos get edit + Stop checks; live run per agent | D11 |
+| T14 feat-089 repos drop what the global layer now does: global hooks, rules repeated from the global rules | D10 | hangar and atelier `AGENTS.md`/`CLAUDE.md` tokens down, no hook runs twice | — |
+| T15 feat-090 pack skills leave the global install and are linked into each repo that lists them | I10 | hangar skill list ~2,380 → ~1,027 tokens | D7 |
 | later | ansible, c-cpp packs when a repo needs them | I14 | — | — |
 
 ## Open decisions (proposed default in bold)
@@ -101,6 +104,18 @@ the next task is planned from measured cost and effect.
   only claude and agy, so a repo works the same on any machine or clone.
 - D5 commit format: **global rule everywhere, repo keeps only its exceptions**.
 - D6 hangar `feature_list.json`: intended or missing. (no default)
-- D7 spec-gated pack: company repos only, or atelier too. (no default)
+- D7 ✅ decided 2026-10-18: **spec-gated is company repos only.** Its skills run on Jira,
+  Confluence and Apidog; hangar and atelier have none. hangar may use Linear or Slack, so it lists
+  the `tracking` pack (Slack has no skill; the Slack connector is global already).
 - D8 target-repo telemetry: **central in the harness runtime dir, per repo** vs committed in each repo.
 - D9 preflight on version drift: **warn** vs block.
+- D10 ✅ decided 2026-10-18: **common prompt, skills, conventions and hooks are global; what is
+  specific to one repo stays in it; a repo copy of something global is removed.** Repos without
+  `agent-harness.json` keep the core skills and the global hooks.
+- D11 ✅ 2026-10-18, follows from D10: **a repo's own hook overrides the global one of the same
+  name**, so nothing runs twice and a repo-specific config block (secret-scan's osv dir,
+  placeholder-guard's YAML scope) keeps working. Global hooks: `sh-check` (edit), `secret-scan`
+  (Stop), `preflight` (Claude SessionStart), for claude, agy and codex. A global hook finds its repo
+  from its input, not its working directory: agy runs global hooks in `~/.gemini/config`, with the
+  edited file as `toolCall.args.TargetFile` and the workspace as `workspacePaths` on Stop (observed
+  2026-10-18).

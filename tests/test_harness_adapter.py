@@ -348,3 +348,37 @@ def test_skill_packs_are_checked(tmp_path: Path, packs: Any, ok: bool) -> None:
     d["skill_packs"] = packs
     problems = _check(tmp_path, d).problems
     assert (problems == []) is ok, problems
+
+
+def test_global_wiring_per_agent() -> None:
+    claude = ha.global_wiring("claude", Path("/rt/hooks"))["hooks"]
+    assert claude["PostToolUse"] == [
+        {
+            "matcher": "Edit|Write|MultiEdit",
+            "hooks": [
+                {"type": "command", "command": 'bash "/rt/hooks/global-hook.sh" claude edit'}
+            ],
+        }
+    ]
+    assert _commands(claude["Stop"]) == ['bash "/rt/hooks/global-hook.sh" claude stop']
+    assert claude["Stop"][0]["hooks"][0]["timeout"] == 120
+    assert _commands(claude["SessionStart"]) == ['bash "/rt/hooks/global-hook.sh" claude start']
+    codex = ha.global_wiring("codex", Path("/rt/hooks"))["hooks"]
+    assert "apply_patch" in codex["PostToolUse"][0]["matcher"]
+    assert _commands(codex["Stop"]) == ['bash "/rt/hooks/global-hook.sh" codex stop']
+    assert "SessionStart" not in codex
+    # install.sh names agy "gemini"; agy takes Stop as a flat list of hooks
+    agy = ha.global_wiring("gemini", Path("/rt/hooks"))["hooks"]
+    assert agy["PostToolUse"][0]["matcher"] == "replace_file_content|write_to_file"
+    assert _commands(agy["PostToolUse"]) == ['bash "/rt/hooks/global-hook.sh" agy edit']
+    assert agy["Stop"] == [
+        {"type": "command", "command": 'bash "/rt/hooks/global-hook.sh" agy stop', "timeout": 120}
+    ]
+    assert "SessionStart" not in agy
+    with pytest.raises(ha.AdapterError):
+        ha.global_wiring("kiro", Path("/rt/hooks"))
+
+
+def test_global_wiring_cli_prints_json(capsys: pytest.CaptureFixture[str]) -> None:
+    assert ha.main(["global-wiring", "--agent", "gemini", "--hooks-dir", "/rt/hooks"]) == 0
+    assert json.loads(capsys.readouterr().out) == ha.global_wiring("gemini", Path("/rt/hooks"))

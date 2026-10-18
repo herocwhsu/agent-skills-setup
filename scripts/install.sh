@@ -155,11 +155,14 @@ done
 # polish-input is always wired, not opt-in: it ships as part of the `utils`
 # group installed above, so its hook should be live wherever the skill is.
 # wire_hook writes ~/.claude/settings.json, the Codex hooks.json, or the AGY
-# hooks.json, and skips kiro, which has no settings file for hooks.
+# hooks.json, and skips kiro, which has no settings file for hooks. The global
+# hooks (sh-check, secret-scan, preflight; templates/hooks/global) go to the same
+# files.
 echo ""
 echo "==> Wiring hooks..."
 for agent in "${SELECTED_AGENTS[@]}"; do
   wire_hook "polish-input" "$REPO_DIR" "$agent"
+  wire_global_hooks "$REPO_DIR" "$agent"
 done
 
 echo ""

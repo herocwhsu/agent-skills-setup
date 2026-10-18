@@ -17,6 +17,8 @@ sync copies the listed template hooks (keeping each copy's config block) and
 agent-hook.sh into .claude/hooks, writes the hook wiring for claude, codex and agy,
 and sets harness.version to the installed commit. It never commits. register adds
 a repo to <runtime>/target-repos.txt; sync-all (run by update.sh) syncs each one.
+global-wiring --agent <claude|codex|gemini> [--hooks-dir DIR] prints the user-level
+hook settings that run <runtime>/hooks/global-hook.sh, for install.sh to merge.
 """
 
 from __future__ import annotations
@@ -279,6 +281,31 @@ def _wiring(hooks: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+GLOBAL_STOP_TIMEOUT = 120
+
+
+def global_wiring(agent: str, hooks_dir: Path) -> dict[str, Any]:
+    """User-level settings that run <hooks_dir>/global-hook.sh, in the agent's own shape.
+
+    agent is install.sh's name for it: claude, codex or gemini (agy).
+    """
+    name = {"claude": "claude", "codex": "codex", "gemini": "agy"}.get(agent)
+    if name is None:
+        raise AdapterError(f"no global hooks for agent '{agent}'")
+
+    def cmd(ev: str) -> str:
+        return f'bash "{hooks_dir}/global-hook.sh" {name} {ev}'
+
+    stop = _group([(cmd("stop"), GLOBAL_STOP_TIMEOUT)])
+    out: dict[str, Any] = {
+        "PostToolUse": [_group([(cmd("edit"), None)], EDIT_MATCHERS[name])],
+        "Stop": stop["hooks"] if name == "agy" else [stop],
+    }
+    if name == "claude":
+        out["SessionStart"] = [_group([(cmd("start"), None)])]
+    return {"hooks": out}
+
+
 def _dump(data: Any) -> str:
     return json.dumps(data, indent=2) + "\n"
 
@@ -355,13 +382,26 @@ def sync_all(templates: Path, runtime: Path) -> dict[str, str]:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("command", choices=["check", "drift", "sync", "register", "sync-all"])
+    ap.add_argument(
+        "command", choices=["check", "drift", "sync", "register", "sync-all", "global-wiring"]
+    )
     ap.add_argument("repo", type=Path, nargs="?")
     ap.add_argument("--templates", type=Path, default=HARNESS / "templates/hooks")
     ap.add_argument("--runtime", type=Path, default=None)
     ap.add_argument("--file", type=Path, default=None)
+    ap.add_argument("--agent", default=None)
+    ap.add_argument("--hooks-dir", type=Path, default=None)
     args = ap.parse_args(argv)
     runtime = args.runtime or _runtime_dir()
+    if args.command == "global-wiring":
+        try:
+            print(
+                _dump(global_wiring(args.agent or "", args.hooks_dir or runtime / "hooks")), end=""
+            )
+        except AdapterError as e:
+            print(f"  FAIL  {e}", file=sys.stderr)
+            return 2
+        return 0
     if args.command == "sync-all":
         report = sync_all(templates=args.templates, runtime=runtime)
         for repo, status in report.items():

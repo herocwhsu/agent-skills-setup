@@ -130,6 +130,9 @@ fake_src() {
   : > "$d/scripts/credentials/_store.sh"
   : > "$d/scripts/outside-agent.sh"
   : > "$d/scripts/outside_agent.py"
+  mkdir -p "$d/templates/hooks/global" "$d/templates/hooks/common"
+  : > "$d/templates/hooks/global/global-hook.sh"
+  for h in agent-hook sh-check secret-scan preflight; do : > "$d/templates/hooks/common/$h.sh"; done
   [[ "$id" == "-" ]] || printf '%s\n' "$id" > "$d/.skills-repo-id"
 }
 
@@ -194,6 +197,9 @@ full_src() {
   cp "$REPO_DIR/scripts/credentials/_store.sh" "$d/scripts/credentials/_store.sh"
   : > "$d/scripts/outside-agent.sh"
   : > "$d/scripts/outside_agent.py"
+  mkdir -p "$d/templates/hooks/global" "$d/templates/hooks/common"
+  : > "$d/templates/hooks/global/global-hook.sh"
+  for h in agent-hook sh-check secret-scan preflight; do : > "$d/templates/hooks/common/$h.sh"; done
   [[ "$id" == "-" ]] || printf '%s\n' "$id" > "$d/.skills-repo-id"
 }
 
