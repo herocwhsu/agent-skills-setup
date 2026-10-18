@@ -82,7 +82,7 @@ the next task is planned from measured cost and effect.
 | T6 ✅ feat-080 `update.sh` syncs registered repos and writes hooks for every supported agent, installed or not | I3, I6 | agents with hooks 1 → 3 | D3 |
 | T7 ✅ feat-081 SessionStart preflight + state brief; startup rule reads the brief | I9 | hangar startup-read ~3,900 → ~300 tokens | D9 |
 | T8 ✅ feat-082 Stop runs `verify`; gate runs recorded centrally per repo | I11 | gate runs logged for target repos | D8 |
-| T9 check per-repo skill support in codex, agy, kiro | (T10 input) | facts recorded | — |
+| T9 ✅ feat-083 check per-repo skill support in codex, agy, kiro | (T10 input) | facts recorded | — |
 | T10 skill packs per repo | I10 | hangar skill descriptions ~2,100 → ~700 tokens | D7 |
 | T11 trim `AGENTS.md`: one commit rule, shared sections from a template | I7, I8 | repo `AGENTS.md` tokens down, no conflicts | D5 |
 | T12 cross-repo trend in `trace-evaluation.sh` and the weekly review | I11 | one trend over all repos | — |

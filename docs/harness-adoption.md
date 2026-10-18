@@ -82,6 +82,21 @@ Checked 2026-10-01 with a canary word in a throwaway repo:
 - **kiro-cli, gemini:** could not be tested headless (not logged in; gemini's CLI is no
   longer supported for individual accounts). Unverified.
 
+## Where each agent reads skills
+
+From each vendor's docs, checked 2026-10-18 (not run live; codex is not installed here):
+
+| Agent | In a repo | For the user | Source |
+|---|---|---|---|
+| Claude Code | `.claude/skills/` | `~/.claude/skills/` | Claude Code docs |
+| Codex | `.agents/skills/` in the launch dir, its parent, and the repo root | `~/.agents/skills/` | learn.chatgpt.com/docs/build-skills |
+| agy (CLI) | `.agents/skills/` (`.agent/skills` still read) | `~/.gemini/antigravity-cli/skills/` | antigravity.google/docs/skills |
+| Kiro | `.kiro/skills/` | `~/.kiro/skills/`; the default agent loads both, custom agents need `skill://` resources | kiro.dev/docs/skills |
+
+Codex and agy share `.agents/skills/`, so a repo serves every agent from three
+folders. Open: `agent_skills_dir codex` installs to `~/.codex/skills`, the location an
+older (December 2025) Codex doc gave; the current doc names `~/.agents/skills`.
+
 ## Review
 
 Ask a different model family for review and confirm its claims mechanically: the

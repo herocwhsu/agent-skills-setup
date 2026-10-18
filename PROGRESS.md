@@ -61,6 +61,8 @@
 
 - [x] feat-082: `common/verify-gate.sh` runs each repo's verify at Stop and logs runs to `~/.agent-skills-setup/telemetry/<repo>/`; hangar's full-validate.sh replaced; hook timeout field.
 
+- [x] feat-083: per-repo skill folders recorded: Claude `.claude/skills`, Codex and agy `.agents/skills`, Kiro `.kiro/skills`; Codex user path mismatch recorded open.
+
 ### What's In Progress
 
 - Nothing active (WIP=0, clean state).
@@ -68,13 +70,15 @@
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-0. **Two-layer harness, T2-T12** (hook sync, version, `agent-harness.json`, preflight, skill packs, cross-repo telemetry): tasks, metrics and open decisions D1-D9 in [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md). Each task saves a `repo_audit.py` before/after. Next: T9, check per-repo skill support in codex, agy and kiro.
+0. **Two-layer harness, T2-T12** (hook sync, version, `agent-harness.json`, preflight, skill packs, cross-repo telemetry): tasks, metrics and open decisions D1-D9 in [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md). Each task saves a `repo_audit.py` before/after. Next: T10, skill packs per repo.
    - *Metric caveat:* feat-075's run record (`5a0ad1e4-ec73a5038f`, 1.3M output tokens, ~17 days) covers this whole long session from its start (hangar UPS work included), because the session had no earlier record. Start each T-task in a fresh session, or mark the window at activation, so its record measures only that task.
 1. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
 2. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
 3. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
 
 - **Flaky: `skills/utils/confluence-tree/tests/test_push.sh` test 5** (expected exit 6, got 1; an http read on its mock server) failed under parallel load in feat-075 and feat-080, passes alone. Make the mock server deterministic before it hides a real failure.
+
+- **Codex user skills path:** `agent_skills_dir codex` installs to `~/.codex/skills`; current Codex docs read `~/.agents/skills` (docs/harness-adoption.md). Codex is not installed here; check on a host that has it before changing the path.
 
 **Pending Owner Decisions (Blocked on Human):**
 - **firstdigital-economics:** Decide whether to create private remote GitHub repo or remain local.

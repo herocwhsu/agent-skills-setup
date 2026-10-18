@@ -72,6 +72,22 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-083",
+      "name": "Record where each agent reads per-repo skills",
+      "description": "T9 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md. Skill packs per repo (T10) need the folder each agent reads inside a repo. Checked the official docs on 2026-10-18 and recorded them in docs/harness-adoption.md: Claude .claude/skills; Codex .agents/skills (CWD, parent, repo root) and ~/.agents/skills for the user; agy .agents/skills (.agent/skills still read) and ~/.gemini/antigravity-cli/skills for the CLI; Kiro .kiro/skills and ~/.kiro/skills, loaded by the default agent only.",
+      "dependencies": [
+        "feat-082"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "docs/harness-adoption.md lists the repo and user skill folders for claude, codex, agy and kiro with the source and date",
+        "the mismatch between agent_skills_dir codex (~/.codex/skills) and the documented ~/.agents/skills is recorded as an open item, not changed untested",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "grep -q '.agents/skills' docs/harness-adoption.md && bash scripts/harness-verify.sh",
+      "evidence": "Checked the official docs on 2026-10-18 (WebFetch): learn.chatgpt.com/docs/build-skills (Codex: $CWD/.agents/skills, $CWD/../.agents/skills, $REPO_ROOT/.agents/skills; user $HOME/.agents/skills), antigravity.google/docs/skills (workspace <root>/.agents/skills, .agent/skills still read; CLI global ~/.gemini/antigravity-cli/skills), kiro.dev/docs/skills (.kiro/skills and ~/.kiro/skills, default agent loads both). Recorded in docs/harness-adoption.md 'Where each agent reads skills'. Third-party guides that give ~/.codex/skills or .agent/skills are older; the official pages were preferred. Open item in PROGRESS.md: agent_skills_dir codex installs to ~/.codex/skills while the current doc names ~/.agents/skills; codex is not installed here, so it was not changed. None of this was run live. harness-verify.sh: all 11 gates passed, output saved to a file."
     }
   ]
 }
