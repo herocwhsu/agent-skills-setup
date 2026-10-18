@@ -246,7 +246,9 @@ def _wiring(hooks: list[dict[str, Any]]) -> dict[str, Any]:
             return (
                 f"bash {p}"
                 if agent == "claude"
-                else f"bash .claude/hooks/agent-hook.sh {agent} {ev} {p}"
+                # agy runs a hook from the folder holding hooks.json, not the repo root.
+                else f'cd "$(git rev-parse --show-toplevel)" && '
+                f"bash .claude/hooks/agent-hook.sh {agent} {ev} {p}"
             )
 
         out: dict[str, list[dict[str, Any]]] = {}
@@ -255,7 +257,10 @@ def _wiring(hooks: list[dict[str, Any]]) -> dict[str, Any]:
                 _group([(cmd("edit", p), s) for p, s in paths["edit"]], EDIT_MATCHERS[agent])
             ]
         if paths["stop"]:
-            out["Stop"] = [_group([(cmd("stop", p), s) for p, s in paths["stop"]])]
+            stop = _group([(cmd("stop", p), s) for p, s in paths["stop"]])
+            # agy takes a matcher group only on tool events; it rejects the whole
+            # file when a Stop entry is a group instead of a hook.
+            out["Stop"] = stop["hooks"] if agent == "agy" else [stop]
         # codex and agy have no session-start event verified here; their AGENTS.md
         # startup step runs the same script instead.
         if paths["start"] and agent == "claude":

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash harness/guards/precommit-sh-check.sh",
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && bash harness/guards/precommit-sh-check.sh",
             "timeout": 120
           }
         ]
@@ -20,11 +20,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash harness/guards/sh-check.sh"
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && bash harness/guards/sh-check.sh"
           },
           {
             "type": "command",
-            "command": "bash harness/guards/py-check.sh"
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && bash harness/guards/py-check.sh"
           }
         ]
       }
@@ -34,7 +34,7 @@
     "Stop": [
       {
         "type": "command",
-        "command": "bash harness/guards/stop-verify.sh",
+        "command": "cd \"$(git rev-parse --show-toplevel)\" && bash harness/guards/stop-verify.sh",
         "timeout": 900
       }
     ]

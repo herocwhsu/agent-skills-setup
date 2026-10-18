@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -189,8 +190,34 @@ def test_sync_copies_templates_keeping_config_block_and_is_idempotent(tmp_path: 
     assert ha.sync(repo, templates=templates, runtime=runtime) == []
 
 
+ROOT = 'cd "$(git rev-parse --show-toplevel)" && '
+
+
 def _commands(groups: list[dict[str, Any]]) -> list[str]:
     return [h["command"] for g in groups for h in g["hooks"]]
+
+
+def test_agent_commands_run_from_the_folder_holding_their_hooks_file(tmp_path: Path) -> None:
+    # agy runs a hook with the folder holding hooks.json (.agents/) as its working
+    # directory; a command relative to the repo root then exits 127 and agy goes on.
+    repo, templates, runtime = _sync_setup(tmp_path)
+    log = tmp_path / "calls.log"
+    (templates / "common/agent-hook.sh").write_text(f'echo "$PWD $*" >> {log}\n')
+    ha.sync(repo, templates=templates, runtime=runtime)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    agy = json.loads((repo / ".agents/hooks.json").read_text())
+    codex = json.loads((repo / ".codex/hooks.json").read_text())["hooks"]
+    runs = [
+        (repo / ".agents", h["command"])
+        for h in agy["harness-stop"]["Stop"]
+        + [h for g in agy["harness-edit"]["PostToolUse"] for h in g["hooks"]]
+    ] + [(repo / ".codex", c) for ev in ("PostToolUse", "Stop") for c in _commands(codex[ev])]
+    for cwd, command in runs:
+        r = subprocess.run(["bash", "-c", command], cwd=cwd, input="{}", text=True, check=False)
+        assert r.returncode == 0, command
+    calls = log.read_text().splitlines()
+    assert len(calls) == len(runs) == 4
+    assert all(c.startswith(f"{repo.resolve()} ") for c in calls), calls
 
 
 def test_sync_wires_every_agent_in_order(tmp_path: Path) -> None:
@@ -204,17 +231,23 @@ def test_sync_wires_every_agent_in_order(tmp_path: Path) -> None:
     codex = json.loads((repo / ".codex/hooks.json").read_text())["hooks"]
     assert "apply_patch" in codex["PostToolUse"][0]["matcher"]
     assert _commands(codex["PostToolUse"]) == [
-        "bash .claude/hooks/agent-hook.sh codex edit .claude/hooks/sh-check.sh"
+        ROOT + "bash .claude/hooks/agent-hook.sh codex edit .claude/hooks/sh-check.sh"
     ]
     assert _commands(codex["Stop"]) == [
-        "bash .claude/hooks/agent-hook.sh codex stop .claude/hooks/full-validate.sh"
+        ROOT + "bash .claude/hooks/agent-hook.sh codex stop .claude/hooks/full-validate.sh"
     ]
     agy = json.loads((repo / ".agents/hooks.json").read_text())
     assert _commands(agy["harness-edit"]["PostToolUse"]) == [
-        "bash .claude/hooks/agent-hook.sh agy edit .claude/hooks/sh-check.sh"
+        ROOT + "bash .claude/hooks/agent-hook.sh agy edit .claude/hooks/sh-check.sh"
     ]
-    assert _commands(agy["harness-stop"]["Stop"]) == [
-        "bash .claude/hooks/agent-hook.sh agy stop .claude/hooks/full-validate.sh"
+    # agy nests only tool events under a matcher; any other event is a flat list of
+    # hooks, and one nested entry makes agy reject the whole file.
+    assert agy["harness-stop"]["Stop"] == [
+        {
+            "type": "command",
+            "command": ROOT
+            + "bash .claude/hooks/agent-hook.sh agy stop .claude/hooks/full-validate.sh",
+        }
     ]
 
 
@@ -304,7 +337,7 @@ def test_timeout_is_checked_and_wired(tmp_path: Path) -> None:
     codex = json.loads((repo / ".codex/hooks.json").read_text())["hooks"]
     assert codex["Stop"][0]["hooks"][0]["timeout"] == 300
     agy = json.loads((repo / ".agents/hooks.json").read_text())
-    assert agy["harness-stop"]["Stop"][0]["hooks"][0]["timeout"] == 300
+    assert agy["harness-stop"]["Stop"][0]["timeout"] == 300
 
 
 @pytest.mark.parametrize(

@@ -72,6 +72,24 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-087",
+      "name": "agy hooks really load and run: flat Stop entries, commands anchored to the repo root",
+      "description": "A live agy run (agy -p --mode accept-edits) in a scratch clone of atelier showed no harness hook ever ran. Two bugs. (1) harness_adapter.py wrote agy Stop hooks as a matcher group; agy accepts a group only on tool events, so it rejected the whole .agents/hooks.json ('invalid hook \"harness-stop\": command hook must specify command') and loaded neither group. (2) agy runs a hook with the folder holding hooks.json (.agents/) as its working directory, so every repo-relative command exited 127, which agy logs and ignores. The harness repo's own .agents/hooks.json had (2) since f43ab92 (2026-10-09) dropped 'cd ..' after testing from the repo root; agy logs show its guards exiting 127 on 2026-10-10 and 10-11.",
+      "dependencies": [
+        "feat-080"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "agy Stop hooks are written as a flat list of hooks; tool events keep the matcher group",
+        "every generated agy and codex command reaches agent-hook.sh when run from .agents/ or .codex/",
+        "a live agy run in a synced clone runs the edit and Stop hooks from the repo root and gets the sh-check block",
+        "the harness repo's own .agents/hooks.json resolves from .agents/",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/harness-verify.sh",
+      "evidence": "Tests changed first and failed: the two shape assertions (KeyError on the flat Stop) and test_agent_commands_run_from_the_folder_holding_their_hooks_file (exit 127 from .agents/); 34 passed after the fix. Agy and codex commands now start with cd \"$(git rev-parse --show-toplevel)\" && ; codex's hook working directory is not observed (codex not installed), the prefix is harmless if it already is the root. Live agy 1.4.0 runs in a scratch clone of atelier: before, cli.log 'Failed to parse hooks file ... invalid hook \"harness-stop\"' and no hook ran; after the shape fix, all hooks exited 127; after both, a logging line in the clone's agent-hook.sh recorded 6 edit and the Stop hooks with the repo root as PWD, and agy reported sh-check's shellcheck block (SC1072/SC1073). The earlier replay test in feat-080 ran the commands from the repo root and so could not see either bug. The clone's Stop also showed atelier's secret-scan.sh blocking on existing osv-scanner advisories in apps/firstdigital/package-lock.json, true on the real atelier too (rc 2 on a clean tree); not fixed here. The fixture telemetry dir it wrote was removed. harness-verify.sh: all 11 gates passed, output saved to a file."
     }
   ]
 }
