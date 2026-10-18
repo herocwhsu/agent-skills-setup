@@ -46,6 +46,24 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-081",
+      "name": "Preflight and state brief at session start in target repos",
+      "description": "T7 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md (D9: warn, never block). hangar's startup rule reads PROGRESS.md in full, ~3,870 tokens every session. New template common/preflight.sh prints, in a few hundred tokens: the harness version against the installed one, hook drift, missing state files (each only when the harness is installed on this host), and a brief of PROGRESS.md (Current state, In flight, Next, Standing decisions: top-level items, clipped). It always exits 0. A new adapter event 'start' wires it as Claude's SessionStart hook; codex and agy have no verified session-start event here, so the repos' AGENTS.md startup step tells every agent to run it, and to open PROGRESS.md in full only when the brief is not enough.",
+      "dependencies": [
+        "feat-080"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "preflight.sh prints the brief for a PROGRESS.md with those sections: top-level bullets or numbered items only, each clipped to 160 characters, at most 4/8/5/6 items per section, and says which sections are missing",
+        "with the harness installed it reports version status, drift and missing state files; without it it says so in one line; it exits 0 in every case, including a missing PROGRESS.md",
+        "agent-harness.json accepts event 'start'; sync wires start hooks as Claude SessionStart only and leaves them out of codex and agy",
+        "hangar and atelier: preflight.sh wired via sync, AGENTS.md startup step points at it; the brief for hangar is under 600 estimated tokens (was 3,870 for PROGRESS.md); both ./init.sh pass",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/tests/test_preflight.sh && python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }
