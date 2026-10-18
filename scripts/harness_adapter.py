@@ -21,7 +21,8 @@ global-wiring --agent <claude|codex|gemini> [--hooks-dir DIR] prints the user-le
 hook settings that run <runtime>/hooks/global-hook.sh, for install.sh to merge.
 store-packs --agent A --skills-dir DIR moves the skills of every pack but core from
 an agent's global skills dir to <runtime>/pack-skills/A; sync links the packs a
-repo lists into its .claude/skills, .agents/skills and .kiro/skills.
+repo lists into its .claude/skills, .agents/skills and .kiro/skills (sync-all also
+into the repos' shared parent folder); unlink-packs --agent A undoes it for uninstall.
 """
 
 from __future__ import annotations
@@ -470,10 +471,36 @@ def register(repo: Path, templates: Path, runtime: Path) -> None:
             f.write(f"{repo.resolve()}\n")
 
 
+def _shared_parent(repos: list[Path]) -> Path | None:
+    """The folder above the registered repos, when a session can start there.
+
+    None at or above HOME, at the filesystem root, or inside a git repo (that
+    repo's own skills apply there).
+    """
+    if not repos:
+        return None
+    parent = Path(os.path.commonpath([str(r.resolve().parent) for r in repos]))
+    home = Path.home().resolve()
+    if parent == Path(parent.anchor) or home.is_relative_to(parent):
+        return None
+    inside = subprocess.run(
+        ["git", "-C", str(parent), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        check=False,
+    )
+    return None if inside.returncode == 0 else parent
+
+
 def sync_all(templates: Path, runtime: Path) -> dict[str, str]:
-    """Sync each registered repo: {path: 'missing' | 'up to date' | changes | error}."""
+    """Sync each registered repo: {path: 'missing' | 'up to date' | changes | error}.
+
+    Then link the packs any of them lists into their shared parent folder, so a
+    session started there (e.g. ~/projects) sees them too.
+    """
     path = runtime / REGISTRY
     report: dict[str, str] = {}
+    synced: list[Path] = []
+    packs: set[str] = set()
     for line in path.read_text().splitlines() if path.is_file() else []:
         entry = line.strip()
         if not entry or entry.startswith("#"):
@@ -487,14 +514,63 @@ def sync_all(templates: Path, runtime: Path) -> dict[str, str]:
             report[entry] = f"error: {e}"
             continue
         report[entry] = ", ".join(changes) if changes else "up to date"
+        synced.append(Path(entry))
+        data = json.loads((Path(entry) / FILENAME).read_text(encoding="utf-8"))
+        packs.update(data.get("skill_packs", []))
+    ws = _shared_parent(synced)
+    if ws is not None:
+        changes = []
+        _link_pack_skills(ws, {"skill_packs": sorted(packs)}, runtime, changes)
+        report[str(ws)] = "workspace: " + (", ".join(changes) if changes else "up to date")
     return report
+
+
+def unlink_packs(runtime: Path, agent: str) -> list[str]:
+    """Undo store-packs for one agent: remove its stored skills and every link to them.
+
+    Run by uninstall.sh. Covers the registered repos and their shared parent.
+    """
+    store = runtime / PACK_STORE / agent
+    path = runtime / REGISTRY
+    repos = [
+        Path(line.strip())
+        for line in (path.read_text().splitlines() if path.is_file() else [])
+        if line.strip() and not line.startswith("#") and Path(line.strip()).is_dir()
+    ]
+    ws = _shared_parent(repos)
+    removed: list[str] = []
+    for repo in repos + ([ws] if ws else []):
+        kept: list[str] = []
+        for rel in REPO_SKILL_DIRS:
+            d = repo / rel
+            for p in sorted(d.iterdir()) if d.is_dir() else []:
+                if not p.is_symlink():
+                    continue
+                target = Path(os.readlink(p))
+                if target.is_relative_to(store):
+                    p.unlink()
+                    removed.append(str(p))
+                elif target.is_relative_to(runtime / PACK_STORE):
+                    kept.append(f"{rel}/{p.name}")
+        _write_exclude(repo, kept, [])
+    shutil.rmtree(store, ignore_errors=True)
+    return removed
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument(
         "command",
-        choices=["check", "drift", "sync", "register", "sync-all", "global-wiring", "store-packs"],
+        choices=[
+            "check",
+            "drift",
+            "sync",
+            "register",
+            "sync-all",
+            "global-wiring",
+            "store-packs",
+            "unlink-packs",
+        ],
     )
     ap.add_argument("repo", type=Path, nargs="?")
     ap.add_argument("--templates", type=Path, default=HARNESS / "templates/hooks")
@@ -512,6 +588,12 @@ def main(argv: list[str] | None = None) -> int:
             args.skills_dir, runtime / PACK_STORE / args.agent, pack_skill_names()
         )
         print(f"  pack skills kept out of {args.skills_dir}: {' '.join(moved) or 'none'}")
+        return 0
+    if args.command == "unlink-packs":
+        if not args.agent:
+            ap.error("unlink-packs needs --agent")
+        removed = unlink_packs(runtime, args.agent)
+        print(f"  pack skill links removed for {args.agent}: {len(removed)}")
         return 0
     if args.command == "global-wiring":
         try:

@@ -454,3 +454,75 @@ def test_a_repo_skill_of_the_same_name_is_never_replaced(tmp_path: Path) -> None
     ha.sync(repo, templates=templates, runtime=runtime)
     assert not (repo / ".claude/skills/linear").is_symlink()
     assert (repo / ".claude/skills/linear/SKILL.md").read_text() == "repo's own"
+
+
+def _two_repos(ws: Path) -> tuple[Path, Path, Path, Path]:
+    a, templates, runtime = _sync_setup(ws / "a")
+    b, _, _ = _sync_setup(ws / "b")
+    for repo, packs in ((a, ["tracking"]), (b, ["ai"])):
+        d = json.loads((repo / ha.FILENAME).read_text())
+        d["skill_packs"] = packs
+        (repo / ha.FILENAME).write_text(json.dumps(d))
+    for name in ("linear", "kanban-ai", "ai-stack"):
+        (runtime / ha.PACK_STORE / "claude" / name).mkdir(parents=True)
+    (runtime / ha.REGISTRY).write_text(f"{a}\n{b}\n")
+    return a, b, templates, runtime
+
+
+def test_sync_all_links_every_listed_pack_into_the_repos_shared_parent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A session started in the folder above the repos (~/projects) loads that
+    # folder's skills, not the repos'.
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    ws = tmp_path / "ws"
+    a, b, templates, runtime = _two_repos(ws)
+    report = ha.sync_all(templates=templates, runtime=runtime)
+    for rel in (".claude/skills", ".agents/skills", ".kiro/skills"):
+        assert sorted(p.name for p in (ws / rel).iterdir()) == ["ai-stack", "kanban-ai", "linear"]
+    assert sorted(p.name for p in (a / ".claude/skills").iterdir()) == ["kanban-ai", "linear"]
+    assert report[str(ws)].startswith("workspace: ")
+    d = json.loads((b / ha.FILENAME).read_text())
+    d["skill_packs"] = []
+    (b / ha.FILENAME).write_text(json.dumps(d))
+    ha.sync_all(templates=templates, runtime=runtime)
+    assert sorted(p.name for p in (ws / ".claude/skills").iterdir()) == ["kanban-ai", "linear"]
+
+
+@pytest.mark.parametrize("case", ["home", "git"])
+def test_no_shared_parent_links_at_home_or_inside_a_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    ws = tmp_path / "ws"
+    monkeypatch.setenv("HOME", str(ws if case == "home" else tmp_path / "home"))
+    _, _, templates, runtime = _two_repos(ws)
+    if case == "git":
+        subprocess.run(["git", "init", "-q", str(ws)], check=True)
+    report = ha.sync_all(templates=templates, runtime=runtime)
+    assert not (ws / ".claude/skills").exists()
+    assert str(ws) not in report
+
+
+def test_unlink_packs_removes_one_agents_store_and_every_link_into_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    ws = tmp_path / "ws"
+    a, b, templates, runtime = _two_repos(ws)
+    subprocess.run(["git", "init", "-q", str(a)], check=True)
+    (runtime / ha.PACK_STORE / "gemini/linear").mkdir(parents=True)
+    ha.sync_all(templates=templates, runtime=runtime)
+    assert "/.claude/skills/linear\n" in _exclude(a)
+    removed = ha.unlink_packs(runtime, "claude")
+    assert not (runtime / ha.PACK_STORE / "claude").exists()
+    assert (runtime / ha.PACK_STORE / "gemini/linear").is_dir()
+    for repo in (a, b, ws):
+        for rel in (".claude/skills", ".kiro/skills"):
+            assert not any((repo / rel).iterdir()) if (repo / rel).is_dir() else True
+    # agy's link points at agy's own copy and stays
+    assert os.readlink(a / ".agents/skills/linear") == str(
+        runtime / ha.PACK_STORE / "gemini/linear"
+    )
+    assert f"{a}/.claude/skills/linear" in removed
+    assert "/.claude/skills/linear\n" not in _exclude(a)
+    assert "/.agents/skills/linear\n" in _exclude(a)

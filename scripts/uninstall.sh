@@ -84,6 +84,8 @@ echo "==> Un-wiring hooks..."
 for agent in "${SELECTED_AGENTS[@]}"; do
   unwire_hook "polish-input" "$REPO_DIR" "$agent"
   wire_global_hooks "$REPO_DIR" "$agent" --remove
+  python3 "$REPO_DIR/scripts/harness_adapter.py" unlink-packs --agent "$agent" \
+    || echo "  WARNING: pack skill links not removed for $agent" >&2
 done
 
 if [[ $WITH_AGENTS_MD -eq 1 ]]; then
