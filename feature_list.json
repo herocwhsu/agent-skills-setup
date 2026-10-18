@@ -72,6 +72,24 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-082",
+      "name": "verify-gate: Stop runs the repo's verify commands and logs each run centrally",
+      "description": "T8 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md (D8: central, per repo). New template common/verify-gate.sh (Stop): when the turn changed a path matching RELEVANT_RE (its repo config block; changes measured against the upstream merge-base plus untracked files, like the other Stop guards), it runs each verify command from agent-harness.json at the repo root, blocks with exit 2 and the failing command's last lines, and appends one JSON line per run to <runtime>/telemetry/<repo>/verify-runs-YYYYMM.jsonl when the harness is installed. Hook entries take an optional timeout (seconds), passed to every agent's wiring, so a long verify is not cut off by a default hook timeout. hangar replaces its local full-validate.sh (validate.sh, 41s) with verify-gate running ./init.sh (validate.sh + hook tests, 97s) on the same paths plus .claude/hooks; atelier adds it (./init.sh, 10s) on any change.",
+      "dependencies": [
+        "feat-081"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "verify-gate exits 0 with a SKIP line when the turn changed nothing matching RELEVANT_RE; otherwise runs every verify command in order and exits 2 naming the first failing one with its last 40 lines, or 0 when all pass",
+        "each run that executes commands appends one line (time, repo, commit, result, duration, each command with rc and duration) to the central log; nothing is written when harness-version.json is missing",
+        "hook entries accept an optional positive integer timeout; check rejects anything else; sync writes it into the claude, codex and agy wiring",
+        "hangar: full-validate.sh gone, verify-gate wired with timeout 300 and RELEVANT_RE covering what full-validate covered plus .claude/hooks; atelier: verify-gate wired with timeout 120; both ./init.sh pass; a real Stop run is logged",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/tests/test_verify_gate.sh && python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }
