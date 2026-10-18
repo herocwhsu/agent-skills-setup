@@ -211,6 +211,7 @@ since a PR checkout is a detached merge ref). A copy with no `.git` is not check
 | `scripts/graph-runner.sh` | macOS / Linux | Run a multi-agent DAG workflow with checkpointing and rollback routing |
 | `scripts/weekly-review.sh` | macOS / Linux | Generate the weekly review facts into `docs/weekly/YYYY-Www.md` |
 | `scripts/repo_audit.py` | macOS / Linux | Measure a target repo: always-loaded tokens, state files, hook drift vs `templates/hooks`, agents with hooks (`--save` writes `docs/telemetry/repos/`) |
+| `scripts/harness_adapter.py` | macOS / Linux | `check <repo>`: validate a target repo's `agent-harness.json` and report its harness version against the installed one |
 | `scripts/run-tests.sh` | macOS / Linux | Run all skill + script tests (`--fast` skips integration tests) |
 | `scripts/setup-host.sh` | macOS / Linux | Configure host environment (statusline HUD, push notifications, Playwright MCP, tmux) |
 | `scripts/setup-credentials.sh` | macOS / Linux | Store service credentials in keychain |
