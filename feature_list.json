@@ -96,6 +96,23 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-086",
+      "name": "repo_trend.py: one trend over all target repos, in the weekly review",
+      "description": "T12 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md. Per-repo audits (docs/telemetry/repos/<repo>/<date>.json, committed) and verify-gate runs (<runtime>/telemetry/<repo>/verify-runs-YYYYMM.jsonl, per machine) are only useful together over time. scripts/repo_trend.py [--days N] prints a markdown table per repo: first and latest audit in the window (always-loaded tokens, scoped skill tokens, state-file tokens, drifted hooks, agents wired) and verify runs in the window (count, failures, median and max duration). weekly-review.sh adds it as a 'Target repos' section, so the committed weekly report keeps the per-machine verify numbers.",
+      "dependencies": [
+        "feat-085"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "for fake audits and logs, the table shows first -> latest for each audit metric and verify counts, failures, median and max within --days, ignoring older runs and unreadable lines",
+        "a repo with audits but no runs says 'no verify runs'; no audits at all prints one line saying so",
+        "weekly-review.sh output has a '## Target repos' section with the table; its existing test still passes",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_repo_trend.py -q && bash scripts/tests/test_weekly_review.sh && bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }

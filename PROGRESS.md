@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-17
-**Active Feature:** none
+**Active Feature:** feat-086
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
 - Lecture 11 (making the agent's runtime observable) closed: runtime_logger ported (13/13 tests, clean ruff/mypy), sprint contract & evaluator rubric documented.
@@ -69,7 +69,7 @@
 
 ### What's In Progress
 
-- Nothing active (WIP=0, clean state).
+- feat-086: T12, `repo_trend.py` cross-repo trend in the weekly review.
 
 ### What's Next
 
