@@ -72,6 +72,22 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-085",
+      "name": "Target repos' AGENTS.md: one commit rule, no conflict with the global rules",
+      "description": "T11 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md (D5: the global rule applies everywhere, a repo keeps only its exceptions). atelier said 'max 72 chars' and listed no ci/security type, against the global rule; its own last 40 subjects run to 129 chars and include a ci: commit, all lowercase. Both repos now point at the global rule and keep only their exceptions (lowercase summary; hangar's merge/squash exemption and its reason for no commit-msg hook). The Startup, Definition of Done and End of Session sections stay per repo: they are short, repo-specific since feat-081, and a template would cost more than it saves.",
+      "dependencies": [
+        "feat-084"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "neither repo's AGENTS.md states a commit rule that conflicts with the global rules",
+        "both ./init.sh pass",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }
