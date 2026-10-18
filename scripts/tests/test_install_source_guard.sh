@@ -79,8 +79,8 @@ run_install() {
 main_repo=$(make_repo main)
 
 check "installs from main" 0 "$(run_install "$main_repo" "$TMP/h1" --agent claude)"
-check "links point into the checkout it ran from" "$main_repo/skills/apidog" \
-  "$(readlink "$TMP/h1/.claude/skills/apidog" || true)"
+check "links point into the checkout it ran from" "$main_repo/skills/spec-workflow" \
+  "$(readlink "$TMP/h1/.claude/skills/spec-workflow" || true)"
 check "install skips outside-agent init when asked" yes \
   "$(grep -q 'skipped (OUTSIDE_AGENT_INIT=0)' "$TMP/h1.out" && echo yes || echo no)"
 
@@ -117,7 +117,7 @@ check "bare run succeeds with a saved selection" 0 "$(run_install "$main_repo" "
 check "bare run keeps the saved selection" "claude,codex" \
   "$(cat "$TMP/h7/.agent-skills-setup/agent-selection.txt")"
 check "bare run installs every saved agent" yes \
-  "$([[ -L "$TMP/h7/.codex/skills/apidog" ]] && echo yes || echo no)"
+  "$([[ -L "$TMP/h7/.codex/skills/spec-workflow" ]] && echo yes || echo no)"
 
 if [[ $fails -gt 0 ]]; then
   echo ""

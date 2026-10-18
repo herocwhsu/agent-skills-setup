@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -341,7 +342,7 @@ def test_timeout_is_checked_and_wired(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "packs, ok", [(["infra"], True), (["nope"], False), (["core"], False), ("infra", False)]
+    "packs, ok", [(["tracking"], True), (["nope"], False), (["core"], False), ("tracking", False)]
 )
 def test_skill_packs_are_checked(tmp_path: Path, packs: Any, ok: bool) -> None:
     d = _valid()
@@ -382,3 +383,74 @@ def test_global_wiring_per_agent() -> None:
 def test_global_wiring_cli_prints_json(capsys: pytest.CaptureFixture[str]) -> None:
     assert ha.main(["global-wiring", "--agent", "gemini", "--hooks-dir", "/rt/hooks"]) == 0
     assert json.loads(capsys.readouterr().out) == ha.global_wiring("gemini", Path("/rt/hooks"))
+
+
+def test_store_pack_skills_moves_only_pack_skills_and_is_repeatable(tmp_path: Path) -> None:
+    skills, store, src = tmp_path / "skills", tmp_path / "store", tmp_path / "src"
+    (src / "linear").mkdir(parents=True)
+    (skills / "kanban-ai").mkdir(parents=True)
+    (skills / "kanban-ai/SKILL.md").write_text("k")
+    (skills / "brainstorming").mkdir()
+    (skills / "linear").symlink_to(src / "linear")
+    assert ha.store_pack_skills(skills, store, {"linear", "kanban-ai", "absent"}) == [
+        "kanban-ai",
+        "linear",
+    ]
+    assert sorted(p.name for p in skills.iterdir()) == ["brainstorming"]
+    assert (store / "linear").is_symlink() and (store / "linear").resolve() == src / "linear"
+    assert (store / "kanban-ai/SKILL.md").read_text() == "k"
+    # the next install puts them back globally; storing again replaces the stored copy
+    (skills / "kanban-ai").mkdir()
+    (skills / "kanban-ai/SKILL.md").write_text("k2")
+    assert ha.store_pack_skills(skills, store, {"kanban-ai"}) == ["kanban-ai"]
+    assert (store / "kanban-ai/SKILL.md").read_text() == "k2"
+
+
+def _exclude(repo: Path) -> str:
+    return (repo / ".git/info/exclude").read_text()
+
+
+def test_sync_links_listed_pack_skills_for_every_agent_and_unlinks_dropped_ones(
+    tmp_path: Path,
+) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    store = runtime / ha.PACK_STORE
+    for agent in ("claude", "gemini"):
+        (store / agent / "linear").mkdir(parents=True)
+    (repo / ".claude/skills/own").mkdir(parents=True)
+    d = json.loads((repo / ha.FILENAME).read_text())
+    d["skill_packs"] = ["tracking"]
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    changes = ha.sync(repo, templates=templates, runtime=runtime)
+    assert os.readlink(repo / ".claude/skills/linear") == str(store / "claude/linear")
+    assert os.readlink(repo / ".agents/skills/linear") == str(store / "gemini/linear")
+    # no kiro copy on this host: any agent's copy is the same skill
+    assert (repo / ".kiro/skills/linear").resolve() in {
+        (store / a / "linear").resolve() for a in ("claude", "gemini")
+    }
+    assert ".claude/skills/linear" in changes
+    assert not (repo / ".claude/skills/kanban-ai").exists()  # not in the store: skipped
+    for rel in (".claude/skills/linear", ".agents/skills/linear", ".kiro/skills/linear"):
+        assert f"/{rel}\n" in _exclude(repo)
+    assert ha.sync(repo, templates=templates, runtime=runtime) == []
+    d["skill_packs"] = []
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    ha.sync(repo, templates=templates, runtime=runtime)
+    for rel in (".claude/skills", ".agents/skills", ".kiro/skills"):
+        assert not (repo / rel / "linear").is_symlink()
+    assert (repo / ".claude/skills/own").is_dir()
+    assert "skills/linear" not in _exclude(repo)
+
+
+def test_a_repo_skill_of_the_same_name_is_never_replaced(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    (runtime / ha.PACK_STORE / "claude/linear").mkdir(parents=True)
+    (repo / ".claude/skills/linear").mkdir(parents=True)
+    (repo / ".claude/skills/linear/SKILL.md").write_text("repo's own")
+    d = json.loads((repo / ha.FILENAME).read_text())
+    d["skill_packs"] = ["tracking"]
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    ha.sync(repo, templates=templates, runtime=runtime)
+    assert not (repo / ".claude/skills/linear").is_symlink()
+    assert (repo / ".claude/skills/linear/SKILL.md").read_text() == "repo's own"

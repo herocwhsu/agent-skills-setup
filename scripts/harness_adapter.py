@@ -19,12 +19,18 @@ and sets harness.version to the installed commit. It never commits. register add
 a repo to <runtime>/target-repos.txt; sync-all (run by update.sh) syncs each one.
 global-wiring --agent <claude|codex|gemini> [--hooks-dir DIR] prints the user-level
 hook settings that run <runtime>/hooks/global-hook.sh, for install.sh to merge.
+store-packs --agent A --skills-dir DIR moves the skills of every pack but core from
+an agent's global skills dir to <runtime>/pack-skills/A; sync links the packs a
+repo lists into its .claude/skills, .agents/skills and .kiro/skills.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
+import shutil
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,6 +44,15 @@ SCHEMA_VERSION = 1
 EVENTS = ("edit", "stop", "start")  # start: Claude SessionStart only
 WRAPPER = "common/agent-hook.sh"
 REGISTRY = "target-repos.txt"
+PACK_STORE = "pack-skills"
+# Where each agent reads a repo's skills (feat-083), and whose stored copy to link.
+REPO_SKILL_DIRS = {
+    ".claude/skills": ("claude",),
+    ".agents/skills": ("gemini", "codex"),
+    ".kiro/skills": ("kiro",),
+}
+EXCLUDE_BEGIN = "# BEGIN agent-skills-setup pack skills (harness_adapter.py sync)"
+EXCLUDE_END = "# END agent-skills-setup pack skills"
 EDIT_MATCHERS = {
     "claude": "Edit|Write|MultiEdit",
     "codex": "apply_patch|file_edit|Edit|Write|MultiEdit",
@@ -281,6 +296,100 @@ def _wiring(hooks: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def pack_skill_names(packs: dict[str, list[str]] | None = None) -> set[str]:
+    """Skills that belong to a pack other than core: global only through a repo."""
+    packs = load_packs() if packs is None else packs
+    return {s for name, skills in packs.items() if name != "core" for s in skills}
+
+
+def store_pack_skills(skills_dir: Path, store: Path, names: set[str]) -> list[str]:
+    """Move pack skills out of an agent's global skills dir into the pack store.
+
+    install.sh installs every skill globally, then calls this, so a pack skill is
+    loaded only in the repos whose agent-harness.json lists its pack. A link moves
+    as a link; a copied skill dir replaces the stored one.
+    """
+    moved: list[str] = []
+    for name in sorted(names):
+        src = skills_dir / name
+        if not (src.is_symlink() or src.exists()):
+            continue
+        dst = store / name
+        store.mkdir(parents=True, exist_ok=True)
+        if dst.is_symlink() or dst.is_file():
+            dst.unlink()
+        elif dst.exists():
+            shutil.rmtree(dst)
+        if src.is_symlink():
+            dst.symlink_to(os.readlink(src))
+            src.unlink()
+        else:
+            shutil.move(str(src), str(dst))
+        moved.append(name)
+    return moved
+
+
+def _link_pack_skills(repo: Path, data: dict[str, Any], runtime: Path, changes: list[str]) -> None:
+    store = runtime / PACK_STORE
+    packs = load_packs()
+    wanted = sorted({s for p in data.get("skill_packs", []) for s in packs.get(p, [])})
+    every = tuple(a for agents in REPO_SKILL_DIRS.values() for a in agents)
+    linked: list[str] = []
+    for rel, agents in REPO_SKILL_DIRS.items():
+        d = repo / rel
+        if d.is_dir():
+            for p in sorted(d.iterdir()):
+                if (
+                    p.is_symlink()
+                    and Path(os.readlink(p)).is_relative_to(store)
+                    and p.name not in wanted
+                ):
+                    p.unlink()
+                    changes.append(f"{rel}/{p.name} (unlinked)")
+        order = agents + tuple(a for a in every if a not in agents)
+        for name in wanted:
+            src = next((store / a / name for a in order if (store / a / name).exists()), None)
+            link = d / name
+            if src is None or (link.exists() and not link.is_symlink()):
+                continue  # not installed on this host, or the repo's own skill wins
+            linked.append(f"{rel}/{name}")
+            if link.is_symlink() and os.readlink(link) == str(src):
+                continue
+            d.mkdir(parents=True, exist_ok=True)
+            if link.is_symlink():
+                link.unlink()
+            link.symlink_to(src)
+            changes.append(f"{rel}/{name}")
+    _write_exclude(repo, linked, changes)
+
+
+def _write_exclude(repo: Path, paths: list[str], changes: list[str]) -> None:
+    """Keep the host-specific links out of git, in a block of .git/info/exclude."""
+    try:
+        rel = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--git-path", "info/exclude"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return
+    path = Path(rel) if Path(rel).is_absolute() else repo / rel
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    lines = text.splitlines()
+    if EXCLUDE_BEGIN in lines:
+        i = lines.index(EXCLUDE_BEGIN)
+        j = lines.index(EXCLUDE_END, i) if EXCLUDE_END in lines[i:] else len(lines) - 1
+        lines = lines[:i] + lines[j + 1 :]
+    if paths:
+        lines += [EXCLUDE_BEGIN] + [f"/{p}" for p in sorted(paths)] + [EXCLUDE_END]
+    new = "\n".join(lines) + "\n" if lines else ""
+    if new != text:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(new, encoding="utf-8")
+        changes.append("info/exclude")
+
+
 GLOBAL_STOP_TIMEOUT = 120
 
 
@@ -337,6 +446,7 @@ def sync(repo: Path, templates: Path, runtime: Path) -> list[str]:
         _write_if_changed(settings, _dump(claude), changes, repo)
     _write_if_changed(repo / ".codex/hooks.json", _dump(wiring["codex"]), changes, repo)
     _write_if_changed(repo / ".agents/hooks.json", _dump(wiring["agy"]), changes, repo)
+    _link_pack_skills(repo, data, runtime, changes)
 
     try:
         installed = json.loads((runtime / "harness-version.json").read_text()).get("short")
@@ -383,7 +493,8 @@ def sync_all(templates: Path, runtime: Path) -> dict[str, str]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument(
-        "command", choices=["check", "drift", "sync", "register", "sync-all", "global-wiring"]
+        "command",
+        choices=["check", "drift", "sync", "register", "sync-all", "global-wiring", "store-packs"],
     )
     ap.add_argument("repo", type=Path, nargs="?")
     ap.add_argument("--templates", type=Path, default=HARNESS / "templates/hooks")
@@ -391,8 +502,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--file", type=Path, default=None)
     ap.add_argument("--agent", default=None)
     ap.add_argument("--hooks-dir", type=Path, default=None)
+    ap.add_argument("--skills-dir", type=Path, default=None)
     args = ap.parse_args(argv)
     runtime = args.runtime or _runtime_dir()
+    if args.command == "store-packs":
+        if not args.agent or args.skills_dir is None:
+            ap.error("store-packs needs --agent and --skills-dir")
+        moved = store_pack_skills(
+            args.skills_dir, runtime / PACK_STORE / args.agent, pack_skill_names()
+        )
+        print(f"  pack skills kept out of {args.skills_dir}: {' '.join(moved) or 'none'}")
+        return 0
     if args.command == "global-wiring":
         try:
             print(

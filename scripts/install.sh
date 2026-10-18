@@ -150,6 +150,12 @@ for agent in "${SELECTED_AGENTS[@]}"; do
         ;;
     esac
   done < "$REPO_DIR/registry.txt"
+
+  # Every pack but core (config/skill-packs.json) loads only in the repos that
+  # list it: move those out of the global dir; harness_adapter.py sync links them
+  # into each repo.
+  python3 "$REPO_DIR/scripts/harness_adapter.py" store-packs --agent "$agent" \
+    --skills-dir "$target_dir" || echo "  WARNING: pack skills left global for $agent" >&2
 done
 
 # polish-input is always wired, not opt-in: it ships as part of the `utils`
