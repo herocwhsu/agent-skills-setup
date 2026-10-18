@@ -265,6 +265,25 @@ else
   bad "ts-fix (APP_DIRS=apps/web) formats only files in that folder" "log: $(cat "$TMPDIR/prettier.log" 2>/dev/null)"
 fi
 
+# harness-drift: blocks an edit that makes a template hook differ from its
+# template outside the repo config block; quiet without an installed harness.
+HD="$TMPDIR/hd"; HDH="$HD/home"; HDS="$HD/harness"; HDR=$(repo hd-repo)
+mkdir -p "$HDH/.agent-skills-setup" "$HDS/scripts" "$HDS/templates/hooks/common" "$HDR/.claude/hooks"
+cp "$SCRIPT_DIR/harness_adapter.py" "$SCRIPT_DIR/repo_audit.py" "$HDS/scripts/"
+printf '#!/bin/bash\n# --- repo config ----------------------------------------\nV=""\n# --------------------------------------------------------\necho a\n' > "$HDS/templates/hooks/common/x.sh"
+sed 's/^V=""/V="mine"/' "$HDS/templates/hooks/common/x.sh" > "$HDR/.claude/hooks/x.sh"
+printf '{"schema_version":1,"harness":{"source":"agent-skills-setup","version":"x"},"project":{"name":"r"},"state_files":[],"verify":["true"],"hooks":[{"template":"common/x.sh","event":"edit"}]}\n' > "$HDR/agent-harness.json"
+printf '{"commit":"x","source_dir":"%s"}\n' "$HDS" > "$HDH/.agent-skills-setup/harness-version.json"
+hd_rc() { ( cd "$HDR" && printf '{"tool_input":{"file_path":"%s"}}' "$1" | HOME="$HDH" bash "$HOOKS_SRC/common/harness-drift.sh" >/dev/null 2>"$TMPDIR/hd.err" ); echo $?; }
+expect "harness-drift allows an edit inside the config block" 0 "$(hd_rc "$HDR/.claude/hooks/x.sh")"
+printf 'echo extra\n' >> "$HDR/.claude/hooks/x.sh"
+expect "harness-drift blocks an edit that changes a template hook" 2 "$(hd_rc "$HDR/.claude/hooks/x.sh")"
+if grep -q 'common/x.sh' "$TMPDIR/hd.err"; then ok "harness-drift names the template"; else bad "harness-drift names the template" "$(cat "$TMPDIR/hd.err")"; fi
+printf 'x\n' > "$HDR/other.txt"
+expect "harness-drift ignores other files" 0 "$(hd_rc "$HDR/other.txt")"
+rm "$HDH/.agent-skills-setup/harness-version.json"
+expect "harness-drift does nothing without an installed harness" 0 "$(hd_rc "$HDR/.claude/hooks/x.sh")"
+
 echo ""
 echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]

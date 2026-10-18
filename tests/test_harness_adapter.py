@@ -118,3 +118,44 @@ def test_cli_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> N
     (repo / ha.FILENAME).write_text(json.dumps(_broken(lambda d: d.update(verify=[]))))
     assert ha.main(["check", *args]) == 2
     assert "verify" in capsys.readouterr().out
+
+
+TEMPLATE = (
+    "#!/bin/bash\n# --- repo config ----------------------------------------\n"
+    'SCOPE=""\n# --------------------------------------------------------\necho check\n'
+)
+
+
+def _drift_setup(tmp_path: Path) -> tuple[Path, Path]:
+    repo, templates, _ = _setup(tmp_path)
+    (templates / "common/sh-check.sh").write_text(TEMPLATE)
+    (repo / ".claude/hooks/sh-check.sh").write_text(TEMPLATE.replace('SCOPE=""', 'SCOPE="x"'))
+    d = _valid()
+    d["hooks"][0]["template"] = "common/sh-check.sh"
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    return repo, templates
+
+
+def test_drift_ignores_the_config_block(tmp_path: Path) -> None:
+    repo, templates = _drift_setup(tmp_path)
+    assert ha.drift(repo, templates=templates) == []
+
+
+def test_drift_names_file_and_template(tmp_path: Path) -> None:
+    repo, templates = _drift_setup(tmp_path)
+    hook = repo / ".claude/hooks/sh-check.sh"
+    hook.write_text(hook.read_text().replace("echo check", "echo changed"))
+    assert ha.drift(repo, templates=templates) == [
+        (".claude/hooks/sh-check.sh", "common/sh-check.sh")
+    ]
+
+
+def test_drift_file_filter_and_cli(tmp_path: Path) -> None:
+    repo, templates = _drift_setup(tmp_path)
+    hook = repo / ".claude/hooks/sh-check.sh"
+    hook.write_text(hook.read_text().replace("echo check", "echo changed"))
+    base = ["drift", str(repo), "--templates", str(templates)]
+    assert ha.main(base) == 2
+    assert ha.main([*base, "--file", str(hook)]) == 2
+    assert ha.main([*base, "--file", str(repo / ".claude/hooks/full-validate.sh")]) == 0
+    assert ha.main([*base, "--file", str(repo / "AGENTS.md")]) == 0

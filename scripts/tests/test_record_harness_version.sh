@@ -26,6 +26,7 @@ R="$TMP/repo with \"quotes\""; mkdir -p "$R"; git -C "$R" init -q
 printf 'a\n' > "$R/f"; git -C "$R" add f; git -C "$R" -c user.email=t@example.com -c user.name=t commit -qm one
 run "$R" >/dev/null
 check "commit is HEAD" "$(git -C "$R" rev-parse HEAD)" "$(field "$OUT" commit)"
+check "source_dir is the installed checkout" "$R" "$(field "$OUT" source_dir)"
 check "short commit" "$(git -C "$R" rev-parse --short HEAD)" "$(field "$OUT" short)"
 check "clean tree is not dirty" "false" "$(field "$OUT" dirty)"
 check "installed_at is set" "yes" "$( [[ -n "$(field "$OUT" installed_at)" && "$(field "$OUT" installed_at)" != null ]] && echo yes)"

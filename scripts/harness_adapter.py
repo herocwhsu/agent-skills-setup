@@ -7,8 +7,11 @@ commands, and its hooks in wiring order: each a shared template under
 templates/hooks/<stack>/ or a repo-local file, run on `edit` or `stop`.
 
 Usage: harness_adapter.py check <repo> [--templates DIR] [--runtime DIR]
-Exit 0 when the file is valid, 2 with one line per problem otherwise. The
+       harness_adapter.py drift <repo> [--templates DIR] [--file PATH]
+check exits 0 when the file is valid, 2 with one line per problem otherwise; the
 version is reported against <runtime>/harness-version.json and never fails.
+drift exits 2 when a listed template hook (.claude/hooks/<name>) differs from
+its template outside the repo config block, the only part a repo may edit.
 """
 
 from __future__ import annotations
@@ -19,6 +22,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from repo_audit import _strip_config
 
 HARNESS = Path(__file__).resolve().parent.parent
 FILENAME = "agent-harness.json"
@@ -130,13 +135,44 @@ def check(repo: Path, templates: Path, runtime: Path) -> Result:
     return Result(data=data, problems=problems, version_status=_version_status(data, runtime))
 
 
+def drift(repo: Path, templates: Path, only: Path | None = None) -> list[tuple[str, str]]:
+    """(copy, template) for each listed template hook that differs from its template."""
+    try:
+        hooks = json.loads((repo / FILENAME).read_text(encoding="utf-8")).get("hooks", [])
+    except (OSError, ValueError, AttributeError):
+        return []
+    out: list[tuple[str, str]] = []
+    for h in hooks:
+        rel = h.get("template") if isinstance(h, dict) else None
+        if not isinstance(rel, str):
+            continue
+        copy = repo / ".claude/hooks" / Path(rel).name
+        if only is not None and copy.resolve() != only.resolve():
+            continue
+        try:
+            same = _strip_config(copy.read_text()) == _strip_config((templates / rel).read_text())
+        except OSError:
+            same = False
+        if not same:
+            out.append((str(copy.relative_to(repo)), rel))
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("command", choices=["check"])
+    ap.add_argument("command", choices=["check", "drift"])
     ap.add_argument("repo", type=Path)
     ap.add_argument("--templates", type=Path, default=HARNESS / "templates/hooks")
     ap.add_argument("--runtime", type=Path, default=None)
+    ap.add_argument("--file", type=Path, default=None)
     args = ap.parse_args(argv)
+    if args.command == "drift":
+        found = drift(args.repo, templates=args.templates, only=args.file)
+        for copy, tmpl in found:
+            print(
+                f"  DRIFT  {copy} differs from templates/hooks/{tmpl} outside its repo config block"
+            )
+        return 2 if found else 0
     result = check(args.repo, templates=args.templates, runtime=args.runtime or _runtime_dir())
     for p in result.problems:
         print(f"  FAIL  {p}")

@@ -79,8 +79,9 @@ skills_runtime_dir() {
 #   so a target repo can tell whether its harness copies match what is installed.
 #   Outside a git checkout it records commit null and warns; the install goes on.
 record_harness_version() {
-  local repo_dir="$1" out commit="" short="" describe="" dirty=false
+  local repo_dir="$1" out commit="" short="" describe="" dirty=false source_dir
   out="$(skills_runtime_dir "$repo_dir")/harness-version.json"
+  source_dir=$(cd "$repo_dir" && pwd -P)
   mkdir -p "$(dirname "$out")"
   if commit=$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null); then
     short=$(git -C "$repo_dir" rev-parse --short HEAD)
@@ -90,10 +91,10 @@ record_harness_version() {
     commit=""
     echo "  WARN  $repo_dir is not a git checkout; harness version recorded as unknown" >&2
   fi
-  python3 - "$out" "$commit" "$short" "$describe" "$dirty" <<'PY'
+  python3 - "$out" "$commit" "$short" "$describe" "$dirty" "$source_dir" <<'PY'
 import datetime, json, sys
-out, commit, short, describe, dirty = sys.argv[1:6]
-data = {"commit": commit or None, "short": short or None, "describe": describe or None,
+out, commit, short, describe, dirty, source_dir = sys.argv[1:7]
+data = {"source_dir": source_dir, "commit": commit or None, "short": short or None, "describe": describe or None,
         "dirty": dirty == "true",
         "installed_at": datetime.datetime.now().astimezone().isoformat(timespec="seconds")}
 if not commit:
