@@ -3,11 +3,11 @@
   "repo": "atelier",
   "always_loaded": {
     "estimate": "chars/4",
-    "tokens": 3785,
+    "tokens": 4082,
     "files": [
       {
         "file": "~/.claude/CLAUDE.md",
-        "tokens": 1827
+        "tokens": 2292
       },
       {
         "file": "CLAUDE.md",
@@ -15,7 +15,7 @@
       },
       {
         "file": "AGENTS.md",
-        "tokens": 805
+        "tokens": 637
       }
     ],
     "skill_tokens": 1151,

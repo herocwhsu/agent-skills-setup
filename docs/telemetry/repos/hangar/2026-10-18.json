@@ -3,11 +3,11 @@
   "repo": "hangar",
   "always_loaded": {
     "estimate": "chars/4",
-    "tokens": 4167,
+    "tokens": 4475,
     "files": [
       {
         "file": "~/.claude/CLAUDE.md",
-        "tokens": 1827
+        "tokens": 2292
       },
       {
         "file": "CLAUDE.md",
@@ -15,7 +15,7 @@
       },
       {
         "file": "AGENTS.md",
-        "tokens": 1180
+        "tokens": 1023
       }
     ],
     "skill_tokens": 1158,
