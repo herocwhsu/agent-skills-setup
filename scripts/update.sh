@@ -70,3 +70,11 @@ if [[ -f "$SELECTION_FILE" ]]; then
 else
   echo "  no saved agent selection; nothing to refresh"
 fi
+
+# Target repos (hangar, atelier, ...) carry copies of templates/hooks and wiring
+# generated from their agent-harness.json; bring each registered one up to the
+# commit just installed. Changes are left uncommitted for review in that repo.
+echo ""
+echo "==> Syncing target repos (harness_adapter.py sync-all)..."
+python3 "$REPO_DIR/scripts/harness_adapter.py" sync-all \
+  || echo "  WARN  a registered target repo is missing or failed to sync (see above)"

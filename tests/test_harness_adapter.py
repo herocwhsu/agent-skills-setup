@@ -159,3 +159,114 @@ def test_drift_file_filter_and_cli(tmp_path: Path) -> None:
     assert ha.main([*base, "--file", str(hook)]) == 2
     assert ha.main([*base, "--file", str(repo / ".claude/hooks/full-validate.sh")]) == 0
     assert ha.main([*base, "--file", str(repo / "AGENTS.md")]) == 0
+
+
+def _sync_setup(tmp_path: Path) -> tuple[Path, Path, Path]:
+    repo, templates, runtime = _setup(tmp_path)
+    (templates / "common/sh-check.sh").write_text(TEMPLATE)
+    (templates / "common/agent-hook.sh").write_text("#!/bin/bash\n# wrapper\n")
+    (repo / ".claude/hooks/sh-check.sh").write_text(
+        TEMPLATE.replace('SCOPE=""', 'SCOPE="mine"').replace("echo check", "echo old")
+    )
+    d = _valid()
+    d["hooks"][0]["template"] = "common/sh-check.sh"
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    (repo / ".claude/settings.json").write_text('{"permissions": {"deny": ["Bash(x)"]}}')
+    (runtime / "harness-version.json").write_text(
+        json.dumps({"commit": "def5678ff", "short": "def5678"})
+    )
+    return repo, templates, runtime
+
+
+def test_sync_copies_templates_keeping_config_block_and_is_idempotent(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    changes = ha.sync(repo, templates=templates, runtime=runtime)
+    hook = (repo / ".claude/hooks/sh-check.sh").read_text()
+    assert "echo check" in hook and 'SCOPE="mine"' in hook
+    assert (repo / ".claude/hooks/agent-hook.sh").read_text() == "#!/bin/bash\n# wrapper\n"
+    assert ".claude/hooks/sh-check.sh" in changes and ".claude/hooks/agent-hook.sh" in changes
+    assert json.loads((repo / ha.FILENAME).read_text())["harness"]["version"] == "def5678"
+    assert ha.sync(repo, templates=templates, runtime=runtime) == []
+
+
+def _commands(groups: list[dict[str, Any]]) -> list[str]:
+    return [h["command"] for g in groups for h in g["hooks"]]
+
+
+def test_sync_wires_every_agent_in_order(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    ha.sync(repo, templates=templates, runtime=runtime)
+    claude = json.loads((repo / ".claude/settings.json").read_text())
+    assert claude["permissions"] == {"deny": ["Bash(x)"]}
+    assert claude["hooks"]["PostToolUse"][0]["matcher"] == "Edit|Write|MultiEdit"
+    assert _commands(claude["hooks"]["PostToolUse"]) == ["bash .claude/hooks/sh-check.sh"]
+    assert _commands(claude["hooks"]["Stop"]) == ["bash .claude/hooks/full-validate.sh"]
+    codex = json.loads((repo / ".codex/hooks.json").read_text())["hooks"]
+    assert "apply_patch" in codex["PostToolUse"][0]["matcher"]
+    assert _commands(codex["PostToolUse"]) == [
+        "bash .claude/hooks/agent-hook.sh codex edit .claude/hooks/sh-check.sh"
+    ]
+    assert _commands(codex["Stop"]) == [
+        "bash .claude/hooks/agent-hook.sh codex stop .claude/hooks/full-validate.sh"
+    ]
+    agy = json.loads((repo / ".agents/hooks.json").read_text())
+    assert _commands(agy["harness-edit"]["PostToolUse"]) == [
+        "bash .claude/hooks/agent-hook.sh agy edit .claude/hooks/sh-check.sh"
+    ]
+    assert _commands(agy["harness-stop"]["Stop"]) == [
+        "bash .claude/hooks/agent-hook.sh agy stop .claude/hooks/full-validate.sh"
+    ]
+
+
+def test_sync_leaves_matching_claude_settings_untouched(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    ha.sync(repo, templates=templates, runtime=runtime)
+    settings = repo / ".claude/settings.json"
+    compact = json.dumps(json.loads(settings.read_text()))  # same content, other formatting
+    settings.write_text(compact)
+    ha.sync(repo, templates=templates, runtime=runtime)
+    assert settings.read_text() == compact
+
+
+def test_sync_refuses_an_invalid_file(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    (repo / ha.FILENAME).write_text("{}")
+    with pytest.raises(ha.AdapterError):
+        ha.sync(repo, templates=templates, runtime=runtime)
+
+
+def test_register_and_sync_all(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    ha.register(repo, templates=templates, runtime=runtime)
+    ha.register(repo, templates=templates, runtime=runtime)
+    lines = (runtime / "target-repos.txt").read_text().splitlines()
+    assert lines == [str(repo.resolve())]
+    bad = tmp_path / "bad"
+    bad.mkdir()
+    with pytest.raises(ha.AdapterError):
+        ha.register(bad, templates=templates, runtime=runtime)
+    with (runtime / "target-repos.txt").open("a") as f:
+        f.write(str(tmp_path / "gone") + "\n")
+    report = ha.sync_all(templates=templates, runtime=runtime)
+    assert report[str(repo.resolve())] != "missing"
+    assert report[str(tmp_path / "gone")] == "missing"
+
+
+def test_drift_covers_the_agent_hook_wrapper(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    ha.sync(repo, templates=templates, runtime=runtime)
+    (repo / ".claude/hooks/agent-hook.sh").write_text("#!/bin/bash\n# edited here\n")
+    assert (".claude/hooks/agent-hook.sh", "common/agent-hook.sh") in ha.drift(
+        repo, templates=templates
+    )
+
+
+def test_sync_writes_no_group_for_an_event_without_hooks(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    d = json.loads((repo / ha.FILENAME).read_text())
+    d["hooks"] = [h for h in d["hooks"] if h["event"] == "edit"]
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    ha.sync(repo, templates=templates, runtime=runtime)
+    assert "Stop" not in json.loads((repo / ".claude/settings.json").read_text())["hooks"]
+    assert "Stop" not in json.loads((repo / ".codex/hooks.json").read_text())["hooks"]
+    assert list(json.loads((repo / ".agents/hooks.json").read_text())) == ["harness-edit"]
