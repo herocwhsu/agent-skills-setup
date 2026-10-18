@@ -71,6 +71,24 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-084",
+      "name": "Skill packs: pack list, per-repo skill_packs, and the measured effect of scoping",
+      "description": "T10 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md, first half. config/skill-packs.json names a core pack (stays global: superpowers process skills, utils, spec-workflow as the router the global rules name, experiment-iteration) and opt-in packs (spec-gated, sre, ai, frontend, infra, tracking, harness-dev); any global skill no pack names stays global. agent-harness.json takes an optional skill_packs list, checked against that file. repo_audit.py reports, next to today's skill tokens, what the repo would load with only core plus its packs. The second half, removing pack skills from the global install and linking them into .claude/skills, .agents/skills and .kiro/skills of each registered repo, changes what every unregistered repo on the machine sees, so it waits for owner decisions (D7, and what unregistered repos keep).",
+      "dependencies": [
+        "feat-083"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "config/skill-packs.json names each pack once per skill and no skill in two packs; a test checks every named skill exists in the global install or registry",
+        "check accepts skill_packs naming known packs only and rejects an unknown or core pack",
+        "repo_audit reports skill_tokens_scoped (core + the repo's packs + unassigned globals + repo skills) beside skill_tokens, and the skill list with each skill's pack",
+        "hangar (infra) and atelier (ai, frontend, spec-gated) declare packs; their audits are saved",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_adapter.py tests/test_repo_audit.py -q && bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }
