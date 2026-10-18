@@ -104,7 +104,7 @@
       "dependencies": [
         "feat-085"
       ],
-      "status": "active",
+      "status": "completed",
       "acceptance_criteria": [
         "for fake audits and logs, the table shows first -> latest for each audit metric and verify counts, failures, median and max within --days, ignoring older runs and unreadable lines",
         "a repo with audits but no runs says 'no verify runs'; no audits at all prints one line saying so",
@@ -112,7 +112,7 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "python3 -m pytest tests/test_repo_trend.py -q && bash scripts/tests/test_weekly_review.sh && bash scripts/harness-verify.sh",
-      "evidence": ""
+      "evidence": "scripts/repo_trend.py [--days N] renders one markdown table over docs/telemetry/repos/<repo>/*.json and <runtime>/telemetry/<repo>/verify-runs-*.jsonl: audit dates, always-loaded, scoped skill, state-file tokens, drifted hooks and agents with hooks as first -> latest in the window (the latest earlier audit when none falls inside), and verify runs (count, failed, median, max). Unreadable lines and older runs are skipped. weekly-review.sh adds it as '## Target repos'. Tests failed first: tests/test_repo_trend.py (module missing), test_weekly_review.sh (section missing); now 3 and 16 passed. Real run, 7 days: hangar 5403 -> 5438 always-loaded, drifted 2 -> 0, agents claude -> claude,codex,agy, verify 2 runs 1 failed (the fixture bug in feat-082), median 90s; atelier drifted 6 -> 0, agents claude -> all three, verify 1 run 0 failed 10s. mypy and ruff clean; shellcheck findings in weekly-review.sh pre-exist (2 before and after); the test file's new line follows its existing `&& ok || bad` style. harness-verify.sh: all 11 gates passed, output saved to a file. Not done: always-loaded tokens do not include the preflight brief's cost, and state-file tokens are file sizes, not what a session now reads (the brief, measured in feat-081); trace-evaluation.sh was not changed, the weekly review is the cross-repo place."
     }
   ]
 }

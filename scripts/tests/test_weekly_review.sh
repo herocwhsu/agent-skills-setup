@@ -37,6 +37,7 @@ grep -q 'completed' "$report" && ok "counts feature status" || bad "feature stat
 grep -q 'feat-001: tests/gone.py' "$report" && ok "flags missing verification path" || bad "missing verification path" "not flagged"
 grep -q 'feat-001: scripts/trace-evaluation.sh' "$report" && bad "existing path not flagged" "false positive" || ok "existing path not flagged"
 grep -q 'weekly-review:plan' "$report" && ok "leaves plan marker" || bad "plan marker" "missing"
+grep -q '^## Target repos' "$report" && grep -q 'no repo audits' "$report" && ok "has a Target repos section" || bad "Target repos section" "missing"
 
 set +e; WEEKLY_REVIEW_REPO_DIR="$d" bash "$SCRIPT" --days abc >/dev/null 2>&1; s=$?; set -e
 [[ $s -eq 2 ]] && ok "rejects non-integer --days" || bad "rejects non-integer --days" "exit $s"

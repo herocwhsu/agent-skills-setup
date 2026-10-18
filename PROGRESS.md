@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-17
-**Active Feature:** feat-086
+**Active Feature:** none
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
 - Lecture 11 (making the agent's runtime observable) closed: runtime_logger ported (13/13 tests, clean ruff/mypy), sprint contract & evaluator rubric documented.
@@ -67,14 +67,16 @@
 
 - [x] feat-085: hangar and atelier AGENTS.md defer to the global commit rule; atelier's conflicting max-72/type list removed.
 
+- [x] feat-086: `repo_trend.py` gives one table over all target repos (audits and verify runs); the weekly review includes it.
+
 ### What's In Progress
 
-- feat-086: T12, `repo_trend.py` cross-repo trend in the weekly review.
+- Nothing active (WIP=0, clean state).
 
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-0. **Two-layer harness, T2-T12** (hook sync, version, `agent-harness.json`, preflight, skill packs, cross-repo telemetry): tasks, metrics and open decisions D1-D9 in [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md). Each task saves a `repo_audit.py` before/after. Next: T12, one trend over all repos (repo audits and verify runs) in the weekly review.
+0. **Two-layer harness, T2-T12** (hook sync, version, `agent-harness.json`, preflight, skill packs, cross-repo telemetry): tasks, metrics and open decisions D1-D9 in [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md). Each task saves a `repo_audit.py` before/after. Next: the global skill switch (T10 second half) waits for D7 and a call on unregistered repos.
    - *Metric caveat:* feat-075's run record (`5a0ad1e4-ec73a5038f`, 1.3M output tokens, ~17 days) covers this whole long session from its start (hangar UPS work included), because the session had no earlier record. Start each T-task in a fresh session, or mark the window at activation, so its record measures only that task.
 1. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
 2. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.

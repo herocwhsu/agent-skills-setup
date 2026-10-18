@@ -88,6 +88,12 @@ print("\n".join(missing) if missing else "none")
 PY
   echo '```'
   echo
+  echo "## Target repos"
+  echo
+  # repo_trend.py lives next to this script; the audits belong to the repo reviewed.
+  python3 "$(dirname "$0")/repo_trend.py" --days "$DAYS" \
+    --audits "$REPO_DIR/docs/telemetry/repos" 2>&1 || echo "repo_trend.py failed"
+  echo
   echo "## Queue from PROGRESS.md"
   echo
   awk '/^### What.s Next/{f=1; next} f && /^(## |### )/{exit} f' PROGRESS.md 2>/dev/null || true
