@@ -80,7 +80,7 @@
       "dependencies": [
         "feat-075"
       ],
-      "status": "active",
+      "status": "completed",
       "acceptance_criteria": [
         "templates py-guard and ts-guard run only for an app folder in APP_DIRS whose files changed against the upstream merge-base (tracked edits, untracked files, and committed-but-unpushed commits all count), and exit 0 when none did; APP_DIRS=('.') treats the repo root as the app",
         "a missing tool prints SKIP and does not block; a failing tool blocks with exit 2 and shows its output",
@@ -91,7 +91,7 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "bash scripts/tests/test_shared_hook_templates.sh && python3 scripts/repo_audit.py ../hangar && python3 scripts/repo_audit.py ../atelier && bash scripts/harness-verify.sh",
-      "evidence": ""
+      "evidence": "Templates python/py-guard.sh, js/ts-guard.sh and js/ts-fix.sh now carry atelier's behaviour (turn scope against the upstream merge-base, failing output shown, plain tsc -b) with the app folders in a repo config block APP_DIRS ('.' = repo root); py-guard prints SKIP for each missing tool. scripts/tests/test_shared_hook_templates.sh 37 passed; the 16 new cases failed 6 before the change (whole-repo runs, no output shown, ts-fix ignoring folders). A mutation that drops ts-guard's folder prefix is caught. Writing ts-fix's test found a real bug in my first version: on macOS git prints /private/var/... while the hook got /var/..., so the folder never matched; the hook now compares physical paths. test_init_repo.sh 16 passed. shellcheck clean. Synced with a one-off script that keeps each repo's config block: hangar sh-check, yaml-validate (924ef3f); atelier sh-check, migration-guard, ruff-fix, py-guard (APP_DIRS apps/firstdigital-api), ts-guard and ts-fix (apps/firstdigital) (0b278d1). repo_audit: drifted hangar 2 -> 0, atelier 6 -> 0 (docs/telemetry/repos/*/2026-10-18.json). hangar test-hooks.sh 33 passed and ./init.sh exit 0; atelier test-hooks.sh 32 passed and ./init.sh exit 0. harness-verify.sh: all 11 gates passed, output saved to a file. Not done: harness/guards py-check, secret-scan and sh-check still differ from templates/hooks (this repo's own guards; outside T2). Atelier's hook messages now name the folder (apps/firstdigital-api) instead of the app name. Neither repo commit is pushed."
     }
   ]
 }
