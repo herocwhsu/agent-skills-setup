@@ -71,6 +71,24 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-078",
+      "name": "agent-harness.json: schema, checker, and the files for hangar and atelier",
+      "description": "T4 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md (D1: JSON, so macOS system Python 3.9 reads it). A target repo declares for the harness, not the agent: the harness commit it was synced to, its state files, its verify commands, and its hooks in wiring order, each a shared template (templates/hooks/<stack>/<file>) or a repo-local file, with event edit or stop. Explicit hook lists, not whole stacks, so a sync never adds a hook a repo did not choose (common/ also holds grype-guard and pr-guard, which neither repo uses). scripts/harness_adapter.py check <repo> validates it and reports the version against harness-version.json. D6 provisional: hangar keeps no feature_list.json; its file declares AGENTS.md and PROGRESS.md only.",
+      "dependencies": [
+        "feat-077"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "check exits 0 for a valid file and 2 with one line per problem for: missing file, invalid JSON, wrong schema_version, unknown or missing key, wrong type, a hook naming neither template nor local or both, an event other than edit/stop, a template not under templates/hooks, a local hook or state file that does not exist, an empty verify list",
+        "check reports the version as in sync, differs (both commits named) or unknown (no harness-version.json) and never fails on it",
+        "hangar and atelier get agent-harness.json whose hook lists match their current .claude/settings.json exactly (same files, events and order); check passes for both",
+        "runs on macOS system Python 3.9; mypy and ruff clean",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_adapter.py -q && python3 scripts/harness_adapter.py check ../hangar && python3 scripts/harness_adapter.py check ../atelier && bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }
