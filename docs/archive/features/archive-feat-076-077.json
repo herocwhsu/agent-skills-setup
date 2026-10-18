@@ -1,0 +1,58 @@
+{
+  "features": [
+    {
+      "id": "feat-076",
+      "name": "Upstream atelier's monorepo-aware hooks into templates, then sync the stale copies in hangar and atelier",
+      "description": "T2 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md. feat-075's baseline found hangar 2 and atelier 6 drifted hooks, in both directions: atelier's py-guard and ts-guard (2026-10-13) gate on the files changed since the upstream merge-base, show the failing output and fix tsc -b --noEmit (TS6310), while the templates still run whole-repo; ts-fix hard-codes atelier's app. sh-check, yaml-validate, migration-guard and ruff-fix are older in the repos (sh-check lacks agy support; the rest differ only in header comments). Move atelier's behaviour into templates/hooks with the app folders in the repo config block (APP_DIRS, '.' for a single-app repo), then copy every drifted template into hangar and atelier keeping each repo's config block.",
+      "dependencies": [
+        "feat-075"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "templates py-guard and ts-guard run only for an app folder in APP_DIRS whose files changed against the upstream merge-base (tracked edits, untracked files, and committed-but-unpushed commits all count), and exit 0 when none did; APP_DIRS=('.') treats the repo root as the app",
+        "a missing tool prints SKIP and does not block; a failing tool blocks with exit 2 and shows its output",
+        "ts-fix formats a file with the prettier of the APP_DIRS folder that holds it, and does nothing for a file outside every folder",
+        "scripts/tests/test_shared_hook_templates.sh covers the above and failed before the template change",
+        "after the sync, repo_audit.py reports 0 drifted hooks for hangar and atelier, and atelier's config block keeps its app folders",
+        "hangar ./init.sh and atelier ./init.sh (their hook tests) pass, or a failure is shown to be pre-existing",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/tests/test_shared_hook_templates.sh && python3 scripts/repo_audit.py ../hangar && python3 scripts/repo_audit.py ../atelier && bash scripts/harness-verify.sh",
+      "evidence": "Templates python/py-guard.sh, js/ts-guard.sh and js/ts-fix.sh now carry atelier's behaviour (turn scope against the upstream merge-base, failing output shown, plain tsc -b) with the app folders in a repo config block APP_DIRS ('.' = repo root); py-guard prints SKIP for each missing tool. scripts/tests/test_shared_hook_templates.sh 37 passed; the 16 new cases failed 6 before the change (whole-repo runs, no output shown, ts-fix ignoring folders). A mutation that drops ts-guard's folder prefix is caught. Writing ts-fix's test found a real bug in my first version: on macOS git prints /private/var/... while the hook got /var/..., so the folder never matched; the hook now compares physical paths. test_init_repo.sh 16 passed. shellcheck clean. Synced with a one-off script that keeps each repo's config block: hangar sh-check, yaml-validate (924ef3f); atelier sh-check, migration-guard, ruff-fix, py-guard (APP_DIRS apps/firstdigital-api), ts-guard and ts-fix (apps/firstdigital) (0b278d1). repo_audit: drifted hangar 2 -> 0, atelier 6 -> 0 (docs/telemetry/repos/*/2026-10-18.json). hangar test-hooks.sh 33 passed and ./init.sh exit 0; atelier test-hooks.sh 32 passed and ./init.sh exit 0. harness-verify.sh: all 11 gates passed, output saved to a file. Not done: harness/guards py-check, secret-scan and sh-check still differ from templates/hooks (this repo's own guards; outside T2). Atelier's hook messages now name the folder (apps/firstdigital-api) instead of the app name. Neither repo commit is pushed.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-fe7f414708",
+        "output_tokens": 26129,
+        "wall_time_ms": 75073151,
+        "active_turn_time_ms": 580697,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    },
+    {
+      "id": "feat-077",
+      "name": "install.sh records the installed harness version",
+      "description": "T3 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md. Nothing records which harness commit a machine runs, so a target repo cannot tell whether its hook copies or settings match what is installed. install.sh (and so update.sh) writes <runtime dir>/harness-version.json: full and short commit, git describe (tags when present), whether the tree was dirty, and the install time. Later tasks (agent-harness.json, preflight) compare against it.",
+      "dependencies": [
+        "feat-076"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "record_harness_version in scripts/_lib.sh writes harness-version.json with commit equal to git rev-parse HEAD, short, describe (a tag when HEAD is tagged), dirty true only with uncommitted changes to tracked files, and installed_at",
+        "outside a git checkout it writes commit null with a reason and prints a warning instead of failing the install",
+        "the file is valid JSON for any repo path (spaces, quotes)",
+        "install.sh calls it once; a real install on this machine writes the file with the current HEAD",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/tests/test_record_harness_version.sh && bash scripts/harness-verify.sh",
+      "evidence": "scripts/_lib.sh record_harness_version writes <runtime dir>/harness-version.json (commit, short, describe, dirty, installed_at; outside git: commit null, reason, a WARN, install continues); install.sh calls it once after install_runtime_dir. scripts/tests/test_record_harness_version.sh 10 checks; it failed 9 of them before the function existed. The repo path in the test holds spaces and quotes; JSON is written by python3, which install.sh already requires. Real install: bash scripts/install.sh exit 0, ~/.agent-skills-setup/harness-version.json commit 1a23b64 = git rev-parse HEAD, dirty false. harness-verify.sh: all 11 gates passed, output saved to a file. Not done: no tags exist yet, so describe prints the short commit; the dirty check covers tracked files only (untracked files are not part of an install).",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-823922e6dd",
+        "output_tokens": 7857,
+        "wall_time_ms": 325198,
+        "active_turn_time_ms": null,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    }
+  ]
+}
