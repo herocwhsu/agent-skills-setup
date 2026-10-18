@@ -73,6 +73,24 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-077",
+      "name": "install.sh records the installed harness version",
+      "description": "T3 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md. Nothing records which harness commit a machine runs, so a target repo cannot tell whether its hook copies or settings match what is installed. install.sh (and so update.sh) writes <runtime dir>/harness-version.json: full and short commit, git describe (tags when present), whether the tree was dirty, and the install time. Later tasks (agent-harness.json, preflight) compare against it.",
+      "dependencies": [
+        "feat-076"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "record_harness_version in scripts/_lib.sh writes harness-version.json with commit equal to git rev-parse HEAD, short, describe (a tag when HEAD is tagged), dirty true only with uncommitted changes to tracked files, and installed_at",
+        "outside a git checkout it writes commit null with a reason and prints a warning instead of failing the install",
+        "the file is valid JSON for any repo path (spaces, quotes)",
+        "install.sh calls it once; a real install on this machine writes the file with the current HEAD",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/tests/test_record_harness_version.sh && bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }
