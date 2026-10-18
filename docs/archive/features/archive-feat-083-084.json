@@ -1,0 +1,54 @@
+{
+  "features": [
+    {
+      "id": "feat-083",
+      "name": "Record where each agent reads per-repo skills",
+      "description": "T9 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md. Skill packs per repo (T10) need the folder each agent reads inside a repo. Checked the official docs on 2026-10-18 and recorded them in docs/harness-adoption.md: Claude .claude/skills; Codex .agents/skills (CWD, parent, repo root) and ~/.agents/skills for the user; agy .agents/skills (.agent/skills still read) and ~/.gemini/antigravity-cli/skills for the CLI; Kiro .kiro/skills and ~/.kiro/skills, loaded by the default agent only.",
+      "dependencies": [
+        "feat-082"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "docs/harness-adoption.md lists the repo and user skill folders for claude, codex, agy and kiro with the source and date",
+        "the mismatch between agent_skills_dir codex (~/.codex/skills) and the documented ~/.agents/skills is recorded as an open item, not changed untested",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "grep -q '.agents/skills' docs/harness-adoption.md && bash scripts/harness-verify.sh",
+      "evidence": "Checked the official docs on 2026-10-18 (WebFetch): learn.chatgpt.com/docs/build-skills (Codex: $CWD/.agents/skills, $CWD/../.agents/skills, $REPO_ROOT/.agents/skills; user $HOME/.agents/skills), antigravity.google/docs/skills (workspace <root>/.agents/skills, .agent/skills still read; CLI global ~/.gemini/antigravity-cli/skills), kiro.dev/docs/skills (.kiro/skills and ~/.kiro/skills, default agent loads both). Recorded in docs/harness-adoption.md 'Where each agent reads skills'. Third-party guides that give ~/.codex/skills or .agent/skills are older; the official pages were preferred. Open item in PROGRESS.md: agent_skills_dir codex installs to ~/.codex/skills while the current doc names ~/.agents/skills; codex is not installed here, so it was not changed. None of this was run live. harness-verify.sh: all 11 gates passed, output saved to a file.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-7757d1e9c0",
+        "output_tokens": 5249,
+        "wall_time_ms": 243582,
+        "active_turn_time_ms": null,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    },
+    {
+      "id": "feat-084",
+      "name": "Skill packs: pack list, per-repo skill_packs, and the measured effect of scoping",
+      "description": "T10 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md, first half. config/skill-packs.json names a core pack (stays global: superpowers process skills, utils, spec-workflow as the router the global rules name, experiment-iteration) and opt-in packs (spec-gated, sre, ai, frontend, infra, tracking, harness-dev); any global skill no pack names stays global. agent-harness.json takes an optional skill_packs list, checked against that file. repo_audit.py reports, next to today's skill tokens, what the repo would load with only core plus its packs. The second half, removing pack skills from the global install and linking them into .claude/skills, .agents/skills and .kiro/skills of each registered repo, changes what every unregistered repo on the machine sees, so it waits for owner decisions (D7, and what unregistered repos keep).",
+      "dependencies": [
+        "feat-083"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "config/skill-packs.json names each pack once per skill and no skill in two packs; a test checks every named skill exists in the global install or registry",
+        "check accepts skill_packs naming known packs only and rejects an unknown or core pack",
+        "repo_audit reports skill_tokens_scoped (core + the repo's packs + unassigned globals + repo skills) beside skill_tokens, and the skill list with each skill's pack",
+        "hangar (infra) and atelier (ai, frontend, spec-gated) declare packs; their audits are saved",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_adapter.py tests/test_repo_audit.py -q && bash scripts/harness-verify.sh",
+      "evidence": "config/skill-packs.json: core (16 skills that stay global, incl. spec-workflow as the router the global rules name, utils, experiment-iteration) and opt-in packs spec-gated (10), sre, ai, frontend, infra, tracking (kanban-ai, linear), harness-dev. Every name is installed on this machine and every installed skill is in a pack (checked against ~/.claude/skills; a unit test checks only that no skill is in two packs, since superpowers skills are not in this repo). agent-harness.json takes optional skill_packs, rejected when unknown or core. repo_audit.py adds each skill's pack and skill_tokens_scoped. Tests: 41 passed (tests/test_repo_audit.py, tests/test_harness_adapter.py); the new scoped-token and pack-check cases failed first (3; the invalid-pack cases passed early only because skill_packs was then an unknown key). Declared: hangar infra + spec-gated (e0e1468), atelier ai + frontend + spec-gated (0826503) - spec-gated kept in both as the least change while D7 is open. Measured (estimated tokens): skill list hangar 2,380 -> 1,870 scoped, 1,027 without spec-gated; atelier 2,380 -> 1,886, 1,043 without spec-gated. harness-verify.sh: all 11 gates passed, output saved to a file. Not done (second half, waits for owner decisions D7 and what unregistered repos keep): removing pack skills from the global installs and linking them into each registered repo's .claude/skills, .agents/skills and .kiro/skills. Until then nothing an agent loads has changed.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-e1922d11af",
+        "output_tokens": 12144,
+        "wall_time_ms": 290461,
+        "active_turn_time_ms": null,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    }
+  ]
+}
