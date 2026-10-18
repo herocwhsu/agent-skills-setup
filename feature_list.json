@@ -162,6 +162,24 @@
       ],
       "verification": "python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/tests/test_uninstall_globals.sh && bash scripts/harness-verify.sh",
       "evidence": "Tests first: the shared-parent test failed (no links), the unlink test failed (no function); 43 passed after. Mutations: dropping the HOME check and dropping the git check each fail one case. Real sync-all linked ai-stack, kanban-ai, linear and webapp-testing into ~/projects/.claude/skills, .agents/skills and .kiro/skills; live claude -p (haiku) and agy -p started in ~/projects answer YES for linear (both NO before). test_uninstall_globals.sh passes (fake HOME). harness-verify.sh: all 11 gates passed, output saved to a file. Same round, outside this feature: atelier's Stop block fixed in atelier 0413080 (lockfile-only update of undici, js-yaml, brace-expansion, browserslist; two react-router advisories recorded as not applicable until 2027-01-18 in apps/firstdigital/osv-scanner.toml, since 6.x has no fix; typecheck, 12 tests, build and ./init.sh pass). Not done: deploying the global rules and editing agents/engineering-rules.md were both denied by the auto-mode classifier as self-modification; the owner applies them."
+    },
+    {
+      "id": "feat-092",
+      "name": "Weekly harness evaluation of every target repo, silent unless worse",
+      "description": "Nothing ran update.sh or the repo audits on a schedule, so a newly installed agent, a drifted hook or a failing verify surfaced only by hand. scripts/harness_weekly.py takes update.sh's output and exit code, audits each registered repo into <runtime>/audits/<repo>/<date>.json (per machine: committing here would break update.sh's pull --ff-only once the remote moves), compares with the latest earlier audit and writes a markdown report with the repo_trend table. Regressions: update.sh failed; a repo failed to sync; a new outside agent detected (codex once installed) or a listed one not answering; a hook drifted; always-loaded tokens up more than 10%; a repo's latest verify run failed. Exit 1 on regressions, 2 on no verdict. hangar's scripts/jobs/harness-weekly.sh (LaunchAgent top.firstdigital.harness-weekly, Monday 09:30) runs update.sh then this, writes ~/hangar-weekly/harness-<YYYY-Www>.md and sends ntfy only on regressions or no verdict.",
+      "dependencies": [
+        "feat-091"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "each regression class is reported, and a clean week reports none",
+        "the latest verify run decides, not an earlier failure",
+        "this week's audit is saved per machine and compared with the latest earlier one",
+        "exit 1 only on regressions, with the report written either way",
+        "the hangar job runs end to end on this host and is silent on a clean week"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_weekly.py -q && bash scripts/harness-verify.sh",
+      "evidence": "tests/test_harness_weekly.py written first (module missing), 5 passed after. Dry run on the real runtime: no regressions, table for atelier and hangar, audits saved to ~/.agent-skills-setup/audits/. hangar job run once by hand: update.sh exit 0, no regressions, report ~/hangar-weekly/harness-2026-W42.md, job metrics written, no ntfy sent. LaunchAgent bootstrapped (Weekday 1, 09:30). hangar's CronJobNotRunning rule now covers harness-weekly at the weekly threshold. Not exercised: the ntfy path (no regression this week)."
     }
   ]
 }
