@@ -84,7 +84,7 @@ the next task is planned from measured cost and effect.
 | T8 ✅ feat-082 Stop runs `verify`; gate runs recorded centrally per repo | I11 | gate runs logged for target repos | D8 |
 | T9 ✅ feat-083 check per-repo skill support in codex, agy, kiro | (T10 input) | facts recorded | — |
 | T10 ½ feat-084 skill packs per repo: packs, `skill_packs`, projection done; global switch waits for D7 | I10 | hangar skill descriptions ~2,100 → ~700 tokens | D7 |
-| T11 trim `AGENTS.md`: one commit rule, shared sections from a template | I7, I8 | repo `AGENTS.md` tokens down, no conflicts | D5 |
+| T11 ✅ feat-085 trim `AGENTS.md`: one commit rule, shared sections from a template | I7, I8 | repo `AGENTS.md` tokens down, no conflicts | D5 |
 | T12 cross-repo trend in `trace-evaluation.sh` and the weekly review | I11 | one trend over all repos | — |
 | later | ansible, c-cpp packs when a repo needs them | I14 | — | — |
 

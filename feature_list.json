@@ -80,14 +80,14 @@
       "dependencies": [
         "feat-084"
       ],
-      "status": "active",
+      "status": "completed",
       "acceptance_criteria": [
         "neither repo's AGENTS.md states a commit rule that conflicts with the global rules",
         "both ./init.sh pass",
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "bash scripts/harness-verify.sh",
-      "evidence": ""
+      "evidence": "hangar bee4e75 and atelier 9babdd9: Commit format sections now say the global rule applies and keep only each repo's exceptions (lowercase summary; hangar's merge/squash exemption and its paragraph on why no commit-msg hook exists). atelier's 'max 72 chars' and type list without ci/security are gone; its own last 40 subjects already ran to 129 chars and include a ci: commit, all lowercase, so the new text matches practice. AGENTS.md tokens: hangar 1,229 -> 1,200, atelier 820 -> 824 (the gain is the removed conflict, not size). Standing decisions in AGENTS.md were left: each is a two-line summary pointing at PROGRESS.md, not a copy. Startup / Done / End of Session not templated (short, repo-specific since feat-081). Both ./init.sh exit 0. harness-verify.sh: all 11 gates passed, output saved to a file."
     }
   ]
 }
