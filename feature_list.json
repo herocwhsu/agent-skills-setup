@@ -105,7 +105,7 @@
       "dependencies": [
         "feat-078"
       ],
-      "status": "active",
+      "status": "completed",
       "acceptance_criteria": [
         "harness-version.json records source_dir, the harness checkout that was installed",
         "drift exits 0 when every listed template hook matches its template outside the repo config block, and 2 naming each file and its template otherwise; --file limits it to one file and exits 0 for a file that is not a listed template hook",
@@ -115,7 +115,7 @@
         "all 11 harness gates pass, with gate output saved to a file"
       ],
       "verification": "bash scripts/tests/test_record_harness_version.sh && python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/tests/test_shared_hook_templates.sh && python3 scripts/harness_adapter.py drift ../hangar && python3 scripts/harness_adapter.py drift ../atelier && bash scripts/harness-verify.sh",
-      "evidence": ""
+      "evidence": "D2 changed (design doc): per-repo values stay in each hook's repo config block, the only part a repo may edit; copies are compared with their templates, not with each other. harness_adapter.py drift <repo> [--file F] compares each template hook listed in agent-harness.json with .claude/hooks/<name> outside the block (one _strip_config, imported from repo_audit). New templates/hooks/common/harness-drift.sh runs it on edit; it finds the harness through harness-version.json, which now records source_dir. Tests failed first: test_record_harness_version.sh (source_dir) 1 failed, tests/test_harness_adapter.py 3 failed, test_shared_hook_templates.sh 5 failed (hook missing); now 11 checks, 20 passed and 42 passed. Live: a non-config line appended to hangar's real sh-check.sh is blocked with exit 2 naming common/sh-check.sh; the clean copy exits 0. hangar 53a5aae: shared-hook-drift.sh, its wiring and its test-hooks.sh case 7 (sibling pair) removed, harness-drift.sh wired; security-check.sh now runs harness_adapter.py drift for hangar and atelier and alerts if agent-skills-setup is missing; docs/hooks.md updated. atelier 78fb190: harness-drift.sh wired (settings.json edited in its one-line style; my first json.dump rewrite reformatted the whole file and was reverted). drift: none for both; check passes, version in sync (3bc81d3). Both ./init.sh exit 0. The first full gate run failed test_init_repo.sh: profile full must copy every template and init-repo.sh lists common hooks by name; harness-drift.sh added there (16 passed). Second run: all 11 gates passed, output saved to a file. Not done: harness-drift.sh reads ~/.agent-skills-setup only, so a harness installed under another .skills-repo-id is not found (the hook then does nothing); security-check.sh's new block was checked by bash -n, shellcheck and the same commands run by hand, not by running the nightly job."
     }
   ]
 }

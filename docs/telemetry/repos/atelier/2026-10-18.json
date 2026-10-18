@@ -209,6 +209,11 @@
       "template": "k8s/checkov-guard.sh"
     },
     {
+      "file": "harness-drift.sh",
+      "status": "identical",
+      "template": "common/harness-drift.sh"
+    },
+    {
       "file": "migration-guard.sh",
       "status": "identical",
       "template": "python/migration-guard.sh"

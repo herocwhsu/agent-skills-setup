@@ -11,7 +11,7 @@
 #   k8s          — Kubernetes/Kustomize infra (yaml-validate, checkov, placeholder-guard)
 #   full         — all of the above
 #
-# Common hooks (secret-scan, semgrep, grype, sh-check, pr-guard) and check-tools.sh
+# Common hooks (secret-scan, semgrep, grype, sh-check, pr-guard, harness-drift) and check-tools.sh
 # are always included.
 #
 # The target repo gets .claude/hooks/ populated and .claude/settings.json created.
@@ -60,6 +60,7 @@ copy_hook "$HOOKS_SRC/common/semgrep-guard.sh"
 copy_hook "$HOOKS_SRC/common/grype-guard.sh"
 copy_hook "$HOOKS_SRC/common/sh-check.sh"
 copy_hook "$HOOKS_SRC/common/pr-guard.sh"
+copy_hook "$HOOKS_SRC/common/harness-drift.sh"
 copy_hook "$HOOKS_SRC/check-tools.sh"
 
 case "$PROFILE" in
@@ -133,7 +134,7 @@ echo "  1. Run: bash $DEST/check-tools.sh"
 echo "     to see which tools are installed on this machine."
 echo ""
 echo "  2. Edit $SETTINGS to add hook wiring:"
-echo "     - PostToolUse: py-check.sh, ruff-fix.sh, ts-fix.sh, migration-guard.sh, sh-check.sh"
+echo "     - PostToolUse: py-check.sh, ruff-fix.sh, ts-fix.sh, migration-guard.sh, sh-check.sh, harness-drift.sh"
 echo "     - Stop: py-guard.sh, ts-guard.sh, semgrep-guard.sh, pr-guard.sh, grype-guard.sh, secret-scan.sh"
 echo ""
 echo "  3. Commit .claude/ to the repo so all team members get the same hooks."

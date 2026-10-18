@@ -43,8 +43,7 @@ harness repo (agent-skills-setup)          target repo (hangar, atelier, ...)
 
 - **Hooks, three layers:** common (every repo) → stack packs (any number:
   python, js, go, k8s, later ansible, c-cpp) → local hooks (repo-owned, never
-  touched). Harness copies are byte-identical; per-repo values come from
-  `agent-harness.json`. A hook only checks its own file types; a missing tool
+  touched). Harness copies match their templates outside the repo config block (D2). A hook only checks its own file types; a missing tool
   is a loud SKIP. A local hook used by a second repo moves into a pack.
 - **Skills:** core skills stay global; packs (spec-gated, sre, ai, frontend,
   infra, harness-dev) are linked into `<repo>/.claude/skills/` only where the
@@ -79,7 +78,7 @@ the next task is planned from measured cost and effect.
 | T2 ✅ feat-076 upstream atelier's newer hooks (py-guard, ts-guard, …) into templates, then sync the older copies in hangar and atelier | I1 | drifted hooks hangar 2 → 0, atelier 6 → 0 | — |
 | T3 ✅ feat-077 harness version: tags + install records installed commit | I4 | version recorded | — |
 | T4 ✅ feat-078 `agent-harness.json` schema, reader, files for hangar and atelier | I6, I12, I13 | both validate | D1, D6 |
-| T5 per-repo hook values move from hook files into the file; drift check = byte compare; drop `shared-hook-drift.sh` | I2, I5 | harness copies identical | D2 |
+| T5 ✅ feat-079 drift checked against templates outside the config block (D2 changed); drop `shared-hook-drift.sh` | I2, I5 | harness copies identical | — |
 | T6 `update.sh` syncs registered repos and writes hooks for every supported agent, installed or not | I3, I6 | agents with hooks 1 → 3 | D3 |
 | T7 SessionStart preflight + state brief; startup rule reads the brief | I9 | hangar startup-read ~3,900 → ~300 tokens | D9 |
 | T8 Stop runs `verify`; gate runs recorded centrally per repo | I11 | gate runs logged for target repos | D8 |
@@ -92,7 +91,10 @@ the next task is planned from measured cost and effect.
 ## Open decisions (proposed default in bold)
 
 - D1 file format: **`agent-harness.json`** (system Python 3.9 reads it) vs YAML (needs PyYAML).
-- D2 per-repo hook values move into the file: **yes**.
+- D2 ✅ changed 2026-10-18: **values stay in each hook's repo config block**, the only part a repo may
+  edit. They are bash (arrays, regexes, `$REPO_ROOT` paths); JSON would need an eval loader in every
+  hook. The drift came from comparing siblings, so copies are now compared with their templates
+  (`harness_adapter.py drift`, `common/harness-drift.sh`).
 - D3 `update.sh` syncs **every registered repo, printing what changed** vs one repo per run.
 - D4 ✅ decided 2026-10-17: **every supported agent, whatever a host has installed.** A target repo
   gets hook settings for claude, codex and agy (kiro has no hook equivalent) even on a host with

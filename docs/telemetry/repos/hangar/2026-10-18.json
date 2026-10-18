@@ -210,6 +210,11 @@
       "template": null
     },
     {
+      "file": "harness-drift.sh",
+      "status": "identical",
+      "template": "common/harness-drift.sh"
+    },
+    {
       "file": "placeholder-guard.sh",
       "status": "identical",
       "template": "k8s/placeholder-guard.sh"
@@ -228,11 +233,6 @@
       "file": "sh-check.sh",
       "status": "identical",
       "template": "common/sh-check.sh"
-    },
-    {
-      "file": "shared-hook-drift.sh",
-      "status": "local",
-      "template": null
     },
     {
       "file": "yaml-validate.sh",
