@@ -1,0 +1,57 @@
+{
+  "features": [
+    {
+      "id": "feat-078",
+      "name": "agent-harness.json: schema, checker, and the files for hangar and atelier",
+      "description": "T4 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md (D1: JSON, so macOS system Python 3.9 reads it). A target repo declares for the harness, not the agent: the harness commit it was synced to, its state files, its verify commands, and its hooks in wiring order, each a shared template (templates/hooks/<stack>/<file>) or a repo-local file, with event edit or stop. Explicit hook lists, not whole stacks, so a sync never adds a hook a repo did not choose (common/ also holds grype-guard and pr-guard, which neither repo uses). scripts/harness_adapter.py check <repo> validates it and reports the version against harness-version.json. D6 provisional: hangar keeps no feature_list.json; its file declares AGENTS.md and PROGRESS.md only.",
+      "dependencies": [
+        "feat-077"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "check exits 0 for a valid file and 2 with one line per problem for: missing file, invalid JSON, wrong schema_version, unknown or missing key, wrong type, a hook naming neither template nor local or both, an event other than edit/stop, a template not under templates/hooks, a local hook or state file that does not exist, an empty verify list",
+        "check reports the version as in sync, differs (both commits named) or unknown (no harness-version.json) and never fails on it",
+        "hangar and atelier get agent-harness.json whose hook lists match their current .claude/settings.json exactly (same files, events and order); check passes for both",
+        "runs on macOS system Python 3.9; mypy and ruff clean",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_adapter.py -q && python3 scripts/harness_adapter.py check ../hangar && python3 scripts/harness_adapter.py check ../atelier && bash scripts/harness-verify.sh",
+      "evidence": "scripts/harness_adapter.py check <repo> validates agent-harness.json (schema_version 1; harness {source, version}, project {name}, state_files, verify, hooks [{template|local, event edit|stop}] in wiring order) and reports the version against harness-version.json as in sync / differs (both commits) / unknown without failing. tests/test_harness_adapter.py 17 passed. Tests and code were written in the same step, so the tests did not fail first; instead four mutations were run: unknown keys allowed, version always in sync and template+local both allowed were each caught; dropping the stays-under-templates/ check survived, because the test's ../escape.sh did not exist and failed for the wrong reason; the test now creates that file and the mutation is caught. Runs on /usr/bin/python3 3.9.6; mypy and ruff clean. hangar (8 hooks, 0cd1eb8) and atelier (10 hooks, 8c4ec32) files were generated from their .claude/settings.json, so files, events and order match; check passes for both, version in sync (1a23b64). Both ./init.sh exit 0 with the new file. D6 taken provisionally: hangar declares AGENTS.md and PROGRESS.md only (no feature_list.json), as today. harness-verify.sh: all 11 gates passed, output saved to a file. Not done: nothing reads verify or hooks yet (T6, T8); the explicit hook list replaces the stacks idea in the design, because common/ also holds grype-guard and pr-guard which neither repo uses.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-3955dadd62",
+        "output_tokens": 11895,
+        "wall_time_ms": 382881,
+        "active_turn_time_ms": null,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    },
+    {
+      "id": "feat-079",
+      "name": "Hook drift is checked against the harness templates, not between sibling repos",
+      "description": "T5 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md, with D2 changed: the per-repo values stay in each hook's repo config block (they are bash: arrays, regexes, $REPO_ROOT paths; moving them to JSON needs an eval loader in every hook), and that block stays the only part a repo may edit. What caused the drift was comparing hangar with atelier instead of with the harness. harness_adapter.py drift <repo> [--file F] compares each template hook listed in agent-harness.json with its template outside the config block. New shared hook templates/hooks/common/harness-drift.sh runs it on edit, finding the harness through harness-version.json (now also recording source_dir); with no harness installed (top2, vm1 clones) it does nothing. hangar drops shared-hook-drift.sh and its tests; its nightly security-check.sh compares both repos with the harness.",
+      "dependencies": [
+        "feat-078"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "harness-version.json records source_dir, the harness checkout that was installed",
+        "drift exits 0 when every listed template hook matches its template outside the repo config block, and 2 naming each file and its template otherwise; --file limits it to one file and exits 0 for a file that is not a listed template hook",
+        "harness-drift.sh blocks (exit 2, message on stderr) an edit that makes a template hook differ, allows an edit inside the config block, ignores other files, and exits 0 when harness-version.json or its source_dir is missing",
+        "hangar: shared-hook-drift.sh, its settings.json wiring and its test-hooks.sh cases are gone; harness-drift.sh is wired on edit in hangar and atelier settings.json and agent-harness.json; hangar docs/hooks.md and security-check.sh compare with the harness",
+        "hangar and atelier ./init.sh pass; harness_adapter.py check and drift pass for both",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/tests/test_record_harness_version.sh && python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/tests/test_shared_hook_templates.sh && python3 scripts/harness_adapter.py drift ../hangar && python3 scripts/harness_adapter.py drift ../atelier && bash scripts/harness-verify.sh",
+      "evidence": "D2 changed (design doc): per-repo values stay in each hook's repo config block, the only part a repo may edit; copies are compared with their templates, not with each other. harness_adapter.py drift <repo> [--file F] compares each template hook listed in agent-harness.json with .claude/hooks/<name> outside the block (one _strip_config, imported from repo_audit). New templates/hooks/common/harness-drift.sh runs it on edit; it finds the harness through harness-version.json, which now records source_dir. Tests failed first: test_record_harness_version.sh (source_dir) 1 failed, tests/test_harness_adapter.py 3 failed, test_shared_hook_templates.sh 5 failed (hook missing); now 11 checks, 20 passed and 42 passed. Live: a non-config line appended to hangar's real sh-check.sh is blocked with exit 2 naming common/sh-check.sh; the clean copy exits 0. hangar 53a5aae: shared-hook-drift.sh, its wiring and its test-hooks.sh case 7 (sibling pair) removed, harness-drift.sh wired; security-check.sh now runs harness_adapter.py drift for hangar and atelier and alerts if agent-skills-setup is missing; docs/hooks.md updated. atelier 78fb190: harness-drift.sh wired (settings.json edited in its one-line style; my first json.dump rewrite reformatted the whole file and was reverted). drift: none for both; check passes, version in sync (3bc81d3). Both ./init.sh exit 0. The first full gate run failed test_init_repo.sh: profile full must copy every template and init-repo.sh lists common hooks by name; harness-drift.sh added there (16 passed). Second run: all 11 gates passed, output saved to a file. Not done: harness-drift.sh reads ~/.agent-skills-setup only, so a harness installed under another .skills-repo-id is not found (the hook then does nothing); security-check.sh's new block was checked by bash -n, shellcheck and the same commands run by hand, not by running the nightly job.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-4552b5ae0e",
+        "output_tokens": 19780,
+        "wall_time_ms": 716544,
+        "active_turn_time_ms": null,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    }
+  ]
+}
