@@ -305,18 +305,32 @@ def pack_skill_names(packs: dict[str, list[str]] | None = None) -> set[str]:
     return {s for name, skills in packs.items() if name != "core" for s in skills}
 
 
-def store_pack_skills(skills_dir: Path, store: Path, names: set[str]) -> list[str]:
+def store_pack_skills(
+    skills_dir: Path,
+    store: Path,
+    names: set[str],
+    installed: set[str] | None = None,
+    repo_dir: Path | None = None,
+) -> list[str]:
     """Move pack skills out of an agent's global skills dir into the pack store.
 
     install.sh installs every skill globally, then calls this, so a pack skill is
     loaded only in the repos whose agent-harness.json lists its pack. A link moves
-    as a link; a copied skill dir replaces the stored one.
+    as a link; a copied skill dir replaces the stored one. Pack names are generic
+    (review, testing), so with `installed` only names this install put there move,
+    and with `repo_dir` a link moves only when it points into its skills/.
     """
     moved: list[str] = []
     for name in sorted(names):
         src = skills_dir / name
         if not (src.is_symlink() or src.exists()):
             continue
+        if installed is not None and name not in installed:
+            continue
+        if repo_dir is not None and src.is_symlink():
+            target = Path(os.readlink(src))
+            if not target.is_absolute() or not target.is_relative_to(repo_dir / "skills"):
+                continue
         dst = store / name
         store.mkdir(parents=True, exist_ok=True)
         if dst.is_symlink() or dst.is_file():
@@ -425,10 +439,15 @@ AGY_GROUPS = ("harness-edit", "harness-stop")
 
 
 def _load_json(path: Path) -> dict[str, Any]:
+    """A missing file is empty; a malformed one stops sync so it is not overwritten."""
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        text = path.read_text(encoding="utf-8")
+    except OSError:
         return {}
+    try:
+        data = json.loads(text)
+    except ValueError as e:
+        raise AdapterError(f"{path} is not valid JSON ({e}); fix it, then sync again") from e
     return data if isinstance(data, dict) else {}
 
 
@@ -454,15 +473,14 @@ def sync(repo: Path, templates: Path, runtime: Path) -> list[str]:
 
     wiring = _wiring(data["hooks"])
     settings = repo / ".claude/settings.json"
-    try:
-        claude = json.loads(settings.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        claude = {}
+    claude = _load_json(settings)
+    # The Claude file's "hooks" belong to agent-harness.json entirely (the repo
+    # declares every Claude hook there); its other keys are kept.
     if claude.get("hooks") != wiring["claude"]:
         claude["hooks"] = wiring["claude"]
         _write_if_changed(settings, _dump(claude), changes, repo)
-    # Like the Claude file: replace only what sync owns (codex's "hooks", agy's
-    # harness-* groups) and keep the rest of each file.
+    # Replace only what sync owns (codex's "hooks", agy's harness-* groups) and
+    # keep the rest of each file.
     codex = _load_json(repo / ".codex/hooks.json")
     codex["hooks"] = wiring["codex"]["hooks"]
     _write_if_changed(repo / ".codex/hooks.json", _dump(codex), changes, repo)
@@ -604,13 +622,22 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--agent", default=None)
     ap.add_argument("--hooks-dir", type=Path, default=None)
     ap.add_argument("--skills-dir", type=Path, default=None)
+    ap.add_argument("--installed", type=Path, default=None)
+    ap.add_argument("--repo-dir", type=Path, default=None)
     args = ap.parse_args(argv)
     runtime = args.runtime or _runtime_dir()
     if args.command == "store-packs":
         if not args.agent or args.skills_dir is None:
             ap.error("store-packs needs --agent and --skills-dir")
+        installed = None
+        if args.installed is not None:
+            installed = set(args.installed.read_text(encoding="utf-8").split())
         moved = store_pack_skills(
-            args.skills_dir, runtime / PACK_STORE / args.agent, pack_skill_names()
+            args.skills_dir,
+            runtime / PACK_STORE / args.agent,
+            pack_skill_names(),
+            installed=installed,
+            repo_dir=args.repo_dir,
         )
         print(f"  pack skills kept out of {args.skills_dir}: {' '.join(moved) or 'none'}")
         return 0

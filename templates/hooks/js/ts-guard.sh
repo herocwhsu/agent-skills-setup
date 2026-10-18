@@ -50,7 +50,7 @@ for rel in "${APP_DIRS[@]}"; do
 
   echo "=== $rel: eslint ==="
   if [[ -f "$APP_DIR/eslint.config.js" || -f "$APP_DIR/.eslintrc.js" ]]; then
-    out=$( (cd "$APP_DIR" && npx eslint src/ --max-warnings=0 -q) 2>&1 ) \
+    out=$( (cd "$APP_DIR" && npx eslint src/ --quiet) 2>&1 ) \
       || { echo "WARNING: $rel eslint issues" >&2; echo "$out" | head -25 >&2; WARN=1; }
   fi
 done

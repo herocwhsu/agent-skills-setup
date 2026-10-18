@@ -963,11 +963,13 @@ wire_global_hooks() {
     *)      return 0 ;;
   esac
   [[ "$mode" == --remove && ! -f "$settings" ]] && return 0
+  local prune=()
+  [[ "$mode" == --merge ]] && prune=(--prune-marker /hooks/global-hook.sh)
   tmp=$(mktemp /tmp/hook-XXXXXX)
   if python3 "$repo_dir/scripts/harness_adapter.py" global-wiring --agent "$agent" \
        --hooks-dir "$(skills_runtime_dir "$repo_dir")/hooks" > "$tmp" \
      && python3 "$repo_dir/scripts/_settings_merge.py" "$mode" "$tmp" "$settings" \
-       --agent "$agent" --hook-name harness-global; then
+       --agent "$agent" --hook-name harness-global ${prune[@]+"${prune[@]}"}; then
     echo "  ✓ global hooks ${mode#--} ($agent) → $settings"
   else
     echo "  WARNING: global hooks not ${mode#--}d for $agent" >&2

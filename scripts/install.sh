@@ -70,7 +70,7 @@ bash "$REPO_DIR/scripts/validate-registry.sh"
 echo ""
 echo "==> Installing runtime helpers..."
 install_runtime_dir "$REPO_DIR"
-record_harness_version "$REPO_DIR"
+record_harness_version "$REPO_DIR" || echo "  WARNING: harness version not recorded" >&2
 
 echo ""
 echo "==> Migrating keychain entries (if any)..."
@@ -155,7 +155,7 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   # list it: move those out of the global dir; harness_adapter.py sync links them
   # into each repo.
   python3 "$REPO_DIR/scripts/harness_adapter.py" store-packs --agent "$agent" \
-    --skills-dir "$target_dir" || echo "  WARNING: pack skills left global for $agent" >&2
+    --skills-dir "$target_dir" --installed "$INSTALLED_LIST" --repo-dir "$REPO_DIR" || echo "  WARNING: pack skills left global for $agent" >&2
   if [[ "$agent" == "kiro" ]]; then
     install_kiro_agent_config "$target_dir"
   fi

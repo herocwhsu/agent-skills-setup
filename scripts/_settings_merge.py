@@ -6,6 +6,9 @@ Usage:
     _settings_merge.py --remove hook.json settings.json [--agent A] [--hook-name N]
     _settings_merge.py --rewire hook.json settings.json --skills-dir DIR [--agent A] [--hook-name N]
 
+--merge --prune-marker STR first drops entries whose commands all contain STR but
+are not in hook.json: a harness hook whose command text changed.
+
 Claude Code and Codex: operates only on top-level "hooks.<EventName>" arrays.
 AGY (--agent gemini): operates on "<hook-name>.<EventName>" arrays. Preserves all
 other keys and other event names. Idempotent. Creates the file if missing on --merge.
@@ -184,6 +187,23 @@ def merge(hook: dict, settings: dict) -> dict:
 
 
 
+def prune(hook: dict, events: dict, marker: str) -> None:
+    """Drop entries whose commands all contain marker but none of hook's commands.
+
+    merge() matches by exact command, so when a harness hook's command text
+    changes the old entry stays next to the new one and the hook runs twice.
+    Entries without the marker belong to someone else and are never touched.
+    """
+    for event, entries in hook.get("hooks", {}).items():
+        new = set().union(*(_entry_commands(e) for e in entries)) if entries else set()
+        if not isinstance(events.get(event), list):
+            continue
+        events[event] = [
+            h for h in events[event]
+            if not ((cmds := _entry_commands(h)) and all(marker in c for c in cmds) and not cmds & new)
+        ]
+
+
 def _suffix(command: str, skills_dir: str) -> str | None:
     """The skill-relative tail of a hook command, e.g. /utils/polish-input/lib/polish.py.
 
@@ -263,6 +283,7 @@ def main() -> int:
     parser.add_argument("--skills-dir", default="")
     parser.add_argument("--agent", default="")
     parser.add_argument("--hook-name", default="")
+    parser.add_argument("--prune-marker", default="")
     args = parser.parse_args()
 
     if args.rewire and not args.skills_dir:
@@ -280,6 +301,8 @@ def main() -> int:
 
     if is_gemini:
         if args.merge:
+            if args.prune_marker and isinstance(settings.get(hook_name), dict):
+                prune(hook, settings[hook_name], args.prune_marker)
             settings = merge_gemini(hook, settings, hook_name)
         elif args.rewire:
             settings, changed = rewire_gemini(hook, settings, args.skills_dir, hook_name)
@@ -291,6 +314,8 @@ def main() -> int:
             settings = remove_gemini(hook, settings, hook_name)
     else:
         if args.merge:
+            if args.prune_marker and isinstance(settings.get("hooks"), dict):
+                prune(hook, settings["hooks"], args.prune_marker)
             settings = merge(hook, settings)
         elif args.rewire:
             settings, changed = rewire(hook, settings, args.skills_dir)

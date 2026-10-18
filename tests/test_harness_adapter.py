@@ -432,6 +432,37 @@ def test_store_pack_skills_moves_only_pack_skills_and_is_repeatable(tmp_path: Pa
     assert (store / "kanban-ai/SKILL.md").read_text() == "k2"
 
 
+def test_store_pack_skills_leaves_a_same_name_skill_the_install_did_not_put_there(
+    tmp_path: Path,
+) -> None:
+    skills, store, repo = tmp_path / "skills", tmp_path / "store", tmp_path / "harness"
+    (repo / "skills/x/review").mkdir(parents=True)
+    (tmp_path / "other/testing").mkdir(parents=True)
+    (skills / "audit").mkdir(parents=True)  # the user's own skill, not installed by this run
+    (skills / "audit/SKILL.md").write_text("mine")
+    (skills / "testing").symlink_to(tmp_path / "other/testing")  # another tool's link
+    (skills / "review").symlink_to(repo / "skills/x/review")
+    moved = ha.store_pack_skills(
+        skills, store, {"audit", "testing", "review"},
+        installed={"review", "testing"}, repo_dir=repo,
+    )
+    assert moved == ["review"]
+    assert (skills / "audit/SKILL.md").read_text() == "mine"
+    assert (skills / "testing").resolve() == tmp_path / "other/testing"
+    assert not (store / "audit").exists() and not (store / "testing").exists()
+
+
+@pytest.mark.parametrize("rel", [".claude/settings.json", ".codex/hooks.json", ".agents/hooks.json"])
+def test_sync_refuses_to_overwrite_a_malformed_agent_file(tmp_path: Path, rel: str) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    ha.sync(repo, templates=templates, runtime=runtime)
+    bad = '{"permissions": {"allow": ["Bash(ls)"]},}\n'  # trailing comma from a hand edit
+    (repo / rel).write_text(bad)
+    with pytest.raises(ha.AdapterError, match="not valid JSON"):
+        ha.sync(repo, templates=templates, runtime=runtime)
+    assert (repo / rel).read_text() == bad
+
+
 def _exclude(repo: Path) -> str:
     return (repo / ".git/info/exclude").read_text()
 

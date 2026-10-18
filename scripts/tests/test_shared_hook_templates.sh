@@ -237,6 +237,14 @@ else
   bad "py-guard shows the failing tool's output" "stderr: $out"
 fi
 
+# ESLint 9 with a flat config rejects `-q` (exit 2) and only takes --quiet.
+ESL="$TMPDIR/eslint9"; mkdir -p "$ESL"
+for t in node npm; do printf '#!/usr/bin/env bash\nexit 0\n' > "$ESL/$t"; chmod +x "$ESL/$t"; done
+# shellcheck disable=SC2016  # $a expands inside the stub, not here
+printf '#!/usr/bin/env bash\nfor a; do [[ "$a" == -q ]] && { echo "Invalid option -q"; exit 2; }; done\nexit 0\n' > "$ESL/npx"; chmod +x "$ESL/npx"
+W=$(app_repo src/a.ts); printf 'export default []\n' > "$W/eslint.config.js"; printf '// edit\n' >> "$W/src/a.ts"
+expect "ts-guard passes when eslint 9 (flat config) finds nothing" 0 "$(guard_rc "$HOOKS_SRC/js/ts-guard.sh" "$W" "$ESL:$PATH")"
+
 # ts-fix: the prettier of the APP_DIRS folder that holds the file, nothing outside.
 prettier_stub() { # <dir> : a prettier that records the file it was given
   mkdir -p "$1/node_modules/.bin"

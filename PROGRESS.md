@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-17
+**Last Updated:** 2026-10-18
 **Active Feature:** none
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
@@ -83,6 +83,7 @@
 3. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
 
 - **Review of 2026-10-18's work (f0e08e1..9675bee + hangar, atelier):** fresh-context subagent found 9 defects, all confirmed and fixed (2243f9b, hangar 2c30578); the outside review was **not independent**: agy timed out at 1500s on the ~6,600-line diff and outside-agent fell back to claude (exit 3). Its 3 confirmed findings fixed in 48127c6. Next time review per repo or per feature so agy can finish.
+- **Second outside review, split in five parts (2026-10-18):** C (weekly), D (hangar), E (atelier) ran on agy, independent; A (hooks) and B (adapter, install) timed out at 1200s on agy and fell back to claude, **not independent**. Findings fixed with failing tests first: ts-guard passed `-q`, which ESLint 9 rejects (exit 2, so every frontend turn was blocked); now `--quiet`, errors only, as ESLint 9 counts warnings against `--max-warnings` even with `--quiet` (atelier has 6 warnings, 0 errors). `store-packs` moves only names this install put there, and links only into this repo's `skills/` (a user's own `review/` was moved, then deleted by uninstall). A malformed `.claude/settings.json`, `.codex/hooks.json` or `.agents/hooks.json` stops sync instead of being overwritten. Global wiring prunes an old `global-hook.sh` entry whose command changed, so it cannot run twice. `record_harness_version` no longer fails an install. Not changed: sync owns the Claude `hooks` key by design (comment fixed). agy runs reviews with no `--effort`, i.e. its default.
 - **Live-run each agent's hooks after a wiring change**, not only replays from the repo root: replays missed both agy bugs in feat-087. A live agy run in a scratch clone (`agy -p ... --mode accept-edits`) is enough; a codex one when codex is installed.
 
 - **Codex user skills path:** `agent_skills_dir codex` installs to `~/.codex/skills`; current Codex docs read `~/.agents/skills` (docs/harness-adoption.md). Codex is not installed here; check on a host that has it before changing the path.

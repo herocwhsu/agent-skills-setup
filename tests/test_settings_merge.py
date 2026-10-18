@@ -252,3 +252,36 @@ def test_gemini_rewire_collapses_duplicate(tmp_path):
     assert result.returncode == 0, result.stderr
 
     assert read_json(settings)["p"]["PreInvocation"] == [{"type": "command", "command": fresh}]
+
+
+def test_merge_prune_marker_replaces_a_changed_harness_command(tmp_path):
+    # The command text of a harness hook changed (new args or runtime path): merge
+    # alone keeps the old entry next to the new one, so the hook runs twice.
+    new, old = "bash /rt/hooks/global-hook.sh claude edit", "bash /old/hooks/global-hook.sh claude edit"
+    hook = tmp_path / "hook.json"
+    write_json(hook, {"hooks": {"PostToolUse": [_wrapped(new)]}})
+    settings = tmp_path / "settings.json"
+    write_json(settings, {"hooks": {"PostToolUse": [_wrapped("user.sh"), _wrapped(old)]}})
+
+    result = run_helper("--merge", str(hook), str(settings), "--prune-marker", "/hooks/global-hook.sh")
+    assert result.returncode == 0, result.stderr
+
+    assert read_json(settings)["hooks"]["PostToolUse"] == [_wrapped("user.sh"), _wrapped(new)]
+
+
+def test_gemini_merge_prune_marker_replaces_a_changed_harness_command(tmp_path):
+    new, old = "bash /rt/hooks/global-hook.sh agy stop", "bash /old/hooks/global-hook.sh agy stop"
+    hook = tmp_path / "hook.json"
+    write_json(hook, {"hooks": {"Stop": [{"type": "command", "command": new}]}})
+    settings = tmp_path / "hooks.json"
+    user = {"type": "command", "command": "user.sh"}
+    write_json(settings, {"harness-global": {"Stop": [{"type": "command", "command": old}]},
+                          "mine": {"Stop": [user]}})
+
+    result = run_helper("--merge", str(hook), str(settings), "--agent", "gemini",
+                        "--hook-name", "harness-global", "--prune-marker", "/hooks/global-hook.sh")
+    assert result.returncode == 0, result.stderr
+
+    data = read_json(settings)
+    assert data["harness-global"]["Stop"] == [{"type": "command", "command": new}]
+    assert data["mine"]["Stop"] == [user]
