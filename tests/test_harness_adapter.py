@@ -285,3 +285,23 @@ def test_start_hooks_wire_claude_session_start_only(tmp_path: Path) -> None:
     codex = json.loads((repo / ".codex/hooks.json").read_text())["hooks"]
     assert "SessionStart" not in codex
     assert "preflight" not in (repo / ".agents/hooks.json").read_text()
+
+
+def test_timeout_is_checked_and_wired(tmp_path: Path) -> None:
+    bad = _valid()
+    bad["hooks"][1]["timeout"] = "300"
+    assert any("timeout" in p for p in _check(tmp_path / "a", bad).problems)
+    bad["hooks"][1]["timeout"] = 0
+    assert any("timeout" in p for p in _check(tmp_path / "b", bad).problems)
+    repo, templates, runtime = _sync_setup(tmp_path / "c")
+    d = json.loads((repo / ha.FILENAME).read_text())
+    d["hooks"][1]["timeout"] = 300
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    ha.sync(repo, templates=templates, runtime=runtime)
+    claude = json.loads((repo / ".claude/settings.json").read_text())["hooks"]
+    assert claude["Stop"][0]["hooks"][0]["timeout"] == 300
+    assert "timeout" not in claude["PostToolUse"][0]["hooks"][0]
+    codex = json.loads((repo / ".codex/hooks.json").read_text())["hooks"]
+    assert codex["Stop"][0]["hooks"][0]["timeout"] == 300
+    agy = json.loads((repo / ".agents/hooks.json").read_text())
+    assert agy["harness-stop"]["Stop"][0]["hooks"][0]["timeout"] == 300

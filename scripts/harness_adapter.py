@@ -76,9 +76,17 @@ def _inside(base: Path, rel: str) -> Path | None:
 def _check_hooks(hooks: list[Any], repo: Path, templates: Path, problems: list[str]) -> None:
     for i, h in enumerate(hooks):
         where = f"hooks[{i}]"
-        if not isinstance(h, dict) or set(h) - {"template", "local", "event"}:
-            problems.append(f"{where}: must be an object with template or local, and event")
+        if not isinstance(h, dict) or set(h) - {"template", "local", "event", "timeout"}:
+            problems.append(
+                f"{where}: must be an object with template or local, event, optional timeout"
+            )
             continue
+        if "timeout" in h and not (
+            isinstance(h["timeout"], int)
+            and not isinstance(h["timeout"], bool)
+            and h["timeout"] > 0
+        ):
+            problems.append(f"{where}: timeout must be a positive number of seconds")
         if ("template" in h) == ("local" in h):
             problems.append(f"{where}: needs exactly one of template or local")
             continue
@@ -204,9 +212,11 @@ def _write_if_changed(path: Path, text: str, changes: list[str], repo: Path) -> 
     changes.append(str(path.relative_to(repo)))
 
 
-def _group(commands: list[str], matcher: str | None = None) -> dict[str, Any]:
+def _group(commands: list[tuple[str, int | None]], matcher: str | None = None) -> dict[str, Any]:
     g: dict[str, Any] = {} if matcher is None else {"matcher": matcher}
-    g["hooks"] = [{"type": "command", "command": c} for c in commands]
+    g["hooks"] = [
+        {"type": "command", "command": c, **({"timeout": s} if s else {})} for c, s in commands
+    ]
     return g
 
 
@@ -214,7 +224,10 @@ def _wiring(hooks: list[dict[str, Any]]) -> dict[str, Any]:
     """Hook settings for each agent, from one list in wiring order."""
     paths = {
         ev: [
-            f".claude/hooks/{Path(h['template']).name}" if "template" in h else h["local"]
+            (
+                f".claude/hooks/{Path(h['template']).name}" if "template" in h else h["local"],
+                h.get("timeout"),
+            )
             for h in hooks
             if h["event"] == ev
         ]
@@ -232,14 +245,14 @@ def _wiring(hooks: list[dict[str, Any]]) -> dict[str, Any]:
         out: dict[str, list[dict[str, Any]]] = {}
         if paths["edit"]:
             out["PostToolUse"] = [
-                _group([cmd("edit", p) for p in paths["edit"]], EDIT_MATCHERS[agent])
+                _group([(cmd("edit", p), s) for p, s in paths["edit"]], EDIT_MATCHERS[agent])
             ]
         if paths["stop"]:
-            out["Stop"] = [_group([cmd("stop", p) for p in paths["stop"]])]
+            out["Stop"] = [_group([(cmd("stop", p), s) for p, s in paths["stop"]])]
         # codex and agy have no session-start event verified here; their AGENTS.md
         # startup step runs the same script instead.
         if paths["start"] and agent == "claude":
-            out["SessionStart"] = [_group([cmd("start", p) for p in paths["start"]])]
+            out["SessionStart"] = [_group([(cmd("start", p), s) for p, s in paths["start"]])]
         return out
 
     agy = events("agy")
