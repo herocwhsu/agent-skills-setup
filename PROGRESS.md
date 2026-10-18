@@ -84,6 +84,9 @@
 
 - **Flaky: `skills/utils/confluence-tree/tests/test_push.sh` test 5** (expected exit 6, got 1; an http read on its mock server) failed under parallel load in feat-075 and feat-080, passes alone. Make the mock server deterministic before it hides a real failure.
 
+- **atelier Stop is blocked for every agent:** `secret-scan.sh` exits 2 on a clean tree on new osv-scanner advisories in `apps/firstdigital/package-lock.json` (undici, js-yaml, brace-expansion, browserslist, react-router). Bump or baseline them in atelier (feat-087).
+- **Live-run each agent's hooks after a wiring change**, not only replays from the repo root: replays missed both agy bugs in feat-087. A live agy run in a scratch clone (`agy -p ... --mode accept-edits`) is enough; a codex one when codex is installed.
+
 - **Codex user skills path:** `agent_skills_dir codex` installs to `~/.codex/skills`; current Codex docs read `~/.agents/skills` (docs/harness-adoption.md). Codex is not installed here; check on a host that has it before changing the path.
 
 **Pending Owner Decisions (Blocked on Human):**
