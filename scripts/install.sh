@@ -102,10 +102,10 @@ for agent in "${SELECTED_AGENTS[@]}"; do
 
   prune_dead_skill_links "$target_dir" "$REPO_DIR"
 
-  # Kiro also gets prompt files and an auto-generated agent config
+  # Kiro also gets prompt files and an auto-generated agent config (written
+  # after the skills below, since it lists what is in the skills dir)
   if [[ "$agent" == "kiro" ]]; then
     install_kiro_prompts "$REPO_DIR"
-    install_kiro_agent_config "$target_dir"
   fi
 
   while IFS=' ' read -r type id arg3 arg4; do
@@ -156,6 +156,9 @@ for agent in "${SELECTED_AGENTS[@]}"; do
   # into each repo.
   python3 "$REPO_DIR/scripts/harness_adapter.py" store-packs --agent "$agent" \
     --skills-dir "$target_dir" || echo "  WARNING: pack skills left global for $agent" >&2
+  if [[ "$agent" == "kiro" ]]; then
+    install_kiro_agent_config "$target_dir"
+  fi
 done
 
 # polish-input is always wired, not opt-in: it ships as part of the `utils`

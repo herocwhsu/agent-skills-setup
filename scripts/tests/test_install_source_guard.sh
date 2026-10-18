@@ -119,6 +119,17 @@ check "bare run keeps the saved selection" "claude,codex" \
 check "bare run installs every saved agent" yes \
   "$([[ -L "$TMP/h7/.codex/skills/spec-workflow" ]] && echo yes || echo no)"
 
+# Kiro's agent config lists the skills dir, so it must be written after the skills
+# are installed and the pack skills moved out; written first, it named the last
+# install's skills (jira, linear, ...) after they left the global dir.
+check "kiro install succeeds" 0 "$(run_install "$main_repo" "$TMP/h8" --agent kiro)"
+kiro_res=$(python3 -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1]))["resources"]))' \
+  "$TMP/h8/.kiro/agents/default.json" 2>/dev/null || true)
+check "kiro config lists a core skill on the first install" yes \
+  "$([[ "$kiro_res" == *"/skills/spec-workflow/SKILL.md"* ]] && echo yes || echo no)"
+check "kiro config names no pack skill" no \
+  "$([[ "$kiro_res" == *"/skills/jira/SKILL.md"* ]] && echo yes || echo no)"
+
 if [[ $fails -gt 0 ]]; then
   echo ""
   echo "$fails check(s) failed"
