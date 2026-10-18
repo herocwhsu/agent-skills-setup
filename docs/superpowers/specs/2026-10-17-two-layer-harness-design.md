@@ -83,12 +83,12 @@ the next task is planned from measured cost and effect.
 | T7 ✅ feat-081 SessionStart preflight + state brief; startup rule reads the brief | I9 | hangar startup-read ~3,900 → ~300 tokens | D9 |
 | T8 ✅ feat-082 Stop runs `verify`; gate runs recorded centrally per repo | I11 | gate runs logged for target repos | D8 |
 | T9 ✅ feat-083 check per-repo skill support in codex, agy, kiro | (T10 input) | facts recorded | — |
-| T10 ½ feat-084 skill packs per repo: packs, `skill_packs`, projection done; global switch is T15 | I10 | hangar skill descriptions ~2,100 → ~700 tokens | D7 |
+| T10 ✅ feat-084 + feat-090 skill packs per repo (global switch done in T15) | I10 | hangar skill descriptions ~2,100 → ~700 tokens | D7 |
 | T11 ✅ feat-085 trim `AGENTS.md`: one commit rule, shared sections from a template | I7, I8 | repo `AGENTS.md` tokens down, no conflicts | D5 |
 | T12 ✅ feat-086 cross-repo trend in `trace-evaluation.sh` and the weekly review | I11 | one trend over all repos | — |
 | T13 ✅ feat-088 global hooks: one dispatcher in the runtime dir, wired for claude, agy, codex; repo hook of the same name wins | D10 | unregistered repos get edit + Stop checks; live run per agent | D11 |
 | T14 ✅ feat-089 repos drop what the global layer now does: global hooks, rules repeated from the global rules | D10 | hangar and atelier `AGENTS.md`/`CLAUDE.md` tokens down, no hook runs twice | — |
-| T15 feat-090 pack skills leave the global install and are linked into each repo that lists them | I10 | hangar skill list ~2,380 → ~1,027 tokens | D7 |
+| T15 ✅ feat-090 pack skills leave the global install and are linked into each repo that lists them | I10 | hangar skill list 2,380 → 1,158 tokens (measured) | D7 |
 | later | ansible, c-cpp packs when a repo needs them | I14 | — | — |
 
 ## Open decisions (proposed default in bold)

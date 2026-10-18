@@ -3,7 +3,7 @@
   "repo": "hangar",
   "always_loaded": {
     "estimate": "chars/4",
-    "tokens": 5389,
+    "tokens": 4167,
     "files": [
       {
         "file": "~/.claude/CLAUDE.md",
@@ -18,38 +18,14 @@
         "tokens": 1180
       }
     ],
-    "skill_tokens": 2380,
-    "skill_tokens_scoped": 1870,
+    "skill_tokens": 1158,
+    "skill_tokens_scoped": 1158,
     "skills": [
-      {
-        "name": "ai-stack",
-        "source": "global",
-        "tokens": 65,
-        "pack": "ai"
-      },
-      {
-        "name": "apidog",
-        "source": "global",
-        "tokens": 103,
-        "pack": "spec-gated"
-      },
-      {
-        "name": "audit",
-        "source": "global",
-        "tokens": 79,
-        "pack": "spec-gated"
-      },
       {
         "name": "brainstorming",
         "source": "global",
         "tokens": 58,
         "pack": "core"
-      },
-      {
-        "name": "diagnosing-superpowers",
-        "source": "global",
-        "tokens": 104,
-        "pack": "harness-dev"
       },
       {
         "name": "dispatching-parallel-agents",
@@ -70,12 +46,6 @@
         "pack": "core"
       },
       {
-        "name": "external",
-        "source": "global",
-        "tokens": 77,
-        "pack": "spec-gated"
-      },
-      {
         "name": "finishing-a-development-branch",
         "source": "global",
         "tokens": 37,
@@ -85,37 +55,7 @@
         "name": "infra",
         "source": "global",
         "tokens": 108,
-        "pack": "infra"
-      },
-      {
-        "name": "intake",
-        "source": "global",
-        "tokens": 92,
-        "pack": "spec-gated"
-      },
-      {
-        "name": "jira",
-        "source": "global",
-        "tokens": 75,
-        "pack": "spec-gated"
-      },
-      {
-        "name": "kanban-ai",
-        "source": "global",
-        "tokens": 85,
-        "pack": "tracking"
-      },
-      {
-        "name": "linear",
-        "source": "global",
-        "tokens": 46,
-        "pack": "tracking"
-      },
-      {
-        "name": "progress",
-        "source": "global",
-        "tokens": 84,
-        "pack": "spec-gated"
+        "pack": "core"
       },
       {
         "name": "receiving-code-review",
@@ -124,40 +64,16 @@
         "pack": "core"
       },
       {
-        "name": "release",
-        "source": "global",
-        "tokens": 75,
-        "pack": "spec-gated"
-      },
-      {
-        "name": "repo",
-        "source": "global",
-        "tokens": 94,
-        "pack": "spec-gated"
-      },
-      {
         "name": "requesting-code-review",
         "source": "global",
         "tokens": 37,
         "pack": "core"
       },
       {
-        "name": "review",
-        "source": "global",
-        "tokens": 94,
-        "pack": "spec-gated"
-      },
-      {
         "name": "spec-workflow",
         "source": "global",
         "tokens": 133,
         "pack": "core"
-      },
-      {
-        "name": "sre-migration",
-        "source": "global",
-        "tokens": 119,
-        "pack": "sre"
       },
       {
         "name": "subagent-driven-development",
@@ -176,12 +92,6 @@
         "source": "global",
         "tokens": 30,
         "pack": "core"
-      },
-      {
-        "name": "testing",
-        "source": "global",
-        "tokens": 70,
-        "pack": "spec-gated"
       },
       {
         "name": "using-git-worktrees",
@@ -208,22 +118,22 @@
         "pack": "core"
       },
       {
-        "name": "webapp-testing",
-        "source": "global",
-        "tokens": 59,
-        "pack": "frontend"
-      },
-      {
         "name": "writing-plans",
         "source": "global",
         "tokens": 29,
         "pack": "core"
       },
       {
-        "name": "writing-skills",
-        "source": "global",
-        "tokens": 32,
-        "pack": "harness-dev"
+        "name": "kanban-ai",
+        "source": "repo",
+        "tokens": 85,
+        "pack": "tracking"
+      },
+      {
+        "name": "linear",
+        "source": "repo",
+        "tokens": 46,
+        "pack": "tracking"
       }
     ]
   },
