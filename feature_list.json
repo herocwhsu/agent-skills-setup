@@ -72,6 +72,26 @@
         "subagents": 3,
         "subagent_output_tokens": 1159
       }
+    },
+    {
+      "id": "feat-076",
+      "name": "Upstream atelier's monorepo-aware hooks into templates, then sync the stale copies in hangar and atelier",
+      "description": "T2 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md. feat-075's baseline found hangar 2 and atelier 6 drifted hooks, in both directions: atelier's py-guard and ts-guard (2026-10-13) gate on the files changed since the upstream merge-base, show the failing output and fix tsc -b --noEmit (TS6310), while the templates still run whole-repo; ts-fix hard-codes atelier's app. sh-check, yaml-validate, migration-guard and ruff-fix are older in the repos (sh-check lacks agy support; the rest differ only in header comments). Move atelier's behaviour into templates/hooks with the app folders in the repo config block (APP_DIRS, '.' for a single-app repo), then copy every drifted template into hangar and atelier keeping each repo's config block.",
+      "dependencies": [
+        "feat-075"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "templates py-guard and ts-guard run only for an app folder in APP_DIRS whose files changed against the upstream merge-base (tracked edits, untracked files, and committed-but-unpushed commits all count), and exit 0 when none did; APP_DIRS=('.') treats the repo root as the app",
+        "a missing tool prints SKIP and does not block; a failing tool blocks with exit 2 and shows its output",
+        "ts-fix formats a file with the prettier of the APP_DIRS folder that holds it, and does nothing for a file outside every folder",
+        "scripts/tests/test_shared_hook_templates.sh covers the above and failed before the template change",
+        "after the sync, repo_audit.py reports 0 drifted hooks for hangar and atelier, and atelier's config block keeps its app folders",
+        "hangar ./init.sh and atelier ./init.sh (their hook tests) pass, or a failure is shown to be pre-existing",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/tests/test_shared_hook_templates.sh && python3 scripts/repo_audit.py ../hangar && python3 scripts/repo_audit.py ../atelier && bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }
