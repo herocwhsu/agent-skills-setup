@@ -71,6 +71,25 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-080",
+      "name": "update.sh syncs registered target repos and wires their hooks for claude, codex and agy",
+      "description": "T6 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md (D3: every registered repo, printing what changed; D4: every supported agent, installed or not). harness_adapter.py sync <repo> copies each template hook listed in agent-harness.json into .claude/hooks keeping its repo config block, copies common/agent-hook.sh, writes the hook wiring for claude (.claude/settings.json, other keys kept, rewritten only when the hooks differ), codex (.codex/hooks.json) and agy (.agents/hooks.json), and sets harness.version to the installed commit. It never commits. common/agent-hook.sh <agy|codex> <edit|stop> <hook> runs an unchanged shared hook for another agent: it turns the agent's input into Claude's shape (agy toolCall.args, codex apply_patch '*** Add/Update File:' lines) and the hook's result into the agent's answer (agy: {} on success, a Stop block as {decision: continue, reason}). harness_adapter.py register <repo> adds a repo to <runtime>/target-repos.txt; update.sh syncs each one after installing.",
+      "dependencies": [
+        "feat-079"
+      ],
+      "status": "active",
+      "acceptance_criteria": [
+        "sync copies only template hooks that differ (keeping the copy's config block) and agent-hook.sh, reports each file it changed, and a second sync changes nothing",
+        "the claude, codex and agy files wire the same hooks in the same order as agent-harness.json, edit hooks on each agent's edit tools and stop hooks on Stop; .claude/settings.json keeps its other keys and is not rewritten when its hooks already match",
+        "agent-hook.sh: agy edit passes the TargetFile to the hook, prints {} on success and blocks with exit 2 and the hook's stderr on failure; agy stop answers {decision: continue, reason} on failure and {} on success; codex edit runs the hook once per file named in an apply_patch input and blocks if any fails; codex stop passes the exit code through",
+        "register refuses a repo whose agent-harness.json fails check; update.sh syncs every registered repo and names a missing one instead of failing",
+        "hangar and atelier registered and synced: repo_audit reports claude, codex and agy wired; claude's hooks unchanged; both ./init.sh pass",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/tests/test_agent_hook.sh && bash scripts/harness-verify.sh",
+      "evidence": ""
     }
   ]
 }
