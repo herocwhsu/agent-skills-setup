@@ -36,6 +36,11 @@ RISKY_RE = re.compile(
     r"|scripts/(install|uninstall|update|_lib|setup-[^/]*)\.sh$|scripts/_settings_merge\.py$"
     r"|scripts/harness_adapter\.py$)|(^|/)migrations/"
 )
+# Files harness_adapter.py sync writes; any other change is the owner's own work.
+SYNC_OWNED_RE = re.compile(
+    r"^(\.claude/hooks/|\.claude/settings\.json$|\.codex/hooks\.json$|\.agents/hooks\.json$"
+    r"|agent-harness\.json$)"
+)
 BOT_RE = re.compile(r"\[bot\]$|^renovate", re.IGNORECASE)
 # A review counts for a commit when it ran in the same repo within this window
 # after it: the rules ask for one review per branch before finishing, not per commit.
@@ -169,7 +174,7 @@ def _review_section(repos: list[Path], runtime: Path, since: datetime.datetime) 
 
 
 def _uncommitted(repo: Path) -> list[str]:
-    """Files git sees as changed. sync never commits, so a template change shows here."""
+    """Changed files sync wrote. sync never commits, so a template change shows here."""
     try:
         out = subprocess.run(
             ["git", "-C", str(repo), "status", "--porcelain"],
@@ -179,7 +184,7 @@ def _uncommitted(repo: Path) -> list[str]:
         ).stdout
     except (OSError, subprocess.CalledProcessError):
         return []
-    return [ln[3:] for ln in out.splitlines() if ln.strip()]
+    return [p for p in (ln[3:] for ln in out.splitlines() if ln.strip()) if SYNC_OWNED_RE.match(p)]
 
 
 def _registered(runtime: Path) -> list[Path]:

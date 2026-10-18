@@ -578,3 +578,17 @@ def test_sync_keeps_what_it_does_not_own_in_the_agy_and_codex_files(tmp_path: Pa
         "repo-own",
         "harness-edit",
     }
+
+
+def test_a_repo_skill_that_is_its_own_symlink_is_never_replaced(tmp_path: Path) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    (runtime / ha.PACK_STORE / "claude/linear").mkdir(parents=True)
+    shared = tmp_path / "shared/linear"
+    shared.mkdir(parents=True)
+    (repo / ".claude/skills").mkdir(parents=True)
+    (repo / ".claude/skills/linear").symlink_to(shared)
+    d = json.loads((repo / ha.FILENAME).read_text())
+    d["skill_packs"] = ["tracking"]
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    ha.sync(repo, templates=templates, runtime=runtime)
+    assert os.readlink(repo / ".claude/skills/linear") == str(shared)

@@ -77,6 +77,17 @@ run "{\"toolCall\":{\"args\":{\"TargetFile\":\"$REPO/sub/a.sh\"}},\"conversation
 if [[ $RC -eq 0 && "$(cat "$LOG")" == "sh-check $REPO $REPO/sub/a.sh" ]]; then ok "a hook wired for another agent only does not turn the global one off"; else bad "per-agent override" "rc=$RC log=$(cat "$LOG")"; fi
 run "{\"tool_input\":{\"file_path\":\"$REPO/sub/a.sh\"}}" claude edit
 if [[ $RC -eq 0 && ! -s "$LOG" ]]; then ok "claude skips the global hook its repo settings wire"; else bad "claude override" "rc=$RC log=$(cat "$LOG")"; fi
+# the harness repo's own form: an escaped quote right after the name
+printf '%s\n' '{"hooks":{"Stop":[{"hooks":[{"command":"bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/sh-check.sh\""}]}]}}' > "$REPO/.claude/settings.json"
+run "{\"tool_input\":{\"file_path\":\"$REPO/sub/a.sh\"}}" claude edit
+if [[ $RC -eq 0 && ! -s "$LOG" ]]; then ok "an escaped quote after the name still counts as the repo's hook"; else bad "escaped quote" "rc=$RC log=$(cat "$LOG")"; fi
+rm -rf "$REPO/.claude"
+
+# A hook whose name merely contains the global hook's name is a different hook.
+mkdir -p "$REPO/.claude"
+echo '{"hooks":{"PostToolUse":[{"hooks":[{"command":"bash .claude/hooks/my-sh-check.sh"}]}]}}' > "$REPO/.claude/settings.json"
+run "{\"tool_input\":{\"file_path\":\"$REPO/sub/a.sh\"}}" claude edit
+if [[ $RC -eq 0 && "$(cat "$LOG")" == "sh-check $REPO $REPO/sub/a.sh" ]]; then ok "a differently named repo hook does not turn the global one off"; else bad "name match" "rc=$RC log=$(cat "$LOG")"; fi
 rm -rf "$REPO/.claude"
 
 run "{\"cwd\":\"$REPO\",\"hook_event_name\":\"SessionStart\"}" claude start

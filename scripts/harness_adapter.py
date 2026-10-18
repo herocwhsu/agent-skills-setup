@@ -353,7 +353,10 @@ def _link_pack_skills(repo: Path, data: dict[str, Any], runtime: Path, changes: 
         for name in wanted:
             src = next((store / a / name for a in order if (store / a / name).exists()), None)
             link = d / name
-            if src is None or (link.exists() and not link.is_symlink()):
+            own = (link.exists() or link.is_symlink()) and not (
+                link.is_symlink() and Path(os.readlink(link)).is_relative_to(store)
+            )
+            if src is None or own:
                 continue  # not installed on this host, or the repo's own skill wins
             linked.append(f"{rel}/{name}")
             if link.is_symlink() and os.readlink(link) == str(src):

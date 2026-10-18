@@ -124,11 +124,17 @@ def test_run_flags_a_repo_left_with_uncommitted_changes(tmp_path: Path) -> None:
     runtime, repo = _runtime(tmp_path)
     _git(repo, "init", "-q")
     _commit(repo, "AGENTS.md", "2026-10-18T10:00:00+08:00")
-    (repo / "AGENTS.md").write_text("edited by sync")
+    _commit(repo, ".claude/hooks/x.sh", "2026-10-18T10:00:00+08:00")
+    # the owner's own work in progress is not sync's and is not reported
+    (repo / "AGENTS.md").write_text("owner editing")
+    (repo / "notes.txt").write_text("new")
+    (repo / ".claude/hooks/x.sh").write_text("edited by sync")
     _, found = hw.run(
         runtime, UPDATE_OK, 0, today="2026-10-19", audit_fn=lambda r: _audit(4100), extra_repos=()
     )
-    assert found == ["hangar: uncommitted changes after sync, commit or revert them: AGENTS.md"]
+    assert found == [
+        "hangar: uncommitted changes after sync, commit or revert them: .claude/hooks/x.sh"
+    ]
 
 
 def test_run_saves_this_weeks_audit_and_reports_against_last_weeks(tmp_path: Path) -> None:

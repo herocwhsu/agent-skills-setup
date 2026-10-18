@@ -52,7 +52,8 @@ case "$agent" in
   codex)  own=(.codex/hooks.json) ;;
 esac
 for f in "${own[@]}"; do
-  grep -qsF "$hook" "$f" && skip
+  # the name as a whole path segment: my-sh-check.sh is a different hook
+  grep -qsE "(^|[/\" ])${hook//./\\.}([\"\\ ]|$)" "$f" && skip
 done
 [[ "$event" == start && ! -f PROGRESS.md && ! -f agent-harness.json ]] && skip
 
