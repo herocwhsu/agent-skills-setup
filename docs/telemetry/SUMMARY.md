@@ -4,7 +4,6 @@
 
 | Commit | Timestamp (UTC) | Agent | Subagents | Spent Time | Est. Tokens | `feature_list.json` | `PROGRESS.md` | Done (Active) | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `31d8319` | 2026-10-13 06:27:26 | `claude` | 17 out (codex-kiro,agy,claude-kiro) | - | ~6,154 tok | 181 lines | 92 lines | 8 (0 act) | **WARN** |
 | `4d6d4fa` | 2026-10-15 07:22:38 | `claude` | 2 out (codex-kiro,agy) | - | ~6,784 tok | 184 lines | 95 lines | 8 (0 act) | **WARN** |
 | `bc96a61` | 2026-10-15 07:24:03 | `claude` | - | 1m 25s | ~5,851 tok | 150 lines | 95 lines | 6 (0 act) | **OK** |
 | `cc5959c` | 2026-10-15 07:57:42 | `claude` | - | 38.0s | ~6,527 tok | 176 lines | 97 lines | 7 (0 act) | **WARN** |
@@ -24,5 +23,7 @@
 | `74ec8cc` | 2026-10-18 01:28:56 | `claude` | - | 12m 10s | ~7,089 tok | 121 lines | 119 lines | 4 (0 act) | **WARN** |
 | `0965aaf` | 2026-10-18 01:43:22 | `claude` | - | 14m 26s | ~6,964 tok | 95 lines | 123 lines | 3 (0 act) | **WARN** |
 | `82124a8` | 2026-10-18 01:52:06 | `claude` | - | 8m 43s | ~5,934 tok | 69 lines | 125 lines | 2 (0 act) | **OK** |
+| `409e3b4` | 2026-10-18 02:08:27 | `claude` | - | 16m 20s | ~7,057 tok | 95 lines | 127 lines | 3 (0 act) | **WARN** |
 
-✅ **Status:** All state layer metrics are within clean-state limits.
+### Actionable Remediation & Suggestions
+- ⚠️ **[ACTION]** State layer tokens exceed 6000 tokens (~7,057 tokens) — context bloat detected.

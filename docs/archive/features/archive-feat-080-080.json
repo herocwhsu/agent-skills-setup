@@ -1,0 +1,31 @@
+{
+  "features": [
+    {
+      "id": "feat-080",
+      "name": "update.sh syncs registered target repos and wires their hooks for claude, codex and agy",
+      "description": "T6 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md (D3: every registered repo, printing what changed; D4: every supported agent, installed or not). harness_adapter.py sync <repo> copies each template hook listed in agent-harness.json into .claude/hooks keeping its repo config block, copies common/agent-hook.sh, writes the hook wiring for claude (.claude/settings.json, other keys kept, rewritten only when the hooks differ), codex (.codex/hooks.json) and agy (.agents/hooks.json), and sets harness.version to the installed commit. It never commits. common/agent-hook.sh <agy|codex> <edit|stop> <hook> runs an unchanged shared hook for another agent: it turns the agent's input into Claude's shape (agy toolCall.args, codex apply_patch '*** Add/Update File:' lines) and the hook's result into the agent's answer (agy: {} on success, a Stop block as {decision: continue, reason}). harness_adapter.py register <repo> adds a repo to <runtime>/target-repos.txt; update.sh syncs each one after installing.",
+      "dependencies": [
+        "feat-079"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "sync copies only template hooks that differ (keeping the copy's config block) and agent-hook.sh, reports each file it changed, and a second sync changes nothing",
+        "the claude, codex and agy files wire the same hooks in the same order as agent-harness.json, edit hooks on each agent's edit tools and stop hooks on Stop; .claude/settings.json keeps its other keys and is not rewritten when its hooks already match",
+        "agent-hook.sh: agy edit passes the TargetFile to the hook, prints {} on success and blocks with exit 2 and the hook's stderr on failure; agy stop answers {decision: continue, reason} on failure and {} on success; codex edit runs the hook once per file named in an apply_patch input and blocks if any fails; codex stop passes the exit code through",
+        "register refuses a repo whose agent-harness.json fails check; update.sh syncs every registered repo and names a missing one instead of failing",
+        "hangar and atelier registered and synced: repo_audit reports claude, codex and agy wired; claude's hooks unchanged; both ./init.sh pass",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/tests/test_agent_hook.sh && bash scripts/harness-verify.sh",
+      "evidence": "harness_adapter.py sync/register/sync-all: sync copies the listed template hooks keeping each copy's repo config block, plus common/agent-hook.sh, writes the claude (.claude/settings.json, other keys kept, rewritten only when its hooks differ), codex (.codex/hooks.json) and agy (.agents/hooks.json, groups harness-edit/harness-stop) wiring from the one hook list, sets harness.version, never commits. register refuses a file that fails check; sync-all reports missing repos; update.sh runs sync-all and warns on failure without failing the update. common/agent-hook.sh <agy|codex> <edit|stop> <hook>: agy TargetFile/AbsolutePath or codex '*** Add/Update File:' lines become one Claude-shaped call per file; only exit 2 blocks, as in Claude; agy gets {} or {decision: continue, reason}. Tests failed first: test_agent_hook.sh 8 of 9 failed, then 10 passed (one case added for the exit-1 rule); tests/test_harness_adapter.py 5 failed, then 27 passed. Mutations: dropping the config block, always rewriting claude settings and never bumping the version were caught; writing groups for an event with no hooks survived until an edit-only test was added. Real run: install f1b2baf, hangar and atelier registered, sync-all changed agent-hook.sh, .codex/hooks.json, .agents/hooks.json and agent-harness.json in each and left .claude/settings.json alone (its hooks already matched); a second sync reported up to date. repo_audit: agents wired claude, codex, agy in both (was claude only); drift none; both ./init.sh exit 0; committed hangar a6d537d, atelier ec7707e. A live headless agy session in a throwaway clone was refused by the auto-mode permission classifier (agy --dangerously-skip-permissions); instead the exact commands from the clone's .agents/hooks.json and .codex/hooks.json were run with agy- and codex-shaped input on a file with a bash syntax error: sh-check blocked with exit 2 under both, the other hooks passed (agy printed {}). The first full gate run failed test_init_repo.sh again (profile full must copy every template; init-repo.sh listed common hooks by name, the second miss in two tasks), so init-repo.sh now copies every common/*.sh. The next run failed skills/utils/confluence-tree/tests/test_push.sh, the same unrelated flake seen in feat-075 (second time under load); the rerun passed all 11 gates, output saved to a file. Not done: codex is not installed, so the codex hook input shape (tool_input for apply_patch) is assumed from the patch format, not observed; whether agy reads a repo's .agents/hooks.json in a live session was not re-verified in this task; init-repo.sh does not yet write agent-harness.json.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-8341e4e44a",
+        "output_tokens": 32320,
+        "wall_time_ms": 866556,
+        "active_turn_time_ms": null,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    }
+  ]
+}
