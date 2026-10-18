@@ -365,6 +365,12 @@ def test_a_repository_git_refuses_to_read_is_not_called_not_a_repository(
     _write_features(repo, [_feature("feat-001", "completed")])
     projects = _projects(tmp_path, [_usage_row("2026-10-01T10:30:00Z", "m1", 10)])
     monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+    # CI runners trust every directory (safe.directory=*), which cancels the
+    # ownership check this simulates; read no global or system git config.
+    empty = tmp_path / "empty-gitconfig"
+    empty.write_text("")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(empty))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     out = fr.record_feature(repo, "feat-001", SESSION, projects, outside_log=None)
     assert out["status"] == "git cannot read this repository"
 
