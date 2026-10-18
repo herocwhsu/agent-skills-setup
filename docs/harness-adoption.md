@@ -23,6 +23,25 @@ which is why the templates were refreshed from them.
 | Hook tests | A `scripts/test-hooks.sh` run in CI, using a throwaway git repo per case. | The repo has no hooks. |
 | `.python-version` and `.venv` | Pin the interpreter and fail loud on drift. Have `init.sh` build `.venv` when it is missing: a fresh clone's first `init.sh` otherwise fails the types gate, and the only place the build command lives is an error string (Lecture 6). | The repo has no Python project. |
 
+## Target repos: `agent-harness.json` and sync
+
+A repo that takes its shared hooks from here declares them in `agent-harness.json`
+(checked by `python3 scripts/harness_adapter.py check <repo>`): the harness commit it
+was synced to, its state files, its verify commands, and its hooks in wiring order,
+each `{"template": "<stack>/<file>"}` or `{"local": "<path>"}` with `"event": "edit"` or
+`"stop"`. Then:
+
+- `python3 scripts/harness_adapter.py register <repo>` once per machine; `update.sh`
+  then runs `sync-all`, which copies each listed template into `.claude/hooks/`
+  (keeping the copy's repo config block), copies `agent-hook.sh`, writes the hook
+  wiring for claude, codex and agy, and sets `harness.version`. It never commits.
+- A template copy may differ from its template only inside its repo config block.
+  `harness-drift.sh` blocks an edit that changes anything else; change the template
+  here and sync instead.
+- `agent-hook.sh` runs the same Claude-shaped hooks under codex and agy. Replayed with
+  agy- and codex-shaped input on 2026-10-18 (sh-check blocked a broken file under
+  both); a live agy session was not run, and codex is not installed here.
+
 ## Rules that cost an incident
 
 - **Test the test.** A hook test is valid only if it fails when the hook is broken.

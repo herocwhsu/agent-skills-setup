@@ -11,7 +11,7 @@
 #   k8s          — Kubernetes/Kustomize infra (yaml-validate, checkov, placeholder-guard)
 #   full         — all of the above
 #
-# Common hooks (secret-scan, semgrep, grype, sh-check, pr-guard, harness-drift) and check-tools.sh
+# Common hooks (every file in templates/hooks/common/) and check-tools.sh
 # are always included.
 #
 # The target repo gets .claude/hooks/ populated and .claude/settings.json created.
@@ -55,12 +55,10 @@ echo ""
 
 # always: common hooks
 echo "--- common ---"
-copy_hook "$HOOKS_SRC/common/secret-scan.sh"
-copy_hook "$HOOKS_SRC/common/semgrep-guard.sh"
-copy_hook "$HOOKS_SRC/common/grype-guard.sh"
-copy_hook "$HOOKS_SRC/common/sh-check.sh"
-copy_hook "$HOOKS_SRC/common/pr-guard.sh"
-copy_hook "$HOOKS_SRC/common/harness-drift.sh"
+# Every file in common/, not a list: a list missed two new common hooks in a row.
+for f in "$HOOKS_SRC"/common/*.sh; do
+  copy_hook "$f"
+done
 copy_hook "$HOOKS_SRC/check-tools.sh"
 
 case "$PROFILE" in

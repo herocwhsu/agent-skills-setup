@@ -79,7 +79,7 @@ the next task is planned from measured cost and effect.
 | T3 ✅ feat-077 harness version: tags + install records installed commit | I4 | version recorded | — |
 | T4 ✅ feat-078 `agent-harness.json` schema, reader, files for hangar and atelier | I6, I12, I13 | both validate | D1, D6 |
 | T5 ✅ feat-079 drift checked against templates outside the config block (D2 changed); drop `shared-hook-drift.sh` | I2, I5 | harness copies identical | — |
-| T6 `update.sh` syncs registered repos and writes hooks for every supported agent, installed or not | I3, I6 | agents with hooks 1 → 3 | D3 |
+| T6 ✅ feat-080 `update.sh` syncs registered repos and writes hooks for every supported agent, installed or not | I3, I6 | agents with hooks 1 → 3 | D3 |
 | T7 SessionStart preflight + state brief; startup rule reads the brief | I9 | hangar startup-read ~3,900 → ~300 tokens | D9 |
 | T8 Stop runs `verify`; gate runs recorded centrally per repo | I11 | gate runs logged for target repos | D8 |
 | T9 check per-repo skill support in codex, agy, kiro | (T10 input) | facts recorded | — |

@@ -200,6 +200,11 @@
   ],
   "hooks": [
     {
+      "file": "agent-hook.sh",
+      "status": "identical",
+      "template": "common/agent-hook.sh"
+    },
+    {
       "file": "checkov-guard.sh",
       "status": "identical",
       "template": "k8s/checkov-guard.sh"
@@ -242,7 +247,7 @@
   ],
   "agent_hooks": {
     "claude": true,
-    "codex": false,
-    "agy": false
+    "codex": true,
+    "agy": true
   }
 }
