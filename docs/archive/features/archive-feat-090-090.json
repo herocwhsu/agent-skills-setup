@@ -1,0 +1,30 @@
+{
+  "features": [
+    {
+      "id": "feat-090",
+      "name": "Pack skills leave the global install and are linked into the repos that list them",
+      "description": "T15 (T10's second half) of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md, decisions D7 and D10. install.sh installs every skill as before, then `harness_adapter.py store-packs` moves the skills of every pack but core out of each agent's global skills dir into <runtime>/pack-skills/<agent>/. sync links the packs a repo's agent-harness.json lists into its .claude/skills (claude), .agents/skills (agy, codex) and .kiro/skills, from that agent's stored copy or any other agent's; unlinks packs it no longer lists; never replaces a repo's own skill of the same name; and lists the links in a marked block of .git/info/exclude, since they point at this host. infra moved into core: its skills are host tools whose instructions call ~/.claude/skills/infra/... . hangar lists tracking, atelier ai and frontend; spec-gated is company-only. Also fixed: install.sh wrote kiro's agent config before installing skills, so it always listed the previous install's skills (none on a first install).",
+      "dependencies": [
+        "feat-089"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "store-packs moves only pack skills (links as links, dirs as dirs) and can run again after the next install",
+        "sync links listed packs for every agent dir, unlinks dropped ones, keeps a repo's own skill and keeps links out of git",
+        "live: a pack skill loads in its repo and not elsewhere, for claude and agy; a spec-gated skill is no longer global",
+        "kiro's agent config lists the installed skills, none of the moved ones",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/tests/test_install_source_guard.sh && bash scripts/harness-verify.sh",
+      "evidence": "Tests first: 3 new adapter tests failed (no store-packs or linking), 39 passed after; test_install_source_guard.sh kiro case failed on the old install order and passes after. Two tests used pack skills as samples (infra as a valid pack, apidog as an installed local skill); now tracking and spec-workflow. Live probe before building: a skill in <repo>/.claude/skills and .agents/skills loads for claude (-p, haiku) and agy when the session starts in the repo, and not from its parent folder. After install.sh --agent all and sync-all: 17 pack skills moved out of ~/.claude/skills, ~/.gemini/antigravity-cli/skills, ~/.codex/skills and ~/.kiro/skills (global entries 35 -> 18); hangar links kanban-ai and linear, atelier ai-stack and webapp-testing, for all three agent dirs, git status clean. Live: claude in hangar sees linear (YES), from ~/projects not (NO), jira from ~/projects NO; agy in atelier sees ai-stack (YES), in hangar NO. kiro default.json: 18 resources, no moved skill. repo_audit 2026-10-18: hangar skills 34 -> 19, skill-description tokens 2380 -> 1158, always-loaded 5389 -> 4167; atelier 34 -> 19, 2380 -> 1151, 5014 -> 3785. Known limits: a session started outside a repo (e.g. ~/projects) gets no pack skills; uninstall.sh leaves <runtime>/pack-skills and the repo links in place; codex not live-tested.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-3884e55c12",
+        "output_tokens": 118901,
+        "wall_time_ms": 9267121,
+        "active_turn_time_ms": 6840626,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    }
+  ]
+}
