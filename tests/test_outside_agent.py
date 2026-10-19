@@ -172,6 +172,13 @@ def test_build_argv_review_is_read_only():
     assert "read-only" in codex and codex[-1] == "p"
 
 
+def test_build_argv_agy_reviews_at_high_effort():
+    review = oa.build_argv("agy", "p", "review", False)
+    assert review[review.index("--effort") + 1] == "high"
+    assert review.index("--effort") < review.index("-p")
+    assert "--effort" not in oa.build_argv("agy", "p", "delegate", False)
+
+
 def test_build_argv_delegate_allow_edits():
     argv = oa.build_argv("claude", "p", "delegate", True)
     assert argv[argv.index("--permission-mode") + 1] == "acceptEdits"
@@ -852,7 +859,7 @@ def test_reason_is_single_line_and_bounded(stubenv, junk):
 
 def test_review_default_timeout_is_longer_than_delegate(stubenv):
     assert oa.default_timeout("review") > oa.default_timeout("delegate") == 110
-    assert oa.default_timeout("review") == 300
+    assert oa.default_timeout("review") == 1200
 
 
 def test_explicit_timeout_wins_over_the_purpose_default(stubenv):

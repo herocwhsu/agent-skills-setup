@@ -58,12 +58,12 @@ SHORT = 80
 AUTH_DEMOTE = timedelta(days=7)
 SUB_COOLDOWN = timedelta(hours=5)
 REASON_MAX = 200
-REVIEW_TIMEOUT = 300
+REVIEW_TIMEOUT = 1200
 DELEGATE_TIMEOUT = 110
 
 
 def default_timeout(purpose: str) -> int:
-    """A review reads a whole diff and was seen taking 20 to 230 s; delegated work stays short."""
+    """agy reviews of real diffs took 590 to 1048 s (2026-10-18); delegated work stays short."""
     return REVIEW_TIMEOUT if purpose == "review" else DELEGATE_TIMEOUT
 
 
@@ -299,7 +299,9 @@ def build_argv(name: str, prompt: str, purpose: str, allow_edits: bool) -> list[
     elif name in ("codex", "codex-kiro"):
         argv = [name, "exec", "--skip-git-repo-check", *perm, prompt]
     else:
-        argv = ["agy", "--dangerously-skip-permissions", *perm, "-p", prompt]
+        # At its default effort agy passed a diff that held a real bug, 2026-10-18.
+        effort = ["--effort", "high"] if purpose == "review" else []
+        argv = ["agy", "--dangerously-skip-permissions", *perm, *effort, "-p", prompt]
     if KINDS[name].group == "kiro":
         return [_shell(), "-i", "-c", shlex.join(argv)]
     return argv
