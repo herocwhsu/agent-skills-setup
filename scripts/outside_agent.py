@@ -455,8 +455,8 @@ def _earliest_reset(state: dict, now: datetime) -> str | None:
 
 
 def _repo_root(cwd: str | None) -> str | None:
-    target_dir = Path(cwd).resolve() if cwd else Path.cwd().resolve()
     try:
+        target_dir = Path(cwd).resolve() if cwd else Path.cwd().resolve()
         r = subprocess.run(
             ["git", "-C", str(target_dir), "rev-parse", "--show-toplevel"],
             capture_output=True,
@@ -487,7 +487,6 @@ def _log_outside_run(
 ) -> None:
     """Log outside agent run to runtime state and repo telemetry."""
     ts = datetime.now(UTC).isoformat()
-    target_dir = Path(cwd).resolve() if cwd else Path.cwd().resolve()
     repo_root = _repo_root(cwd)
 
     entry = {
@@ -514,7 +513,7 @@ def _log_outside_run(
 
     # 2. Local repository telemetry if present
     try:
-        active_repo = Path(repo_root) if repo_root else target_dir
+        active_repo = Path(repo_root or cwd or Path.cwd()).resolve()
         repo_telemetry = active_repo / "docs" / "telemetry"
         if repo_telemetry.is_dir():
             with open(repo_telemetry / "outside-agent-runs.jsonl", "a", encoding="utf-8") as f:

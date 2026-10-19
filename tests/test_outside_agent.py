@@ -1024,3 +1024,14 @@ def test_error_attempt_records_a_kind_not_the_text(stubenv):
     assert r.returncode == 2
     reason = att[0]["reason"]
     assert "429" in reason and "bob" not in reason and "sk-" not in reason and len(reason) <= 200
+
+
+def test_logging_never_raises_when_the_working_directory_is_gone(stubenv, monkeypatch):
+    def gone(*_a, **_k):
+        raise FileNotFoundError("cwd removed")
+
+    monkeypatch.setattr(oa.Path, "cwd", gone)
+    oa._log_attempt("agy", "review", "claude", "skipped", 0, "precheck")
+    oa._log_outside_run("agy", "gemini", "review", "claude", 0, True)
+    rows = (oa.runtime_dir() / "state" / "outside-agent-runs.jsonl").read_text().splitlines()
+    assert [json.loads(r)["repo"] for r in rows] == [None, None]

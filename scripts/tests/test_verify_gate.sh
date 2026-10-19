@@ -27,7 +27,7 @@ repo() { # <verify json list> -> clone with an upstream, agent-harness.json comm
   echo "$cl/w"
 }
 gate() { # <repo> [gate copy] [HOME] -> sets RC OUT ERR
-  OUT=$( cd "$1" && printf '%s' "${GATE_INPUT:-{\}}" | HOME="${3:-$TMP/nohome}" bash "${2:-$GATE}" 2>"$TMP/err" ); RC=$?
+  OUT=$( cd "$1" && { if [[ -n "${GATE_INPUT_FILE:-}" ]]; then cat "$GATE_INPUT_FILE"; else printf '%s' "${GATE_INPUT:-{\}}"; fi; } | HOME="${3:-$TMP/nohome}" bash "${2:-$GATE}" 2>"$TMP/err" ); RC=$?
   ERR=$(cat "$TMP/err")
 }
 scoped=$(mktemp "$TMP/gate.XXXX"); sed "s|^RELEVANT_RE=.*|RELEVANT_RE='^svc/'|" "$GATE" > "$scoped"
@@ -79,6 +79,13 @@ if python3 -c '
 import json,sys
 assert json.loads(open(sys.argv[1]).readlines()[-1])["session_id"] is None
 ' "$log"; then ok "hook input without a session logs null"; else bad "no session id" "$(tail -1 "$log" 2>/dev/null)"; fi
+# A large Stop input (a long last message) once went to python as one argument, over the OS limit.
+python3 -c 'import json;print(json.dumps({"session_id":"big-1","last_assistant_message":"x"*1200000}))' > "$TMP/big.json"
+GATE_INPUT_FILE="$TMP/big.json" gate "$R" "" "$H"
+if python3 -c '
+import json,sys
+assert json.loads(open(sys.argv[1]).readlines()[-1])["session_id"]=="big-1"
+' "$log"; then ok "a 1.2 MB hook input is still logged with its session"; else bad "large hook input" "$(tail -c 300 "$log" 2>/dev/null)"; fi
 gate "$R"   # no harness: must not create a log anywhere under the fake home
 if [[ ! -d "$TMP/nohome/.agent-skills-setup/telemetry" ]]; then ok "no harness: nothing logged"; else bad "no harness" "log dir created"; fi
 

@@ -540,14 +540,6 @@ def record_snapshot(
     outside_subagents: str | None = None,
 ) -> dict[str, Any]:
     """Record current snapshot to JSONL file and update Markdown dashboard."""
-    snapshot = collect_snapshot(
-        repo_dir,
-        trace_path=trace_path,
-        explicit_agent=explicit_agent,
-        duration_ms=duration_ms,
-        self_subagents=self_subagents,
-        outside_subagents=outside_subagents,
-    )
     trace_path.parent.mkdir(parents=True, exist_ok=True)
     lines = trace_path.read_text(encoding="utf-8").splitlines() if trace_path.is_file() else []
     while lines and not lines[-1].strip():
@@ -556,11 +548,29 @@ def record_snapshot(
         last = json.loads(lines[-1]) if lines else {}
     except json.JSONDecodeError:
         last = {}
-    # session-clean.sh run twice on one commit used to add a second row for it.
-    if isinstance(last, dict) and (last.get("commit"), last.get("agent")) == (
-        snapshot.get("commit"),
-        snapshot.get("agent"),
-    ):
+    # session-clean.sh run twice on one commit used to add a second row for it. The replacement
+    # is measured from the row before the replaced one, or it would cover only the rerun's gap.
+    replace = isinstance(last, dict) and (last.get("commit"), last.get("agent")) == (
+        get_git_commit(repo_dir),
+        detect_agent(explicit_agent),
+    )
+    measure_from = trace_path
+    if replace:
+        measure_from = trace_path.with_name(trace_path.name + ".measure")
+        measure_from.write_text("".join(ln + "\n" for ln in lines[:-1]), encoding="utf-8")
+    try:
+        snapshot = collect_snapshot(
+            repo_dir,
+            trace_path=measure_from,
+            explicit_agent=explicit_agent,
+            duration_ms=duration_ms,
+            self_subagents=self_subagents,
+            outside_subagents=outside_subagents,
+        )
+    finally:
+        if replace:
+            measure_from.unlink(missing_ok=True)
+    if replace:
         lines[-1] = json.dumps(snapshot)
         trace_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     else:

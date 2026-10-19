@@ -144,18 +144,19 @@ def test_attempt_rows_do_not_inflate_outside_runs(tmp_path, monkeypatch):
 
 
 def test_a_second_snapshot_of_the_same_commit_and_agent_replaces_the_first(tmp_path, monkeypatch):
-    snaps = iter(
-        [
-            {"commit": "aaa", "agent": "claude", "duration_ms": 1},
-            {"commit": "aaa", "agent": "claude", "duration_ms": 2},
-            {"commit": "aaa", "agent": "agy", "duration_ms": 3},
-            {"commit": "bbb", "agent": "agy", "duration_ms": 4},
-        ]
-    )
-    monkeypatch.setattr(te, "collect_snapshot", lambda *a, **k: next(snaps))
+    now = {}
+    monkeypatch.setattr(te, "get_git_commit", lambda *a: now["commit"])
+    monkeypatch.setattr(te, "detect_agent", lambda *a, **k: now["agent"])
+    monkeypatch.setattr(te, "collect_snapshot", lambda *a, **k: dict(now))
     monkeypatch.setattr(te, "render_markdown_dashboard", lambda *a, **k: "")
     trace = tmp_path / "trace.jsonl"
-    for _ in range(4):
+    for commit, agent, ms in [
+        ("aaa", "claude", 1),
+        ("aaa", "claude", 2),
+        ("aaa", "agy", 3),
+        ("bbb", "agy", 4),
+    ]:
+        now.update(commit=commit, agent=agent, duration_ms=ms)
         te.record_snapshot(tmp_path, trace)
     rows = te.load_records(trace)
     assert [(r["commit"], r["agent"], r["duration_ms"]) for r in rows] == [
@@ -163,3 +164,40 @@ def test_a_second_snapshot_of_the_same_commit_and_agent_replaces_the_first(tmp_p
         ("aaa", "agy", 3),
         ("bbb", "agy", 4),
     ]
+    assert not list(tmp_path.glob("*.measure"))
+
+
+def test_a_replaced_row_keeps_the_time_measured_since_the_row_before_it(tmp_path, monkeypatch):
+    import subprocess
+    from datetime import datetime, timedelta
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(tmp_path),
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "x",
+        ],
+        check=True,
+    )
+    monkeypatch.setattr(te, "detect_agent", lambda *a, **k: "claude")
+    monkeypatch.setattr(te, "render_markdown_dashboard", lambda *a, **k: "")
+    trace = tmp_path / "trace.jsonl"
+    ten_min_ago = (datetime.now(te.UTC) - timedelta(minutes=10)).isoformat()
+    trace.write_text(
+        json.dumps({"commit": "older", "agent": "claude", "timestamp": ten_min_ago}) + "\n"
+    )
+    te.record_snapshot(tmp_path, trace)
+    te.record_snapshot(tmp_path, trace)
+    rows = te.load_records(trace)
+    assert [r["commit"] for r in rows][0] == "older" and len(rows) == 2
+    assert rows[-1]["duration_ms"] >= 9 * 60 * 1000, rows[-1]["duration_ms"]

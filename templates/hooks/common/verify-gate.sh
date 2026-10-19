@@ -22,7 +22,9 @@ changed_paths() {
   } | grep -E "$re" | sort -u || true
 }
 
-hook_input=""; [[ -t 0 ]] || hook_input=$(cat)
+hook_input=$(mktemp)
+trap 'rm -f "$hook_input"' EXIT
+[[ -t 0 ]] || cat > "$hook_input"
 
 cd "$REPO_ROOT" || exit 0
 [[ -f agent-harness.json ]] || { echo "  SKIP  verify: no agent-harness.json"; exit 0; }
@@ -39,7 +41,7 @@ for c in json.load(open("agent-harness.json")).get("verify", []):
 [[ -n "$cmds" ]] || { echo "  SKIP  verify: no verify commands in agent-harness.json"; exit 0; }
 
 out_file=$(mktemp); results=$(mktemp)
-trap 'rm -f "$out_file" "$results"' EXIT
+trap 'rm -f "$out_file" "$results" "$hook_input"' EXIT
 start=$(date +%s); failed=""
 while IFS= read -r cmd; do
   t0=$(date +%s)
@@ -56,8 +58,8 @@ if [[ -f "$runtime/harness-version.json" ]]; then
 import datetime, json, os, sys
 runtime, repo, commit, failed, duration, results, hook_input = sys.argv[1:8]
 try:
-    session = json.loads(hook_input).get("session_id") or None
-except (ValueError, AttributeError):
+    session = json.load(open(hook_input, encoding="utf-8")).get("session_id") or None
+except (OSError, ValueError, AttributeError):
     session = None
 commands = []
 for line in open(results, encoding="utf-8"):
