@@ -454,6 +454,28 @@ def _earliest_reset(state: dict, now: datetime) -> str | None:
     return min((v["until"] for v in state["groups"].values() if _active(v, now)), default=None)
 
 
+def _repo_root(cwd: str | None) -> str | None:
+    target_dir = Path(cwd).resolve() if cwd else Path.cwd().resolve()
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(target_dir), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        pass
+    return None
+
+
+def _session_id() -> str | None:
+    """Claude Code's session, so run records can tell this session's rows from a parallel one's."""
+    return os.environ.get("CLAUDE_CODE_SESSION_ID") or None
+
+
 def _log_outside_run(
     name: str,
     family: str,
@@ -466,19 +488,7 @@ def _log_outside_run(
     """Log outside agent run to runtime state and repo telemetry."""
     ts = datetime.now(UTC).isoformat()
     target_dir = Path(cwd).resolve() if cwd else Path.cwd().resolve()
-    repo_root: str | None = None
-    try:
-        r = subprocess.run(
-            ["git", "-C", str(target_dir), "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            timeout=2,
-            check=False,
-        )
-        if r.returncode == 0 and r.stdout.strip():
-            repo_root = r.stdout.strip()
-    except (subprocess.SubprocessError, OSError):
-        pass
+    repo_root = _repo_root(cwd)
 
     entry = {
         "timestamp": ts,
@@ -489,6 +499,7 @@ def _log_outside_run(
         "exit_code": exit_code,
         "independent": independent,
         "repo": repo_root,
+        "session_id": _session_id(),
     }
     line = json.dumps(entry) + "\n"
 
@@ -519,6 +530,7 @@ def _log_attempt(
     result: str,
     duration_ms: int,
     reason: str | None = None,
+    cwd: str | None = None,
 ) -> None:
     """Record one attempt (any result) in the runtime state log. Never raises."""
     entry = {
@@ -530,6 +542,8 @@ def _log_attempt(
         "caller_family": caller_family,
         "result": result,
         "duration_ms": duration_ms,
+        "repo": _repo_root(cwd),
+        "session_id": _session_id(),
     }
     if reason:
         entry["reason"] = reason
@@ -570,19 +584,26 @@ def cmd_run(a: argparse.Namespace) -> int:
     for name in order:
         if KINDS[name].group in limited:
             notes.append(f"{name}(rate_limit, shared quota)")
-            _log_attempt(name, a.purpose, a.from_, "skipped", 0, "shared quota rate limited")
+            _log_attempt(
+                name, a.purpose, a.from_, "skipped", 0, "shared quota rate limited", cwd=a.cwd
+            )
             continue
         why = precheck(name, env)
         if why:
             notes.append(f"{name}(precheck: {why})")
-            _log_attempt(name, a.purpose, a.from_, "skipped", 0, why)
+            _log_attempt(name, a.purpose, a.from_, "skipped", 0, why, cwd=a.cwd)
             continue
         started = time.monotonic()
         try:
             cls, out = run_one(name, prompt, a.purpose, a.allow_edits, a.timeout, a.cwd)
         except BaseException:
             _log_attempt(
-                name, a.purpose, a.from_, "interrupted", int((time.monotonic() - started) * 1000)
+                name,
+                a.purpose,
+                a.from_,
+                "interrupted",
+                int((time.monotonic() - started) * 1000),
+                cwd=a.cwd,
             )
             raise
         elapsed_ms = int((time.monotonic() - started) * 1000)
@@ -598,6 +619,7 @@ def cmd_run(a: argparse.Namespace) -> int:
             result,
             elapsed_ms,
             error_reason(out) if result == "error" else None,
+            cwd=a.cwd,
         )
         if cls == "ok":
             print(out)

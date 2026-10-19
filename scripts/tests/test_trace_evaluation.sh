@@ -50,11 +50,17 @@ else
 fi
 
 # --- 3. Appending multiple records maintains jsonl format ----------------------
+git -C "$d" -c user.name="Test" -c user.email="test@example.com" commit -q --allow-empty -m "next"
 set +e; out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --record "$trace_out" 2>&1); status=$?; set -e
 line_count=$(wc -l < "$trace_out" | tr -d '[:space:]' || echo 0)
 [[ $status -eq 0 && "$line_count" -eq 2 ]] \
-  && ok "subsequent record appends to trace file" \
-  || bad "subsequent record appends to trace file" "status: $status, lines: $line_count"
+  && ok "a record of a new commit appends to the trace file" \
+  || bad "a record of a new commit appends to the trace file" "status: $status, lines: $line_count"
+set +e; python3 "$PY_SCRIPT" --repo-dir "$d" --record "$trace_out" >/dev/null 2>&1; status=$?; set -e
+line_count=$(wc -l < "$trace_out" | tr -d '[:space:]' || echo 0)
+[[ $status -eq 0 && "$line_count" -eq 2 ]] \
+  && ok "a second record of the same commit replaces its row" \
+  || bad "a second record of the same commit replaces its row" "status: $status, lines: $line_count"
 
 # --- 4. Trend renders formatted history table ----------------------------------
 set +e; out=$(python3 "$PY_SCRIPT" --repo-dir "$d" --trend "$trace_out" 2>&1); status=$?; set -e

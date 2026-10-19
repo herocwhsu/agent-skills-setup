@@ -245,6 +245,37 @@ else
   bad "each run appends one JSON line to the runs log" "$(cat "$RUNS_LOG" 2>/dev/null | head -5)"
 fi
 
+# --- a run row names failed gates whole, lists the failing test files, and the session ---
+# "runtime drift" used to be split on whitespace into "runtime" and "drift".
+rm -f "$RUNS_LOG"
+d=$(stub_gates 0 0 0)
+printf '#!/usr/bin/env bash\nprintf "Blocked: test suite is failing:\\n  PASS  scripts/tests/test_a.sh\\n  FAIL  scripts/tests/test_b.sh\\n          FAIL  inner check: nope\\n  FAIL  tests/test_c.py\\n"\nexit 2\n' > "$d/tests-guard.sh"
+printf '#!/usr/bin/env bash\necho drifted\nexit 2\n' > "$d/runtime-drift-guard.sh"
+CLAUDE_CODE_SESSION_ID=0d3a322a-1111-2222-3333-444455556666 HARNESS_HOOKS_DIR="$d" bash "$SCRIPT" >/dev/null 2>&1 || true
+if python3 -c '
+import json, sys
+r = [json.loads(l) for l in open(sys.argv[1]) if l.strip()][-1]
+assert r["failed"] == ["tests", "runtime drift"], r
+assert r["failed_tests"] == ["scripts/tests/test_b.sh", "tests/test_c.py"], r
+assert r["session_id"] == "0d3a322a-1111-2222-3333-444455556666", r
+' "$RUNS_LOG"; then
+  ok "a run row names failed gates whole, the failing test files and the session"
+else
+  bad "a run row names failed gates whole, the failing test files and the session" "$(tail -1 "$RUNS_LOG" 2>/dev/null)"
+fi
+rm -f "$RUNS_LOG"
+stub_gates 0 0 0 >/dev/null
+env -u CLAUDE_CODE_SESSION_ID HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 || true
+if python3 -c '
+import json, sys
+r = [json.loads(l) for l in open(sys.argv[1]) if l.strip()][-1]
+assert r["session_id"] is None and r["failed_tests"] == [] and r["failed"] == [], r
+' "$RUNS_LOG"; then
+  ok "without a session the row says null, and a passing run lists no failures"
+else
+  bad "without a session the row says null, and a passing run lists no failures" "$(tail -1 "$RUNS_LOG" 2>/dev/null)"
+fi
+
 # --- a test that runs the stop guard must not write gate runs into the real state dir ---
 GUARD_TEST="$SCRIPT_DIR/../harness/guards/tests/test_stop_verify.sh"
 fake_home="$TMPDIR/guard-home"; mkdir -p "$fake_home"

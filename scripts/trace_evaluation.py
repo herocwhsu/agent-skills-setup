@@ -146,11 +146,7 @@ def auto_detect_duration_ms(trace_path: Path, repo_dir: Path) -> float | None:
             text=True,
             check=True,
         )
-        lines = [
-            int(x.strip())
-            for x in res.stdout.strip().split()
-            if x.strip().isdigit()
-        ]
+        lines = [int(x.strip()) for x in res.stdout.strip().split() if x.strip().isdigit()]
         if len(lines) >= 2:
             delta_sec = lines[0] - lines[1]
             if 0 < delta_sec <= IDLE_BREAK_THRESHOLD_SEC:
@@ -553,8 +549,23 @@ def record_snapshot(
         outside_subagents=outside_subagents,
     )
     trace_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(trace_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(snapshot) + "\n")
+    lines = trace_path.read_text(encoding="utf-8").splitlines() if trace_path.is_file() else []
+    while lines and not lines[-1].strip():
+        lines.pop()
+    try:
+        last = json.loads(lines[-1]) if lines else {}
+    except json.JSONDecodeError:
+        last = {}
+    # session-clean.sh run twice on one commit used to add a second row for it.
+    if isinstance(last, dict) and (last.get("commit"), last.get("agent")) == (
+        snapshot.get("commit"),
+        snapshot.get("agent"),
+    ):
+        lines[-1] = json.dumps(snapshot)
+        trace_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    else:
+        with open(trace_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(snapshot) + "\n")
 
     summary_path = trace_path.parent / "SUMMARY.md"
     render_markdown_dashboard(trace_path, output_md=summary_path)

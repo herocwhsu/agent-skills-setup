@@ -141,3 +141,25 @@ def test_attempt_rows_do_not_inflate_outside_runs(tmp_path, monkeypatch):
     runs = te.auto_detect_outside_runs(tmp_path, since_ts_iso="2098-12-31T00:00:00+00:00")
 
     assert [r["agent"] for r in runs] == ["codex-kiro"]
+
+
+def test_a_second_snapshot_of_the_same_commit_and_agent_replaces_the_first(tmp_path, monkeypatch):
+    snaps = iter(
+        [
+            {"commit": "aaa", "agent": "claude", "duration_ms": 1},
+            {"commit": "aaa", "agent": "claude", "duration_ms": 2},
+            {"commit": "aaa", "agent": "agy", "duration_ms": 3},
+            {"commit": "bbb", "agent": "agy", "duration_ms": 4},
+        ]
+    )
+    monkeypatch.setattr(te, "collect_snapshot", lambda *a, **k: next(snaps))
+    monkeypatch.setattr(te, "render_markdown_dashboard", lambda *a, **k: "")
+    trace = tmp_path / "trace.jsonl"
+    for _ in range(4):
+        te.record_snapshot(tmp_path, trace)
+    rows = te.load_records(trace)
+    assert [(r["commit"], r["agent"], r["duration_ms"]) for r in rows] == [
+        ("aaa", "claude", 2),
+        ("aaa", "agy", 3),
+        ("bbb", "agy", 4),
+    ]

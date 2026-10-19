@@ -1,0 +1,107 @@
+{
+  "features": [
+    {
+      "id": "feat-085",
+      "name": "Target repos' AGENTS.md: one commit rule, no conflict with the global rules",
+      "description": "T11 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md (D5: the global rule applies everywhere, a repo keeps only its exceptions). atelier said 'max 72 chars' and listed no ci/security type, against the global rule; its own last 40 subjects run to 129 chars and include a ci: commit, all lowercase. Both repos now point at the global rule and keep only their exceptions (lowercase summary; hangar's merge/squash exemption and its reason for no commit-msg hook). The Startup, Definition of Done and End of Session sections stay per repo: they are short, repo-specific since feat-081, and a template would cost more than it saves.",
+      "dependencies": [
+        "feat-084"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "neither repo's AGENTS.md states a commit rule that conflicts with the global rules",
+        "both ./init.sh pass",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/harness-verify.sh",
+      "evidence": "hangar bee4e75 and atelier 9babdd9: Commit format sections now say the global rule applies and keep only each repo's exceptions (lowercase summary; hangar's merge/squash exemption and its paragraph on why no commit-msg hook exists). atelier's 'max 72 chars' and type list without ci/security are gone; its own last 40 subjects already ran to 129 chars and include a ci: commit, all lowercase, so the new text matches practice. AGENTS.md tokens: hangar 1,229 -> 1,200, atelier 820 -> 824 (the gain is the removed conflict, not size). Standing decisions in AGENTS.md were left: each is a two-line summary pointing at PROGRESS.md, not a copy. Startup / Done / End of Session not templated (short, repo-specific since feat-081). Both ./init.sh exit 0. harness-verify.sh: all 11 gates passed, output saved to a file.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-ca65af1386",
+        "output_tokens": 4694,
+        "wall_time_ms": 316404,
+        "active_turn_time_ms": null,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    },
+    {
+      "id": "feat-086",
+      "name": "repo_trend.py: one trend over all target repos, in the weekly review",
+      "description": "T12 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md. Per-repo audits (docs/telemetry/repos/<repo>/<date>.json, committed) and verify-gate runs (<runtime>/telemetry/<repo>/verify-runs-YYYYMM.jsonl, per machine) are only useful together over time. scripts/repo_trend.py [--days N] prints a markdown table per repo: first and latest audit in the window (always-loaded tokens, scoped skill tokens, state-file tokens, drifted hooks, agents wired) and verify runs in the window (count, failures, median and max duration). weekly-review.sh adds it as a 'Target repos' section, so the committed weekly report keeps the per-machine verify numbers.",
+      "dependencies": [
+        "feat-085"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "for fake audits and logs, the table shows first -> latest for each audit metric and verify counts, failures, median and max within --days, ignoring older runs and unreadable lines",
+        "a repo with audits but no runs says 'no verify runs'; no audits at all prints one line saying so",
+        "weekly-review.sh output has a '## Target repos' section with the table; its existing test still passes",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_repo_trend.py -q && bash scripts/tests/test_weekly_review.sh && bash scripts/harness-verify.sh",
+      "evidence": "scripts/repo_trend.py [--days N] renders one markdown table over docs/telemetry/repos/<repo>/*.json and <runtime>/telemetry/<repo>/verify-runs-*.jsonl: audit dates, always-loaded, scoped skill, state-file tokens, drifted hooks and agents with hooks as first -> latest in the window (the latest earlier audit when none falls inside), and verify runs (count, failed, median, max). Unreadable lines and older runs are skipped. weekly-review.sh adds it as '## Target repos'. Tests failed first: tests/test_repo_trend.py (module missing), test_weekly_review.sh (section missing); now 3 and 16 passed. Real run, 7 days: hangar 5403 -> 5438 always-loaded, drifted 2 -> 0, agents claude -> claude,codex,agy, verify 2 runs 1 failed (the fixture bug in feat-082), median 90s; atelier drifted 6 -> 0, agents claude -> all three, verify 1 run 0 failed 10s. mypy and ruff clean; shellcheck findings in weekly-review.sh pre-exist (2 before and after); the test file's new line follows its existing `&& ok || bad` style. harness-verify.sh: all 11 gates passed, output saved to a file. Not done: always-loaded tokens do not include the preflight brief's cost, and state-file tokens are file sizes, not what a session now reads (the brief, measured in feat-081); trace-evaluation.sh was not changed, the weekly review is the cross-repo place.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-0b86bdc045",
+        "output_tokens": 8967,
+        "wall_time_ms": 252085,
+        "active_turn_time_ms": null,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    },
+    {
+      "id": "feat-087",
+      "name": "agy hooks really load and run: flat Stop entries, commands anchored to the repo root",
+      "description": "A live agy run (agy -p --mode accept-edits) in a scratch clone of atelier showed no harness hook ever ran. Two bugs. (1) harness_adapter.py wrote agy Stop hooks as a matcher group; agy accepts a group only on tool events, so it rejected the whole .agents/hooks.json ('invalid hook \"harness-stop\": command hook must specify command') and loaded neither group. (2) agy runs a hook with the folder holding hooks.json (.agents/) as its working directory, so every repo-relative command exited 127, which agy logs and ignores. The harness repo's own .agents/hooks.json had (2) since f43ab92 (2026-10-09) dropped 'cd ..' after testing from the repo root; agy logs show its guards exiting 127 on 2026-10-10 and 10-11.",
+      "dependencies": [
+        "feat-080"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "agy Stop hooks are written as a flat list of hooks; tool events keep the matcher group",
+        "every generated agy and codex command reaches agent-hook.sh when run from .agents/ or .codex/",
+        "a live agy run in a synced clone runs the edit and Stop hooks from the repo root and gets the sh-check block",
+        "the harness repo's own .agents/hooks.json resolves from .agents/",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/harness-verify.sh",
+      "evidence": "Tests changed first and failed: the two shape assertions (KeyError on the flat Stop) and test_agent_commands_run_from_the_folder_holding_their_hooks_file (exit 127 from .agents/); 34 passed after the fix. Agy and codex commands now start with cd \"$(git rev-parse --show-toplevel)\" && ; codex's hook working directory is not observed (codex not installed), the prefix is harmless if it already is the root. Live agy 1.4.0 runs in a scratch clone of atelier: before, cli.log 'Failed to parse hooks file ... invalid hook \"harness-stop\"' and no hook ran; after the shape fix, all hooks exited 127; after both, a logging line in the clone's agent-hook.sh recorded 6 edit and the Stop hooks with the repo root as PWD, and agy reported sh-check's shellcheck block (SC1072/SC1073). The earlier replay test in feat-080 ran the commands from the repo root and so could not see either bug. The clone's Stop also showed atelier's secret-scan.sh blocking on existing osv-scanner advisories in apps/firstdigital/package-lock.json, true on the real atelier too (rc 2 on a clean tree); not fixed here. The fixture telemetry dir it wrote was removed. harness-verify.sh: all 11 gates passed, output saved to a file."
+    },
+    {
+      "id": "feat-088",
+      "name": "Global hooks for every repo; a repo hook of the same name wins",
+      "description": "T13 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md, decisions D10 and D11. templates/hooks/global/global-hook.sh <claude|agy|codex> <edit|stop|start> runs sh-check (edit), secret-scan (Stop) and preflight (Claude SessionStart, only where PROGRESS.md or agent-harness.json exists) in the repo the agent works in. It finds the repo from the hook input (the edited file, else cwd, else agy's workspacePaths), because agy runs global hooks in ~/.gemini/config. A repo whose .claude/settings(.local).json, .agents/hooks.json or .codex/hooks.json names the same hook keeps its own, so nothing runs twice and repo config blocks still apply. install.sh copies it and the hooks it runs to <runtime>/hooks/ (runtime_files, so the drift gate covers them) and merges `harness_adapter.py global-wiring` per agent into ~/.claude/settings.json, ~/.gemini/config/hooks.json and ~/.codex/hooks.json; uninstall.sh removes them.",
+      "dependencies": [
+        "feat-087"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "the dispatcher runs each hook in the repo root found from claude, agy and codex input, run from an unrelated folder",
+        "a hook the repo wires itself is skipped; start is silent without PROGRESS.md or agent-harness.json",
+        "global wiring per agent: matcher per agent, agy Stop flat, SessionStart only for claude; merged once next to existing hooks, removed alone",
+        "live: Claude and agy edit hooks block a broken .sh in a repo with no hooks of its own; agy Stop blocks on a planted fake token",
+        "hangar, atelier and agent-skills-setup skip the global secret-scan (they wire their own)",
+        "all 11 harness gates pass, with gate output saved to a file"
+      ],
+      "verification": "bash scripts/tests/test_global_hook.sh && python3 -m pytest tests/test_harness_adapter.py -q && bash scripts/harness-verify.sh",
+      "evidence": "Tests first: test_global_hook.sh 11 cases failed (no dispatcher), then pass; 2 wiring cases added after (13 passed). Mutations caught: dropping the repo-override check (1 fail), the cd to the repo root (8 fail), the silent-start rule (1 fail). tests/test_harness_adapter.py global_wiring tests failed first, 36 passed. Fallout fixed: _gate_names.RUNTIME_FILES mirror, test_init_repo leaves out global/, runtime drift guard test fakes create hooks/. Installed with install.sh --agent all from 2ec12a3; backups of the three settings files taken first. Live: this Claude session's Write of a broken .sh in a fresh git repo was blocked by the global hook (SC1072/SC1073); agy 1.4.0 -p --mode accept-edits in the same kind of repo: cli.log 'jsonhook__harness-global_PostToolUse_0_0 failed: exit status 2 ... shellcheck findings', and its Stop was blocked by secret-scan.sh on a planted fake ghp_ token; scratch repos and the fake token deleted. Global Stop dry-run in hangar, atelier and agent-skills-setup: skipped, rc 0. Not live-tested: codex (not installed). harness-verify.sh: one run failed only on the known confluence-tree test_push flake (passes alone), the rerun passed all 11 gates; output saved to files."
+    },
+    {
+      "id": "feat-089",
+      "name": "hangar and atelier drop what the global layer does: sh-check, preflight, restated global rules",
+      "description": "T14 of docs/superpowers/specs/2026-10-17-two-layer-harness-design.md (D10). sh-check and preflight had no repo-specific config in either repo, so their entries, copies and repo tests are removed and the global hooks (feat-088) take over; secret-scan stays in each repo because its config block sets the osv scan. AGENTS.md startup step points other agents at ~/.agent-skills-setup/hooks/preflight.sh. AGENTS.md lines that restated the global rules are cut (the commit rule itself, keeping only each repo's exceptions; 'say so explicitly' from Definition of Done, global Rule 12). docs/hooks.md in both says which hooks are global and why secret-scan stays; atelier's stale sibling-diff contract paragraph and both topic-doc lines now name agent-skills-setup.",
+      "dependencies": [
+        "feat-088"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "neither repo lists, copies or wires sh-check or preflight; the global hooks run them there",
+        "no hook runs twice: each repo still wires its own secret-scan and the global one skips it",
+        "AGENTS.md keeps only repo-specific rules and exceptions",
+        "./init.sh passes in both repos"
+      ],
+      "verification": "cd ~/projects/hangar && ./init.sh && cd ~/projects/atelier && ./init.sh",
+      "evidence": "Removed from agent-harness.json, .claude/hooks and the synced wiring (claude, codex, agy) in both repos; harness.version 2ec12a3. Global dry-runs in hangar: claude start prints the preflight brief (version in sync, no drift); agy edit of a broken .sh run from ~/.gemini/config exits 2 with sh-check's syntax error. Removed repo tests are covered by scripts/tests/test_shared_hook_templates.sh (sh-check syntax and shellcheck cases): hangar hook tests 29 -> 25, atelier 32 -> 27, both ./init.sh pass. repo_audit 2026-10-18 before -> after: hangar always-loaded 5438 -> 5389 tokens (AGENTS.md 1229 -> 1180), repo hooks 10 -> 8; atelier 5029 -> 5014 (AGENTS.md 820 -> 805), hooks 14 -> 12. Not done, needs the owner: the shared Startup and End of Session wording (same in both repos) belongs in the global rules, but those are deployed by install-agents-md.sh, which the owner asked to approve first; the deployed global rules on this host also differ from agents/engineering-rules.md (still has the Prompt polish rule removed from the source on 2026-09-29, lacks Outside agents and Cleanup pass)."
+    }
+  ]
+}

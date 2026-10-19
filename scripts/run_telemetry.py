@@ -178,6 +178,12 @@ def _in_window(row: dict[str, Any], start: datetime | None, end: datetime | None
     return (start is None or t >= start) and (end is None or t < end)
 
 
+def _other_session(row: dict[str, Any], session: str | None) -> bool:
+    """A log row written by another session; rows that name none fall back to the time window."""
+    sid = row.get("session_id")
+    return session is not None and isinstance(sid, str) and sid != session
+
+
 def _usage_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     out = []
     for r in rows:
@@ -406,9 +412,25 @@ def _event_counts(rows: list[dict[str, Any]]) -> dict[str, Any]:
         1 for r in rows if r.get("type") == "system" and r.get("subtype") == "compact_boundary"
     )
     api_errors = sum(1 for r in rows if r.get("isApiErrorMessage") is True)
+    tool_errors = 0
+    denials: Counter[str] = Counter()
+    for r in rows:
+        if r.get("type") != "user":
+            continue
+        content = (
+            r.get("message", {}).get("content") if isinstance(r.get("message"), dict) else None
+        )
+        for b in content if isinstance(content, list) else []:
+            if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("is_error") is True:
+                tool_errors += 1
+        kind = r.get("toolDenialKind")
+        if isinstance(kind, str):
+            denials[_scrub(kind, 40) or "unknown"] += 1
     return {
         "context_compactions": metric(compactions, "system compact_boundary records"),
         "api_errors": metric(api_errors, "records with isApiErrorMessage"),
+        "tool_errors": metric(tool_errors, "tool_result blocks with is_error"),
+        "permission_denials": metric(dict(denials), "toolDenialKind on tool results"),
         "retries": missing("no structured retry record in session files"),
         "timeouts": missing("no structured timeout record in session files"),
     }
@@ -472,7 +494,7 @@ def _subagents(
 
 
 def _outside_agent(
-    log: Path | None, start: datetime | None, end: datetime | None
+    log: Path | None, start: datetime | None, end: datetime | None, session: str | None = None
 ) -> dict[str, Any]:
     if log is None or not log.is_file():
         return {"attempts_logged": missing("outside-agent-runs.jsonl not found")}
@@ -480,7 +502,7 @@ def _outside_agent(
     legacy = 0
     results: Counter[str] = Counter()
     for r in _read_rows(log)[0]:
-        if not _in_window(r, start, end):
+        if not _in_window(r, start, end) or _other_session(r, session):
             continue
         if r.get("attempt") is True:
             attempts += 1
@@ -552,7 +574,7 @@ def _stop_hook_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _review_by_family(
-    log: Path | None, start: datetime | None, end: datetime | None
+    log: Path | None, start: datetime | None, end: datetime | None, session: str | None = None
 ) -> dict[str, Any]:
     if log is None or not log.is_file():
         gone = "outside-agent-runs.jsonl not found"
@@ -567,6 +589,7 @@ def _review_by_family(
             r.get("attempt") is not True
             or r.get("purpose") != "review"
             or not _in_window(r, start, end)
+            or _other_session(r, session)
         ):
             continue
         fam = r.get("family")
@@ -587,6 +610,7 @@ def _process_adherence(
     log: Path | None,
     start: datetime | None,
     end: datetime | None,
+    session: str | None = None,
 ) -> dict[str, Any]:
     types: Counter[str] = Counter(
         t if isinstance(t, str) and not t.startswith("[redacted") else "unknown"
@@ -594,7 +618,7 @@ def _process_adherence(
     )
     return {
         **_stop_hook_metrics(rows),
-        **_review_by_family(log, start, end),
+        **_review_by_family(log, start, end, session),
         "subagents_by_type": metric(dict(types), "subagents/*.meta.json agentType"),
         "failing_test_before_change": missing(
             "no structured record; commit order shows only that a test file changed with the code",
@@ -660,7 +684,9 @@ def _gates(
     )
 
 
-def _gate_runs(log: Path | None, start: datetime | None, end: datetime | None) -> dict[str, Any]:
+def _gate_runs(
+    log: Path | None, start: datetime | None, end: datetime | None, session: str | None = None
+) -> dict[str, Any]:
     files = (
         [
             log,
@@ -674,9 +700,10 @@ def _gate_runs(log: Path | None, start: datetime | None, end: datetime | None) -
         return missing("harness-verify-runs*.jsonl not found")
     count = passed = failed = 0
     names: Counter[str] = Counter()
+    tests: Counter[str] = Counter()
     all_rows = [r for f in files for r in _read_rows(f)[0]]
     for r in all_rows:
-        if not _in_window(r, start, end):
+        if not _in_window(r, start, end) or _other_session(r, session):
             continue
         count += 1
         if r.get("status") == "PASS":
@@ -688,8 +715,20 @@ def _gate_runs(log: Path | None, start: datetime | None, end: datetime | None) -
             label = _scrub(name, 40)
             if label:
                 names[label] += 1
+        listed = r.get("failed_tests")
+        # The file name only: a committed record must not hold paths.
+        for name in listed if isinstance(listed, list) else []:
+            label = _scrub(name.rsplit("/", 1)[-1], 80) if isinstance(name, str) else None
+            if label:
+                tests[label] += 1
     return metric(
-        {"count": count, "passed": passed, "failed": failed, "failed_gates": dict(names)},
+        {
+            "count": count,
+            "passed": passed,
+            "failed": failed,
+            "failed_gates": dict(names),
+            "failed_tests": dict(tests),
+        },
         "harness-verify-runs.jsonl, one line per run",
     )
 
@@ -758,10 +797,12 @@ def collect_run(
         "unmatched_spawns": [_tool_use_id(s) for s in spawns if s not in matched],
         "subagents_without_spawn": [s["agent_id"] for s in subs if not s["spawned_by_parent_call"]],
         "events": _event_counts(rows),
-        "process_adherence": _process_adherence(rows, subs, outside_log, t_start, t_end),
-        "outside_agent": _outside_agent(outside_log, t_start, t_end),
+        "process_adherence": _process_adherence(
+            rows, subs, outside_log, t_start, t_end, session_id
+        ),
+        "outside_agent": _outside_agent(outside_log, t_start, t_end, session_id),
         "gates": _gates(verify_report, t_start, t_end),
-        "gate_runs": _gate_runs(gate_runs_log, t_start, t_end),
+        "gate_runs": _gate_runs(gate_runs_log, t_start, t_end, session_id),
         "cost_usd": missing(
             "none",
             "no authoritative cost source; custom ANTHROPIC_BASE_URL makes public pricing a guess, so it is not estimated",

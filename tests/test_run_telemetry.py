@@ -1442,7 +1442,13 @@ def test_gate_runs_count_the_runs_inside_the_window(tmp_path):
     run = rt.collect_run(_session(tmp_path, rows), start=_ts(4), end=_ts(9), gate_runs_log=log)
     g = run["gate_runs"]
     assert g["status"] == "measured"
-    assert g["value"] == {"count": 2, "passed": 1, "failed": 1, "failed_gates": {"tests": 1}}
+    assert g["value"] == {
+        "count": 2,
+        "passed": 1,
+        "failed": 1,
+        "failed_gates": {"tests": 1},
+        "failed_tests": {},
+    }
 
 
 def test_gate_runs_are_missing_without_a_log_and_zero_when_none_ran(tmp_path):
@@ -1484,3 +1490,71 @@ def test_gate_report_without_a_window_is_attached_as_before(tmp_path):
     rep.write_text(json.dumps({"status": "PASS", "gates": []}))
     run = rt.collect_run(_session(tmp_path, [_row(_ts(5), "m1", _usage(1, 1))]), verify_report=rep)
     assert run["gates"]["status"] == "measured"
+
+
+def _tool_result(ts: str, *, error: bool, text: str = "x", **extra: Any) -> dict[str, Any]:
+    block = {"type": "tool_result", "tool_use_id": "toolu_1", "content": text, "is_error": error}
+    return {"type": "user", "timestamp": ts, "message": {"content": [block]}, **extra}
+
+
+def test_tool_errors_and_denials_come_from_structured_fields_only(tmp_path):
+    denied = "Permission for this action was denied by the Claude Code auto mode classifier."
+    rows = [
+        _row(_ts(1), "m1", _usage(1, 1)),
+        _tool_result(_ts(2), error=True, text="Exit code 1"),
+        _tool_result(_ts(3), error=True, text=denied, toolDenialKind="automode-blocked"),
+        _tool_result(_ts(4), error=False, text=denied),  # quoted text, not a denial
+        _tool_result(_ts(30), error=True),  # outside the window
+    ]
+    ev = rt.collect_run(_session(tmp_path, rows), start=_ts(0), end=_ts(10))["events"]
+    assert ev["tool_errors"] == {
+        "value": 2,
+        "source": "tool_result blocks with is_error",
+        "status": "measured",
+    }
+    assert ev["permission_denials"]["value"] == {"automode-blocked": 1}
+    assert ev["permission_denials"]["status"] == "measured"
+
+
+def test_rows_of_another_session_are_left_out_of_the_window(tmp_path):
+    other = "99999999-aaaa-bbbb-cccc-222222222222"
+    z = lambda m: _ts(m).replace(".000Z", "Z")  # noqa: E731
+    outside = tmp_path / "outside.jsonl"
+    attempt = lambda m, sid: {  # noqa: E731
+        "timestamp": _ts(m),
+        "agent": "agy",
+        "attempt": True,
+        "result": "ok",
+        "duration_ms": 1,
+        **({"session_id": sid} if sid is not False else {}),
+    }
+    outside.write_text(
+        "\n".join(
+            json.dumps(attempt(m, s)) for m, s in [(2, SESSION), (3, other), (4, False), (5, None)]
+        )
+    )
+    gates = tmp_path / "harness-verify-runs.jsonl"
+    gates.write_text(
+        "\n".join(
+            json.dumps(
+                {
+                    "timestamp": z(m),
+                    "status": "FAIL",
+                    "failed": ["tests"],
+                    "failed_tests": ["tests/test_a.py"],
+                    "session_id": s,
+                }
+            )
+            for m, s in [(2, SESSION), (3, other)]
+        )
+    )
+    run = rt.collect_run(
+        _session(tmp_path, [_row(_ts(1), "m1", _usage(1, 1))]),
+        start=_ts(0),
+        end=_ts(10),
+        outside_log=outside,
+        gate_runs_log=gates,
+    )
+    assert run["outside_agent"]["attempts_logged"]["value"] == 3
+    assert run["gate_runs"]["value"]["count"] == 1
+    assert run["gate_runs"]["value"]["failed_tests"] == {"test_a.py": 1}

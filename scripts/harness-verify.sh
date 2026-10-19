@@ -126,7 +126,10 @@ run_gate() {
       printf '%s\n' "$out" | sed 's/^/        /'
     fi
     FAILED="$FAILED $label"
-    printf '%s\t%s\t%d\t%d\n' "$label" "FAIL" "$status" "$duration_ms" >> "$GATE_ENTRIES_FILE"
+    # run-tests.sh names each failing file at two spaces of indent; a test's own output is deeper.
+    local failed_tests
+    failed_tests=$(printf '%s\n' "$out" | sed -n 's/^  FAIL  \([^ ]*\)$/\1/p' | paste -sd, -)
+    printf '%s\t%s\t%d\t%d\t%s\n' "$label" "FAIL" "$status" "$duration_ms" "$failed_tests" >> "$GATE_ENTRIES_FILE"
   fi
 }
 
@@ -173,9 +176,10 @@ entries_file, failed, skipped, total_ms, slow_ms = sys.argv[1:6]
 gates = []
 with open(entries_file) as f:
     for line in f:
-        parts = line.strip().split("\t")
-        if len(parts) == 4:
-            name, status, exit_code, dur = parts
+        parts = line.rstrip("\n").split("\t")
+        if len(parts) in (4, 5):
+            name, status, exit_code, dur = parts[:4]
+            tests = [t for t in parts[4].split(",") if t] if len(parts) == 5 else []
             dur_int = int(dur)
             gates.append({
                 "name": name,
@@ -184,14 +188,16 @@ with open(entries_file) as f:
                 "duration_ms": dur_int,
                 "slow": dur_int >= int(slow_ms),
             })
+            if tests:
+                gates[-1]["failed_tests"] = tests
 report = {
     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     "status": "FAIL" if failed.strip() else ("SKIP" if skipped.strip() else "PASS"),
     "total_duration_ms": int(total_ms),
     "slow_threshold_ms": int(slow_ms),
     "gates": gates,
-    "failed": failed.strip().split() if failed.strip() else [],
-    "skipped": skipped.strip().split() if skipped.strip() else [],
+    "failed": [g["name"] for g in gates if g["status"] == "FAIL"],
+    "skipped": [g["name"] for g in gates if g["status"] == "SKIP"],
 }
 print(json.dumps(report, indent=2))
 ' "$GATE_ENTRIES_FILE" "$FAILED" "$SKIPPED" "$TOTAL_MS" "$SLOW_THRESHOLD")
@@ -208,9 +214,11 @@ print(json.dumps(report, indent=2))
       state_dir="$(dirname "$LAST_REPORT")"
       month=$(date -u +%Y%m)
       printf '%s' "$report_json" | python3 -c '
-import json, sys
+import json, os, sys
 r = json.load(sys.stdin)
 keep = {k: r.get(k) for k in ("timestamp", "status", "total_duration_ms", "failed", "skipped")}
+keep["failed_tests"] = [t for g in r.get("gates", []) for t in g.get("failed_tests", [])]
+keep["session_id"] = os.environ.get("CLAUDE_CODE_SESSION_ID") or None
 print(json.dumps(keep, separators=(",", ":")))
 ' >> "$state_dir/harness-verify-runs-$month.jsonl"
       cutoff=$(python3 -c '

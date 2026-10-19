@@ -45,6 +45,10 @@ BOT_RE = re.compile(r"\[bot\]$|^renovate", re.IGNORECASE)
 # A review counts for a commit when it ran in the same repo within this window
 # after it: the rules ask for one review per branch before finishing, not per commit.
 REVIEW_WINDOW = datetime.timedelta(days=2)
+# A fix counts as rework when it changes code another commit changed this long before it.
+REWORK_WINDOW = datetime.timedelta(hours=48)
+FIX_RE = re.compile(r"^fix[(:!]")
+NOT_CODE_RE = re.compile(r"\.md$|(^|/)feature_list\.json$|^docs/telemetry/")
 
 
 def update_regressions(log: str, rc: int) -> list[str]:
@@ -142,6 +146,65 @@ def review_coverage(
         else:
             unreviewed.append(f"{sha} {subject}")
     return {"risky": risky, "reviewed": reviewed, "unreviewed": unreviewed}
+
+
+def rework(repo: Path, since: datetime.datetime) -> dict[str, Any]:
+    """Fix commits since `since`, and those that changed code another commit changed in the 48 h before.
+
+    A trend, not a verdict: in a large shared file two unrelated changes overlap too.
+    """
+    out = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "log",
+            f"--since={(since - REWORK_WINDOW).isoformat()}",
+            "--name-only",
+            "--format=%x1e%h%x1f%cI%x1f%an%x1f%s",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    commits = []
+    for rec in out.split("\x1e")[1:]:
+        head, _, files = rec.partition("\n")
+        sha, when, author, subject = head.split("\x1f", 3)
+        if not BOT_RE.search(author):
+            code = {f for f in files.split() if not NOT_CODE_RE.search(f)}
+            commits.append((_parse_ts(when), sha, subject, code))
+    fixes = 0
+    reworked: list[str] = []
+    for t, sha, subject, code in commits:
+        if t < since or not FIX_RE.match(subject):
+            continue
+        fixes += 1
+        if any(t - REWORK_WINDOW <= t2 < t and code & code2 for t2, _, _, code2 in commits):
+            reworked.append(f"{sha} {subject}")
+    return {"fixes": fixes, "rework": len(reworked), "reworked": reworked}
+
+
+def _rework_section(repos: list[Path], since: datetime.datetime) -> list[str]:
+    rows = []
+    for repo in repos:
+        try:
+            r = rework(repo, since)
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        latest = "; ".join(r["reworked"][:5]) or "-"
+        rows.append(f"| {repo.name} | {r['fixes']} | {r['rework']} | {latest} |")
+    return [
+        "## Rework",
+        "",
+        "A fix that changes code another commit changed in the 48 h before it.",
+        "Renovate's commits and docs are left out; large shared files overcount.",
+        "",
+        "| repo | fix commits | rework | reworked (latest 5) |",
+        "|---|---|---|---|",
+        *rows,
+        "",
+    ]
 
 
 def _review_section(repos: list[Path], runtime: Path, since: datetime.datetime) -> list[str]:
@@ -249,6 +312,7 @@ def run(
     since = _parse_ts(f"{today}T00:00:00") - datetime.timedelta(days=days)
     repos = [r for r in [*_registered(runtime), *extra_repos] if r.is_dir()]
     lines += _review_section(repos, runtime, since)
+    lines += _rework_section(repos, since)
     return "\n".join(lines), found
 
 

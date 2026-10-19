@@ -178,7 +178,7 @@ def _git(repo: Path, *args: str, date: str | None = None) -> None:
     subprocess.run(["git", "-C", str(repo), *args], check=True, env=env, capture_output=True)
 
 
-def _commit(repo: Path, path: str, date: str, author: str = "dev") -> None:
+def _commit(repo: Path, path: str, date: str, author: str = "dev", msg: str | None = None) -> None:
     f = repo / path
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(date)
@@ -192,7 +192,7 @@ def _commit(repo: Path, path: str, date: str, author: str = "dev") -> None:
         "--author",
         f"{author} <a@example.com>",
         "-m",
-        path,
+        msg or path,
         date=date,
     )
 
@@ -234,6 +234,32 @@ def test_review_coverage_counts_risky_commits_and_matching_outside_reviews(tmp_p
     assert hw.review_coverage(repo, runs, since)["reviewed"] == 0
 
 
+def test_rework_counts_fixes_to_code_another_commit_changed_in_the_48h_before(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    # Before the window, but inside 48 h of the first fix: still the code it reworks.
+    _commit(repo, "scripts/a.py", "2026-10-14T10:00:00+08:00", msg="feat: a")
+    _commit(repo, "docs/a.md", "2026-10-14T11:00:00+08:00", msg="docs: a")
+    _commit(repo, "scripts/a.py", "2026-10-15T09:00:00+08:00", msg="fix: a again")  # rework
+    _commit(repo, "scripts/b.py", "2026-10-15T10:00:00+08:00", msg="fix(b): new bug")  # first touch
+    _commit(repo, "docs/a.md", "2026-10-15T11:00:00+08:00", msg="fix: typo")  # docs only
+    _commit(repo, "scripts/c.py", "2026-10-15T12:00:00+08:00", msg="feat: c")
+    _commit(repo, "scripts/c.py", "2026-10-18T13:00:00+08:00", msg="fix: c")  # 73 h later
+    _commit(
+        repo,
+        "scripts/a.py",
+        "2026-10-16T09:00:00+08:00",
+        author="renovate[bot]",
+        msg="fix(deps): a",
+    )
+    r = hw.rework(repo, hw._parse_ts("2026-10-15T00:00:00+08:00"))
+    assert (r["fixes"], r["rework"]) == (4, 1)
+    assert [x.split(" ", 1)[1] for x in r["reworked"]] == ["fix: a again"]
+
+
 def test_run_reports_review_coverage_without_counting_it_as_a_regression(tmp_path: Path) -> None:
     runtime, repo = _runtime(tmp_path)
     _git(repo, "init", "-q")
@@ -244,3 +270,5 @@ def test_run_reports_review_coverage_without_counting_it_as_a_regression(tmp_pat
     assert found == []
     assert "## Outside reviews of risky commits" in report
     assert "| hangar | 1 | 0 |" in report
+    assert "## Rework" in report
+    assert "| hangar | 0 | 0 | - |" in report

@@ -706,6 +706,25 @@ def test_attempt_logged_for_success_with_duration(stubenv):
     assert isinstance(att[0]["duration_ms"], int) and att[0]["duration_ms"] >= 0
 
 
+def test_rows_name_the_session_and_attempts_name_the_repo(stubenv, monkeypatch):
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "5a0ad1e4-6613-4db6-a27f-8e54a547759f")
+    r, att = _run_agy(stubenv, "echo OK", "--cwd", str(REPO_ROOT))
+    assert r.returncode == 0
+    rows = [
+        json.loads(x)
+        for x in (oa.runtime_dir() / "state" / "outside-agent-runs.jsonl").read_text().splitlines()
+    ]
+    assert {x["session_id"] for x in rows} == {"5a0ad1e4-6613-4db6-a27f-8e54a547759f"}
+    assert att[0]["repo"] == str(REPO_ROOT.resolve())
+
+
+def test_rows_without_a_session_say_null(stubenv, monkeypatch):
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+    r, att = _run_agy(stubenv, "echo OK")
+    assert r.returncode == 0
+    assert att[0]["session_id"] is None
+
+
 def test_attempt_logged_for_timeout(stubenv):
     r, att = _run_agy(stubenv, "sleep 30", "--timeout", "1")
     assert r.returncode == 2

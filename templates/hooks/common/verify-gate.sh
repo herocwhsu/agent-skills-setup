@@ -22,6 +22,8 @@ changed_paths() {
   } | grep -E "$re" | sort -u || true
 }
 
+hook_input=""; [[ -t 0 ]] || hook_input=$(cat)
+
 cd "$REPO_ROOT" || exit 0
 [[ -f agent-harness.json ]] || { echo "  SKIP  verify: no agent-harness.json"; exit 0; }
 if [[ -z "$(changed_paths "$RELEVANT_RE")" ]]; then
@@ -50,16 +52,21 @@ duration=$(( $(date +%s) - start ))
 runtime="$HOME/.agent-skills-setup"
 if [[ -f "$runtime/harness-version.json" ]]; then
   python3 - "$runtime" "$(basename "$REPO_ROOT")" "$(git rev-parse --short HEAD 2>/dev/null)" \
-    "${failed:+fail}" "$duration" "$results" <<'PY' || true
+    "${failed:+fail}" "$duration" "$results" "$hook_input" <<'PY' || true
 import datetime, json, os, sys
-runtime, repo, commit, failed, duration, results = sys.argv[1:7]
+runtime, repo, commit, failed, duration, results, hook_input = sys.argv[1:8]
+try:
+    session = json.loads(hook_input).get("session_id") or None
+except (ValueError, AttributeError):
+    session = None
 commands = []
 for line in open(results, encoding="utf-8"):
     rc, secs, cmd = line.rstrip("\n").split("\t", 2)
     commands.append({"cmd": cmd, "rc": int(rc), "duration_s": int(secs)})
 now = datetime.datetime.now().astimezone()
 row = {"ts": now.isoformat(timespec="seconds"), "repo": repo, "commit": commit or None,
-       "result": "fail" if failed else "pass", "duration_s": int(duration), "commands": commands}
+       "result": "fail" if failed else "pass", "duration_s": int(duration), "commands": commands,
+       "session_id": session if isinstance(session, str) else None}
 d = os.path.join(runtime, "telemetry", repo)
 os.makedirs(d, exist_ok=True)
 with open(os.path.join(d, f"verify-runs-{now:%Y%m}.jsonl"), "a", encoding="utf-8") as f:
