@@ -56,6 +56,10 @@ grep -q 'outside-agent.sh run --purpose review' "$RULES" \
 grep -q 'A fresh context makes a reviewer independent' "$RULES" \
   && ok "review rule defines independence as a fresh context" \
   || bad "review rule defines independence as a fresh context" "missing"
+grep -q 'two fresh-context subagents in parallel' "$RULES" && grep -q 'is optional' "$RULES" \
+  && grep -q 'do not hold the commit for it' "$RULES" && ! grep -q 'that subagent plus an outside agent' "$RULES" \
+  && ok "high-risk review is two subagents; the outside agent never holds the commit" \
+  || bad "high-risk review is two subagents; the outside agent never holds the commit" "missing"
 grep -q 'cumulative diff' "$RULES" \
   && ok "review rule names its trigger (once per branch, on the cumulative diff)" \
   || bad "review rule names its trigger (once per branch, on the cumulative diff)" "missing"

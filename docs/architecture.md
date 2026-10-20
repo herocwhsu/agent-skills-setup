@@ -58,13 +58,13 @@ flowchart TD
   - `secret-scan.sh`: Scans for committed secrets (gitleaks) and vulnerable dependencies (osv-scanner).
   - `commit-evidence.sh` (Stop only): Surfaces the commit range once so the main agent checks subagent work; not a validator, so not run by `harness-verify.sh`.
 - **Harness-verify only:** `hook-wiring-guard.sh` checks that every shipped `hook.json` would work once installed (known event names, existing targets, `${AGENT_SKILLS_DIR}` paths). Not wired as a Stop hook.
-- **Other agents:** `.agents/hooks.json` (AGY) and `.codex/hooks.json` (Codex CLI) wire the same edit-time checks plus `stop-verify.sh`, which runs `harness-verify.sh` and answers in each agent's Stop hook format.
+- **Other agents:** `.agents/hooks.json` (AGY) and `.codex/hooks.json` (Codex CLI) wire the same edit-time checks plus `stop-verify.sh`, which runs `harness-verify.sh` and answers in each agent's Stop hook format. During an outside-agent review (`OUTSIDE_AGENT_PURPOSE=review`, set by `outside-agent.sh`) it and `agent-hook.sh` skip the gates: the agy allowlist keeps the reviewer read-only, and the gates would only fail on the uncommitted change under review.
 - **Tool-Event Hooks:** Immediate feedback hooks wired in `.claude/settings.json`:
   - `precommit-sh-check.sh` (PreToolUse on Bash): Validates shell scripts before commit commands.
   - `sh-check.sh` & `py-check.sh` (PostToolUse on Edit/Write): Immediate syntax and lint checks on touched shell/Python files.
 - **Hook Exit Protocol:** Stop hooks exit with status code **2** to block agent turn termination and surface stdout/stderr directly into agent context.
 
-- **Outside agents:** `scripts/outside-agent.sh` (logic in `scripts/outside_agent.py`) picks a working outside CLI agent per call from the per-machine `~/.agent-skills-setup/outside-agents.conf`. Reviews run once per branch and scale with risk: none, one fresh-context subagent, or that subagent plus an outside agent for high-risk changes. Flow charts are in the README's "Outside Agents" section.
+- **Outside agents:** `scripts/outside-agent.sh` (logic in `scripts/outside_agent.py`) picks a working outside CLI agent per call from the per-machine `~/.agent-skills-setup/outside-agents.conf`. Reviews run once per branch and scale with risk: none, one fresh-context subagent, or two subagents with different focuses for high-risk changes; an outside agent is optional and never holds the commit. Flow charts are in the README's "Outside Agents" section.
 
 ### 2.4 State Management & Session Continuity
 - **Startup Entrypoint:** `init.sh` builds `.venv` from `requirements-dev.txt` when it is missing (refusing a `python3` that differs from `.python-version`), then executes `scripts/harness-verify.sh`.
@@ -145,4 +145,4 @@ Decisions behind the current structure. Details of each change live in `feature_
 - **The Stop gate runs only the tests for changed files** (`run-tests.sh --changed`). Running every test on every edit took minutes. An active feature's `exclusions` list blocks edits outside its sprint contract.
 - **A clean-state gate (Invariant 4)** fails the turn if an agent leaves untracked scratch files or uncommitted edits.
 - **Runtime venv instead of `--break-system-packages`.** Homebrew and modern Linux Python enforce PEP 668, so bare `pip install` fails.
-- **A second fresh-context review.** Important changes also go through an outside agent via `outside-agent.sh`; a fresh context makes a reviewer independent, whatever its model family (owner decision, 2026-10-20).
+- **Two fresh-context reviews.** Important changes get two subagents with different focuses; a fresh context makes a reviewer independent, whatever its model family (owner decision, 2026-10-20). An outside agent via `outside-agent.sh` is optional: agy took 10 to 30 minutes per review.

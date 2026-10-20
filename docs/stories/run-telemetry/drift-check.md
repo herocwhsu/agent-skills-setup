@@ -30,7 +30,7 @@
 Change course if: fewer than about 1 uncaught drift event per 10 features (stop at step 1), or corrections cluster mid-feature (then (c) with a 30+ minute period).
 
 ## Tests first, reviewers
-Fixture transcripts: block then command, block then text, no block, unreadable file; scope list empty, file inside, file outside. A Stop hook or gate change needs a fresh subagent plus an outside agent (try codex-kiro and agy). Step 1 is a script, so a subagent suffices.
+Fixture transcripts: block then command, block then text, no block, unreadable file; scope list empty, file inside, file outside. A Stop hook or gate change needs two fresh subagents (correctness; security and permissions); an outside agent is optional. Step 1 is a script, so a subagent suffices.
 
 ## 5. Metrics (`{value, source, status}`)
 `hook_blocks` and `tool_calls_after_block` measured; `reviewers_spawned`, `reviewer_families`, `files_per_commit` measured; `scope_violations` missing until `scope_files` exists; `user_corrections` missing (no reliable signal); `uncaught_drift_events` estimated, hand-labelled from review findings. Success: fewer review findings of type "did not do what was asked" and fewer messages restating a request, at equal or lower output tokens per feature.

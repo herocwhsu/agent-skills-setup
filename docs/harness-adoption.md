@@ -86,7 +86,7 @@ Checked 2026-10-01 with a canary word in a throwaway repo:
   `git status` before and after. `install.sh` writes the review allowlist
   (`AGY_REVIEW_ALLOW` in `scripts/outside_agent.py`, via `outside-agent.sh allow-agy`):
   `git status`, `git rev-parse`, `git merge-base`, `grep`, `wc`, `ls`, `head`, `tail`, `cat`,
-  and `git log`/`diff`/`show`/`ls-files`/`blame` through one `command(regex:...)` rule that admits only
+  and `git log`/`diff`/`show`/`ls-files`/`blame` (with pipes into grep/head/tail/wc, and quoting that expands nothing; a quoted git argument may not start with `-`, as `'--output=x'` reaches git as the flag) through one `command(regex:...)` rule that admits only
   listed flags, since `--output=<file>` makes them write and a deny rule
   `command(regex:.*--output.*)` did not stop it (agy 1.4.3, 2026-10-20). `&&` chaining and `>`
   redirection were denied under a prefix rule. Since 2026-10-20 reviews run without
@@ -114,9 +114,11 @@ older (December 2025) Codex doc gave; the current doc names `~/.agents/skills`.
 
 ## Review
 
-Ask a different model family for review and confirm its claims mechanically: the
+Review with fresh-context reviewers and confirm their claims mechanically: the
 same-model review in Lecture 1 missed a test that passed whether or not the feature
-worked, and a different model's confident claims in Lecture 2 were false twice.
+worked, and a different model's confident claims in Lecture 2 were false twice. Since
+2026-10-20 a fresh context counts as independent whatever the model (owner decision), and
+high-risk changes get two subagents with different focuses.
 Finish with the fresh-session test: a session with no context should answer what the
 repo is, how it is laid out, how to run it, how to verify it and where work stands.
 

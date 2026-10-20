@@ -573,23 +573,25 @@ mentions "quota" or "401" is still an answer.
 
 The shipped rule (`agents/engineering-rules.md`, "Outside agents") scales reviewers to
 risk, once per branch on the cumulative diff: none for docs and state files, one subagent
-for ordinary code, and two for hooks, gates, shipped rules, install scripts, and
-permission, security, data or contract changes. The flow below is the two-reviewer case:
+for ordinary code, and two subagents in parallel (one on correctness, one on security and
+permissions) for hooks, gates, shipped rules, install scripts, and permission, security,
+data or contract changes. An outside agent is optional and never holds the commit:
 
 ```mermaid
 flowchart LR
-    W[change ready] --> S[fresh-context subagent<br/>diff + requirements only]
-    W --> O["outside-agent.sh run --purpose review --from &lt;own family&gt;"]
+    W[change ready] --> S1[subagent: correctness<br/>diff + requirements only]
+    W --> S2[subagent: security and permissions]
+    W -. optional, background .-> O["outside-agent.sh run --purpose review --from &lt;own family&gt;"]
     O --> R{exit}
     R -- 0 --> I[outside review]
     R -- 2 --> E[no outside agent worked:<br/>report stderr, do not work around]
-    S --> M[merge findings]
-    I --> M
+    S1 --> M[merge findings, commit]
+    S2 --> M
+    I -. if it finishes .-> M
 ```
 
-The subagent catches assumptions carried in from the conversation; the outside agent is a
-second fresh-context reviewer. A fresh context makes a reviewer independent, whatever its
-model family (owner decision, 2026-10-20); another family is still tried first.
+A fresh context makes a reviewer independent, whatever its model family (owner decision,
+2026-10-20). For an outside review, another family is still tried first.
 `--from` is the caller's model family, so a `claude-kiro` session passes `--from claude`
 and is reviewed by `codex-kiro`, or by `agy` when kiro is down or out of quota.
 
