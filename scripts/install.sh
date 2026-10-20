@@ -208,6 +208,7 @@ if [[ "${OUTSIDE_AGENT_INIT:-1}" == "0" ]]; then
 else
   bash "$(skills_runtime_dir "$REPO_DIR")/outside-agent.sh" init || echo "  WARNING: outside-agent init failed"
 fi
+bash "$(skills_runtime_dir "$REPO_DIR")/outside-agent.sh" allow-agy || echo "  WARNING: agy review allowlist not written"
 
 # Print post-install hints when openspec is registered.
 if grep -qE '^npm[[:space:]]+@fission-ai/openspec' "$REPO_DIR/registry.txt" 2>/dev/null; then

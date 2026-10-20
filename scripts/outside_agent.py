@@ -292,16 +292,58 @@ def _perm(name: str, purpose: str, allow_edits: bool) -> list[str]:
     return ["--mode", "accept-edits" if edit else "plan"]
 
 
+# Pinned: agy also serves Claude models, which would make a "gemini" review not independent.
+AGY_REVIEW_MODEL = "gemini-3.8-flash-high"
+AGY_REVIEW_NOTE = (
+    "The test and gate output is in this prompt: do not run tests, gates, or install, update "
+    "or sync scripts. Read code with your file viewing and search tools, on files inside this "
+    "repository only. Shell commands allowed: git status, git log, git diff, git show, "
+    "git ls-files, git blame, git rev-parse, git merge-base, grep, cat, head, tail, ls, wc. "
+    "git log/diff/show/ls-files/blame take unquoted arguments, short flags, `--` paths and "
+    "--stat, --name-only, --format=..., --unified=... style options. Any other command, quoted "
+    "argument or path outside the repository is refused and ends this review with no answer."
+)
+_GIT_ARG = r"[A-Za-z0-9_./~^:@+,%][A-Za-z0-9_./~^:@+,%=-]*"
+_GIT_LONG = "stat|oneline|name-only|name-status|numstat|shortstat|cached|staged|no-color|patch"
+_GIT_VALUED = "format|pretty|unified|since|until|author|max-count|diff-filter"
+# A prefix rule would let `git diff --output=<file>` write, and a deny rule did not stop it
+# (agy 1.4.3, 2026-10-20), so the git read commands are allowed only with listed flags.
+AGY_REVIEW_ALLOW = (
+    "command(git status)",
+    "command(git rev-parse)",
+    "command(git merge-base)",
+    "command(grep)",
+    "command(cat)",
+    "command(head)",
+    "command(tail)",
+    "command(ls)",
+    "command(wc)",
+    rf"command(regex:^git (log|diff|show|ls-files|blame)( +({_GIT_ARG}|-[A-Za-z0-9]+|--|--({_GIT_LONG})"
+    rf"|--({_GIT_VALUED})=[A-Za-z0-9_./~^:@+,%=-]*))*$)",
+)
+
+
 def build_argv(name: str, prompt: str, purpose: str, allow_edits: bool) -> list[str]:
     perm = _perm(name, purpose, allow_edits)
     if name in ("claude", "claude-kiro"):
         argv = [name, "-p", *perm, prompt]
     elif name in ("codex", "codex-kiro"):
         argv = [name, "exec", "--skip-git-repo-check", *perm, prompt]
+    elif purpose == "review":
+        # Headless agy refuses any tool outside the allowlist in its settings.json
+        # (written by `outside-agent.sh allow-agy`) and then ends the run with no output, so the prompt steers it
+        # off tests and scripts. At its default effort agy passed a real bug, 2026-10-18.
+        argv = [
+            "agy",
+            "--model",
+            AGY_REVIEW_MODEL,
+            "--effort",
+            "high",
+            "-p",
+            f"{AGY_REVIEW_NOTE}\n\n{prompt}",
+        ]
     else:
-        # At its default effort agy passed a diff that held a real bug, 2026-10-18.
-        effort = ["--effort", "high"] if purpose == "review" else []
-        argv = ["agy", "--dangerously-skip-permissions", *perm, *effort, "-p", prompt]
+        argv = ["agy", "--dangerously-skip-permissions", *perm, "-p", prompt]
     if KINDS[name].group == "kiro":
         return [_shell(), "-i", "-c", shlex.join(argv)]
     return argv
@@ -358,6 +400,9 @@ def run_one(
     finally:
         for signum, h in prev.items():
             signal.signal(signum, h)
+    if proc.returncode == 0 and not (stdout or "").strip() and (stderr or "").strip():
+        # A headless agy that hit a refused tool exits 0 and names the permission on stderr.
+        return "error", ESC_RE.sub("", stderr).strip()
     out = ESC_RE.sub("", (stdout or "") + (stderr if proc.returncode else "")).strip()
     return classify(proc.returncode, out), out
 
@@ -752,6 +797,31 @@ def cmd_reset(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_allow_agy(a: argparse.Namespace) -> int:
+    f = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
+    if not f.parent.is_dir():
+        _say("agy settings dir not found, skipped", sys.stdout)
+        return 0
+    try:
+        d = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        allow = d.setdefault("permissions", {}).setdefault("allow", [])
+        if not isinstance(allow, list):
+            raise TypeError("permissions.allow is not a list")
+    except (OSError, ValueError, TypeError, AttributeError) as e:
+        _say(f"{f} left unchanged, cannot read it: {e}")
+        return 2
+    added = [r for r in AGY_REVIEW_ALLOW if r not in allow]
+    if added:
+        allow.extend(added)
+        tmp = f.with_name(f.name + ".tmp")
+        tmp.write_text(json.dumps(d, indent=2) + "\n", encoding="utf-8")
+        if f.exists():
+            tmp.chmod(f.stat().st_mode & 0o777)
+        os.replace(tmp, f)
+    _say(f"agy review allowlist: {len(added)} rule(s) added", sys.stdout)
+    return 0
+
+
 def _positive_int(s: str) -> int:
     try:
         n = int(s)
@@ -794,8 +864,15 @@ def main(argv: list[str]) -> int:
     sub.add_parser("status")
     s = sub.add_parser("reset")
     s.add_argument("target", nargs="?")
+    sub.add_parser("allow-agy")
     a = p.parse_args(argv)
-    return {"run": cmd_run, "init": cmd_init, "status": cmd_status, "reset": cmd_reset}[a.cmd](a)
+    return {
+        "run": cmd_run,
+        "init": cmd_init,
+        "status": cmd_status,
+        "reset": cmd_reset,
+        "allow-agy": cmd_allow_agy,
+    }[a.cmd](a)
 
 
 if __name__ == "__main__":

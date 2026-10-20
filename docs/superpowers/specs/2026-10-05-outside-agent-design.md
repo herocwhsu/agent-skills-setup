@@ -73,7 +73,7 @@ what order. An unknown name in the conf fails loud.
 |---|---|---|---|---|
 | `claude-kiro` | alias defined; gateway answers in 1s; proxy key in keychain | `zsh -i -c 'claude-kiro -p …'` | `kiro` | claude |
 | `codex-kiro` | same | `zsh -i -c 'codex-kiro exec --skip-git-repo-check …'` | `kiro` | openai |
-| `agy` | command exists | `agy -p …` (`--mode plan` for review) | `agy` | gemini |
+| `agy` | command exists | `agy -p …` (review: `--model gemini-3.8-flash-high --effort high`, held by the allowlist `allow-agy` writes; delegate: `--dangerously-skip-permissions --mode plan`/`accept-edits`) | `agy` | gemini |
 | `claude` | command exists; `Claude Code-credentials` keychain entry | `env -u ANTHROPIC_* claude -p …` | `claude` | claude |
 | `codex` | command exists; `~/.codex/auth.json` exists | `codex exec --skip-git-repo-check …` | `codex` | openai |
 

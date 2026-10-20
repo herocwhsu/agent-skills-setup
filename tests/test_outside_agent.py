@@ -165,9 +165,6 @@ def test_build_argv_review_is_read_only():
     argv = oa.build_argv("claude", "p", "review", True)
     assert argv[argv.index("--permission-mode") + 1] == "plan"
     assert argv[-1] == "p"
-    agy = oa.build_argv("agy", "p", "review", False)
-    assert agy[-2:] == ["-p", "p"]
-    assert agy[agy.index("--mode") + 1] == "plan" and agy.index("--mode") < agy.index("-p")
     codex = oa.build_argv("codex", "p", "review", True)
     assert "read-only" in codex and codex[-1] == "p"
 
@@ -177,6 +174,32 @@ def test_build_argv_agy_reviews_at_high_effort():
     assert review[review.index("--effort") + 1] == "high"
     assert review.index("--effort") < review.index("-p")
     assert "--effort" not in oa.build_argv("agy", "p", "delegate", False)
+
+
+def test_build_argv_agy_review_is_held_by_its_allowlist_not_skipped():
+    # --mode plan only asks agy to plan and --dangerously-skip-permissions approved every
+    # tool, so a "read-only" review ran install.sh; headless agy denies what is not allowed.
+    review = oa.build_argv("agy", "p", "review", False)
+    assert "--dangerously-skip-permissions" not in review
+    assert "--mode" not in review
+    assert review[review.index("--model") + 1] == "gemini-3.8-flash-high"
+    assert review[-2] == "-p" and review[-1].endswith("\n\np")
+    assert "do not run tests" in review[-1]
+    assert "inside this repository" in review[-1]
+    assert "file viewing and search tools" in review[-1]
+    delegate = oa.build_argv("agy", "p", "delegate", True)
+    assert "--dangerously-skip-permissions" in delegate and delegate[-1] == "p"
+
+
+def test_run_one_agy_denial_reports_its_stderr(stubenv):
+    bin_, _ = stubenv
+    _stub(
+        bin_,
+        "agy",
+        "echo 'jetski: no output produced, a tool required the \"command\" permission' >&2",
+    )
+    cls, out = oa.run_one("agy", "p", "review", False, 10, None)
+    assert cls == "error" and '"command" permission' in out
 
 
 def test_build_argv_delegate_allow_edits():
@@ -1035,3 +1058,87 @@ def test_logging_never_raises_when_the_working_directory_is_gone(stubenv, monkey
     oa._log_outside_run("agy", "gemini", "review", "claude", 0, True)
     rows = (oa.runtime_dir() / "state" / "outside-agent-runs.jsonl").read_text().splitlines()
     assert [json.loads(r)["repo"] for r in rows] == [None, None]
+
+
+def _agy_settings(home):
+    return home / ".gemini" / "antigravity-cli" / "settings.json"
+
+
+def test_allow_agy_merges_the_review_allowlist_and_keeps_other_settings(stubenv):
+    _, home = stubenv
+    f = _agy_settings(home)
+    f.parent.mkdir(parents=True)
+    f.write_text(
+        json.dumps(
+            {"colorScheme": "dark", "permissions": {"allow": ["command(cat)", "command(mine)"]}}
+        )
+    )
+    assert cli("allow-agy").returncode == 0
+    assert cli("allow-agy").returncode == 0
+    d = json.loads(f.read_text())
+    allow = d["permissions"]["allow"]
+    assert d["colorScheme"] == "dark" and "command(mine)" in allow
+    assert set(oa.AGY_REVIEW_ALLOW) <= set(allow) and len(allow) == len(set(allow))
+
+
+def test_allow_agy_keeps_the_settings_file_private(stubenv):
+    _, home = stubenv
+    f = _agy_settings(home)
+    f.parent.mkdir(parents=True)
+    f.write_text("{}")
+    f.chmod(0o600)
+    old = os.umask(0o022)
+    try:
+        assert cli("allow-agy").returncode == 0
+    finally:
+        os.umask(old)
+    assert f.stat().st_mode & 0o777 == 0o600
+
+
+def test_allow_agy_does_nothing_without_agy_settings_dir(stubenv):
+    _, home = stubenv
+    r = cli("allow-agy")
+    assert r.returncode == 0 and not (home / ".gemini").exists()
+
+
+def test_allow_agy_leaves_unreadable_settings_alone(stubenv):
+    _, home = stubenv
+    f = _agy_settings(home)
+    f.parent.mkdir(parents=True)
+    f.write_text("{not json")
+    r = cli("allow-agy")
+    assert r.returncode == 2 and f.read_text() == "{not json" and "settings.json" in r.stderr
+
+
+def test_agy_git_rule_refuses_output_files_and_chained_commands():
+    rule = next(x for x in oa.AGY_REVIEW_ALLOW if x.startswith("command(regex:"))
+    pat = re.compile(rule[len("command(regex:") : -1])
+    for ok in (
+        "git log -1 --oneline",
+        "git diff HEAD~1 --stat",
+        "git show abc123 --name-only",
+        "git diff HEAD -- scripts/x.py",
+        "git log -p -- f",
+        "git log --format=%H -3",
+        "git log --pretty=oneline",
+        "git diff --unified=5",
+        "git ls-files scripts",
+        "git blame -L 10,20 scripts/install.sh",
+    ):
+        assert pat.match(ok), ok
+    for bad in (
+        "git diff --output=x",
+        "git log -1 > x",
+        "git diff; rm x",
+        "git show $(rm x)",
+        "git log --output x",
+        'git ls-files "* *"',
+        "git grep -Ovim x",
+    ):
+        assert not pat.match(bad), bad
+
+
+def test_agy_review_note_names_every_allowed_command():
+    for rule in oa.AGY_REVIEW_ALLOW:
+        if not rule.startswith("command(regex:"):
+            assert rule[len("command(") : -1] in oa.AGY_REVIEW_NOTE, rule
