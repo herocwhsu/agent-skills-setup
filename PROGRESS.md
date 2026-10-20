@@ -58,6 +58,9 @@
 
 ## Decisions Made
 
+- **A fresh context makes a reviewer independent (owner, 2026-10-20):** whatever its model
+  family. `outside-agent.sh` no longer exits 3 for a same-family review; high-risk changes still
+  get the subagent plus an outside agent, and agy reviews on `gemini-3.8-flash-high`.
 - **Case-sensitive filesystem assumed repo-wide (owner, 2026-10-07):** All host environments, Docker
   containers, and CI operate on case-sensitive filesystems. New hooks and guards must not add
   case-insensitive fallback logic (e.g. checking both lowercase and uppercase variations).

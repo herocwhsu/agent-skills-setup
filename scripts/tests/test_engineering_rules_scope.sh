@@ -53,8 +53,9 @@ grep -q 'Prompt polish' "$RULES" \
 
 grep -q 'outside-agent.sh run --purpose review' "$RULES" \
   && ok "outside-agent rule present" || bad "outside-agent rule present" "missing"
-grep -q 'not independent' "$RULES" \
-  && ok "outside-agent rule names exit 3" || bad "outside-agent rule names exit 3" "missing"
+grep -q 'A fresh context makes a reviewer independent' "$RULES" \
+  && ok "review rule defines independence as a fresh context" \
+  || bad "review rule defines independence as a fresh context" "missing"
 grep -q 'cumulative diff' "$RULES" \
   && ok "review rule names its trigger (once per branch, on the cumulative diff)" \
   || bad "review rule names its trigger (once per branch, on the cumulative diff)" "missing"

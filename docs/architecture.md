@@ -64,7 +64,7 @@ flowchart TD
   - `sh-check.sh` & `py-check.sh` (PostToolUse on Edit/Write): Immediate syntax and lint checks on touched shell/Python files.
 - **Hook Exit Protocol:** Stop hooks exit with status code **2** to block agent turn termination and surface stdout/stderr directly into agent context.
 
-- **Outside agents:** `scripts/outside-agent.sh` (logic in `scripts/outside_agent.py`) picks a working outside CLI agent per call from the per-machine `~/.agent-skills-setup/outside-agents.conf`. Reviews run once per branch and scale with risk: none, one fresh-context subagent, or that subagent plus a different model family for high-risk changes. Flow charts are in the README's "Outside Agents" section.
+- **Outside agents:** `scripts/outside-agent.sh` (logic in `scripts/outside_agent.py`) picks a working outside CLI agent per call from the per-machine `~/.agent-skills-setup/outside-agents.conf`. Reviews run once per branch and scale with risk: none, one fresh-context subagent, or that subagent plus an outside agent for high-risk changes. Flow charts are in the README's "Outside Agents" section.
 
 ### 2.4 State Management & Session Continuity
 - **Startup Entrypoint:** `init.sh` builds `.venv` from `requirements-dev.txt` when it is missing (refusing a `python3` that differs from `.python-version`), then executes `scripts/harness-verify.sh`.
@@ -145,4 +145,4 @@ Decisions behind the current structure. Details of each change live in `feature_
 - **The Stop gate runs only the tests for changed files** (`run-tests.sh --changed`). Running every test on every edit took minutes. An active feature's `exclusions` list blocks edits outside its sprint contract.
 - **A clean-state gate (Invariant 4)** fails the turn if an agent leaves untracked scratch files or uncommitted edits.
 - **Runtime venv instead of `--break-system-packages`.** Homebrew and modern Linux Python enforce PEP 668, so bare `pip install` fails.
-- **Reviews by a second model family.** A single model confirms its own mistakes, so important changes also go through a different family via `outside-agent.sh`.
+- **A second fresh-context review.** Important changes also go through an outside agent via `outside-agent.sh`; a fresh context makes a reviewer independent, whatever its model family (owner decision, 2026-10-20).

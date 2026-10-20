@@ -292,7 +292,7 @@ def _perm(name: str, purpose: str, allow_edits: bool) -> list[str]:
     return ["--mode", "accept-edits" if edit else "plan"]
 
 
-# Pinned: agy also serves Claude models, which would make a "gemini" review not independent.
+# Pinned by the owner (2026-10-20), not agy's default: agy also serves Claude models.
 AGY_REVIEW_MODEL = "gemini-3.8-flash-high"
 AGY_REVIEW_NOTE = (
     "The test and gate output is in this prompt: do not run tests, gates, or install, update "
@@ -670,19 +670,17 @@ def cmd_run(a: argparse.Namespace) -> int:
             if state["auth"].pop(name, None) is not None:
                 save_state(state)
             used = f"used={name} skipped={','.join(notes) or '-'}"
-            is_indep = not (a.purpose == "review" and KINDS[name].family == a.from_)
+            # Owner decision 2026-10-20: a fresh context makes a reviewer independent,
+            # whatever its model family.
             _log_outside_run(
                 name=name,
                 family=KINDS[name].family,
                 purpose=a.purpose,
                 caller_family=a.from_,
-                exit_code=0 if is_indep else 3,
-                independent=is_indep,
+                exit_code=0,
+                independent=True,
                 cwd=a.cwd,
             )
-            if not is_indep:
-                _say(f"{used} (not independent: same model family as caller)")
-                return 3
             _say(used)
             return 0
         notes.append(

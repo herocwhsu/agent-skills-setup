@@ -407,16 +407,25 @@ def test_cli_unknown_error_stops(stubenv):
     assert r.returncode == 2 and "429" in r.stderr and not (home / "called").exists()
 
 
-def test_cli_review_same_family_only_exits_3(stubenv, monkeypatch):
+def test_cli_review_by_the_callers_own_family_counts_as_independent(stubenv, monkeypatch):
+    # Owner decision 2026-10-20: a fresh context makes a reviewer independent, whatever its model.
     bin_, home = stubenv
     monkeypatch.setenv("OUTSIDE_AGENT_SKIP_KEYCHAIN", "1")
     _stub(bin_, "claude", "echo LOOKS-FINE")
     _stub(bin_, "agy", 'echo "Not logged in"')
     _conf(home, "agy", "claude")
     r = cli("run", "--purpose", "review", "--from", "claude", "--", "p")
-    assert r.returncode == 3 and r.stdout.strip() == "LOOKS-FINE"
+    assert r.returncode == 0 and r.stdout.strip() == "LOOKS-FINE"
     lines = r.stderr.strip().splitlines()
-    assert len(lines) == 1 and "used=claude" in lines[0] and "not independent" in lines[0]
+    assert len(lines) == 1 and "used=claude" in lines[0] and "not independent" not in lines[0]
+    rows = [
+        json.loads(x)
+        for x in (home / ".agent-skills-setup/state/outside-agent-runs.jsonl")
+        .read_text()
+        .splitlines()
+    ]
+    run = [x for x in rows if not x.get("attempt")][-1]
+    assert run["independent"] is True and run["exit_code"] == 0
 
 
 def test_cli_ok_clears_auth_demotion(stubenv):
@@ -702,7 +711,7 @@ def test_outside_agent_live_review():
         text=True,
         timeout=600,
     )
-    assert r.returncode in (0, 3), r.stderr
+    assert r.returncode == 0, r.stderr
     assert "used=" in r.stderr
 
 

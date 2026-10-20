@@ -150,10 +150,11 @@ Exit codes:
 |---|---|
 | 0 | success |
 | 2 | no candidate succeeded, unknown error, or bad conf; all-rate-limited prints the earliest reset |
-| 3 | `--purpose review` succeeded only with a candidate of the caller's own family; not independent |
+| 3 | removed 2026-10-20: was "review succeeded only with the caller's own family" |
 
 For review, candidates of the caller's family are tried only after every other
-family has failed, and success there returns 3.
+family has failed. Since 2026-10-20 (owner decision) a fresh context makes a reviewer
+independent whatever its family, so success there returns 0 like any other.
 
 ## Rule
 
@@ -163,6 +164,7 @@ About four lines added to `agents/engineering-rules.md`:
   `~/.agent-skills-setup/outside-agent.sh run --purpose delegate`.
 - Reviewing: at least one answer must come from a different model family
   (`--purpose review`). Exit 3 is reported as "not independent", never as a pass.
+  (Superseded 2026-10-20: a fresh context is enough; exit 3 is gone.)
 - Exit 2 is reported with its stderr line, not worked around.
 
 Shipping it requires `scripts/install-agents-md.sh`, which runs only with the
@@ -175,7 +177,7 @@ owner's approval.
   `Not logged in` + exit 0 → `auth`; 401 → `auth`, demoted, still tried last;
   each rate-limit phrase → skipped until reset, `kiro` group skips both kinds,
   monthly reset computed across a year boundary; bare `429` → `error` exit 2;
-  unknown error stops; review same-family-only → exit 3; inherited
+  unknown error stops; review same-family-only → exit 3 (exit 0 since 2026-10-20); inherited
   `ANTHROPIC_*` does not leak into the `claude` stub; unknown conf name → exit 2.
 - Passes under `/bin/bash` 3.2 and bash 5.
 - `RUN_INTEGRATION=1` case runs one real `run --purpose review` on this machine.

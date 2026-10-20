@@ -525,8 +525,8 @@ The `--with-agents-md` flag deploys to Claude, Antigravity, Codex, and Kiro simu
 ## Outside Agents
 
 `~/.agent-skills-setup/outside-agent.sh` runs a prompt through the first working
-outside CLI agent on this machine. Agents use it to delegate work or to get a review
-from a different model family. `install.sh` copies it into the runtime dir and runs
+outside CLI agent on this machine. Agents use it to delegate work or to get a second
+fresh-context review. `install.sh` copies it into the runtime dir and runs
 `init`, which probes each known agent and writes `~/.agent-skills-setup/outside-agents.conf`.
 Edit that file to reorder or drop agents; install and update never rewrite it, they
 only print what changed.
@@ -557,7 +557,7 @@ flowchart TD
     C -- fails --> A
     C -- passes --> D[run prompt<br/>read-only unless --allow-edits]
     D --> E{classify}
-    E -- ok --> F([print answer, exit 0<br/>or 3 if same family on review])
+    E -- ok --> F([print answer, exit 0])
     E -- auth --> G[demote 7 days] --> A
     E -- usage limit --> H[skip quota group<br/>5h, or kiro until the 1st] --> A
     E -- timeout --> A
@@ -581,21 +581,20 @@ flowchart LR
     W[change ready] --> S[fresh-context subagent<br/>diff + requirements only]
     W --> O["outside-agent.sh run --purpose review --from &lt;own family&gt;"]
     O --> R{exit}
-    R -- 0 --> I[independent review]
-    R -- 3 --> N[same family only:<br/>report as not independent]
+    R -- 0 --> I[outside review]
     R -- 2 --> E[no outside agent worked:<br/>report stderr, do not work around]
     S --> M[merge findings]
     I --> M
-    N --> M
 ```
 
-The subagent catches assumptions carried in from the conversation. The other family
-catches what the caller's own model tends to miss. Neither replaces the other.
+The subagent catches assumptions carried in from the conversation; the outside agent is a
+second fresh-context reviewer. A fresh context makes a reviewer independent, whatever its
+model family (owner decision, 2026-10-20); another family is still tried first.
 `--from` is the caller's model family, so a `claude-kiro` session passes `--from claude`
 and is reviewed by `codex-kiro`, or by `agy` when kiro is down or out of quota.
 
-Exit codes: `0` answered, `2` nothing worked or an unknown error (stderr says why),
-`3` review answered only by the caller's own family. The default `--timeout` is 110s;
+Exit codes: `0` answered, `2` nothing worked or an unknown error (stderr says why).
+The default `--timeout` is 110s;
 give the calling shell a longer timeout so it does not kill the run first.
 
 ---
