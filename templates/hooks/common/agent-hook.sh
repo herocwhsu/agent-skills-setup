@@ -19,6 +19,12 @@ esac
 input=$(cat)
 
 if [[ "$event" == stop ]]; then
+  # outside-agent.sh marks its reviews, which the agy allowlist keeps read-only; the gates
+  # would only fail on the uncommitted change under review and keep the reviewer going.
+  if [[ "${OUTSIDE_AGENT_PURPOSE:-}" == review ]]; then
+    [[ "$agent" == agy ]] && echo "{}"
+    exit 0
+  fi
   out=$(printf '{}' | bash "$hook" 2>&1); rc=$?
   if [[ "$agent" == agy ]]; then
     if [[ $rc -eq 2 ]]; then

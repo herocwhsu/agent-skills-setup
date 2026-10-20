@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import signal
 import stat
 import subprocess
@@ -1133,6 +1134,13 @@ def test_agy_git_rule_refuses_output_files_and_chained_commands():
         "git diff --unified=5",
         "git ls-files scripts",
         "git blame -L 10,20 scripts/install.sh",
+        "git ls-files | grep outside",
+        "git log -1 --oneline | head -1",
+        "git diff --stat | tail -n 3 | wc -l",
+        "git ls-files | grep -E '^scripts/tests/'",
+        'git ls-files "* *"',
+        "git log --format='%h %s' -3",
+        "git ls-files | grep -v 'a|b > c'",
     ):
         assert pat.match(ok), ok
     for bad in (
@@ -1141,8 +1149,21 @@ def test_agy_git_rule_refuses_output_files_and_chained_commands():
         "git diff; rm x",
         "git show $(rm x)",
         "git log --output x",
-        'git ls-files "* *"',
+        'git ls-files "$(rm x)"',
+        "git diff '--output=x'",
+        'git diff "--output=x"',
+        "git log -p '--output=x'",
+        "git diff '--ext-diff'",
+        "git diff '-Ox'",
+        "git log '--output' x",
+        "git blame '--contents=/etc/passwd' x",
+        "git log --format='tformat:echo pwned' -1 '--output=x'",
+        "git ls-files | grep `rm x`",
+        "git log 'a' > x",
         "git grep -Ovim x",
+        "git ls-files | sort -o x",
+        "git log | grep x > y",
+        "git log | tee x",
     ):
         assert not pat.match(bad), bad
 
@@ -1151,3 +1172,22 @@ def test_agy_review_note_names_every_allowed_command():
     for rule in oa.AGY_REVIEW_ALLOW:
         if not rule.startswith("command(regex:"):
             assert rule[len("command(") : -1] in oa.AGY_REVIEW_NOTE, rule
+
+
+def test_attempt_reason_names_a_refused_agy_tool(stubenv):
+    # Real agy 1.4.3 stderr when headless mode refuses a tool, exit 0, empty stdout.
+    notice = (
+        'jetski: no output produced — a tool required the "command" permission that headless '
+        "mode cannot prompt for, so it was auto-denied. Add an allow-rule under permissions.allow"
+    )
+    r, att = _run_agy(stubenv, f"printf '%s\\n' {shlex.quote(notice)} >&2")
+    assert r.returncode == 2
+    assert att[0]["result"] == "error" and att[0]["reason"] == "tool refused"
+
+
+def test_run_one_marks_the_purpose_for_the_agents_hooks(stubenv, monkeypatch):
+    bin_, _ = stubenv
+    monkeypatch.delenv("OUTSIDE_AGENT_PURPOSE", raising=False)
+    _stub(bin_, "agy", 'echo "purpose=$OUTSIDE_AGENT_PURPOSE"')
+    assert oa.run_one("agy", "p", "review", False, 10, None) == ("ok", "purpose=review")
+    assert oa.run_one("agy", "p", "delegate", False, 10, None) == ("ok", "purpose=delegate")

@@ -15,6 +15,13 @@ if printf '%s' "$input" | python3 -c "import json, sys; d=json.load(sys.stdin); 
   is_agy=1
 fi
 
+# outside-agent.sh marks its reviews, which the agy allowlist keeps read-only; the gates
+# would only fail on the uncommitted change under review and keep the reviewer going.
+if [[ "${OUTSIDE_AGENT_PURPOSE:-}" == review ]]; then
+  [[ "$is_agy" -eq 1 ]] && echo "{}"
+  exit 0
+fi
+
 if git rev-parse --show-toplevel >/dev/null 2>&1; then
   REPO_DIR="$(git rev-parse --show-toplevel)"
 else

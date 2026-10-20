@@ -77,6 +77,7 @@ _REASON_STATUS = re.compile(
 # Only failures that reach error_reason: classify() already turns quota, usage-limit and login messages
 # into rate_limit or auth, and those results carry no reason.
 _REASON_PHRASES = (
+    ("tool refused", re.compile(r"auto-denied|cannot prompt for", re.I)),
     ("too many requests", re.compile(r"too ?many ?requests", re.I)),
     ("rate limit", re.compile(r"rate[-_ ]?limit", re.I)),
     ("request too large", re.compile(r"request (?:is )?too large|payload too large", re.I)),
@@ -299,13 +300,19 @@ AGY_REVIEW_NOTE = (
     "or sync scripts. Read code with your file viewing and search tools, on files inside this "
     "repository only. Shell commands allowed: git status, git log, git diff, git show, "
     "git ls-files, git blame, git rev-parse, git merge-base, grep, cat, head, tail, ls, wc. "
-    "git log/diff/show/ls-files/blame take unquoted arguments, short flags, `--` paths and "
-    "--stat, --name-only, --format=..., --unified=... style options. Any other command, quoted "
-    "argument or path outside the repository is refused and ends this review with no answer."
+    "git log/diff/show/ls-files/blame take plain or single-quoted arguments, short flags, `--` paths and "
+    "--stat, --name-only, --format=..., --unified=... style options, and may pipe into grep, "
+    "head, tail or wc. Any other command, "
+    "$ or backtick, or path outside the repository is refused and ends this review with no answer."
 )
 _GIT_ARG = r"[A-Za-z0-9_./~^:@+,%][A-Za-z0-9_./~^:@+,%=-]*"
 _GIT_LONG = "stat|oneline|name-only|name-status|numstat|shortstat|cached|staged|no-color|patch"
 _GIT_VALUED = "format|pretty|unified|since|until|author|max-count|diff-filter"
+# Quoting that expands nothing: single quotes, or double quotes without $ ` or \.
+_QUOTED = r"'[^']*'" + "|" + r'"[^"$`\\]*"'
+# The shell strips quotes, so a quoted git argument must not start with "-": git would
+# read '--output=x' as the flag and write the file.
+_QUOTED_ARG = r"'[^'-][^']*'" + "|" + r'"[^"$`\\-][^"$`\\]*"'
 # A prefix rule would let `git diff --output=<file>` write, and a deny rule did not stop it
 # (agy 1.4.3, 2026-10-20), so the git read commands are allowed only with listed flags.
 AGY_REVIEW_ALLOW = (
@@ -318,8 +325,9 @@ AGY_REVIEW_ALLOW = (
     "command(tail)",
     "command(ls)",
     "command(wc)",
-    rf"command(regex:^git (log|diff|show|ls-files|blame)( +({_GIT_ARG}|-[A-Za-z0-9]+|--|--({_GIT_LONG})"
-    rf"|--({_GIT_VALUED})=[A-Za-z0-9_./~^:@+,%=-]*))*$)",
+    rf"command(regex:^git (log|diff|show|ls-files|blame)( +({_GIT_ARG}|{_QUOTED_ARG}|-[A-Za-z0-9]+|--"
+    rf"|--({_GIT_LONG})|--({_GIT_VALUED})=([A-Za-z0-9_./~^:@+,%=-]*|{_QUOTED})))*"
+    rf"( *\| *(grep|head|tail|wc)( +([A-Za-z0-9_./~^:@+,%=-]+|{_QUOTED}))*)*$)",
 )
 
 
@@ -353,6 +361,7 @@ def run_one(
     name: str, prompt: str, purpose: str, allow_edits: bool, timeout: int, cwd: str | None
 ) -> tuple[str, str]:
     env = dict(os.environ)
+    env["OUTSIDE_AGENT_PURPOSE"] = purpose
     if KINDS[name].group != "kiro":
         for k in STRIP_ENV:
             env.pop(k, None)

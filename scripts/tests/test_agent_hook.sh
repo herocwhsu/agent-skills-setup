@@ -78,6 +78,11 @@ HOOK
 run '{"toolCall":{"args":{"TargetFile":"/r/x.sh"}},"conversationId":"c"}' agy edit "$TMP/crash.sh"
 if [[ $RC -eq 0 && "$OUT" == "{}" ]]; then ok "a hook error other than exit 2 does not block, as in Claude"; else bad "non-2 exit" "rc=$RC out=$OUT"; fi
 
+OUTSIDE_AGENT_PURPOSE=review run '{"terminationReason":"done","conversationId":"c"}' agy stop "$TMP/stop-fail.sh"
+if [[ $RC -eq 0 && "$OUT" == "{}" ]]; then ok "a stop during an outside-agent review skips the gates"; else bad "review stop" "rc=$RC out=$OUT"; fi
+OUTSIDE_AGENT_PURPOSE=delegate run '{"terminationReason":"done","conversationId":"c"}' agy stop "$TMP/stop-fail.sh"
+if [[ "$OUT" == *continue* ]]; then ok "a delegated run's stop still runs the gates"; else bad "delegate stop" "rc=$RC out=$OUT"; fi
+
 run '{}' claude edit "$TMP/hook.sh"
 if [[ $RC -ne 0 ]]; then ok "an unknown agent is refused"; else bad "unknown agent" "rc=$RC"; fi
 
