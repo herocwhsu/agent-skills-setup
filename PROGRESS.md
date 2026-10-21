@@ -41,7 +41,6 @@
 
 **Pending Owner Decisions (Blocked on Human):**
 - **firstdigital-economics:** Decide whether to create private remote GitHub repo or remain local.
-- **Hermes cleanup:** Decide whether to drop residual `~/.hermes` configs from `skills/infra/kiro-gateway` or keep for other hosts.
 - **Handy branch:** Decide if `local/zh-tw-default` needs further integration or remains fork-only.
 
 ## Blockers / Risks
@@ -56,6 +55,8 @@
 
 ## Decisions Made
 
+- **Hermes configs stay (owner, 2026-10-21):** `skills/infra/kiro-gateway` keeps its
+  `~/.hermes` configs for other hosts.
 - **A fresh context makes a reviewer independent (owner, 2026-10-20):** whatever its model
   family; `outside-agent.sh` no longer exits 3 for a same-family review. High-risk changes get
   two subagents in parallel (correctness; security and permissions); an outside agent is
