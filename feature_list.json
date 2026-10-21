@@ -24,35 +24,10 @@
     "docs/archive/features/archive-feat-083-084.json",
     "docs/archive/features/archive-feat-085-089.json",
     "docs/archive/features/archive-feat-090-090.json",
-    "docs/archive/features/archive-feat-091-091.json"
+    "docs/archive/features/archive-feat-091-091.json",
+    "docs/archive/features/archive-feat-092-092.json"
   ],
   "features": [
-    {
-      "id": "feat-092",
-      "name": "Weekly harness evaluation of every target repo, silent unless worse",
-      "description": "Nothing ran update.sh or the repo audits on a schedule, so a newly installed agent, a drifted hook or a failing verify surfaced only by hand. scripts/harness_weekly.py takes update.sh's output and exit code, audits each registered repo into <runtime>/audits/<repo>/<date>.json (per machine: committing here would break update.sh's pull --ff-only once the remote moves), compares with the latest earlier audit and writes a markdown report with the repo_trend table. Regressions: update.sh failed; a repo failed to sync; a new outside agent detected (codex once installed) or a listed one not answering; a hook drifted; always-loaded tokens up more than 10%; a repo's latest verify run failed. Exit 1 on regressions, 2 on no verdict. hangar's scripts/jobs/harness-weekly.sh (LaunchAgent top.firstdigital.harness-weekly, Monday 09:30) runs update.sh then this, writes ~/hangar-weekly/harness-<YYYY-Www>.md and sends ntfy only on regressions or no verdict.",
-      "dependencies": [
-        "feat-091"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "each regression class is reported, and a clean week reports none",
-        "the latest verify run decides, not an earlier failure",
-        "this week's audit is saved per machine and compared with the latest earlier one",
-        "exit 1 only on regressions, with the report written either way",
-        "the hangar job runs end to end on this host and is silent on a clean week"
-      ],
-      "verification": "python3 -m pytest tests/test_harness_weekly.py -q && bash scripts/harness-verify.sh",
-      "evidence": "tests/test_harness_weekly.py written first (module missing), 5 passed after. Dry run on the real runtime: no regressions, table for atelier and hangar, audits saved to ~/.agent-skills-setup/audits/. hangar job run once by hand: update.sh exit 0, no regressions, report ~/hangar-weekly/harness-2026-W42.md, job metrics written, no ntfy sent. LaunchAgent bootstrapped (Weekday 1, 09:30). hangar's CronJobNotRunning rule now covers harness-weekly at the weekly threshold. Not exercised: the ntfy path (no regression this week). Follow-up the same day: the weekly report adds 'Outside reviews of risky commits' per repo (registered repos and the harness): commits touching hooks, gates, install scripts, agent settings, CI, the shipped rules or migrations, Renovate excluded, and how many an outside-agent review in that repo followed within 2 days (outside-agent-runs.jsonl; subagent reviews leave no record). Measured, not a regression. Tests failed first (2), 7 pass; runs on system Python 3.9. First real numbers, 7 days to 2026-10-18: hangar 13 risky / 0 reviewed, atelier 13 / 0, agent-skills-setup 21 / 0. ntfy path exercised with a stand-in update.sh that exits 1: HTTP 200; the real job rerun after, clean. hangar-sync run by hand on top2 (owner asked): prometheus applied, the CronJobNotRunning rule with harness-weekly is loaded.",
-      "execution_summary": {
-        "run_id": "5a0ad1e4-35dc74e3bb",
-        "output_tokens": 31162,
-        "wall_time_ms": 5279938,
-        "active_turn_time_ms": 693786,
-        "subagents": 0,
-        "subagent_output_tokens": 0
-      }
-    },
     {
       "id": "feat-093",
       "name": "Telemetry gaps: whole gate names, failing tests, session ids, tool errors and denials, weekly rework, no duplicate trace rows",
@@ -106,6 +81,24 @@
         "subagents": 8,
         "subagent_output_tokens": 988
       }
+    },
+    {
+      "id": "feat-095",
+      "name": "agy review commands confined to the repo",
+      "description": "Spec docs/superpowers/specs/2026-10-20-agy-review-paths-design.md. The nine prefix rules (cat, head, tail, grep, ls, wc, git status/rev-parse/merge-base) took any argument and any pipe: cat /etc/hosts, git diff -O /etc/hosts and git status | cat /etc/hosts ran live. AGY_REVIEW_ALLOW is now two command(regex:...) rules: no argument may start with /, ~ or = (zsh expands =ls to /bin/ls), have a .. path part or hold a glob; a quoted one may not start with - or contain ..; git ranges (HEAD~1..HEAD, main...HEAD) still pass. allow-agy removes the rules it retired (the prefix rules and older shapes of its own regex rules) and keeps the user's other rules.",
+      "dependencies": [
+        "feat-094"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "outside reads by absolute, home, =name, .. and glob paths are refused, quoted or not, in pipes too",
+        "ordinary review commands inside the repo and git ranges still run",
+        "allow-agy removes its retired rules and keeps the user's own",
+        "live agy run refuses the outside reads and runs the ordinary commands",
+        "all 11 harness gates pass"
+      ],
+      "verification": "python3 -m pytest tests/test_outside_agent.py -q && bash scripts/harness-verify.sh",
+      "evidence": "Tests first: test_agy_review_commands_stay_inside_the_repo, test_agy_review_note_names_every_allowed_command and test_allow_agy_removes_the_rules_it_retired failed on the old rules; 209 passed, 1 skipped after. Mutations (leading / allowed, .. part allowed, retired rules kept) each fail a test. Live agy 1.4.3: 6 ordinary commands ran, 12 outside reads refused (cat /etc/hosts, cat '/etc/hosts', ls .., ls ~, ls .*, grep -c localhost /etc/hosts, git diff -O /etc/hosts, git status | cat /etc/hosts, git log -- /etc, head -c 20 =ls, git diff --stat =ls =cat, cat ../x). Live allow-agy: 10 rules removed, 2 added, mode 600 kept. Two subagent reviews (security, correctness) both found zsh =name expansion (cat =ls read /bin/ls); fixed with a failing test. Correctness review also found the note misdescribing quoted arguments and allow-agy removing a user's own command(regex:^git (fetch|pull)$); both fixed, the latter with a failing test. No re-review: the fixes removed a character and narrowed three prefixes. Symlinks: none tracked point outside in the three repos; untracked pack-skill links point to skill folders. Refused now that ran before: grep long options (--include=), globs, quoted patterns with .. or a backslash. Same round: certifi 2026.10.19 for PYSEC-2026-4320 (4325a9c)."
     }
   ]
 }

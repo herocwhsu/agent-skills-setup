@@ -1,7 +1,7 @@
 ---
 title: agy review commands confined to the repo
 date: 2026-10-20
-status: draft
+status: implemented
 feature: feat-095
 ---
 
@@ -49,18 +49,19 @@ Changes:
    then arguments that are short flags with no value (`-n`, `-c`, `-rn`), `--` , or
    path-safe words and quoted strings, optionally piped into grep/head/tail/wc with
    the same arguments.
-2. Tighten the git rule's `_GIT_ARG`, `_QUOTED_ARG`, valued-option values and pipe
-   arguments to the same path-safe class.
+2. Tighten the git rule's plain and quoted arguments and its pipe arguments to the same
+   path-safe class. Valued options (`--format=`, `--since=` ...) name no file and keep their
+   values.
 3. Short-flag values: the short-flag class `-[A-Za-z0-9]+` already refuses `-O/etc/x`,
    but `-O /etc/hosts` passed because `/etc/hosts` matched as a plain argument; change 2
    refuses it.
 4. `AGY_REVIEW_NOTE` says no argument may be an absolute path, start with `~`, or use `..`.
-5. `allow-agy` already replaces stale rules it wrote; the live settings get the new rules
-   from `install.sh`.
-
-`command(git status)`, `command(git rev-parse)` and `command(git merge-base)` stay
-prefix rules: none takes a path that it reads (`git rev-parse --git-path` prints a path, it
-does not read it). Checked in the tests by listing them as allowed with no path argument only.
+5. `allow-agy` only added rules, so the prefix rules would have stayed in the live
+   settings. It now removes the rules it retired (the nine prefix rules and older versions of
+   its regex rules) and prints how many; a user's own `command(cat)` goes too, since it would
+   reopen the same reads.
+6. `git status`, `git rev-parse` and `git merge-base` move into the git regex rule too: a
+   prefix rule takes any pipe, and `git status | cat /etc/hosts` ran live (2026-10-21).
 
 ## Tests (written first, must fail on the current rules)
 
@@ -82,8 +83,10 @@ does not read it). Checked in the tests by listing them as allowed with no path 
 ## Not covered
 
 - A symlink inside the repo that points outside it: a rule over command text cannot see
-  where a link leads. Checked: list symlinks in this repo, hangar and atelier and report any
-  that point outside.
+  where a link leads. Checked 2026-10-21: no tracked symlink in this repo, hangar or atelier
+  points outside its repo; the untracked pack-skill links sync writes (6 each in hangar and
+  atelier, none here) point to skill folders under `~/.agent-skills-setup/pack-skills/` and
+  `skills/`, which hold skill files, not secrets.
 - Repo config that runs programs (diff drivers, `core.pager`, textconv): a reviewed repo is
   the owner's own; unchanged from feat-094.
 - A grep pattern that starts with `/` is refused (`grep -E '^/usr'` is fine; `grep '/usr' x`

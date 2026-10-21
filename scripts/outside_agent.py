@@ -300,34 +300,83 @@ AGY_REVIEW_NOTE = (
     "or sync scripts. Read code with your file viewing and search tools, on files inside this "
     "repository only. Shell commands allowed: git status, git log, git diff, git show, "
     "git ls-files, git blame, git rev-parse, git merge-base, grep, cat, head, tail, ls, wc. "
-    "git log/diff/show/ls-files/blame take plain or single-quoted arguments, short flags, `--` paths and "
-    "--stat, --name-only, --format=..., --unified=... style options, and may pipe into grep, "
-    "head, tail or wc. Any other command, "
-    "$ or backtick, or path outside the repository is refused and ends this review with no answer."
+    "They take plain or quoted arguments, short flags and `--`; git also takes --stat, "
+    "--name-only, --format=..., --unified=... style options; any of them may pipe into grep, "
+    "head, tail or wc. grep, cat, head, tail, ls and wc take no long options (no --include). "
+    "No argument may start with /, ~ or =, or use .. as a path part; a quoted argument may "
+    "not start with - or contain .. anywhere; no globs. Any other command, $ or backtick, "
+    "or path outside the repository is refused and "
+    "ends this review with no answer."
 )
-_GIT_ARG = r"[A-Za-z0-9_./~^:@+,%][A-Za-z0-9_./~^:@+,%=-]*"
-_GIT_LONG = "stat|oneline|name-only|name-status|numstat|shortstat|cached|staged|no-color|patch"
-_GIT_VALUED = "format|pretty|unified|since|until|author|max-count|diff-filter"
-# Quoting that expands nothing: single quotes, or double quotes without $ ` or \.
+# agy limits its own file tools to the workspace but not shell arguments, so a path
+# argument may not start with / or ~ or have a `..` part (`cat /etc/hosts` and `cat ../x`
+# ran, 2026-10-20). RE2 has no lookahead, so a part between slashes is spelled out as any
+# run of these characters except "..": three or more, or two that are not both dots, or one.
+_CH = "A-Za-z0-9_.~^:@+,%=-"
+_CH_NO_DOT = "A-Za-z0-9_~^:@+,%=-"
+_PART = rf"[{_CH}]{{3,}}|[{_CH}][{_CH_NO_DOT}]|[{_CH_NO_DOT}][{_CH}]|[{_CH}]"
+# The first part cannot start with ~ (home), = (zsh expands =ls to /bin/ls) or - (a flag);
+# a leading / has no part before it.
+_FIRST = "A-Za-z0-9_.^:@+,%"
+_FIRST_NO_DOT = "A-Za-z0-9_^:@+,%"
+_FIRST_PART = (
+    rf"[{_FIRST}][{_CH}]{{2,}}|[{_FIRST}][{_CH_NO_DOT}]|[{_FIRST_NO_DOT}][{_CH}]|[{_FIRST}]"
+)
+_WORD = rf"({_FIRST_PART})(/({_PART}))*/?"
+
+
+def _no_dotdot(q: str) -> str:
+    return rf"([^{q}.]|\.[^{q}.])*\.?"
+
+
+# Quoting that expands nothing (single quotes, or double quotes without $ ` or \), not
+# starting with / ~ or -, and with no "..": the shell strips quotes, so '--output=x' would
+# reach git as the flag and '/etc/hosts' as the path.
+_SAFE_QUOTED = (
+    rf"'([^'/~.-]{_no_dotdot(chr(39))}|\.([^'.]{_no_dotdot(chr(39))})?)?'"
+    + "|"
+    + r'"([^"$`\\/~.-]'
+    + _no_dotdot(r'"$`\\')
+    + r'|\.([^"$`\\.]'
+    + _no_dotdot(r'"$`\\')
+    + r')?)?"'
+)
+# Quoting for values that name no file (--format='%h %s').
 _QUOTED = r"'[^']*'" + "|" + r'"[^"$`\\]*"'
-# The shell strips quotes, so a quoted git argument must not start with "-": git would
-# read '--output=x' as the flag and write the file.
-_QUOTED_ARG = r"'[^'-][^']*'" + "|" + r'"[^"$`\\-][^"$`\\]*"'
-# A prefix rule would let `git diff --output=<file>` write, and a deny rule did not stop it
-# (agy 1.4.3, 2026-10-20), so the git read commands are allowed only with listed flags.
+_ARG = rf"{_WORD}|{_SAFE_QUOTED}|-[A-Za-z0-9]+"
+_PIPE = rf"( *\| *(grep|head|tail|wc)( +({_ARG}))*)*"
+_GIT_LONG = (
+    "stat|oneline|name-only|name-status|numstat|shortstat|cached|staged|no-color|patch"
+    "|short|porcelain|branch|show-toplevel|abbrev-ref|git-dir|is-ancestor|fork-point|verify"
+)
+_GIT_VALUED = "format|pretty|unified|since|until|author|max-count|diff-filter"
+# Prefix rules took any argument and any pipe (`git status | cat /etc/hosts` ran), and a
+# prefix rule would let `git diff --output=<file>` write while a deny rule did not stop it
+# (agy 1.4.3, 2026-10-20), so every command is allowed only with listed flags.
 AGY_REVIEW_ALLOW = (
-    "command(git status)",
-    "command(git rev-parse)",
-    "command(git merge-base)",
-    "command(grep)",
-    "command(cat)",
-    "command(head)",
-    "command(tail)",
-    "command(ls)",
-    "command(wc)",
-    rf"command(regex:^git (log|diff|show|ls-files|blame)( +({_GIT_ARG}|{_QUOTED_ARG}|-[A-Za-z0-9]+|--"
-    rf"|--({_GIT_LONG})|--({_GIT_VALUED})=([A-Za-z0-9_./~^:@+,%=-]*|{_QUOTED})))*"
-    rf"( *\| *(grep|head|tail|wc)( +([A-Za-z0-9_./~^:@+,%=-]+|{_QUOTED}))*)*$)",
+    rf"command(regex:^git (status|log|diff|show|ls-files|blame|rev-parse|merge-base)( +({_ARG}|--"
+    rf"|--({_GIT_LONG})|--({_GIT_VALUED})=([A-Za-z0-9_./~^:@+,%=-]*|{_QUOTED})))*{_PIPE}$)",
+    rf"command(regex:^(grep|cat|head|tail|ls|wc)( +({_ARG}|--))*{_PIPE}$)",
+)
+# Rules earlier versions of allow-agy wrote; allow-agy removes them.
+AGY_REVIEW_RETIRED = tuple(
+    f"command({c})"
+    for c in (
+        "git status",
+        "git rev-parse",
+        "git merge-base",
+        "grep",
+        "cat",
+        "head",
+        "tail",
+        "ls",
+        "wc",
+    )
+)
+_AGY_REVIEW_OLD_REGEX = (
+    "command(regex:^git (log|diff|show|ls-files|blame)(",
+    "command(regex:^git (status|log|diff|show|ls-files|blame|rev-parse|merge-base)(",
+    "command(regex:^(grep|cat|head|tail|ls|wc)(",
 )
 
 
@@ -817,15 +866,25 @@ def cmd_allow_agy(a: argparse.Namespace) -> int:
     except (OSError, ValueError, TypeError, AttributeError) as e:
         _say(f"{f} left unchanged, cannot read it: {e}")
         return 2
+    removed = [
+        r
+        for r in allow
+        if isinstance(r, str)
+        and r not in AGY_REVIEW_ALLOW
+        and (r in AGY_REVIEW_RETIRED or r.startswith(_AGY_REVIEW_OLD_REGEX))
+    ]
     added = [r for r in AGY_REVIEW_ALLOW if r not in allow]
-    if added:
-        allow.extend(added)
+    if added or removed:
+        allow[:] = [r for r in allow if r not in removed] + added
         tmp = f.with_name(f.name + ".tmp")
         tmp.write_text(json.dumps(d, indent=2) + "\n", encoding="utf-8")
         if f.exists():
             tmp.chmod(f.stat().st_mode & 0o777)
         os.replace(tmp, f)
-    _say(f"agy review allowlist: {len(added)} rule(s) added", sys.stdout)
+    _say(
+        f"agy review allowlist: {len(added)} rule(s) added, {len(removed)} rule(s) removed",
+        sys.stdout,
+    )
     return 0
 
 

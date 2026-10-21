@@ -1168,10 +1168,101 @@ def test_agy_git_rule_refuses_output_files_and_chained_commands():
         assert not pat.match(bad), bad
 
 
+def _agy_allows(cmd):
+    # A regex rule matches the whole command; a plain rule is read as a prefix of it, the
+    # loosest reading (agy 1.4.3 ran `git status | cat /etc/hosts` under the prefix rules, live
+    # 2026-10-21).
+    for rule in oa.AGY_REVIEW_ALLOW:
+        body = rule[len("command(") : -1]
+        if body.startswith("regex:"):
+            if re.match(body[len("regex:") :], cmd):
+                return True
+        elif cmd == body or cmd.startswith(body + " "):
+            return True
+    return False
+
+
+def test_agy_review_commands_stay_inside_the_repo():
+    for ok in (
+        "cat scripts/outside_agent.py",
+        'grep -n "AGY_REVIEW" scripts/outside_agent.py',
+        "grep -rn foo scripts/ tests/",
+        "grep -c x .github/workflows/ci.yml",
+        "head -50 README.md",
+        "tail -n +3 PROGRESS.md",
+        "ls scripts",
+        "ls",
+        "wc -l a b",
+        "cat ./x",
+        "grep -E '^/usr' x",
+        "grep -n x scripts/outside_agent.py | head -5",
+        "git status --short",
+        "git rev-parse --show-toplevel",
+        "git merge-base HEAD main",
+        "git diff HEAD~1..HEAD -- scripts/",
+        "git log main...HEAD --oneline",
+        "git show HEAD:scripts/install.sh | head -20",
+        "git diff --stat | tail -1",
+    ):
+        assert _agy_allows(ok), ok
+    for bad in (
+        "cat /etc/hosts",
+        "cat '/etc/hosts'",
+        'cat "/etc/hosts"',
+        "head -1 /etc/hosts",
+        "grep -c x /etc/hosts",
+        "grep -rn x ~",
+        "grep x ~/.ssh/id_ed25519",
+        "grep -f /etc/x y",
+        "ls /etc",
+        "ls ..",
+        "cat ../x",
+        "cat '../x'",
+        "cat a/../../x",
+        "wc -l x/..",
+        "ls .*",
+        "cat scripts/*",
+        "grep --exclude-from=/etc/x y",
+        "git diff -O /etc/hosts HEAD~1",
+        "git log -- /etc",
+        "git diff | grep x /etc/hosts",
+        "git status | cat /etc/hosts",
+        "git rev-parse HEAD | cat ../x",
+        "cat x | cat /etc/hosts",
+        "cat x; cat /etc/hosts",
+        "cat x > y",
+        "cat $(echo /etc/hosts)",
+        # zsh expands a leading =name to that program's path on $PATH.
+        "cat =ls",
+        "git diff --stat =ls =cat",
+        "git ls-files | grep x =ls",
+    ):
+        assert not _agy_allows(bad), bad
+
+
 def test_agy_review_note_names_every_allowed_command():
     for rule in oa.AGY_REVIEW_ALLOW:
-        if not rule.startswith("command(regex:"):
-            assert rule[len("command(") : -1] in oa.AGY_REVIEW_NOTE, rule
+        m = re.match(r"command\(regex:\^(git )?\(([a-z|-]+)\)", rule)
+        assert m, rule
+        for name in m.group(2).split("|"):
+            assert f"{m.group(1) or ''}{name}" in oa.AGY_REVIEW_NOTE, name
+
+
+def test_allow_agy_removes_the_rules_it_retired(stubenv):
+    _, home = stubenv
+    f = _agy_settings(home)
+    f.parent.mkdir(parents=True)
+    old_git = "command(regex:^git (log|diff|show|ls-files|blame)( +x)*$)"
+    own = "command(regex:^git (fetch|pull)$)"
+    f.write_text(
+        json.dumps({"permissions": {"allow": ["command(cat)", old_git, own, "command(mine)"]}})
+    )
+    r = cli("allow-agy")
+    allow = json.loads(f.read_text())["permissions"]["allow"]
+    assert r.returncode == 0 and "2 rule(s) removed" in r.stdout
+    assert "command(cat)" not in allow and old_git not in allow
+    assert own in allow and "command(mine)" in allow
+    assert set(oa.AGY_REVIEW_ALLOW) <= set(allow)
 
 
 def test_attempt_reason_names_a_refused_agy_tool(stubenv):

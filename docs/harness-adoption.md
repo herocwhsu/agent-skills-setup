@@ -85,11 +85,17 @@ Checked 2026-10-01 with a canary word in a throwaway repo:
   the prompt, or use `--dangerously-skip-permissions` with a read-only prompt and compare
   `git status` before and after. `install.sh` writes the review allowlist
   (`AGY_REVIEW_ALLOW` in `scripts/outside_agent.py`, via `outside-agent.sh allow-agy`):
-  `git status`, `git rev-parse`, `git merge-base`, `grep`, `wc`, `ls`, `head`, `tail`, `cat`,
-  and `git log`/`diff`/`show`/`ls-files`/`blame` (with pipes into grep/head/tail/wc, and quoting that expands nothing; a quoted git argument may not start with `-`, as `'--output=x'` reaches git as the flag) through one `command(regex:...)` rule that admits only
-  listed flags, since `--output=<file>` makes them write and a deny rule
-  `command(regex:.*--output.*)` did not stop it (agy 1.4.3, 2026-10-20). `&&` chaining and `>`
-  redirection were denied under a prefix rule. Since 2026-10-20 reviews run without
+  `git status`/`log`/`diff`/`show`/`ls-files`/`blame`/`rev-parse`/`merge-base` through one
+  `command(regex:...)` rule that admits only listed flags (`--output=<file>` makes them write,
+  and a deny rule `command(regex:.*--output.*)` did not stop it, agy 1.4.3, 2026-10-20), and
+  `grep`, `cat`, `head`, `tail`, `ls`, `wc` through a second one; both allow pipes into
+  grep/head/tail/wc and quoting that expands nothing. No argument may start with `/`, `~` or
+  `=` (zsh, which agy runs commands in, expands `=ls` to `/bin/ls`), have a `..` path part, or
+  hold a glob; a quoted one may not start with `-` (`'--output=x'` reaches git as the flag) or
+  contain `..` at all; grep and the others take no long options. agy keeps its own file tools
+  in the workspace, but under prefix rules `cat /etc/hosts`,
+  `git diff -O /etc/hosts` and `git status | cat /etc/hosts` ran (feat-095). `allow-agy` removes
+  the rules it retired. `&&` chaining and `>` redirection were denied under a prefix rule. Since 2026-10-20 reviews run without
   `--dangerously-skip-permissions` and without `--mode plan` (which only makes agy write a plan
   and wait); one refused tool ends the run with no answer and the reason on stderr. agy also drops any skill
   whose `SKILL.md` frontmatter is not strict YAML (an unquoted `: ` in `description`);

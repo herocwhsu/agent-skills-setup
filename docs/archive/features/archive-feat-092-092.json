@@ -1,0 +1,30 @@
+{
+  "features": [
+    {
+      "id": "feat-092",
+      "name": "Weekly harness evaluation of every target repo, silent unless worse",
+      "description": "Nothing ran update.sh or the repo audits on a schedule, so a newly installed agent, a drifted hook or a failing verify surfaced only by hand. scripts/harness_weekly.py takes update.sh's output and exit code, audits each registered repo into <runtime>/audits/<repo>/<date>.json (per machine: committing here would break update.sh's pull --ff-only once the remote moves), compares with the latest earlier audit and writes a markdown report with the repo_trend table. Regressions: update.sh failed; a repo failed to sync; a new outside agent detected (codex once installed) or a listed one not answering; a hook drifted; always-loaded tokens up more than 10%; a repo's latest verify run failed. Exit 1 on regressions, 2 on no verdict. hangar's scripts/jobs/harness-weekly.sh (LaunchAgent top.firstdigital.harness-weekly, Monday 09:30) runs update.sh then this, writes ~/hangar-weekly/harness-<YYYY-Www>.md and sends ntfy only on regressions or no verdict.",
+      "dependencies": [
+        "feat-091"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "each regression class is reported, and a clean week reports none",
+        "the latest verify run decides, not an earlier failure",
+        "this week's audit is saved per machine and compared with the latest earlier one",
+        "exit 1 only on regressions, with the report written either way",
+        "the hangar job runs end to end on this host and is silent on a clean week"
+      ],
+      "verification": "python3 -m pytest tests/test_harness_weekly.py -q && bash scripts/harness-verify.sh",
+      "evidence": "tests/test_harness_weekly.py written first (module missing), 5 passed after. Dry run on the real runtime: no regressions, table for atelier and hangar, audits saved to ~/.agent-skills-setup/audits/. hangar job run once by hand: update.sh exit 0, no regressions, report ~/hangar-weekly/harness-2026-W42.md, job metrics written, no ntfy sent. LaunchAgent bootstrapped (Weekday 1, 09:30). hangar's CronJobNotRunning rule now covers harness-weekly at the weekly threshold. Not exercised: the ntfy path (no regression this week). Follow-up the same day: the weekly report adds 'Outside reviews of risky commits' per repo (registered repos and the harness): commits touching hooks, gates, install scripts, agent settings, CI, the shipped rules or migrations, Renovate excluded, and how many an outside-agent review in that repo followed within 2 days (outside-agent-runs.jsonl; subagent reviews leave no record). Measured, not a regression. Tests failed first (2), 7 pass; runs on system Python 3.9. First real numbers, 7 days to 2026-10-18: hangar 13 risky / 0 reviewed, atelier 13 / 0, agent-skills-setup 21 / 0. ntfy path exercised with a stand-in update.sh that exits 1: HTTP 200; the real job rerun after, clean. hangar-sync run by hand on top2 (owner asked): prometheus applied, the CronJobNotRunning rule with harness-weekly is loaded.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-35dc74e3bb",
+        "output_tokens": 31162,
+        "wall_time_ms": 5279938,
+        "active_turn_time_ms": 693786,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
+    }
+  ]
+}
