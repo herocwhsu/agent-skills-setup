@@ -17,7 +17,7 @@
 
 ### What's Done
 
-*(Earlier features feat-001 through feat-086 are archived in [docs/progress-archive.md](docs/progress-archive.md); feat-087 onward are in `feature_list.json`. Per-feature evidence also recorded in `feature_list.json` and `docs/archive/features/`.)*
+*(Earlier features feat-001 through feat-086 are archived in [docs/progress-archive.md](docs/progress-archive.md); feat-087 to feat-091 in `docs/archive/features/`, feat-092 onward in `feature_list.json`. Per-feature evidence also recorded in `feature_list.json` and `docs/archive/features/`.)*
 
 
 ### What's In Progress
