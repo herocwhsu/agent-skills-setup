@@ -104,6 +104,33 @@
         "subagents": 4,
         "subagent_output_tokens": 3871
       }
+    },
+    {
+      "id": "feat-094",
+      "name": "agy reviews held by an allowlist, not --dangerously-skip-permissions; fresh context counts as independent; two-subagent review rule",
+      "description": "An agy review run with --dangerously-skip-permissions --mode plan ran install.sh. Reviews now run `agy --model gemini-3.8-flash-high --effort high -p` (model pinned by the owner), held by AGY_REVIEW_ALLOW, which `outside-agent.sh allow-agy` (called by install.sh) merges into ~/.gemini/antigravity-cli/settings.json, keeping its mode. git log/diff/show/ls-files/blame pass only through one strict command(regex:...) rule of listed flags, pipes into grep/head/tail/wc and quoting that expands nothing; a quoted git argument may not start with '-'. A refused tool ends agy's run with no answer: outside-agent now returns its stderr as an error and logs the reason 'tool refused'. Reviews set OUTSIDE_AGENT_PURPOSE=review, and stop-verify.sh and agent-hook.sh skip the Stop gates for them (the gates failed on the change under review and kept agy going for 1,734 s). Owner decisions: a fresh context makes a reviewer independent whatever its family (exit 3 removed); high-risk changes get two subagents in parallel, an outside agent is optional and never holds the commit.",
+      "dependencies": [
+        "feat-093"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "agy reviews run without --dangerously-skip-permissions, on gemini-3.8-flash-high",
+        "the git rule refuses --output, quoted flags, chaining, $() and backticks, and allows ordinary review commands",
+        "a refused tool is reported with its reason, not as an empty answer",
+        "Stop gates do not run inside an outside-agent review",
+        "a same-family review exits 0 and is logged as independent",
+        "the shipped review rule names two subagents and an optional outside agent"
+      ],
+      "verification": "python3 -m pytest tests/test_outside_agent.py -q && bash scripts/tests/test_stop_verify.sh && bash scripts/tests/test_agent_hook.sh && bash scripts/tests/test_engineering_rules_scope.sh && bash scripts/harness-verify.sh",
+      "evidence": "Commits df49cbf, 525b3c8, d86a513, cd67c89 (run record 88a451d), hangar 0f23bba, atelier d473395; pushed with CI green. Tests failed first for each change; test_outside_agent.py 207 passed, 1 skipped; test_stop_verify.sh 3, test_agent_hook.sh 13, test_engineering_rules_scope.sh 13. Live agy: refusals reported as 'tool refused'; a review finished in 680 s with no defects. Two subagent reviews (security, correctness) both found that a quoted '--output=x' reached git as the flag and wrote the file; fixed with _QUOTED_ARG and a test, live rule replaced at once, re-review clean. Today's outside-agent attempts: 9, 4,792 s, 2 answers; subagent reviews 49 to 201 s. Not done: shell commands on the allowlist can still read outside the repo (cat /etc/hosts ran), feat-095. Recorded after the fact: the work ran without a feature entry or a new spec, found 2026-10-20.",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-547021d841",
+        "output_tokens": 118401,
+        "wall_time_ms": 86617388,
+        "active_turn_time_ms": 5545711,
+        "subagents": 8,
+        "subagent_output_tokens": 988
+      }
     }
   ]
 }

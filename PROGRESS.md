@@ -2,8 +2,8 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-19
-**Active Feature:** none
+**Last Updated:** 2026-10-20
+**Active Feature:** feat-095 (agy review commands confined to the repo; spec `docs/superpowers/specs/2026-10-20-agy-review-paths-design.md`)
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
 - Lecture 11 (making the agent's runtime observable) closed: runtime_logger ported (13/13 tests, clean ruff/mypy), sprint contract & evaluator rubric documented.
@@ -22,12 +22,11 @@
 
 ### What's In Progress
 
-- Nothing active (WIP=0, clean state).
+- **feat-095:** shell commands on the agy review allowlist read outside the repo (`cat /etc/hosts`, `git diff -O /etc/hosts` ran live; agy's own file viewer refuses them). Replace the cat/head/tail/grep/ls/wc prefix rules with regex rules and tighten the git rule: no argument starting with `/` or `~`, no `..` path part.
 
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-- **feat-093 (telemetry gaps, 2026-10-19) waits for the owner's review**, then: push, `install.sh` (runtime drift), `install-agents-md.sh` (per-group review rule), `update.sh` so sync-all carries the new verify-gate to hangar and atelier, and commit hangar's Tier 3 section. Spec: `docs/superpowers/specs/2026-10-19-telemetry-gaps-design.md`.
 0. **Two-layer harness, T2-T15 done** (hook sync, version, `agent-harness.json`, preflight, global hooks, skill packs, cross-repo telemetry): [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md), D1-D11. The global rules, with the repo-workflow rule, are deployed (2026-10-18; redeployed 2026-10-19 with the review-output rule), and hangar (`2fef197`) and atelier dropped their duplicate Startup and End of Session wording. Also: atelier's react-router exceptions expire 2027-01-18; the real fix is react-router 7.
    - *Metric caveat:* feat-075's run record (`5a0ad1e4-ec73a5038f`, 1.3M output tokens, ~17 days) covers this whole long session from its start (hangar UPS work included), because the session had no earlier record. Start each T-task in a fresh session, or mark the window at activation, so its record measures only that task.
 1. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
@@ -36,7 +35,6 @@
 
 - **Review of 2026-10-18's work (f0e08e1..9675bee + hangar, atelier):** fresh-context subagent found 9 defects, all confirmed and fixed (2243f9b, hangar 2c30578); the outside review was **not independent**: agy timed out at 1500s on the ~6,600-line diff and outside-agent fell back to claude (exit 3). Its 3 confirmed findings fixed in 48127c6. Next time review per repo or per feature so agy can finish.
 - **Second outside review, split in five parts (2026-10-18):** C (weekly), D (hangar), E (atelier) ran on agy, independent; A (hooks) and B (adapter, install) timed out at 1200s on agy and fell back to claude, **not independent**. Findings fixed with failing tests first: ts-guard passed `-q`, which ESLint 9 rejects (exit 2, so every frontend turn was blocked); now `--quiet`, errors only, as ESLint 9 counts warnings against `--max-warnings` even with `--quiet` (atelier has 6 warnings, 0 errors). `store-packs` moves only names this install put there, and links only into this repo's `skills/` (a user's own `review/` was moved, then deleted by uninstall). A malformed `.claude/settings.json`, `.codex/hooks.json` or `.agents/hooks.json` stops sync instead of being overwritten. Global wiring prunes an old `global-hook.sh` entry whose command changed, so it cannot run twice. `record_harness_version` no longer fails an install. Not changed: sync owns the Claude `hooks` key by design (comment fixed). agy now reviews at `--effort high` (2026-10-19; delegate keeps the default): high finished a small review in 213 s, medium 274 s, while the default printed its answer and then hung until the 300 s timeout, so agy's own time varies more than effort does. The review default timeout is now 1200 s (was 300): real agy reviews took 590 to 1048 s, three more timed out at 1200 to 1500 s. Timed run on 01bc362 (high, stream-json, 2026-10-19): 1028 s, exited right after its answer (no hang); 777 s in 74 model turns, 242 s in 72 tools (commands 152 s, waits 81 s); it also ran the fast suite it was not asked for and spent a dozen turns waiting on tests; the answer began at 912 s. It found the non-object JSON root defect that 8e4765c fixed. Re-review: agy (independent) found nothing; the subagent found the install list shared by all agents (claude installing `audit` made codex's own `audit/` look installed: moved, then deleted), fixed with a per-agent list; the prune marker is now this runtime's own path (another harness repo's global hook stays); sync reads every agent file before writing any, a blank file counts as empty, and a non-UTF-8 or non-object file stops sync too (third pass).
-- **agy reviews held by its allowlist, not skipped (2026-10-20):** an agy review with `--dangerously-skip-permissions --mode plan` ran `install.sh` (plan mode only makes agy write a plan; the flag approved every tool). Reviews now run `agy --model gemini-3.8-flash-high --effort high -p`; `install.sh` writes `AGY_REVIEW_ALLOW` into agy's settings (`outside-agent.sh allow-agy`), and git log/diff/show/ls-files/blame pass only through a strict regex (a deny rule did not stop `--output=<file>`). One refused tool ends the run with no answer, so the prompt steers agy to its built-in file tools and to the repo only; the refusal reason now reaches stderr. Live runs: refused on `cat ~/...`, then on `git ls-files "* *"`, timed out once at 1200 s, then finished in 680 s (independent, no defects). Delegates keep the flag.
 - **Live-run each agent's hooks after a wiring change**, not only replays from the repo root: replays missed both agy bugs in feat-087. A live agy run in a scratch clone (`agy -p ... --mode accept-edits`) is enough; a codex one when codex is installed.
 
 - **Codex user skills path:** `agent_skills_dir codex` installs to `~/.codex/skills`; current Codex docs read `~/.agents/skills` (docs/harness-adoption.md). Codex is not installed here; check on a host that has it before changing the path.
