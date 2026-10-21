@@ -98,7 +98,15 @@
         "all 11 harness gates pass"
       ],
       "verification": "python3 -m pytest tests/test_outside_agent.py -q && bash scripts/harness-verify.sh",
-      "evidence": "Tests first: test_agy_review_commands_stay_inside_the_repo, test_agy_review_note_names_every_allowed_command and test_allow_agy_removes_the_rules_it_retired failed on the old rules; 209 passed, 1 skipped after. Mutations (leading / allowed, .. part allowed, retired rules kept) each fail a test. Live agy 1.4.3: 6 ordinary commands ran, 12 outside reads refused (cat /etc/hosts, cat '/etc/hosts', ls .., ls ~, ls .*, grep -c localhost /etc/hosts, git diff -O /etc/hosts, git status | cat /etc/hosts, git log -- /etc, head -c 20 =ls, git diff --stat =ls =cat, cat ../x). Live allow-agy: 10 rules removed, 2 added, mode 600 kept. Two subagent reviews (security, correctness) both found zsh =name expansion (cat =ls read /bin/ls); fixed with a failing test. Correctness review also found the note misdescribing quoted arguments and allow-agy removing a user's own command(regex:^git (fetch|pull)$); both fixed, the latter with a failing test. No re-review: the fixes removed a character and narrowed three prefixes. Symlinks: none tracked point outside in the three repos; untracked pack-skill links point to skill folders. Refused now that ran before: grep long options (--include=), globs, quoted patterns with .. or a backslash. Same round: certifi 2026.10.19 for PYSEC-2026-4320 (4325a9c)."
+      "evidence": "Tests first: test_agy_review_commands_stay_inside_the_repo, test_agy_review_note_names_every_allowed_command and test_allow_agy_removes_the_rules_it_retired failed on the old rules; 209 passed, 1 skipped after. Mutations (leading / allowed, .. part allowed, retired rules kept) each fail a test. Live agy 1.4.3: 6 ordinary commands ran, 12 outside reads refused (cat /etc/hosts, cat '/etc/hosts', ls .., ls ~, ls .*, grep -c localhost /etc/hosts, git diff -O /etc/hosts, git status | cat /etc/hosts, git log -- /etc, head -c 20 =ls, git diff --stat =ls =cat, cat ../agytest/a.txt). Live allow-agy: 10 rules removed, 2 added, mode 600 kept. Two subagent reviews (security, correctness) both found zsh =name expansion (cat =ls read /bin/ls); fixed with a failing test. Correctness review also found the note misdescribing quoted arguments and allow-agy removing a user's own command(regex:^git (fetch|pull)$); both fixed, the latter with a failing test. No re-review: the fixes removed a character and narrowed three prefixes. Symlinks: none tracked point outside in the three repos; untracked pack-skill links point to skill folders. Refused now that ran before: grep long options (--include=), globs, quoted patterns with .. or a backslash. Same round: certifi 2026.10.19 for PYSEC-2026-4320 (4325a9c).",
+      "execution_summary": {
+        "run_id": "5a0ad1e4-3de403fe21",
+        "output_tokens": 58825,
+        "wall_time_ms": 75243228,
+        "active_turn_time_ms": 2570849,
+        "subagents": 2,
+        "subagent_output_tokens": 155
+      }
     }
   ]
 }

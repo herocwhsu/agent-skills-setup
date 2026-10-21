@@ -4,7 +4,6 @@
 
 | Commit | Timestamp (UTC) | Agent | Subagents | Spent Time | Est. Tokens | `feature_list.json` | `PROGRESS.md` | Done (Active) | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `ea4bb74` | 2026-10-16 01:10:50 | `claude` | - | 2m 6s | ~5,667 tok | 114 lines | 100 lines | 4 (0 act) | **OK** |
 | `1eaa612` | 2026-10-16 01:32:01 | `claude` | - | 21m 10s | ~6,032 tok | 114 lines | 101 lines | 4 (0 act) | **WARN** |
 | `c31feec` | 2026-10-16 02:39:58 | `claude` | - | 1.0s | ~6,194 tok | 114 lines | 102 lines | 4 (0 act) | **WARN** |
 | `9e7a890` | 2026-10-16 03:07:27 | `claude` | - | 27m 29s | ~6,286 tok | 115 lines | 104 lines | 4 (0 act) | **WARN** |
@@ -24,5 +23,6 @@
 | `b6186d0` | 2026-10-18 02:28:00 | `claude` | - | 4m 30s | ~6,707 tok | 118 lines | 137 lines | 4 (0 act) | **WARN** |
 | `9efb686` | 2026-10-19 13:42:30 | `claude` | 19 out (claude,agy) | 10m 30s | ~5,765 tok | 102 lines | 91 lines | 4 (0 act) | **OK** |
 | `cd67c89` | 2026-10-20 13:47:09 | `claude` | 54 out (agy) | 2.0s | ~5,443 tok | 109 lines | 97 lines | 3 (0 act) | **OK** |
+| `37bfa61` | 2026-10-21 10:41:19 | `claude` | 8 out (agy) | 9m 54s | ~5,188 tok | 104 lines | 95 lines | 3 (0 act) | **OK** |
 
 ✅ **Status:** All state layer metrics are within clean-state limits.
