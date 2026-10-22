@@ -50,7 +50,7 @@ Run `bash .claude/hooks/check-tools.sh` to see what's installed on the current m
 
 ```
 common/
-  secret-scan.sh      Stop — gitleaks + osv-scanner (turn-scoped)
+  secret-scan.sh      Stop — gitleaks over the files git would commit + osv-scanner (turn-scoped)
   semgrep-guard.sh    Stop — SAST (turn-scoped; edit the repo config block)
   pr-guard.sh         Stop — verify open PR CI checks to completion (blocks on failure)
   grype-guard.sh      Stop — CVE scan on filesystem / images (HIGH+ with fixes)

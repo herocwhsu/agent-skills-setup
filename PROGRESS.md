@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-21
+**Last Updated:** 2026-10-22
 **Active Feature:** none
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
@@ -22,7 +22,8 @@
 
 ### What's In Progress
 
-- Nothing active (WIP=0). feat-095 (agy review commands confined to the repo) done 2026-10-21.
+- Nothing active (WIP=0). feat-096 (secret-scan scans only what git would commit; hangar and atelier copies too) done 2026-10-22.
+- Follow-up: `harness/guards/secret-scan.sh`, this repo's own whole-tree gate, still runs gitleaks `--no-git` over ignored files; apply the same copy if it gets slow or noisy.
 
 ### What's Next
 
@@ -41,7 +42,7 @@
 
 **Pending Owner Decisions (Blocked on Human):**
 - **firstdigital-economics:** Decide whether to create private remote GitHub repo or remain local.
-- **Handy branch:** Decide if `local/zh-tw-default` needs further integration or remains fork-only.
+- **Handy branch:** synced with upstream and pushed 2026-10-22 (fork `main` and `local/zh-tw-default`); owner to test the build at the Mac before this is closed.
 
 ## Blockers / Risks
 

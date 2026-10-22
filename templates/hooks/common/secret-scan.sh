@@ -39,10 +39,37 @@ echo "=== Gitleaks secret scan ==="
 if command -v gitleaks &>/dev/null; then
   # NB: gitleaks 8.x has no -q flag (an invalid flag exits 1 and read as a
   # permanent false "secrets found"); quiet via --no-banner + log-level.
-  # `--source .` from the repo root, not an absolute path: gitleaks bakes --source
-  # into each finding's fingerprint, so an absolute one can never match a
-  # .gitleaksignore entry committed as file:rule:line.
-  if ! out=$(cd "$REPO_ROOT" && gitleaks detect --source . --no-git --redact --no-banner --log-level error 2>&1); then
+  # Scans a copy of only the files git would commit: --no-git over the repo also
+  # walks ignored build output (Handy's 11 GB target/ took 151 s and warned on
+  # .rmeta files), and gitleaks has no gitignore option. `--source .` inside the
+  # copy, not an absolute path: gitleaks bakes --source into each finding's
+  # fingerprint, so an absolute one can never match a .gitleaksignore entry
+  # committed as file:rule:line.
+  # No failure here may end the hook under set -e before gitleaks runs (a Stop
+  # exit 1 does not block): without a temp folder the whole tree is scanned in
+  # place as before; a file tar cannot read (mode 000, vanished mid-copy) is
+  # skipped, the rest is scanned, and the gap blocks the turn.
+  SCAN_DIR="$REPO_ROOT"
+  if SCAN_TMP=$(mktemp -d) && trap 'rm -rf "$SCAN_TMP"' EXIT && mkdir "$SCAN_TMP/tree"; then
+    SCAN_DIR="$SCAN_TMP/tree"
+    if ! git -C "$REPO_ROOT" ls-files -z --cached --others --exclude-standard \
+      | while IFS= read -r -d '' f; do
+          if [[ -f "$REPO_ROOT/$f" && ! -L "$REPO_ROOT/$f" ]]; then printf '%s\0' "$f"; fi
+        done \
+      | tar -C "$REPO_ROOT" --null -T - -cf - 2>"$SCAN_TMP/copy.err" \
+      | tar -xf - -C "$SCAN_DIR" 2>>"$SCAN_TMP/copy.err"; then
+      echo "WARNING: some files were not scanned — they could not be copied:" >&2
+      head -10 "$SCAN_TMP/copy.err" >&2 || true
+      WARN=1
+    fi
+  else
+    echo "  NOTE  no temp folder for the commit-scope copy; scanning the whole tree"
+  fi
+  GL_OPTS=()
+  [[ -f "$REPO_ROOT/.gitleaksignore" ]] && GL_OPTS+=(-i "$REPO_ROOT/.gitleaksignore")
+  [[ -f "$REPO_ROOT/.gitleaks.toml" && -z "${GITLEAKS_CONFIG:-}${GITLEAKS_CONFIG_TOML:-}" ]] \
+    && GL_OPTS+=(-c "$REPO_ROOT/.gitleaks.toml")
+  if ! out=$(cd "$SCAN_DIR" && gitleaks detect --source . --no-git --redact --no-banner --log-level error "${GL_OPTS[@]+"${GL_OPTS[@]}"}" 2>&1); then
     echo "WARNING: gitleaks found potential secrets — review before committing" >&2
     echo "$out" | head -30 >&2
     WARN=1

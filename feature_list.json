@@ -107,6 +107,23 @@
         "subagents": 2,
         "subagent_output_tokens": 155
       }
+    },
+    {
+      "id": "feat-096",
+      "name": "secret-scan scans only what git would commit",
+      "description": "Spec docs/superpowers/specs/2026-10-22-secret-scan-commit-scope-design.md. The shared Stop hook ran gitleaks --no-git over the whole tree, gitignored build output included: in Handy the 11 GB src-tauri/target/ took 151 s and warned on .rmeta files. The hook now copies the files git ls-files --cached --others --exclude-standard lists (regular files, no symlinks) into a mktemp folder and scans that with --source ., so .gitleaksignore file:rule:line entries still match; the repo's .gitleaksignore and .gitleaks.toml are passed by path. A file the copy cannot read no longer ends the hook before gitleaks runs: the rest is scanned and the gap blocks (exit 2); with no temp folder the tree is scanned in place. Same logic in the hangar and atelier copies.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "a token only in a gitignored file does not warn; tracked and untracked-not-ignored tokens do",
+        "a .gitleaksignore file:rule:line entry still suppresses its finding",
+        "an unreadable file does not stop the scan and blocks with a warning",
+        "Handy Stop scan finishes in about a second with no findings",
+        "hangar and atelier copies differ from the template only in the config block",
+        "all harness gates pass"
+      ],
+      "verification": "bash scripts/tests/test_shared_hook_templates.sh && bash scripts/harness-verify.sh",
+      "evidence": "Tests first: the stub test (only commit-scope files reach gitleaks) and the gitignored-token case failed on the old hook; the unreadable-file case failed (rc=1) after the first fix; the mktemp-failure case failed (rc=1) after the second. 51 passed after; hangar test-hooks 25 and atelier 27 passed, both init.sh pass; shellcheck clean; harness-verify all gates passed. Handy: 151 s with findings in target/ before, 1.2 s and OK after. Odd names (space, newline, -C, --exclude=*) checked with bsdtar 3.5.3 and GNU tar 1.35 by the reviewers. Two subagent reviews (correctness, security) both found the same fail-open: a tar error under set -e ended the hook with exit 1 before gitleaks ran; fixed with a failing test. A re-review found the same for mktemp/mkdir; fixed with a failing test (fallback to the in-place scan). No third review: that fix is a fallback to the old command, covered by its test. Not changed: harness/guards/secret-scan.sh (this repo's own whole-tree gate) keeps the --no-git walk; flagged as a follow-up."
     }
   ]
 }

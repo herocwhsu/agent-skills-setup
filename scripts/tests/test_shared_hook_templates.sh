@@ -19,6 +19,9 @@ pass=0
 fail=0
 ok()  { echo "  PASS  $1"; pass=$((pass + 1)); }
 bad() { echo "  FAIL  $1: $2"; fail=$((fail + 1)); }
+expect() { # <name> <want> <got>
+  if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "want exit $2, got $3"; fi
+}
 
 STUBS="$TMPDIR/stubs"; mkdir -p "$STUBS"
 for t in semgrep checkov gitleaks osv-scanner; do
@@ -149,16 +152,62 @@ fi
 
 LOGSTUB="$TMPDIR/logstub"; mkdir -p "$LOGSTUB"
 # shellcheck disable=SC2016  # the stub's own $* and $(pwd) must stay unexpanded
-printf '#!/usr/bin/env bash\necho "ARGS: $*" > "%s/args"\necho "CWD: $(pwd -P)" >> "%s/args"\nexit 0\n' "$LOGSTUB" "$LOGSTUB" > "$LOGSTUB/gitleaks"
+printf '#!/usr/bin/env bash\necho "ARGS: $*" > "%s/args"\necho "FILES: $(find . -type f | sort | tr "\\n" " ")" >> "%s/args"\nexit 0\n' "$LOGSTUB" "$LOGSTUB" > "$LOGSTUB/gitleaks"
 chmod +x "$LOGSTUB/gitleaks"
 GL=$(repo gitleaks-args)
 printf 'a: 1\n' > "$GL/t.yaml"
+printf 'out/\n' > "$GL/.gitignore"
+mkdir -p "$GL/out"; printf 'b: 2\n' > "$GL/out/x.yaml"
 ( cd "$GL" && printf '{}' | PATH="$LOGSTUB:$PATH" bash "$HOOKS_SRC/common/secret-scan.sh" ) >/dev/null 2>&1
 if grep -q -- '--source \.' "$LOGSTUB/args" 2>/dev/null \
-   && grep -q "CWD: $(cd "$GL" && pwd -P)\$" "$LOGSTUB/args"; then
-  ok "secret-scan runs gitleaks as --source . from the repo root"
+   && grep -qx 'FILES: ./.gitignore ./t.yaml ' "$LOGSTUB/args"; then
+  ok "secret-scan runs gitleaks as --source . over only the files git would commit"
 else
-  bad "secret-scan runs gitleaks as --source . from the repo root" "got: $(tr '\n' ' ' < "$LOGSTUB/args" 2>/dev/null)"
+  bad "secret-scan runs gitleaks as --source . over only the files git would commit" "got: $(tr '\n' ' ' < "$LOGSTUB/args" 2>/dev/null)"
+fi
+
+# With the real gitleaks: findings follow what git would commit, and a committed
+# .gitleaksignore entry (file:rule:line, repo-relative) still matches.
+if command -v gitleaks >/dev/null 2>&1; then
+  token() { printf 'tok = "ghp_%s"\n' "$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 36)"; }
+  scan_rc() { ( cd "$1" && printf '{}' | bash "$HOOKS_SRC/common/secret-scan.sh" >/dev/null 2>&1 ); echo $?; }
+  leak_repo() { local d; d=$(repo "$1"); printf 'build/\n' > "$d/.gitignore"; mkdir -p "$d/build"; echo "$d"; }
+
+  R=$(leak_repo leak-ignored); token > "$R/build/out.txt"
+  expect "secret-scan ignores a token in a gitignored file" 0 "$(scan_rc "$R")"
+  R=$(leak_repo leak-untracked); token > "$R/new.py"
+  expect "secret-scan finds a token in an untracked, not ignored file" 2 "$(scan_rc "$R")"
+  R=$(leak_repo leak-tracked); token > "$R/a.py"
+  git -C "$R" add -A; git -C "$R" -c user.email=t@example.com -c user.name=test commit -q -m t
+  printf 'x\n' > "$R/other.txt"
+  expect "secret-scan finds a token in a tracked file" 2 "$(scan_rc "$R")"
+  printf 'a.py:github-pat:1\n' > "$R/.gitleaksignore"
+  expect "secret-scan honours a .gitleaksignore file:rule:line entry" 0 "$(scan_rc "$R")"
+  rm -f "$R/a.py" "$R/.gitleaksignore"
+  expect "secret-scan skips a tracked file deleted from the working tree" 0 "$(scan_rc "$R")"
+  R=$(leak_repo leak-space); token > "$R/my file.py"
+  expect "secret-scan scans a file whose name has a space" 2 "$(scan_rc "$R")"
+  # A file the copy cannot read must not end the hook before gitleaks runs:
+  # the token in the readable file is still reported, and the gap is named.
+  if [[ $(id -u) -ne 0 ]]; then
+    R=$(leak_repo leak-unreadable); token > "$R/b.py"; printf 'x\n' > "$R/c.txt"; chmod 000 "$R/c.txt"
+    err=$( cd "$R" && printf '{}' | bash "$HOOKS_SRC/common/secret-scan.sh" 2>&1 >/dev/null ); rc=$?
+    chmod 600 "$R/c.txt"
+    if [[ $rc -eq 2 && "$err" == *"gitleaks found"* && "$err" == *"not scanned"* ]]; then
+      ok "secret-scan still scans, and warns, when a file cannot be copied"
+    else
+      bad "secret-scan still scans, and warns, when a file cannot be copied" "rc=$rc err=$err"
+    fi
+  fi
+  # No temp folder for the copy (full or unwritable temp volume): the hook falls
+  # back to scanning the tree in place rather than ending before gitleaks runs.
+  NOTMP="$TMPDIR/notmp"; mkdir -p "$NOTMP"
+  printf '#!/usr/bin/env bash\nexit 1\n' > "$NOTMP/mktemp"; chmod +x "$NOTMP/mktemp"
+  R=$(leak_repo leak-notmp); token > "$R/a.py"
+  rc=$( cd "$R" && printf '{}' | PATH="$NOTMP:$PATH" bash "$HOOKS_SRC/common/secret-scan.sh" >/dev/null 2>&1; echo $? )
+  expect "secret-scan scans the tree in place when no temp folder can be made" 2 "$rc"
+else
+  echo "  SKIP  real-gitleaks secret-scan cases: gitleaks not installed"
 fi
 
 # py-guard / ts-guard: gate on the app folders in APP_DIRS whose files changed
@@ -194,10 +243,6 @@ app_repo() { # <file> [file...] -> clone with these files committed and pushed
 
 guard_rc() { # <hook path> <repo> [PATH] -> exit code
   ( cd "$2" && printf '{}' | PATH="${3:-$TOOLS:$PATH}" bash "$1" >/dev/null 2>&1 ); echo $?
-}
-
-expect() { # <name> <want> <got>
-  if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "want exit $2, got $3"; fi
 }
 
 for spec in "python/py-guard.sh:src/a.py:src/b.py:apps/api/src/a.py:apps/other/a.py:\"apps/api\"" \
