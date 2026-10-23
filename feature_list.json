@@ -28,7 +28,8 @@
     "docs/archive/features/archive-feat-092-092.json",
     "docs/archive/features/archive-feat-093-094.json",
     "docs/archive/features/archive-feat-095-095.json",
-    "docs/archive/features/archive-feat-096-096.json"
+    "docs/archive/features/archive-feat-096-096.json",
+    "docs/archive/features/archive-feat-100-100.json"
   ],
   "features": [
     {
@@ -68,26 +69,6 @@
       ],
       "verification": "",
       "evidence": ""
-    },
-    {
-      "id": "feat-100",
-      "name": "preflight warns when a session starts above several repos",
-      "description": "Preflight warns when a session starts above several registered repos, whose hooks then do not load. Found 2026-10-23: ~13 hangar commits from ~/projects with no verify-gate run.",
-      "dependencies": [],
-      "status": "completed",
-      "acceptance_criteria": [
-        "preflight in ~/projects names hangar and atelier; inside a repo it prints nothing extra"
-      ],
-      "verification": "bash scripts/tests/test_preflight.sh && bash scripts/tests/test_global_hook.sh && bash scripts/harness-verify.sh",
-      "evidence": "Tests first: 3 preflight and 1 global-hook assertions failed before the change. preflight.sh now prints a WARN naming each target-repos.txt path under a non-repo working folder; global-hook.sh no longer skips start in such a folder. 25 and 20 tests passed after; run from ~/projects it names hangar and atelier. Two fresh-context reviews (correctness, security): no confirmed defects. Not handled, noted by the reviewer: a session started through a symlinked path misses the warning (registry holds physical paths). Spec step skipped: small hook change, described here; Jira gates not applicable.",
-      "execution_summary": {
-        "run_id": "e6c10a0f-403e7a91da",
-        "output_tokens": 10841,
-        "wall_time_ms": 2310797,
-        "active_turn_time_ms": 186723,
-        "subagents": 2,
-        "subagent_output_tokens": 4520
-      }
     },
     {
       "id": "feat-101",
@@ -146,7 +127,15 @@
         "all harness gates pass"
       ],
       "verification": "bash scripts/run-tests.sh --fast && bash scripts/harness-verify.sh",
-      "evidence": "Moved ratchet_loop_runner, graph_runner, team_runner and their pytest files into docs/harness-creator/lecture-13/14/15/code (13+1, 7, 17 tests pass there; run-tests.sh runs them); docs/goals/TEMPLATE.md moved beside the runner as ratchet-goal-template.md with a new parse test (fails when the file is missing). Deleted the three .sh wrappers and their bash tests, harness_benchmark.py and harness-benchmark.sh (harness-verify.sh times gates itself), run_report.py, ci-watch.sh and their tests. Reverses the 2026-10-10 promotion to scripts/: no caller in this repo, hangar, atelier or launchd. README rows and lecture links fixed; history docs keep old paths. One subagent review: no confirmed defects (noted the orphaned goal template, fixed). harness-verify all gates passed."
+      "evidence": "Moved ratchet_loop_runner, graph_runner, team_runner and their pytest files into docs/harness-creator/lecture-13/14/15/code (13+1, 7, 17 tests pass there; run-tests.sh runs them); docs/goals/TEMPLATE.md moved beside the runner as ratchet-goal-template.md with a new parse test (fails when the file is missing). Deleted the three .sh wrappers and their bash tests, harness_benchmark.py and harness-benchmark.sh (harness-verify.sh times gates itself), run_report.py, ci-watch.sh and their tests. Reverses the 2026-10-10 promotion to scripts/: no caller in this repo, hangar, atelier or launchd. README rows and lecture links fixed; history docs keep old paths. One subagent review: no confirmed defects (noted the orphaned goal template, fixed). harness-verify all gates passed.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-3a1c9d8824",
+        "output_tokens": 24195,
+        "wall_time_ms": 1019398,
+        "active_turn_time_ms": 1900842,
+        "subagents": 1,
+        "subagent_output_tokens": 4674
+      }
     },
     {
       "id": "feat-104",

@@ -1,0 +1,24 @@
+{
+  "features": [
+    {
+      "id": "feat-100",
+      "name": "preflight warns when a session starts above several repos",
+      "description": "Preflight warns when a session starts above several registered repos, whose hooks then do not load. Found 2026-10-23: ~13 hangar commits from ~/projects with no verify-gate run.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "preflight in ~/projects names hangar and atelier; inside a repo it prints nothing extra"
+      ],
+      "verification": "bash scripts/tests/test_preflight.sh && bash scripts/tests/test_global_hook.sh && bash scripts/harness-verify.sh",
+      "evidence": "Tests first: 3 preflight and 1 global-hook assertions failed before the change. preflight.sh now prints a WARN naming each target-repos.txt path under a non-repo working folder; global-hook.sh no longer skips start in such a folder. 25 and 20 tests passed after; run from ~/projects it names hangar and atelier. Two fresh-context reviews (correctness, security): no confirmed defects. Not handled, noted by the reviewer: a session started through a symlinked path misses the warning (registry holds physical paths). Spec step skipped: small hook change, described here; Jira gates not applicable.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-403e7a91da",
+        "output_tokens": 10841,
+        "wall_time_ms": 2310797,
+        "active_turn_time_ms": 186723,
+        "subagents": 2,
+        "subagent_output_tokens": 4520
+      }
+    }
+  ]
+}
