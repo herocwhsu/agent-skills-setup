@@ -143,13 +143,16 @@
     {
       "id": "feat-105",
       "name": "this repo uses its own hook templates",
-      "description": "Owner chose option A 2026-10-23: harness/guards and templates/hooks both carry secret-scan.sh, sh-check.sh and py-check.sh, differing by 119, 82 and 57 lines; feat-096's fix reached only the template. Give this repo an agent-harness.json and let harness_adapter.py sync install the common and python templates; harness/guards keeps only the repo-specific guards. Hook change: spec, gate_experiment.py before removing any guard, two reviewers.",
-      "dependencies": [],
+      "description": "Owner chose 2026-10-23, after two subagent checks: harness/guards and templates/hooks both carry secret-scan.sh, sh-check.sh and py-check.sh. Option (c): this repo is the template source, so its Claude, agy and codex wiring and harness-verify.sh call templates/hooks/... directly (codex and agy edits through agent-hook.sh); the three copies in harness/guards are deleted. No agent-harness.json or sync, so hangar and atelier are untouched. This repo's stricter needs come from env-var knobs the templates read, defaults unchanged: shellcheck severity error (59 of 150 .sh files fail at default), whole-tree secret scan (the template skips a turn with no change), recursive osv (the template scans npm lockfiles only; py-guard cannot audit requirements-dev.txt).",
+      "dependencies": [
+        "feat-107"
+      ],
       "status": "planned",
       "acceptance_criteria": [
-        "one source per shared hook: no shared hook body in harness/guards",
-        "this repo's Stop and edit hooks run the template copies and still block the same planted defects (gate_experiment)",
-        "harness_adapter.py drift on this repo reports none",
+        "harness/guards holds no sh-check.sh, py-check.sh or secret-scan.sh; every wiring and harness-verify.sh call the templates",
+        "with no knob set, each template behaves as before (hangar, atelier and the global hook unchanged)",
+        "this repo still blocks a warning-free shellcheck error, a secret in any file, a vulnerable Python dependency, and a bad Codex apply_patch edit; it does not block existing warning-level shellcheck findings",
+        "the secret-scan gate reports OK, not SKIP, on a clean tree",
         "all harness gates pass"
       ],
       "verification": "",
@@ -171,6 +174,21 @@
       ],
       "verification": "",
       "evidence": ""
+    },
+    {
+      "id": "feat-107",
+      "name": "py-guard pip-audit runs; agent-hook checks Codex move targets",
+      "description": "Found by the feat-105 subagent check 2026-10-23. templates/hooks/python/py-guard.sh passes -q to pip-audit, which 2.10.1 rejects (exit 2), so every run with a requirements.txt reports vulnerable deps and blocks: atelier is affected. templates/hooks/common/agent-hook.sh splits a Codex apply_patch per file but skips '*** Move to:' lines, so a broken file renamed in the patch is not checked. Fix both in the template and atelier's (and hangar's) copies.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "py-guard runs pip-audit without an unknown flag and blocks only on real findings",
+        "a Codex patch moving a broken .sh to a new name is checked and blocked through agent-hook.sh",
+        "atelier and hangar copies match the templates outside their config block",
+        "all harness gates pass"
+      ],
+      "verification": "bash scripts/tests/test_agent_hook.sh && bash scripts/tests/test_shared_hook_templates.sh && bash scripts/harness-verify.sh",
+      "evidence": "Tests first: the Move-to case (test_agent_hook.sh) and a pip-audit stub that rejects -q like 2.10.1 failed on the old templates; 14 and 54 pass after. py-guard now runs pip-audit with --progress-spinner off and blocks only when the output names known vulnerabilities; a run that cannot audit (offline, unresolvable pin) prints SKIP with pip's ERROR line. Real pip-audit 2.10.1: certifi==2026.7.22 gives PYSEC-2026-4320 and exit 1, 2026.10.19 exit 0. agent-hook.sh also passes '*** Move to:' targets to the wrapped hook. Reviews: two subagents (correctness, security), no confirmed defects; they disagreed on blocking when pip-audit fails (fail-closed vs findings only), resolved for the acceptance wording, findings only, and re-reviewed: no confirmed defects. Trade-off kept: one unresolvable pin turns the audit into a visible SKIP for that app. atelier and hangar copies synced after this commit."
     }
   ]
 }

@@ -56,7 +56,7 @@ if isinstance(direct, str) and direct:
 seen = []
 def walk(v):
     if isinstance(v, str):
-        for m in re.finditer(r"^\*\*\* (?:Add|Update) File: (.+?)\s*$", v, re.M):
+        for m in re.finditer(r"^\*\*\* (?:(?:Add|Update) File|Move to): (.+?)\s*$", v, re.M):
             if m.group(1) not in seen:
                 seen.append(m.group(1))
     elif isinstance(v, dict):

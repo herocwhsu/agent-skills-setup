@@ -282,6 +282,27 @@ else
   bad "py-guard shows the failing tool's output" "stderr: $out"
 fi
 
+# pip-audit 2.10 has no -q (exit 2, "unrecognized arguments"), which read as
+# vulnerable deps on every run. Passing stubs, and a pip-audit that rejects -q.
+OKTOOLS="$TMPDIR/oktools"; mkdir -p "$OKTOOLS"
+for t in ruff bandit pytest; do printf '#!/usr/bin/env bash\nexit 0\n' > "$OKTOOLS/$t"; chmod +x "$OKTOOLS/$t"; done
+cat > "$OKTOOLS/pip-audit" <<'STUB'
+#!/usr/bin/env bash
+for a in "$@"; do [[ "$a" == -q ]] && { echo "pip-audit: error: unrecognized arguments: -q" >&2; exit 2; }; done
+exit 0
+STUB
+chmod +x "$OKTOOLS/pip-audit"
+W=$(app_repo src/a.py); printf 'certifi==1\n' > "$W/requirements.txt"; printf '# edit\n' >> "$W/src/a.py"
+expect "py-guard runs pip-audit with flags it accepts" 0 "$(guard_rc "$HOOKS_SRC/python/py-guard.sh" "$W" "$OKTOOLS:$PATH")"
+# pip-audit exits 1 for findings and for failures alike: only findings block; a
+# run that could not audit (offline, unresolvable) says SKIP.
+FAILTOOLS="$TMPDIR/failtools"; mkdir -p "$FAILTOOLS"; cp "$OKTOOLS"/* "$FAILTOOLS/"
+printf '#!/usr/bin/env bash\necho "ERROR: No matching distribution found for nopkg==1.0" >&2\necho "ERROR:pip_audit._cli:Failed to install packages: [/tmp/x]" >&2\nexit 1\n' > "$FAILTOOLS/pip-audit"
+out=$( cd "$W" && printf '{}' | PATH="$FAILTOOLS:$PATH" bash "$HOOKS_SRC/python/py-guard.sh" 2>&1 ); rc=$?
+if [[ $rc -eq 0 && "$out" == *"SKIP  pip-audit could not run: ERROR: No matching distribution found for nopkg==1.0"* ]]; then ok "py-guard says SKIP when pip-audit cannot run"; else bad "py-guard says SKIP when pip-audit cannot run" "exit $rc: $out"; fi
+printf '#!/usr/bin/env bash\necho "Found 1 known vulnerability in 1 package"\nexit 1\n' > "$FAILTOOLS/pip-audit"
+expect "py-guard blocks on a pip-audit finding" 2 "$(guard_rc "$HOOKS_SRC/python/py-guard.sh" "$W" "$FAILTOOLS:$PATH")"
+
 # ESLint 9 with a flat config rejects `-q` (exit 2) and only takes --quiet.
 ESL="$TMPDIR/eslint9"; mkdir -p "$ESL"
 for t in node npm; do printf '#!/usr/bin/env bash\nexit 0\n' > "$ESL/$t"; chmod +x "$ESL/$t"; done

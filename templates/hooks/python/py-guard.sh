@@ -51,8 +51,18 @@ for rel in "${APP_DIRS[@]}"; do
   if ! command -v pip-audit &>/dev/null; then
     echo "  SKIP  pip-audit not installed (pip install pip-audit)"
   elif [[ -f "$APP_DIR/requirements.txt" ]]; then
-    out=$(pip-audit -r "$APP_DIR/requirements.txt" -q 2>&1) \
-      || { echo "WARNING: $rel vulnerable deps" >&2; echo "$out" | head -20 >&2; WARN=1; }
+    # pip-audit exits 1 for findings and for a run that could not audit (offline,
+    # unresolvable requirement) alike; only findings block.
+    if ! out=$(pip-audit -r "$APP_DIR/requirements.txt" --progress-spinner off 2>&1); then
+      if [[ "$out" == *"known vulnerabilit"* ]]; then
+        echo "WARNING: $rel vulnerable deps" >&2; echo "$out" | head -20 >&2; WARN=1
+      else
+        # pip's own "ERROR: ..." line names the bad pin; pip-audit's last line is temp paths.
+        reason=$(printf '%s\n' "$out" | grep '^ERROR: ' | tail -1)
+        [[ -n "$reason" ]] || reason=$(printf '%s\n' "$out" | grep -v '^[[:space:]]*$' | tail -1)
+        echo "  SKIP  pip-audit could not run: ${reason:0:200}"
+      fi
+    fi
   fi
 
   echo "=== $rel: pytest ==="

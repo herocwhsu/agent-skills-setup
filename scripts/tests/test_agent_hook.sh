@@ -65,6 +65,11 @@ patch3='*** Begin Patch\n*** Update File: lib/one.sh\n*** End Patch'
 run "{\"cwd\":\"/r/sub\",\"tool_name\":\"apply_patch\",\"tool_input\":{\"input\":\"$patch3\"}}" codex edit "$TMP/hook.sh"
 if [[ $RC -eq 0 && "$(cat "$LOG")" == "/r/sub/lib/one.sh" ]]; then ok "codex edit makes a relative patch path absolute against the input's cwd"; else bad "codex relative path" "rc=$RC log=$(cat "$LOG")"; fi
 
+# A renamed file is checked under its new name: the old path no longer exists.
+patch4='*** Begin Patch\n*** Update File: /r/one.sh\n*** Move to: /r/bad.sh\n*** End Patch'
+run "{\"tool_name\":\"apply_patch\",\"tool_input\":{\"input\":\"$patch4\"}}" codex edit "$TMP/hook.sh"
+if [[ $RC -eq 2 && "$(cat "$LOG")" == *"/r/bad.sh"* ]]; then ok "codex edit checks a patch's move target"; else bad "codex move target" "rc=$RC log=$(cat "$LOG")"; fi
+
 run '{"tool_name":"Edit","tool_input":{"file_path":"/r/direct.sh"}}' codex edit "$TMP/hook.sh"
 if [[ $RC -eq 0 && "$(cat "$LOG")" == "/r/direct.sh" ]]; then ok "codex edit passes a plain file_path through"; else bad "codex edit file_path" "rc=$RC log=$(cat "$LOG")"; fi
 
