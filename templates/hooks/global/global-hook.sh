@@ -55,7 +55,11 @@ for f in "${own[@]}"; do
   # the name as a whole path segment: my-sh-check.sh is a different hook
   grep -qsE "(^|[/\" ])${hook//./\\.}([\"\\ ]|$)" "$f" && skip
 done
-[[ "$event" == start && ! -f PROGRESS.md && ! -f agent-harness.json ]] && skip
+if [[ "$event" == start && ! -f PROGRESS.md && ! -f agent-harness.json ]]; then
+  # above registered repos, preflight warns that their hooks will not load
+  awk -v p="$root/" 'index($0, p) == 1 { f = 1 } END { exit !f }' \
+    "$HOME/.agent-skills-setup/target-repos.txt" 2>/dev/null || skip
+fi
 
 if [[ "$agent" == claude ]]; then
   printf '%s' "$input" | bash "$here/$hook"

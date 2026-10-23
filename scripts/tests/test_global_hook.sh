@@ -97,6 +97,14 @@ touch "$REPO/PROGRESS.md"
 run "{\"cwd\":\"$REPO/sub\",\"hook_event_name\":\"SessionStart\"}" claude start
 if [[ $RC -eq 0 && "$OUT" == "preflight ran" && "$(cat "$LOG")" == "preflight $REPO " ]]; then ok "start runs preflight in a repo with PROGRESS.md"; else bad "start" "rc=$RC out=$OUT log=$(cat "$LOG")"; fi
 
+mkdir -p "$TMP/above/proj" "$TMP/home/.agent-skills-setup"
+git init -q "$TMP/above/proj"
+echo "$TMP/above/proj" > "$TMP/home/.agent-skills-setup/target-repos.txt"
+HOME="$TMP/home" run "{\"cwd\":\"$TMP/above\",\"hook_event_name\":\"SessionStart\"}" claude start
+if [[ $RC -eq 0 && "$OUT" == "preflight ran" ]]; then ok "start runs preflight in a folder above a registered repo"; else bad "start above repo" "rc=$RC out=$OUT"; fi
+HOME="$TMP/home" run "{\"cwd\":\"$TMP/plain\",\"hook_event_name\":\"SessionStart\"}" claude start
+if [[ $RC -eq 0 && -z "$OUT" ]]; then ok "start stays silent in a folder with no registered repo below"; else bad "start plain" "rc=$RC out=$OUT"; fi
+
 run "{\"tool_input\":{\"file_path\":\"$TMP/plain/a.sh\"}}" claude edit
 if [[ $RC -eq 0 && "$(cat "$LOG")" == "sh-check $TMP/plain $TMP/plain/a.sh" ]]; then ok "an edit outside any repo runs in the file's folder"; else bad "no repo" "rc=$RC log=$(cat "$LOG")"; fi
 

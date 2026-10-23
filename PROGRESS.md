@@ -22,8 +22,8 @@
 
 ### What's In Progress
 
-- Nothing active (WIP=0). feat-096 (secret-scan scans only what git would commit; hangar and atelier copies too) done 2026-10-22.
-- Planned 2026-10-23, from hangar's four-run vm1 reboot (hangar PROGRESS "In flight"): feat-097 handover-script contract, feat-098 cleanup steps name their cause, feat-099 failed gates print a diagnosis, feat-100 preflight warns above several repos. Start each in a session launched in this repo.- Follow-up: `harness/guards/secret-scan.sh`, this repo's own whole-tree gate, still runs gitleaks `--no-git` over ignored files; apply the same copy if it gets slow or noisy.
+- Nothing active (WIP=0). feat-100 (preflight warns when a session starts above registered repos) done 2026-10-23; before it feat-096 (secret-scan commit scope).
+- Planned 2026-10-23, from hangar's four-run vm1 reboot (hangar PROGRESS "In flight"): feat-097 handover-script contract, feat-098 cleanup steps name their cause, feat-099 failed gates print a diagnosis, feat-100 preflight warns above several repos (done). Start each in a session launched in this repo.- Follow-up: `harness/guards/secret-scan.sh`, this repo's own whole-tree gate, still runs gitleaks `--no-git` over ignored files; apply the same copy if it gets slow or noisy.
 
 ### What's Next
 

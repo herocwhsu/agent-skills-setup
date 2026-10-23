@@ -7,10 +7,17 @@
 # PROGRESS.md in full; open that file only when the brief is not enough.
 set -uo pipefail
 
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" && in_repo=1 || { in_repo=0; REPO_ROOT="$(pwd)"; }
 cd "$REPO_ROOT" || exit 0
 
 echo "== preflight (agent-harness.json) =="
+if [[ $in_repo -eq 0 && -f "$HOME/.agent-skills-setup/target-repos.txt" ]]; then
+  below=$(awk -v p="$REPO_ROOT/" 'index($0, p) == 1' "$HOME/.agent-skills-setup/target-repos.txt")
+  if [[ -n "$below" ]]; then
+    echo "  WARN started above registered repos, so their hooks do not load; start the session inside one:"
+    while IFS= read -r line; do echo "    $line"; done <<< "$below"
+  fi
+fi
 src=$(python3 -c "
 import json,sys
 print(json.load(open(sys.argv[1])).get('source_dir') or '')

@@ -62,6 +62,24 @@ has "reports version drift" "last changed by old1234, installed new5678"
 has "reports hook drift" ".claude/hooks/x.sh differs"
 has "reports a missing state file" "PROGRESS.md"
 
+# Started above registered repos: their hooks do not load, so say which repos.
+P="$TMP/parent"; mkdir -p "$P/hangar" "$P/atelier" "$P/other"
+git -C "$P/hangar" init -q; git -C "$P/atelier" init -q
+HR="$TMP/regHome"; mkdir -p "$HR/.agent-skills-setup"
+printf '%s\n%s\n' "$P/hangar" "$P/atelier" > "$HR/.agent-skills-setup/target-repos.txt"
+runin() { OUT=$( cd "$1" && HOME="$2" bash "$PRE" < /dev/null 2>&1 ); RC=$?; }
+runin "$P" "$HR"
+if [[ $RC -eq 0 ]]; then ok "above repos: exits 0"; else bad "above repos: exits 0" "rc=$RC"; fi
+has "above repos: warns that hooks do not load" "WARN started above registered repos"
+has "above repos: names the first repo" "$P/hangar"
+has "above repos: names the second repo" "$P/atelier"
+runin "$P/hangar" "$HR"
+hasnt "inside a registered repo: no extra warning" "started above"
+runin "$P/other" "$HR"
+hasnt "non-repo folder with no registered repo below: no warning" "started above"
+runin "$P" "$TMP/nohome"
+hasnt "no registry: no warning" "started above"
+
 echo ""
 echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]
