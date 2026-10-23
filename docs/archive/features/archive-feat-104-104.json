@@ -1,0 +1,28 @@
+{
+  "features": [
+    {
+      "id": "feat-104",
+      "name": "delete the kiro prompts for pack skills",
+      "description": "After feat-101 the 11 prompts in agents/kiro/prompts that name pack skills (apidog, audit, intake, jira, release, review, testing, and the retired shims plan-story, create-story-tasks, fetch-jira-story, jira-subtasks) are never installed. Owner decision 2026-10-23: delete them, no per-repo kiro prompts.",
+      "dependencies": [
+        "feat-101"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "agents/kiro/prompts holds only prompts whose skill is core",
+        "uninstall still removes old copies of the deleted prompts from ~/.kiro/prompts",
+        "all harness gates pass"
+      ],
+      "verification": "bash scripts/tests/test_kiro_prompts.sh && bash scripts/harness-verify.sh",
+      "evidence": "Deleted the 11 pack prompts; agents/kiro/prompts keeps brainstorming, debug, experiment-iteration, tdd. Tests first: the retired-prompt checks for install and uninstall failed before RETIRED_KIRO_PROMPTS existed; all pass after. install.sh on this host left exactly those 4 in ~/.kiro/prompts. docs/migration.md updated. Two subagent reviews (correctness, security): no confirmed defects. Follow-up: drop RETIRED_KIRO_PROMPTS once every host has run install.sh, so a user prompt later named review.md or jira.md is not deleted. harness-verify all gates passed.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-4b9d98da02",
+        "output_tokens": 6073,
+        "wall_time_ms": 697390,
+        "active_turn_time_ms": null,
+        "subagents": 2,
+        "subagent_output_tokens": 5486
+      }
+    }
+  ]
+}

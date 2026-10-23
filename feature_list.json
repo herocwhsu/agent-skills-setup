@@ -32,7 +32,8 @@
     "docs/archive/features/archive-feat-100-100.json",
     "docs/archive/features/archive-feat-101-101.json",
     "docs/archive/features/archive-feat-102-102.json",
-    "docs/archive/features/archive-feat-103-103.json"
+    "docs/archive/features/archive-feat-103-103.json",
+    "docs/archive/features/archive-feat-104-104.json"
   ],
   "features": [
     {
@@ -72,30 +73,6 @@
       ],
       "verification": "",
       "evidence": ""
-    },
-    {
-      "id": "feat-104",
-      "name": "delete the kiro prompts for pack skills",
-      "description": "After feat-101 the 11 prompts in agents/kiro/prompts that name pack skills (apidog, audit, intake, jira, release, review, testing, and the retired shims plan-story, create-story-tasks, fetch-jira-story, jira-subtasks) are never installed. Owner decision 2026-10-23: delete them, no per-repo kiro prompts.",
-      "dependencies": [
-        "feat-101"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "agents/kiro/prompts holds only prompts whose skill is core",
-        "uninstall still removes old copies of the deleted prompts from ~/.kiro/prompts",
-        "all harness gates pass"
-      ],
-      "verification": "bash scripts/tests/test_kiro_prompts.sh && bash scripts/harness-verify.sh",
-      "evidence": "Deleted the 11 pack prompts; agents/kiro/prompts keeps brainstorming, debug, experiment-iteration, tdd. Tests first: the retired-prompt checks for install and uninstall failed before RETIRED_KIRO_PROMPTS existed; all pass after. install.sh on this host left exactly those 4 in ~/.kiro/prompts. docs/migration.md updated. Two subagent reviews (correctness, security): no confirmed defects. Follow-up: drop RETIRED_KIRO_PROMPTS once every host has run install.sh, so a user prompt later named review.md or jira.md is not deleted. harness-verify all gates passed.",
-      "execution_summary": {
-        "run_id": "e6c10a0f-4b9d98da02",
-        "output_tokens": 6073,
-        "wall_time_ms": 697390,
-        "active_turn_time_ms": null,
-        "subagents": 2,
-        "subagent_output_tokens": 5486
-      }
     },
     {
       "id": "feat-105",
@@ -138,7 +115,15 @@
         "the two-layer harness has its own section"
       ],
       "verification": "bash scripts/harness-verify.sh",
-      "evidence": "Fixed 3.14.7 to 3.14.9 (3 places), ~/.gemini/skills to the real per-agent dirs, statuses to planned/in_progress/completed, the deleted harness/guards hooks to the templates with their knobs; added section 2.5 (two-layer harness: target-repos.txt, agent-harness.json, harness_adapter check/drift/sync/sync-all, runtime dir, global hooks, packs) and layout rows for .agents, .codex, config/skill-packs.json. A script checked every backticked path: all exist in the repo or under ~, except runtime-relative names (hooks/*.sh, harness-version.json), target-repo files and generic or example names. Docs only, no review."
+      "evidence": "Fixed 3.14.7 to 3.14.9 (3 places), ~/.gemini/skills to the real per-agent dirs, statuses to planned/in_progress/completed, the deleted harness/guards hooks to the templates with their knobs; added section 2.5 (two-layer harness: target-repos.txt, agent-harness.json, harness_adapter check/drift/sync/sync-all, runtime dir, global hooks, packs) and layout rows for .agents, .codex, config/skill-packs.json. A script checked every backticked path: all exist in the repo or under ~, except runtime-relative names (hooks/*.sh, harness-version.json), target-repo files and generic or example names. Docs only, no review.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-d32568b116",
+        "output_tokens": 7710,
+        "wall_time_ms": 1218002,
+        "active_turn_time_ms": 219716,
+        "subagents": 0,
+        "subagent_output_tokens": 0
+      }
     },
     {
       "id": "feat-107",
