@@ -31,7 +31,8 @@
     "docs/archive/features/archive-feat-096-096.json",
     "docs/archive/features/archive-feat-100-100.json",
     "docs/archive/features/archive-feat-101-101.json",
-    "docs/archive/features/archive-feat-102-102.json"
+    "docs/archive/features/archive-feat-102-102.json",
+    "docs/archive/features/archive-feat-103-103.json"
   ],
   "features": [
     {
@@ -73,29 +74,6 @@
       "evidence": ""
     },
     {
-      "id": "feat-103",
-      "name": "lecture runners leave scripts/, orphan scripts deleted",
-      "description": "Architecture review 2026-10-23: ratchet_loop_runner, team_runner, graph_runner (+ .sh wrappers) are lecture 13-15 ports with no caller outside docs and README; run_report.py and ci-watch.sh have no caller at all; harness_benchmark.py overlaps telemetry_benchmark.py, the one PROGRESS.md names. No caller in hangar, atelier or launchd. Move the lecture runners and their tests into docs/harness-creator/lecture-1N/code/ (still tested, like lectures 3-12), delete the orphans and their tests, fix README and doc links.",
-      "dependencies": [],
-      "status": "completed",
-      "acceptance_criteria": [
-        "scripts/ holds no lecture runner, run_report.py, ci-watch.sh or harness_benchmark.py",
-        "the moved runners' tests still run in run-tests.sh",
-        "no live doc or README links a removed path",
-        "all harness gates pass"
-      ],
-      "verification": "bash scripts/run-tests.sh --fast && bash scripts/harness-verify.sh",
-      "evidence": "Moved ratchet_loop_runner, graph_runner, team_runner and their pytest files into docs/harness-creator/lecture-13/14/15/code (13+1, 7, 17 tests pass there; run-tests.sh runs them); docs/goals/TEMPLATE.md moved beside the runner as ratchet-goal-template.md with a new parse test (fails when the file is missing). Deleted the three .sh wrappers and their bash tests, harness_benchmark.py and harness-benchmark.sh (harness-verify.sh times gates itself), run_report.py, ci-watch.sh and their tests. Reverses the 2026-10-10 promotion to scripts/: no caller in this repo, hangar, atelier or launchd. README rows and lecture links fixed; history docs keep old paths. One subagent review: no confirmed defects (noted the orphaned goal template, fixed). harness-verify all gates passed.",
-      "execution_summary": {
-        "run_id": "e6c10a0f-3a1c9d8824",
-        "output_tokens": 24195,
-        "wall_time_ms": 1019398,
-        "active_turn_time_ms": 1900842,
-        "subagents": 1,
-        "subagent_output_tokens": 4674
-      }
-    },
-    {
       "id": "feat-104",
       "name": "delete the kiro prompts for pack skills",
       "description": "After feat-101 the 11 prompts in agents/kiro/prompts that name pack skills (apidog, audit, intake, jira, release, review, testing, and the retired shims plan-story, create-story-tasks, fetch-jira-story, jira-subtasks) are never installed. Owner decision 2026-10-23: delete them, no per-repo kiro prompts.",
@@ -135,7 +113,15 @@
         "all harness gates pass"
       ],
       "verification": "bash scripts/tests/test_shared_hook_templates.sh && bash harness/guards/tests/test_sh_check.sh && bash harness/guards/tests/test_py_check.sh && bash scripts/harness-verify.sh && .venv/bin/python scripts/gate_experiment.py",
-      "evidence": "Tests first: knob cases in test_shared_hook_templates.sh (60/0 after), the retargeted guard tests' wiring and fail-open cases (sh 23/0, py 21/0), two gate_experiment tests (37/0). Templates read SH_CHECK_SEVERITY, SECRET_SCAN_SCOPE=tree, OSV_SCOPE=recursive; unset, default behavior unchanged (sh-check also fails open on unparseable input). This repo's Claude/agy/codex wiring and harness-verify.sh call templates/hooks directly; harness/guards/{sh-check,py-check,secret-scan}.sh deleted. Live: the secret-scan gate reports OK (gitleaks, osv) on this repo, a planted certifi==2026.7.22 gives PYSEC-2026-4320 and exit 2. gate_experiment.py needed two fixes to run at all (runtime files in subfolders; PYTHONUSERBASE so the bare python3 keeps its user-site pytest/lxml under the redirected HOME); then baseline clean and all 12 planted defects caught by their expected gate, secret scan 'needed'. Two earlier baseline runs failed the tests gate intermittently, cause not found (flaky-test list in PROGRESS). Two subagent reviews (correctness, security): no confirmed defects; env prefixes reach the hooks under each agent and bash 3.2; the global hook still skips its copies here. Known gap kept: an untracked nested git repo is not secret-scanned (git lists it as a directory; same in hangar/atelier since feat-096). docs/architecture.md left for feat-106."
+      "evidence": "Tests first: knob cases in test_shared_hook_templates.sh (60/0 after), the retargeted guard tests' wiring and fail-open cases (sh 23/0, py 21/0), two gate_experiment tests (37/0). Templates read SH_CHECK_SEVERITY, SECRET_SCAN_SCOPE=tree, OSV_SCOPE=recursive; unset, default behavior unchanged (sh-check also fails open on unparseable input). This repo's Claude/agy/codex wiring and harness-verify.sh call templates/hooks directly; harness/guards/{sh-check,py-check,secret-scan}.sh deleted. Live: the secret-scan gate reports OK (gitleaks, osv) on this repo, a planted certifi==2026.7.22 gives PYSEC-2026-4320 and exit 2. gate_experiment.py needed two fixes to run at all (runtime files in subfolders; PYTHONUSERBASE so the bare python3 keeps its user-site pytest/lxml under the redirected HOME); then baseline clean and all 12 planted defects caught by their expected gate, secret scan 'needed'. Two earlier baseline runs failed the tests gate intermittently, cause not found (flaky-test list in PROGRESS). Two subagent reviews (correctness, security): no confirmed defects; env prefixes reach the hooks under each agent and bash 3.2; the global hook still skips its copies here. Known gap kept: an untracked nested git repo is not secret-scanned (git lists it as a directory; same in hangar/atelier since feat-096). docs/architecture.md left for feat-106.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-b522547cd0",
+        "output_tokens": 39117,
+        "wall_time_ms": 5097376,
+        "active_turn_time_ms": 5680821,
+        "subagents": 2,
+        "subagent_output_tokens": 28438
+      }
     },
     {
       "id": "feat-106",
