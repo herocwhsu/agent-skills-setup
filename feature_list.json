@@ -27,26 +27,10 @@
     "docs/archive/features/archive-feat-091-091.json",
     "docs/archive/features/archive-feat-092-092.json",
     "docs/archive/features/archive-feat-093-094.json",
-    "docs/archive/features/archive-feat-095-095.json"
+    "docs/archive/features/archive-feat-095-095.json",
+    "docs/archive/features/archive-feat-096-096.json"
   ],
   "features": [
-    {
-      "id": "feat-096",
-      "name": "secret-scan scans only what git would commit",
-      "description": "Spec docs/superpowers/specs/2026-10-22-secret-scan-commit-scope-design.md. The shared Stop hook ran gitleaks --no-git over the whole tree, gitignored build output included: in Handy the 11 GB src-tauri/target/ took 151 s and warned on .rmeta files. The hook now copies the files git ls-files --cached --others --exclude-standard lists (regular files, no symlinks) into a mktemp folder and scans that with --source ., so .gitleaksignore file:rule:line entries still match; the repo's .gitleaksignore and .gitleaks.toml are passed by path. A file the copy cannot read no longer ends the hook before gitleaks runs: the rest is scanned and the gap blocks (exit 2); with no temp folder the tree is scanned in place. Same logic in the hangar and atelier copies.",
-      "dependencies": [],
-      "status": "completed",
-      "acceptance_criteria": [
-        "a token only in a gitignored file does not warn; tracked and untracked-not-ignored tokens do",
-        "a .gitleaksignore file:rule:line entry still suppresses its finding",
-        "an unreadable file does not stop the scan and blocks with a warning",
-        "Handy Stop scan finishes in about a second with no findings",
-        "hangar and atelier copies differ from the template only in the config block",
-        "all harness gates pass"
-      ],
-      "verification": "bash scripts/tests/test_shared_hook_templates.sh && bash scripts/harness-verify.sh",
-      "evidence": "Tests first: the stub test (only commit-scope files reach gitleaks) and the gitignored-token case failed on the old hook; the unreadable-file case failed (rc=1) after the first fix; the mktemp-failure case failed (rc=1) after the second. 51 passed after; hangar test-hooks 25 and atelier 27 passed, both init.sh pass; shellcheck clean; harness-verify all gates passed. Handy: 151 s with findings in target/ before, 1.2 s and OK after. Odd names (space, newline, -C, --exclude=*) checked with bsdtar 3.5.3 and GNU tar 1.35 by the reviewers. Two subagent reviews (correctness, security) both found the same fail-open: a tar error under set -e ended the hook with exit 1 before gitleaks ran; fixed with a failing test. A re-review found the same for mktemp/mkdir; fixed with a failing test (fallback to the in-place scan). No third review: that fix is a fallback to the old command, covered by its test. Not changed: harness/guards/secret-scan.sh (this repo's own whole-tree gate) keeps the --no-git walk; flagged as a follow-up."
-    },
     {
       "id": "feat-097",
       "name": "handover scripts follow a checked contract",
@@ -148,6 +132,69 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-103",
+      "name": "lecture runners leave scripts/, orphan scripts deleted",
+      "description": "Architecture review 2026-10-23: ratchet_loop_runner, team_runner, graph_runner (+ .sh wrappers) are lecture 13-15 ports with no caller outside docs and README; run_report.py and ci-watch.sh have no caller at all; harness_benchmark.py overlaps telemetry_benchmark.py, the one PROGRESS.md names. No caller in hangar, atelier or launchd. Move the lecture runners and their tests into docs/harness-creator/lecture-1N/code/ (still tested, like lectures 3-12), delete the orphans and their tests, fix README and doc links.",
+      "dependencies": [],
+      "status": "planned",
+      "acceptance_criteria": [
+        "scripts/ holds no lecture runner, run_report.py, ci-watch.sh or harness_benchmark.py",
+        "the moved runners' tests still run in run-tests.sh",
+        "no live doc or README links a removed path",
+        "all harness gates pass"
+      ],
+      "verification": "",
+      "evidence": ""
+    },
+    {
+      "id": "feat-104",
+      "name": "delete the kiro prompts for pack skills",
+      "description": "After feat-101 the 11 prompts in agents/kiro/prompts that name pack skills (apidog, audit, intake, jira, release, review, testing, and the retired shims plan-story, create-story-tasks, fetch-jira-story, jira-subtasks) are never installed. Owner decision 2026-10-23: delete them, no per-repo kiro prompts.",
+      "dependencies": [
+        "feat-101"
+      ],
+      "status": "planned",
+      "acceptance_criteria": [
+        "agents/kiro/prompts holds only prompts whose skill is core",
+        "uninstall still removes old copies of the deleted prompts from ~/.kiro/prompts",
+        "all harness gates pass"
+      ],
+      "verification": "",
+      "evidence": ""
+    },
+    {
+      "id": "feat-105",
+      "name": "this repo uses its own hook templates",
+      "description": "Owner chose option A 2026-10-23: harness/guards and templates/hooks both carry secret-scan.sh, sh-check.sh and py-check.sh, differing by 119, 82 and 57 lines; feat-096's fix reached only the template. Give this repo an agent-harness.json and let harness_adapter.py sync install the common and python templates; harness/guards keeps only the repo-specific guards. Hook change: spec, gate_experiment.py before removing any guard, two reviewers.",
+      "dependencies": [],
+      "status": "planned",
+      "acceptance_criteria": [
+        "one source per shared hook: no shared hook body in harness/guards",
+        "this repo's Stop and edit hooks run the template copies and still block the same planted defects (gate_experiment)",
+        "harness_adapter.py drift on this repo reports none",
+        "all harness gates pass"
+      ],
+      "verification": "",
+      "evidence": ""
+    },
+    {
+      "id": "feat-106",
+      "name": "architecture.md matches the two-layer harness",
+      "description": "architecture.md says Python 3.14.7, ~/.gemini/skills, statuses done/in-progress, and leaves out agent-harness.json, skill packs, global hooks, the runtime dir and target-repos.txt. Rewrite after feat-103 to feat-105 so it describes the final layout once.",
+      "dependencies": [
+        "feat-103",
+        "feat-104",
+        "feat-105"
+      ],
+      "status": "planned",
+      "acceptance_criteria": [
+        "every path, version and status value in architecture.md exists in the repo or host as written",
+        "the two-layer harness has its own section"
+      ],
+      "verification": "",
+      "evidence": ""
     }
   ]
 }
