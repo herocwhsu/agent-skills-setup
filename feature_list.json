@@ -30,7 +30,8 @@
     "docs/archive/features/archive-feat-095-095.json",
     "docs/archive/features/archive-feat-096-096.json",
     "docs/archive/features/archive-feat-100-100.json",
-    "docs/archive/features/archive-feat-101-101.json"
+    "docs/archive/features/archive-feat-101-101.json",
+    "docs/archive/features/archive-feat-102-102.json"
   ],
   "features": [
     {
@@ -70,28 +71,6 @@
       ],
       "verification": "",
       "evidence": ""
-    },
-    {
-      "id": "feat-102",
-      "name": "remove the unmanaged ~/.gemini/skills and Gemini CLI from this host",
-      "description": "Host audit 2026-10-23: ~/.gemini/skills (last written 2026-07-04, nothing in this repo writes it) is read only by Gemini CLI 0.65.0, which loaded July superpowers copies and every pack skill globally. agy reads ~/.gemini/config/skills (antigravity-cli/skills links to it), so it is unaffected. Owner chose: back up and remove the dir, uninstall Gemini CLI; leave the rest of ~/.gemini (agy shares it). Other hosts: check by hand, no install-time deletion.",
-      "dependencies": [],
-      "status": "completed",
-      "acceptance_criteria": [
-        "~/.gemini/skills gone, backup tarball kept",
-        "gemini not on PATH",
-        "agy still lists its 17 core skills"
-      ],
-      "verification": "test ! -e ~/.gemini/skills && ! command -v gemini && agy -p 'List the names of the agent skills available to you'",
-      "evidence": "Host action, no repo code. Before: gemini skills list showed ~/.gemini/skills (July superpowers copies plus every pack skill); agy listed 19 skills from ~/.gemini/config/skills. Backed up to ~/.agent-skills-setup/backup/gemini-skills-2026-10-23.tar.gz (169 entries, 17 SKILL.md), removed the dir, npm uninstall -g @google/gemini-cli (0.65.0). After: ~/.gemini/skills gone, gemini not on PATH, agy lists the same 19 skills (2 builtin, 17 core). The rest of ~/.gemini (oauth, settings, config) kept for agy. Not done: other hosts, checked by hand; codex kept as is (owner decision).",
-      "execution_summary": {
-        "run_id": "e6c10a0f-fc032d83ac",
-        "output_tokens": 2630,
-        "wall_time_ms": 49754,
-        "active_turn_time_ms": null,
-        "subagents": 0,
-        "subagent_output_tokens": 0
-      }
     },
     {
       "id": "feat-103",
@@ -188,7 +167,15 @@
         "all harness gates pass"
       ],
       "verification": "bash scripts/tests/test_agent_hook.sh && bash scripts/tests/test_shared_hook_templates.sh && bash scripts/harness-verify.sh",
-      "evidence": "Tests first: the Move-to case (test_agent_hook.sh) and a pip-audit stub that rejects -q like 2.10.1 failed on the old templates; 14 and 54 pass after. py-guard now runs pip-audit with --progress-spinner off and blocks only when the output names known vulnerabilities; a run that cannot audit (offline, unresolvable pin) prints SKIP with pip's ERROR line. Real pip-audit 2.10.1: certifi==2026.7.22 gives PYSEC-2026-4320 and exit 1, 2026.10.19 exit 0. agent-hook.sh also passes '*** Move to:' targets to the wrapped hook. Reviews: two subagents (correctness, security), no confirmed defects; they disagreed on blocking when pip-audit fails (fail-closed vs findings only), resolved for the acceptance wording, findings only, and re-reviewed: no confirmed defects. Trade-off kept: one unresolvable pin turns the audit into a visible SKIP for that app. atelier and hangar copies synced after this commit."
+      "evidence": "Tests first: the Move-to case (test_agent_hook.sh) and a pip-audit stub that rejects -q like 2.10.1 failed on the old templates; 14 and 54 pass after. py-guard now runs pip-audit with --progress-spinner off and blocks only when the output names known vulnerabilities; a run that cannot audit (offline, unresolvable pin) prints SKIP with pip's ERROR line. Real pip-audit 2.10.1: certifi==2026.7.22 gives PYSEC-2026-4320 and exit 1, 2026.10.19 exit 0. agent-hook.sh also passes '*** Move to:' targets to the wrapped hook. Reviews: two subagents (correctness, security), no confirmed defects; they disagreed on blocking when pip-audit fails (fail-closed vs findings only), resolved for the acceptance wording, findings only, and re-reviewed: no confirmed defects. Trade-off kept: one unresolvable pin turns the audit into a visible SKIP for that app. atelier and hangar copies synced after this commit.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-3d82aa8d69",
+        "output_tokens": 27523,
+        "wall_time_ms": 3901130,
+        "active_turn_time_ms": 2976002,
+        "subagents": 5,
+        "subagent_output_tokens": 47051
+      }
     }
   ]
 }

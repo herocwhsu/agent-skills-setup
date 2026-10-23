@@ -1,0 +1,651 @@
+{
+  "run_id": "e6c10a0f-3d82aa8d69",
+  "schema_version": 1,
+  "session_id": "e6c10a0f",
+  "window": {
+    "start": "2026-10-23T13:13:49+08:00",
+    "end": "2026-10-23T14:19:13+08:00"
+  },
+  "wall_time_ms": {
+    "value": 3901130,
+    "source": "first to last parent timestamp",
+    "status": "measured",
+    "note": "includes idle time between prompts"
+  },
+  "active_turn_time_ms": {
+    "value": 2976002,
+    "source": "system turn_duration records",
+    "status": "measured",
+    "note": "time inside turns, excluding idle gaps"
+  },
+  "agent_time_ms": {
+    "value": 2011724,
+    "source": "sum of subagent transcript spans",
+    "status": "measured",
+    "note": "can exceed wall time because subagents run in parallel; not a duration of the run"
+  },
+  "parent": {
+    "tokens": {
+      "input_tokens_sum": {
+        "value": 86,
+        "source": "session usage rows",
+        "status": "measured",
+        "note": "sums the context re-sent on every turn, so it is not unique content and not billed usage"
+      },
+      "output_tokens_sum": {
+        "value": 27523,
+        "source": "session usage rows",
+        "status": "measured"
+      },
+      "cache_read_sum": {
+        "value": 9891163,
+        "source": "session usage rows",
+        "status": "measured"
+      },
+      "cache_creation_sum": {
+        "value": 69998,
+        "source": "session usage rows",
+        "status": "measured"
+      },
+      "last_context_tokens": {
+        "value": 2,
+        "source": "session usage rows",
+        "status": "measured",
+        "note": "input tokens of the final turn: context size, not usage"
+      },
+      "max_context_tokens": {
+        "value": 4,
+        "source": "session usage rows",
+        "status": "measured",
+        "note": "largest per-turn input: context size, not usage"
+      },
+      "reported_context_total": {
+        "value": 27525,
+        "source": "session usage rows",
+        "status": "measured",
+        "note": "final-turn input + summed output; the figure the harness reports for subagents, not billed usage"
+      }
+    },
+    "usage_rows": 88,
+    "distinct_message_ids": 38,
+    "rows_without_message_id": 0,
+    "synthetic_rows_ignored": 0,
+    "partial_message_ids": [],
+    "conflicts": [],
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "malformed_lines": 0,
+    "rows_without_timestamp_excluded": 0
+  },
+  "subagents": [
+    {
+      "agent_id": "a063db1746ee4fe3a",
+      "parent_session_id": "e6c10a0f",
+      "tool_use_id": "toolu_015kpK4S9mz1SGCgoYJxvYW8",
+      "agent_type": "general-purpose",
+      "description": "Verify hook behavior differences",
+      "model": {
+        "value": [
+          "claude-opus-5-5"
+        ],
+        "source": "assistant message",
+        "status": "measured"
+      },
+      "duration_ms": {
+        "value": 347478,
+        "source": "first to last record timestamp",
+        "status": "measured"
+      },
+      "outcome": {
+        "value": null,
+        "source": "no structured outcome record; notification text is not parsed",
+        "status": "missing"
+      },
+      "tokens": {
+        "input_tokens_sum": {
+          "value": 56,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "sums the context re-sent on every turn, so it is not unique content and not billed usage"
+        },
+        "output_tokens_sum": {
+          "value": 18041,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "cache_read_sum": {
+          "value": 1720478,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "cache_creation_sum": {
+          "value": 83342,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "last_context_tokens": {
+          "value": 2,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "input tokens of the final turn: context size, not usage"
+        },
+        "max_context_tokens": {
+          "value": 2,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "largest per-turn input: context size, not usage"
+        },
+        "reported_context_total": {
+          "value": 18043,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "final-turn input + summed output; the figure the harness reports for subagents, not billed usage"
+        }
+      },
+      "usage_rows": 52,
+      "distinct_message_ids": 28,
+      "conflicts": [],
+      "partial_message_ids": [],
+      "malformed_lines": 0,
+      "spawned_by_parent_call": true
+    },
+    {
+      "agent_id": "a09bb1002fc47487d",
+      "parent_session_id": "e6c10a0f",
+      "tool_use_id": "toolu_01N2aMeCqcXEbKAQ5jPcXwdM",
+      "agent_type": "general-purpose",
+      "description": "Re-review py-guard audit branch",
+      "model": {
+        "value": [
+          "claude-opus-5-5"
+        ],
+        "source": "assistant message",
+        "status": "measured"
+      },
+      "duration_ms": {
+        "value": 508526,
+        "source": "first to last record timestamp",
+        "status": "measured"
+      },
+      "outcome": {
+        "value": null,
+        "source": "no structured outcome record; notification text is not parsed",
+        "status": "missing"
+      },
+      "tokens": {
+        "input_tokens_sum": {
+          "value": 22,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "sums the context re-sent on every turn, so it is not unique content and not billed usage"
+        },
+        "output_tokens_sum": {
+          "value": 5451,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "cache_read_sum": {
+          "value": 394037,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "cache_creation_sum": {
+          "value": 48050,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "last_context_tokens": {
+          "value": 4,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "input tokens of the final turn: context size, not usage"
+        },
+        "max_context_tokens": {
+          "value": 4,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "largest per-turn input: context size, not usage"
+        },
+        "reported_context_total": {
+          "value": 5455,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "final-turn input + summed output; the figure the harness reports for subagents, not billed usage"
+        }
+      },
+      "usage_rows": 16,
+      "distinct_message_ids": 10,
+      "conflicts": [],
+      "partial_message_ids": [],
+      "malformed_lines": 0,
+      "spawned_by_parent_call": true
+    },
+    {
+      "agent_id": "a2525f10d451728a4",
+      "parent_session_id": "e6c10a0f",
+      "tool_use_id": "toolu_01BRHmgCvs3NgvqsFLYXmq4B",
+      "agent_type": "general-purpose",
+      "description": "Review feat-107 security",
+      "model": {
+        "value": [
+          "claude-opus-5-5"
+        ],
+        "source": "assistant message",
+        "status": "measured"
+      },
+      "duration_ms": {
+        "value": 482687,
+        "source": "first to last record timestamp",
+        "status": "measured"
+      },
+      "outcome": {
+        "value": null,
+        "source": "no structured outcome record; notification text is not parsed",
+        "status": "missing"
+      },
+      "tokens": {
+        "input_tokens_sum": {
+          "value": 14,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "sums the context re-sent on every turn, so it is not unique content and not billed usage"
+        },
+        "output_tokens_sum": {
+          "value": 4625,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "cache_read_sum": {
+          "value": 278307,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "cache_creation_sum": {
+          "value": 28888,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "last_context_tokens": {
+          "value": 2,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "input tokens of the final turn: context size, not usage"
+        },
+        "max_context_tokens": {
+          "value": 2,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "largest per-turn input: context size, not usage"
+        },
+        "reported_context_total": {
+          "value": 4627,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "final-turn input + summed output; the figure the harness reports for subagents, not billed usage"
+        }
+      },
+      "usage_rows": 13,
+      "distinct_message_ids": 7,
+      "conflicts": [],
+      "partial_message_ids": [],
+      "malformed_lines": 0,
+      "spawned_by_parent_call": true
+    },
+    {
+      "agent_id": "a3012e8fdd60777ce",
+      "parent_session_id": "e6c10a0f",
+      "tool_use_id": "toolu_01B6R7GueSXQzoHNYpGMDV5c",
+      "agent_type": "general-purpose",
+      "description": "Review feat-107 correctness",
+      "model": {
+        "value": [
+          "claude-opus-5-5"
+        ],
+        "source": "assistant message",
+        "status": "measured"
+      },
+      "duration_ms": {
+        "value": 485390,
+        "source": "first to last record timestamp",
+        "status": "measured"
+      },
+      "outcome": {
+        "value": null,
+        "source": "no structured outcome record; notification text is not parsed",
+        "status": "missing"
+      },
+      "tokens": {
+        "input_tokens_sum": {
+          "value": 24,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "sums the context re-sent on every turn, so it is not unique content and not billed usage"
+        },
+        "output_tokens_sum": {
+          "value": 5183,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "cache_read_sum": {
+          "value": 582650,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "cache_creation_sum": {
+          "value": 62348,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "last_context_tokens": {
+          "value": 2,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "input tokens of the final turn: context size, not usage"
+        },
+        "max_context_tokens": {
+          "value": 2,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "largest per-turn input: context size, not usage"
+        },
+        "reported_context_total": {
+          "value": 5185,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "final-turn input + summed output; the figure the harness reports for subagents, not billed usage"
+        }
+      },
+      "usage_rows": 22,
+      "distinct_message_ids": 12,
+      "conflicts": [],
+      "partial_message_ids": [],
+      "malformed_lines": 0,
+      "spawned_by_parent_call": true
+    },
+    {
+      "agent_id": "a3bfe512e8a100843",
+      "parent_session_id": "e6c10a0f",
+      "tool_use_id": "toolu_01L77ceAJ551QmwfTgvaCvY7",
+      "agent_type": "general-purpose",
+      "description": "Verify adapter wiring gaps",
+      "model": {
+        "value": [
+          "claude-opus-5-5"
+        ],
+        "source": "assistant message",
+        "status": "measured"
+      },
+      "duration_ms": {
+        "value": 187643,
+        "source": "first to last record timestamp",
+        "status": "measured"
+      },
+      "outcome": {
+        "value": null,
+        "source": "no structured outcome record; notification text is not parsed",
+        "status": "missing"
+      },
+      "tokens": {
+        "input_tokens_sum": {
+          "value": 36,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "sums the context re-sent on every turn, so it is not unique content and not billed usage"
+        },
+        "output_tokens_sum": {
+          "value": 13751,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "cache_read_sum": {
+          "value": 1290970,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "cache_creation_sum": {
+          "value": 76926,
+          "source": "subagent usage rows",
+          "status": "measured"
+        },
+        "last_context_tokens": {
+          "value": 2,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "input tokens of the final turn: context size, not usage"
+        },
+        "max_context_tokens": {
+          "value": 2,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "largest per-turn input: context size, not usage"
+        },
+        "reported_context_total": {
+          "value": 13753,
+          "source": "subagent usage rows",
+          "status": "measured",
+          "note": "final-turn input + summed output; the figure the harness reports for subagents, not billed usage"
+        }
+      },
+      "usage_rows": 35,
+      "distinct_message_ids": 18,
+      "conflicts": [],
+      "partial_message_ids": [],
+      "malformed_lines": 0,
+      "spawned_by_parent_call": true
+    }
+  ],
+  "subagent_count": {
+    "value": 5,
+    "source": "subagents/agent-*.jsonl",
+    "status": "measured"
+  },
+  "spawn_calls": {
+    "value": 5,
+    "source": "Agent tool_use blocks in the parent",
+    "status": "measured"
+  },
+  "unmatched_spawns": [],
+  "subagents_without_spawn": [],
+  "events": {
+    "context_compactions": {
+      "value": 0,
+      "source": "system compact_boundary records",
+      "status": "measured"
+    },
+    "api_errors": {
+      "value": 0,
+      "source": "records with isApiErrorMessage",
+      "status": "measured"
+    },
+    "tool_errors": {
+      "value": 1,
+      "source": "tool_result blocks with is_error",
+      "status": "measured"
+    },
+    "permission_denials": {
+      "value": {
+        "user-rejected": 1
+      },
+      "source": "toolDenialKind on tool results",
+      "status": "measured"
+    },
+    "retries": {
+      "value": null,
+      "source": "no structured retry record in session files",
+      "status": "missing"
+    },
+    "timeouts": {
+      "value": null,
+      "source": "no structured timeout record in session files",
+      "status": "missing"
+    }
+  },
+  "process_adherence": {
+    "stop_hook_runs": {
+      "value": 8,
+      "source": "system stop_hook_summary records",
+      "status": "measured"
+    },
+    "stop_hook_feedback": {
+      "value": 1,
+      "source": "system stop_hook_summary records",
+      "status": "measured",
+      "note": "hookErrors entries: a guard returned text to the agent. preventedContinuation was false in every record seen, so the session did not stop; whether the agent acted on the text is not recorded"
+    },
+    "feedback_by_guard": {
+      "value": {
+        "commit-evidence": 1
+      },
+      "source": "system stop_hook_summary records",
+      "status": "measured"
+    },
+    "review_attempts_by_family": {
+      "value": {},
+      "source": "outside-agent-runs.jsonl attempt rows with purpose=review",
+      "status": "measured"
+    },
+    "review_successes_by_family": {
+      "value": {},
+      "source": "outside-agent-runs.jsonl attempt rows with purpose=review",
+      "status": "measured"
+    },
+    "subagents_by_type": {
+      "value": {
+        "general-purpose": 5
+      },
+      "source": "subagents/*.meta.json agentType",
+      "status": "measured"
+    },
+    "failing_test_before_change": {
+      "value": null,
+      "source": "no structured record; commit order shows only that a test file changed with the code",
+      "status": "missing",
+      "note": "not derivable from session files"
+    },
+    "pushed_without_instruction": {
+      "value": null,
+      "source": "no structured record in session files",
+      "status": "missing",
+      "note": "check git reflog or the remote; not derivable from the transcript"
+    },
+    "user_corrections": {
+      "value": null,
+      "source": "keyword matching cannot tell a correction from a question (about one in five messages matched in one session)",
+      "status": "missing",
+      "note": "no reliable automatic source"
+    }
+  },
+  "outside_agent": {
+    "attempts_logged": {
+      "value": 2,
+      "source": "outside-agent-runs.jsonl attempt rows",
+      "status": "measured"
+    },
+    "results": {
+      "timeout": 1,
+      "ok": 1
+    },
+    "legacy_success_only_rows": {
+      "value": 1,
+      "source": "outside-agent-runs.jsonl rows without attempt=true",
+      "status": "measured",
+      "note": "written before attempt logging existed: failures were not logged, so attempts are undercounted for this period"
+    }
+  },
+  "gates": {
+    "value": {
+      "status": "PASS",
+      "total_duration_ms": 267338,
+      "gates": [
+        {
+          "name": "registry",
+          "status": "OK",
+          "duration_ms": 38
+        },
+        {
+          "name": "types",
+          "status": "OK",
+          "duration_ms": 1569
+        },
+        {
+          "name": "tests",
+          "status": "OK",
+          "duration_ms": 252237
+        },
+        {
+          "name": "skill paths",
+          "status": "OK",
+          "duration_ms": 190
+        },
+        {
+          "name": "bash compat",
+          "status": "OK",
+          "duration_ms": 1800
+        },
+        {
+          "name": "cred backends",
+          "status": "OK",
+          "duration_ms": 107
+        },
+        {
+          "name": "hook wiring",
+          "status": "OK",
+          "duration_ms": 87
+        },
+        {
+          "name": "state layer",
+          "status": "OK",
+          "duration_ms": 220
+        },
+        {
+          "name": "clean state",
+          "status": "OK",
+          "duration_ms": 122
+        },
+        {
+          "name": "runtime drift",
+          "status": "OK",
+          "duration_ms": 197
+        },
+        {
+          "name": "secret scan",
+          "status": "OK",
+          "duration_ms": 10587
+        }
+      ],
+      "failed": []
+    },
+    "source": "harness-verify --report",
+    "status": "measured"
+  },
+  "gate_runs": {
+    "value": {
+      "count": 4,
+      "passed": 3,
+      "failed": 1,
+      "failed_gates": {
+        "runtime drift": 1
+      },
+      "failed_tests": {}
+    },
+    "source": "harness-verify-runs.jsonl, one line per run",
+    "status": "measured"
+  },
+  "cost_usd": {
+    "value": null,
+    "source": "none",
+    "status": "missing",
+    "note": "no authoritative cost source; custom ANTHROPIC_BASE_URL makes public pricing a guess, so it is not estimated"
+  },
+  "human_corrections": {
+    "value": null,
+    "source": "no reliable automatic source",
+    "status": "missing"
+  },
+  "rework": {
+    "value": null,
+    "source": "no reliable automatic source",
+    "status": "missing"
+  }
+}
