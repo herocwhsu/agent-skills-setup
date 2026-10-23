@@ -426,3 +426,35 @@ def test_staged_but_uncommitted_source_files_are_tracked_in_the_clone(tmp_path):
         ["git", "-C", str(dst), "ls-files"], capture_output=True, text=True
     ).stdout.split()
     assert "new.py" in listed
+
+
+def test_seed_runtime_copies_files_that_live_in_runtime_subfolders(tmp_path):
+    # hooks/global-hook.sh and friends sit in a subfolder of the runtime dir.
+    repo = tmp_path / "repo"
+    for src, _ in ge._gate_names.RUNTIME_FILES:
+        (repo / src).parent.mkdir(parents=True, exist_ok=True)
+        (repo / src).write_text(src)
+    dst = tmp_path / "runtime"
+    ge._seed_runtime(repo, dst)
+    for src, name in ge._gate_names.RUNTIME_FILES:
+        assert (dst / name).read_text() == src
+
+
+def test_cli_keeps_the_real_user_site_while_home_is_redirected(fake_repo, tmp_path, monkeypatch):
+    # pytest and lxml for the bare python3 live in the user site, found through HOME;
+    # without it every clone's tests gate fails before a defect is planted.
+    seen = {}
+
+    def spy(src, case, work, env=None):
+        seen["env"] = env
+        return {"id": case["id"], "expect": case["expect"], "failed": [], "exit": 0}
+
+    monkeypatch.setattr(ge, "run_case", spy)
+    monkeypatch.delenv("PYTHONUSERBASE", raising=False)
+    want = subprocess.run(
+        ["python3", "-c", "import site; print(site.getuserbase())"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    ge.main(["--repo", str(fake_repo), "--case", CASES[0]["id"], "--work-dir", str(tmp_path / "w")])
+    assert seen["env"]["PYTHONUSERBASE"] == want
+    assert not want.startswith(str(seen["env"]["HOME"]))

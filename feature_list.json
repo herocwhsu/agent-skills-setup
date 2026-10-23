@@ -122,20 +122,20 @@
     {
       "id": "feat-105",
       "name": "this repo uses its own hook templates",
-      "description": "Owner chose 2026-10-23, after two subagent checks: harness/guards and templates/hooks both carry secret-scan.sh, sh-check.sh and py-check.sh. Option (c): this repo is the template source, so its Claude, agy and codex wiring and harness-verify.sh call templates/hooks/... directly (codex and agy edits through agent-hook.sh); the three copies in harness/guards are deleted. No agent-harness.json or sync, so hangar and atelier are untouched. This repo's stricter needs come from env-var knobs the templates read, defaults unchanged: shellcheck severity error (59 of 150 .sh files fail at default), whole-tree secret scan (the template skips a turn with no change), recursive osv (the template scans npm lockfiles only; py-guard cannot audit requirements-dev.txt).",
+      "description": "Owner chose 2026-10-23, after two subagent checks: harness/guards and templates/hooks both carry secret-scan.sh, sh-check.sh and py-check.sh. Option (c): this repo is the template source, so its Claude, agy and codex wiring and harness-verify.sh call templates/hooks/... directly (codex edits through agent-hook.sh; agy calls the templates directly, which read its payload); the three copies in harness/guards are deleted. No agent-harness.json or sync, so hangar and atelier are untouched. This repo's stricter needs come from env-var knobs the templates read, defaults unchanged: shellcheck severity error (59 of 150 .sh files fail at default), whole-tree secret scan (the template skips a turn with no change), recursive osv (the template scans npm lockfiles only; py-guard cannot audit requirements-dev.txt).",
       "dependencies": [
         "feat-107"
       ],
-      "status": "planned",
+      "status": "completed",
       "acceptance_criteria": [
         "harness/guards holds no sh-check.sh, py-check.sh or secret-scan.sh; every wiring and harness-verify.sh call the templates",
         "with no knob set, each template behaves as before (hangar, atelier and the global hook unchanged)",
-        "this repo still blocks a warning-free shellcheck error, a secret in any file, a vulnerable Python dependency, and a bad Codex apply_patch edit; it does not block existing warning-level shellcheck findings",
+        "this repo still blocks a shellcheck error, a secret in any file git would commit, a vulnerable Python dependency, and a bad Codex apply_patch edit; it does not block existing warning-level shellcheck findings",
         "the secret-scan gate reports OK, not SKIP, on a clean tree",
         "all harness gates pass"
       ],
-      "verification": "",
-      "evidence": ""
+      "verification": "bash scripts/tests/test_shared_hook_templates.sh && bash harness/guards/tests/test_sh_check.sh && bash harness/guards/tests/test_py_check.sh && bash scripts/harness-verify.sh && .venv/bin/python scripts/gate_experiment.py",
+      "evidence": "Tests first: knob cases in test_shared_hook_templates.sh (60/0 after), the retargeted guard tests' wiring and fail-open cases (sh 23/0, py 21/0), two gate_experiment tests (37/0). Templates read SH_CHECK_SEVERITY, SECRET_SCAN_SCOPE=tree, OSV_SCOPE=recursive; unset, default behavior unchanged (sh-check also fails open on unparseable input). This repo's Claude/agy/codex wiring and harness-verify.sh call templates/hooks directly; harness/guards/{sh-check,py-check,secret-scan}.sh deleted. Live: the secret-scan gate reports OK (gitleaks, osv) on this repo, a planted certifi==2026.7.22 gives PYSEC-2026-4320 and exit 2. gate_experiment.py needed two fixes to run at all (runtime files in subfolders; PYTHONUSERBASE so the bare python3 keeps its user-site pytest/lxml under the redirected HOME); then baseline clean and all 12 planted defects caught by their expected gate, secret scan 'needed'. Two earlier baseline runs failed the tests gate intermittently, cause not found (flaky-test list in PROGRESS). Two subagent reviews (correctness, security): no confirmed defects; env prefixes reach the hooks under each agent and bash 3.2; the global hook still skips its copies here. Known gap kept: an untracked nested git repo is not secret-scanned (git lists it as a directory; same in hangar/atelier since feat-096). docs/architecture.md left for feat-106."
     },
     {
       "id": "feat-106",

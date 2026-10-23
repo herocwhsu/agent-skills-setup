@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# Tests for sh-check.sh (PostToolUse *.sh syntax + shellcheck gate) — no bats.
+# Tests for this repo's *.sh edit check: templates/hooks/common/sh-check.sh as the
+# repo wires it (SH_CHECK_SEVERITY=error; codex through agent-hook.sh) — no bats.
 set -euo pipefail
 
-HOOK="$(cd "$(dirname "$0")/.." && pwd)/sh-check.sh"
+TEMPLATES="$(cd "$(dirname "$0")/../../../templates/hooks" && pwd)"
+HOOK="$TEMPLATES/common/sh-check.sh"
+WRAP="$TEMPLATES/common/agent-hook.sh"
+# The repo carries warning- and info-level findings; its wiring sets this.
+export SH_CHECK_SEVERITY=error
 PASS=0
 FAIL=0
 
@@ -105,7 +110,7 @@ settings_case() {
 import json
 d = json.load(open('$settings'))
 h = d['hooks']['PostToolUse']
-assert any('sh-check.sh' in json.dumps(x) and 'Edit' in x.get('matcher','') for x in h)
+assert any('templates/hooks/common/sh-check.sh' in json.dumps(x) and 'SH_CHECK_SEVERITY=error' in json.dumps(x) and 'Edit' in x.get('matcher','') for x in h)
 " 2>/dev/null; then
     echo "PASS: settings.json registers the PostToolUse sh hook"; PASS=$((PASS+1))
   else
@@ -121,7 +126,7 @@ agents_case() {
 import json
 d = json.load(open('$hooks_file'))
 h = d.get('syntax-check', {}).get('PostToolUse', [])
-assert any('sh-check.sh' in json.dumps(x) for x in h)
+assert any('templates/hooks/common/sh-check.sh' in json.dumps(x) and 'SH_CHECK_SEVERITY=error' in json.dumps(x) for x in h)
 " 2>/dev/null; then
     echo "PASS: .agents/hooks.json registers the PostToolUse sh hook"; PASS=$((PASS+1))
   else
@@ -137,7 +142,7 @@ codex_case() {
 import json
 d = json.load(open('$hooks_file'))
 h = d['hooks']['PostToolUse']
-assert any('sh-check.sh' in json.dumps(x) for x in h)
+assert any('templates/hooks/common/sh-check.sh' in json.dumps(x) and 'SH_CHECK_SEVERITY=error' in json.dumps(x) for x in h)
 " 2>/dev/null; then
     echo "PASS: .codex/hooks.json registers the PostToolUse sh hook"; PASS=$((PASS+1))
   else
@@ -157,7 +162,7 @@ codex_patch() {  # <cwd> <patch body lines...>
 codex_case() {  # <name> <expected_exit> <tmpdir> <patch lines...>
   local name="$1" expected="$2" tmp="$3"; shift 3
   local code=0
-  codex_patch "$tmp" "$@" | bash "$HOOK" >/dev/null 2>&1 || code=$?
+  codex_patch "$tmp" "$@" | bash "$WRAP" codex edit "$HOOK" >/dev/null 2>&1 || code=$?
   if [[ "$code" -eq "$expected" ]]; then echo "PASS: $name"; PASS=$((PASS+1))
   else echo "FAIL: $name (expected exit $expected, got $code)"; FAIL=$((FAIL+1)); fi
   rm -rf "$tmp"

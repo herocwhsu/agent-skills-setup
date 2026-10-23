@@ -26,6 +26,10 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # gates: tests-guard.sh runs run-tests.sh, which runs the tests, so a test that
 # invoked this script directly would recurse until it ran out of processes.
 HOOKS="${HARNESS_HOOKS_DIR:-$REPO_DIR/harness/guards}"
+# The secret scan is the shared template itself (this repo is its source), widened
+# to every run and every manifest; a stub directory overrides it too.
+SECRET_SCAN="$REPO_DIR/templates/hooks/common/secret-scan.sh"
+[[ -n "${HARNESS_HOOKS_DIR:-}" ]] && SECRET_SCAN="$HOOKS/secret-scan.sh"
 
 # Parse command line options
 REPORT_FILE="${HARNESS_VERIFY_REPORT:-}"
@@ -157,7 +161,7 @@ if ! out=$(python3 "$REPO_DIR/scripts/hook_wiring_check.py" "$REPO_DIR" \
   echo "  WARNING: a wired hook path no longer resolves:" >&2
   printf '%s\n' "$out" >&2
 fi
-run_gate "secret scan" "$HOOKS/secret-scan.sh"
+SECRET_SCAN_SCOPE=tree OSV_SCOPE=recursive run_gate "secret scan" "$SECRET_SCAN"
 
 t_verify_end=$(now_ms)
 TOTAL_MS=$(( t_verify_end - t_verify_start ))

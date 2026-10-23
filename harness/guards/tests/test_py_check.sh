@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Tests for py-check.sh (PostToolUse *.py syntax gate) — no bats.
+# Tests for this repo's *.py edit check: templates/hooks/python/py-check.sh as the
+# repo wires it (codex through agent-hook.sh) — no bats.
 set -euo pipefail
 
-HOOK="$(cd "$(dirname "$0")/.." && pwd)/py-check.sh"
+TEMPLATES="$(cd "$(dirname "$0")/../../../templates/hooks" && pwd)"
+HOOK="$TEMPLATES/python/py-check.sh"
+WRAP="$TEMPLATES/common/agent-hook.sh"
 PASS=0
 FAIL=0
 
@@ -132,7 +135,7 @@ settings_case() {
 import json
 d = json.load(open('$settings'))
 h = d['hooks']['PostToolUse']
-assert any('py-check.sh' in json.dumps(x) and 'Edit' in x.get('matcher','') for x in h)
+assert any('templates/hooks/python/py-check.sh' in json.dumps(x) and 'Edit' in x.get('matcher','') for x in h)
 " 2>/dev/null; then
     echo "PASS: settings.json registers the PostToolUse py hook"; PASS=$((PASS+1))
   else
@@ -148,7 +151,7 @@ agents_case() {
 import json
 d = json.load(open('$hooks_file'))
 h = d.get('syntax-check', {}).get('PostToolUse', [])
-assert any('py-check.sh' in json.dumps(x) for x in h)
+assert any('templates/hooks/python/py-check.sh' in json.dumps(x) for x in h)
 " 2>/dev/null; then
     echo "PASS: .agents/hooks.json registers the PostToolUse py hook"; PASS=$((PASS+1))
   else
@@ -164,7 +167,7 @@ codex_case() {
 import json
 d = json.load(open('$hooks_file'))
 h = d['hooks']['PostToolUse']
-assert any('py-check.sh' in json.dumps(x) for x in h)
+assert any('templates/hooks/python/py-check.sh' in json.dumps(x) for x in h)
 " 2>/dev/null; then
     echo "PASS: .codex/hooks.json registers the PostToolUse py hook"; PASS=$((PASS+1))
   else
@@ -184,7 +187,7 @@ codex_patch() {  # <cwd> <patch body lines...>
 codex_case() {  # <name> <expected_exit> <tmpdir> <patch lines...>
   local name="$1" expected="$2" tmp="$3"; shift 3
   local code=0
-  codex_patch "$tmp" "$@" | bash "$HOOK" >/dev/null 2>&1 || code=$?
+  codex_patch "$tmp" "$@" | bash "$WRAP" codex edit "$HOOK" >/dev/null 2>&1 || code=$?
   if [[ "$code" -eq "$expected" ]]; then echo "PASS: $name"; PASS=$((PASS+1))
   else echo "FAIL: $name (expected exit $expected, got $code)"; FAIL=$((FAIL+1)); fi
   rm -rf "$tmp"

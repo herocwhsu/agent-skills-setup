@@ -17,11 +17,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash harness/guards/sh-check.sh"
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && SH_CHECK_SEVERITY=error bash templates/hooks/common/agent-hook.sh codex edit templates/hooks/common/sh-check.sh"
           },
           {
             "type": "command",
-            "command": "bash harness/guards/py-check.sh"
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && bash templates/hooks/common/agent-hook.sh codex edit templates/hooks/python/py-check.sh"
           }
         ]
       }

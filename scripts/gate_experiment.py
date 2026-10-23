@@ -244,10 +244,18 @@ def main(argv: list[str] | None = None) -> int:
     home = work_root / "_home"
     runtime = work_root / "_runtime"
     home.mkdir(parents=True, exist_ok=True)
+    # The bare python3's pytest and lxml sit in the user site, which Python finds
+    # through HOME; keep it while HOME is redirected.
+    user_base = os.environ.get("PYTHONUSERBASE") or subprocess.run(
+        ["python3", "-c", "import site; print(site.getuserbase())"],
+        capture_output=True, text=True, check=False,
+    ).stdout.strip()
     rows = []
     for case in chosen:
         runtime_case = runtime / case["id"]
         env = {"HOME": str(home), "RUNTIME_DRIFT_GUARD_RUNTIME_DIR": str(runtime_case)}
+        if user_base:
+            env["PYTHONUSERBASE"] = user_base
         row = run_case(args.repo, case, work_root, env=env)
         shutil.rmtree(work_root / case["id"], ignore_errors=True)
         rows.append(row)
@@ -275,6 +283,7 @@ def _seed_runtime(repo: Path, dst: Path, planted: Path | None = None) -> None:
     for src, name in _gate_names.RUNTIME_FILES:
         s = root / src
         if s.is_file():
+            (dst / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(s, dst / name)
 
 

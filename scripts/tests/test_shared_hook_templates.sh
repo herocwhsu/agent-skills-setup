@@ -358,6 +358,46 @@ expect "harness-drift ignores other files" 0 "$(hd_rc "$HDR/other.txt")"
 rm "$HDH/.agent-skills-setup/harness-version.json"
 expect "harness-drift does nothing without an installed harness" 0 "$(hd_rc "$HDR/.claude/hooks/x.sh")"
 
+# Env-var knobs for a repo that needs stricter or wider checks (this repo calls the
+# templates directly). Unset, each template behaves as above.
+if command -v shellcheck >/dev/null 2>&1; then
+  KN=$(repo knobs)
+  printf '#!/usr/bin/env bash\necho $1\n' > "$KN/warn.sh"
+  printf '#!/usr/bin/env bash\nfor x in $@; do :; done\n' > "$KN/err.sh"
+  sev_rc() { ( cd "$KN" && printf '{"tool_input":{"file_path":"%s"}}' "$KN/$2" | SH_CHECK_SEVERITY="$1" bash "$HOOKS_SRC/common/sh-check.sh" >/dev/null 2>&1 ); echo $?; }
+  expect "sh-check blocks an info-level finding by default" 2 "$(sev_rc "" warn.sh)"
+  expect "sh-check with SH_CHECK_SEVERITY=error allows an info-level finding" 0 "$(sev_rc error warn.sh)"
+  expect "sh-check with SH_CHECK_SEVERITY=error blocks an error-level finding" 2 "$(sev_rc error err.sh)"
+else
+  echo "  SKIP  shellcheck severity knob cases: shellcheck not installed"
+fi
+
+r=$(cd "$CLEAN" && printf '{}' | SECRET_SCAN_SCOPE=tree PATH="$STUBS:$PATH" bash "$HOOKS_SRC/common/secret-scan.sh" 2>&1); rc=$?
+if [[ $rc -eq 2 && "$r" == *STUB-RAN-gitleaks* ]]; then
+  ok "secret-scan with SECRET_SCAN_SCOPE=tree scans a turn that changed nothing"
+else
+  bad "secret-scan with SECRET_SCAN_SCOPE=tree scans a turn that changed nothing" "rc=$rc out=$r"
+fi
+
+OSVSTUB="$TMPDIR/osvstub"; mkdir -p "$OSVSTUB"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$OSVSTUB/gitleaks"
+# shellcheck disable=SC2016  # the stub's own $* must stay unexpanded
+printf '#!/usr/bin/env bash\necho "$*" >> "%s/osv-args"\nexit 1\n' "$OSVSTUB" > "$OSVSTUB/osv-scanner"
+chmod +x "$OSVSTUB/gitleaks" "$OSVSTUB/osv-scanner"
+r=$(cd "$DIRTY" && printf '{}' | OSV_SCOPE=recursive PATH="$OSVSTUB:$PATH" bash "$HOOKS_SRC/common/secret-scan.sh" 2>&1); rc=$?
+if [[ $rc -eq 2 && "$(cat "$OSVSTUB/osv-args" 2>/dev/null)" == *"--recursive"* ]]; then
+  ok "secret-scan with OSV_SCOPE=recursive scans every manifest and blocks on findings"
+else
+  bad "secret-scan with OSV_SCOPE=recursive scans every manifest and blocks on findings" "rc=$rc args=$(cat "$OSVSTUB/osv-args" 2>/dev/null) out=$r"
+fi
+printf '#!/usr/bin/env bash\necho "No package sources found, --help for usage information."\nexit 128\n' > "$OSVSTUB/osv-scanner"
+r=$(cd "$DIRTY" && printf '{}' | OSV_SCOPE=recursive PATH="$OSVSTUB:$PATH" bash "$HOOKS_SRC/common/secret-scan.sh" 2>&1); rc=$?
+if [[ $rc -eq 0 && "$r" == *"no scannable dependency manifests"* ]]; then
+  ok "secret-scan with OSV_SCOPE=recursive passes a repo with no manifests"
+else
+  bad "secret-scan with OSV_SCOPE=recursive passes a repo with no manifests" "rc=$rc out=$r"
+fi
+
 echo ""
 echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]

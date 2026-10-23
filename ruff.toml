@@ -3,9 +3,10 @@
 # them would block over pre-existing issues rather than the change at hand.
 #
 # ruff.toml rather than pyproject.toml: osv-scanner treats pyproject.toml as a
-# dependency manifest, and .claude/hooks/secret-scan.sh special-cases this
-# repo's "No package sources found" result as OK. A pyproject.toml would change
-# that Stop hook's behavior as a side effect of a formatting decision.
+# dependency manifest, and templates/hooks/common/secret-scan.sh (OSV_SCOPE=recursive,
+# as this repo wires it) special-cases a "No package sources found" result as OK.
+# A pyproject.toml would change that Stop hook's behavior as a side effect of a
+# formatting decision.
 #
 # 100 over ruff's default 88: the tree already runs past 88 in 99 places, so 88
 # forces the most rewrapping of code that was written deliberately.

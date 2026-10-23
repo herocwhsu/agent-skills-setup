@@ -15,7 +15,7 @@ d=json.load(sys.stdin)
 i=d.get('tool_input',{}) or {}
 a=d.get('toolCall',{}).get('args',{}) or {}
 print(i.get('path') or i.get('file_path') or i.get('target_file') or a.get('TargetFile') or a.get('AbsolutePath') or '')
-" 2>/dev/null)
+" 2>/dev/null) || file=""   # unparseable input fails open
 
 if [[ -z "$file" || "$file" != *.sh || ! -f "$file" ]]; then
   [[ "$is_agy" -eq 1 ]] && echo "{}"
@@ -34,7 +34,8 @@ if command -v shellcheck &>/dev/null; then
   # therefore passed locally and failed the build -- the gate leaving its job
   # to the net. `-x` follows the `# shellcheck source=` directives already in
   # the tree; without it every sourcing script reports SC1091.
-  if ! out=$(shellcheck -x "$file" 2>&1); then
+  # SH_CHECK_SEVERITY (env) raises the floor for a repo whose CI checks less.
+  if ! out=$(shellcheck -x ${SH_CHECK_SEVERITY:+"--severity=$SH_CHECK_SEVERITY"} "$file" 2>&1); then
     echo "shellcheck findings in $file:" >&2
     echo "$out" | head -30 >&2
     exit 2

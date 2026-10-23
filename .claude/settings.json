@@ -26,11 +26,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/sh-check.sh\""
+            "command": "SH_CHECK_SEVERITY=error bash \"$CLAUDE_PROJECT_DIR/templates/hooks/common/sh-check.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/py-check.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/templates/hooks/python/py-check.sh\""
           }
         ]
       }
@@ -70,7 +70,7 @@
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/secret-scan.sh\"",
+            "command": "SECRET_SCAN_SCOPE=tree OSV_SCOPE=recursive bash \"$CLAUDE_PROJECT_DIR/templates/hooks/common/secret-scan.sh\"",
             "statusMessage": "secret scan…"
           },
           {
@@ -126,7 +126,7 @@
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/secret-scan.sh\"",
+            "command": "SECRET_SCAN_SCOPE=tree OSV_SCOPE=recursive bash \"$CLAUDE_PROJECT_DIR/templates/hooks/common/secret-scan.sh\"",
             "statusMessage": "secret scan…"
           },
           {

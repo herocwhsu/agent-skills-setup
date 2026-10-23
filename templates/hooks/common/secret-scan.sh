@@ -27,7 +27,9 @@ changed_paths() {
   } | grep -E "$re" | sort -u || true
 }
 
-if [[ -z "$(changed_paths "$RELEVANT_RE")" ]]; then
+# SECRET_SCAN_SCOPE=tree (env) scans every run, for a repo whose verify gate must
+# check a clean tree too.
+if [[ "${SECRET_SCAN_SCOPE:-turn}" != tree && -z "$(changed_paths "$RELEVANT_RE")" ]]; then
   echo "  SKIP  turn changed nothing in scope"
   exit 0
 fi
@@ -80,7 +82,24 @@ else
   echo "  SKIP  gitleaks not installed"
 fi
 
-if [[ -n "$OSV_NPM_SCAN_DIR" ]]; then
+if [[ "${OSV_SCOPE:-npm}" == recursive ]]; then
+  # OSV_SCOPE=recursive (env): every manifest osv knows, Python ones included, for
+  # a repo with no py-guard to run pip-audit.
+  echo ""
+  echo "=== OSV dependency scan ==="
+  if ! command -v osv-scanner &>/dev/null; then
+    echo "  SKIP  osv-scanner not installed"
+  elif out=$(cd "$REPO_ROOT" && osv-scanner scan source --recursive . --verbosity error 2>&1); then
+    echo "  OK  osv-scanner"
+  elif [[ "$out" == *"No package sources found"* ]]; then
+    # osv exits non-zero for "nothing to scan" as for findings.
+    echo "  OK  osv-scanner (no scannable dependency manifests found)"
+  else
+    echo "WARNING: osv-scanner found vulnerable dependencies" >&2
+    echo "$out" | tail -30 >&2
+    WARN=1
+  fi
+elif [[ -n "$OSV_NPM_SCAN_DIR" ]]; then
   echo ""
   echo "=== OSV dependency scan ==="
   if command -v osv-scanner &>/dev/null; then
