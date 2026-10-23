@@ -142,7 +142,15 @@
         "on this host every ~/.kiro/prompts file points at an existing SKILL.md after install.sh"
       ],
       "verification": "bash scripts/tests/test_kiro_prompts.sh && bash scripts/harness-verify.sh",
-      "evidence": "Tests first: the missing-skill and skipped-output cases failed on the old install_kiro_prompts; 9 checks pass after, also under /bin/bash 3.2. install.sh now calls it after store-packs. On this host install.sh printed 4 files installed and the 11 pack prompts skipped; every ~/.kiro/prompts file now names an existing SKILL.md, and the 4 kept files match the repo source byte for byte. Two subagent reviews (correctness, security): no confirmed defects; both noted that writing through $(...) rewrote trailing newlines, reverted to the direct sed redirect (no new logic, no re-review). harness-verify all gates passed."
+      "evidence": "Tests first: the missing-skill and skipped-output cases failed on the old install_kiro_prompts; 9 checks pass after, also under /bin/bash 3.2. install.sh now calls it after store-packs. On this host install.sh printed 4 files installed and the 11 pack prompts skipped; every ~/.kiro/prompts file now names an existing SKILL.md, and the 4 kept files match the repo source byte for byte. Two subagent reviews (correctness, security): no confirmed defects; both noted that writing through $(...) rewrote trailing newlines, reverted to the direct sed redirect (no new logic, no re-review). harness-verify all gates passed.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-28840495d2",
+        "output_tokens": 27029,
+        "wall_time_ms": 2917159,
+        "active_turn_time_ms": 1924654,
+        "subagents": 2,
+        "subagent_output_tokens": 6664
+      }
     },
     {
       "id": "feat-102",
