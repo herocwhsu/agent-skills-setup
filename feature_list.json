@@ -129,6 +129,34 @@
         "subagents": 2,
         "subagent_output_tokens": 4520
       }
+    },
+    {
+      "id": "feat-101",
+      "name": "kiro prompts install only for skills in the global kiro dir",
+      "description": "Host audit 2026-10-23: 11 of 15 ~/.kiro/prompts files pointed at ~/.kiro/skills/<group>/SKILL.md for groups feat-090 moved into per-repo packs, so /audit, /jira, /intake and others read a missing file. install.sh now copies a prompt only when every SKILL.md it names exists after store-packs, and removes a stale copy of one that does not.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "a prompt whose SKILL.md is missing is not installed, and an old copy is removed",
+        "a prompt whose SKILL.md exists, or that names none, is installed",
+        "on this host every ~/.kiro/prompts file points at an existing SKILL.md after install.sh"
+      ],
+      "verification": "bash scripts/tests/test_kiro_prompts.sh && bash scripts/harness-verify.sh",
+      "evidence": "Tests first: the missing-skill and skipped-output cases failed on the old install_kiro_prompts; 9 checks pass after, also under /bin/bash 3.2. install.sh now calls it after store-packs. On this host install.sh printed 4 files installed and the 11 pack prompts skipped; every ~/.kiro/prompts file now names an existing SKILL.md, and the 4 kept files match the repo source byte for byte. Two subagent reviews (correctness, security): no confirmed defects; both noted that writing through $(...) rewrote trailing newlines, reverted to the direct sed redirect (no new logic, no re-review). harness-verify all gates passed."
+    },
+    {
+      "id": "feat-102",
+      "name": "remove the unmanaged ~/.gemini/skills and Gemini CLI from this host",
+      "description": "Host audit 2026-10-23: ~/.gemini/skills (last written 2026-07-04, nothing in this repo writes it) is read only by Gemini CLI 0.65.0, which loaded July superpowers copies and every pack skill globally. agy reads ~/.gemini/config/skills (antigravity-cli/skills links to it), so it is unaffected. Owner chose: back up and remove the dir, uninstall Gemini CLI; leave the rest of ~/.gemini (agy shares it). Other hosts: check by hand, no install-time deletion.",
+      "dependencies": [],
+      "status": "planned",
+      "acceptance_criteria": [
+        "~/.gemini/skills gone, backup tarball kept",
+        "gemini not on PATH",
+        "agy still lists its 17 core skills"
+      ],
+      "verification": "",
+      "evidence": ""
     }
   ]
 }

@@ -155,20 +155,33 @@ agent_skills_dir() {
 # install_kiro_prompts <repo_dir>
 #   Copy agents/kiro/prompts/*.md to ~/.kiro/prompts/, substituting <user> with $USER.
 #   Idempotent: copies every file in agents/kiro/prompts/, overwriting old versions.
+#   A prompt naming a SKILL.md that is not in the global dir (a pack skill, linked
+#   only into the repos that list it) is skipped and its old copy removed.
 install_kiro_prompts() {
   local repo_dir="$1"
   local src="$repo_dir/agents/kiro/prompts"
   local target="$HOME/.kiro/prompts"
   [[ -d "$src" ]] || return 0
   mkdir -p "$target"
-  local count=0
+  local count=0 skipped=""
   for f in "$src"/*.md; do
     [[ -f "$f" ]] || continue
-    local dest="$target/$(basename "$f")"
+    local name dest skill missing=0
+    name=$(basename "$f")
+    dest="$target/$name"
+    while IFS= read -r skill; do
+      [[ -f "$skill" ]] || missing=1
+    done < <(grep -oE '/Users/<user>/\.kiro/skills/[^ ]+/SKILL\.md' "$f" | sed "s|/Users/<user>|$HOME|")
+    if [[ $missing -eq 1 ]]; then
+      rm -f "$dest"
+      skipped="$skipped $name"
+      continue
+    fi
     sed "s|/Users/<user>|$HOME|g" "$f" > "$dest"
     count=$((count + 1))
   done
   echo "  ✓ kiro prompts ($count files) → $target"
+  [[ -z "$skipped" ]] || echo "  kiro prompts skipped (skill not in the global dir):$skipped"
 }
 
 # uninstall_kiro_prompts <repo_dir>

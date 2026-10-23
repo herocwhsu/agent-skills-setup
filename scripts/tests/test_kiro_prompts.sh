@@ -43,7 +43,24 @@ check "user replacement performed" "User path is $MOCK_HOME/sample" "$(cat "$MOC
 HOME="$MOCK_HOME" uninstall_kiro_prompts "$MOCK_REPO" >/dev/null
 check "prompt removed by uninstall" "false" "$([[ -f "$MOCK_HOME/.kiro/prompts/sample.md" ]] && echo true || echo false)"
 
-# Real repository installation test into mock HOME
+# A prompt is installed only when every SKILL.md it names is in the global kiro
+# dir: pack skills live only in the repos that list them.
+mkdir -p "$MOCK_HOME/.kiro/skills/core"; touch "$MOCK_HOME/.kiro/skills/core/SKILL.md"
+echo "Read /Users/<user>/.kiro/skills/core/SKILL.md" > "$MOCK_REPO/agents/kiro/prompts/core.md"
+echo "Read /Users/<user>/.kiro/skills/pack/SKILL.md" > "$MOCK_REPO/agents/kiro/prompts/pack.md"
+echo "stale copy" > "$MOCK_HOME/.kiro/prompts/pack.md"
+out=$(HOME="$MOCK_HOME" install_kiro_prompts "$MOCK_REPO")
+check "prompt for a global skill installed" "true" "$([[ -f "$MOCK_HOME/.kiro/prompts/core.md" ]] && echo true || echo false)"
+check "prompt naming no skill installed" "true" "$([[ -f "$MOCK_HOME/.kiro/prompts/sample.md" ]] && echo true || echo false)"
+check "prompt for a missing skill not installed, old copy removed" "false" "$([[ -e "$MOCK_HOME/.kiro/prompts/pack.md" ]] && echo true || echo false)"
+check "skipped prompt named in the output" "true" "$([[ "$out" == *"pack.md"* ]] && echo true || echo false)"
+HOME="$MOCK_HOME" uninstall_kiro_prompts "$MOCK_REPO" >/dev/null
+rm -f "$MOCK_REPO/agents/kiro/prompts/"{core,pack}.md
+
+# Real repository installation test into mock HOME, with every skill the prompts name
+for skill in $(grep -ohE '\.kiro/skills/[^/]+/SKILL\.md' "$REPO_DIR"/agents/kiro/prompts/*.md | sort -u); do
+  mkdir -p "$MOCK_HOME/$(dirname "$skill")"; touch "$MOCK_HOME/$skill"
+done
 HOME="$MOCK_HOME" install_kiro_prompts "$REPO_DIR" >/dev/null
 installed_count=$(find "$MOCK_HOME/.kiro/prompts" -name "*.md" | wc -l | tr -d ' ')
 check "all 15 repository kiro prompts installed" "15" "$installed_count"
