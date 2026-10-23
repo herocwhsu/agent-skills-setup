@@ -2,7 +2,7 @@
 
 Purpose: answer whether a harness change made the next task of the same difficulty faster, cheaper or more reliable. This file defines the benchmark and how to run it. Running it needs agent sessions, which cost tokens and time; only one smoke run per task has been done. The telemetry collector (`scripts/run_telemetry.py`) supplies the numbers.
 
-`scripts/harness_benchmark.py` is a different tool: it times shell commands (gates) in milliseconds. It is not reused here.
+The older `scripts/harness_benchmark.py`, which timed shell commands (gates) in milliseconds, was deleted by feat-103 (2026-10-23); `harness-verify.sh` records gate times itself.
 
 ## Five fixed tasks
 

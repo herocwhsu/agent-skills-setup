@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from graph_runner import (
     END,
@@ -16,6 +12,8 @@ from graph_runner import (
     WorkflowGraph,
     create_maker_checker_graph,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 def test_maker_checker_graph_flow() -> None:

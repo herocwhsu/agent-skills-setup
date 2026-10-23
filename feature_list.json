@@ -138,15 +138,15 @@
       "name": "lecture runners leave scripts/, orphan scripts deleted",
       "description": "Architecture review 2026-10-23: ratchet_loop_runner, team_runner, graph_runner (+ .sh wrappers) are lecture 13-15 ports with no caller outside docs and README; run_report.py and ci-watch.sh have no caller at all; harness_benchmark.py overlaps telemetry_benchmark.py, the one PROGRESS.md names. No caller in hangar, atelier or launchd. Move the lecture runners and their tests into docs/harness-creator/lecture-1N/code/ (still tested, like lectures 3-12), delete the orphans and their tests, fix README and doc links.",
       "dependencies": [],
-      "status": "planned",
+      "status": "completed",
       "acceptance_criteria": [
         "scripts/ holds no lecture runner, run_report.py, ci-watch.sh or harness_benchmark.py",
         "the moved runners' tests still run in run-tests.sh",
         "no live doc or README links a removed path",
         "all harness gates pass"
       ],
-      "verification": "",
-      "evidence": ""
+      "verification": "bash scripts/run-tests.sh --fast && bash scripts/harness-verify.sh",
+      "evidence": "Moved ratchet_loop_runner, graph_runner, team_runner and their pytest files into docs/harness-creator/lecture-13/14/15/code (13+1, 7, 17 tests pass there; run-tests.sh runs them); docs/goals/TEMPLATE.md moved beside the runner as ratchet-goal-template.md with a new parse test (fails when the file is missing). Deleted the three .sh wrappers and their bash tests, harness_benchmark.py and harness-benchmark.sh (harness-verify.sh times gates itself), run_report.py, ci-watch.sh and their tests. Reverses the 2026-10-10 promotion to scripts/: no caller in this repo, hangar, atelier or launchd. README rows and lecture links fixed; history docs keep old paths. One subagent review: no confirmed defects (noted the orphaned goal template, fixed). harness-verify all gates passed."
     },
     {
       "id": "feat-104",

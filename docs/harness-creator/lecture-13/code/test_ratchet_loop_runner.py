@@ -3,14 +3,9 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
-
 from ratchet_loop_runner import (
     LoopGoal,
     RatchetLoopRunner,
@@ -395,3 +390,10 @@ def test_state_persistence_and_markdown(tmp_path: Path) -> None:
     tsv_content = tsv_file.read_text(encoding="utf-8")
     assert "round\ttimestamp\tmetric\tpassed" in tsv_content
     assert "0.2500" in tsv_content
+
+
+def test_shipped_goal_template_parses() -> None:
+    template = Path(__file__).with_name("ratchet-goal-template.md").read_text(encoding="utf-8")
+    goal = parse_goal_markdown(template)
+    assert goal.acceptance_criteria
+    assert goal.verification_commands
