@@ -29,7 +29,8 @@
     "docs/archive/features/archive-feat-093-094.json",
     "docs/archive/features/archive-feat-095-095.json",
     "docs/archive/features/archive-feat-096-096.json",
-    "docs/archive/features/archive-feat-100-100.json"
+    "docs/archive/features/archive-feat-100-100.json",
+    "docs/archive/features/archive-feat-101-101.json"
   ],
   "features": [
     {
@@ -69,28 +70,6 @@
       ],
       "verification": "",
       "evidence": ""
-    },
-    {
-      "id": "feat-101",
-      "name": "kiro prompts install only for skills in the global kiro dir",
-      "description": "Host audit 2026-10-23: 11 of 15 ~/.kiro/prompts files pointed at ~/.kiro/skills/<group>/SKILL.md for groups feat-090 moved into per-repo packs, so /audit, /jira, /intake and others read a missing file. install.sh now copies a prompt only when every SKILL.md it names exists after store-packs, and removes a stale copy of one that does not.",
-      "dependencies": [],
-      "status": "completed",
-      "acceptance_criteria": [
-        "a prompt whose SKILL.md is missing is not installed, and an old copy is removed",
-        "a prompt whose SKILL.md exists, or that names none, is installed",
-        "on this host every ~/.kiro/prompts file points at an existing SKILL.md after install.sh"
-      ],
-      "verification": "bash scripts/tests/test_kiro_prompts.sh && bash scripts/harness-verify.sh",
-      "evidence": "Tests first: the missing-skill and skipped-output cases failed on the old install_kiro_prompts; 9 checks pass after, also under /bin/bash 3.2. install.sh now calls it after store-packs. On this host install.sh printed 4 files installed and the 11 pack prompts skipped; every ~/.kiro/prompts file now names an existing SKILL.md, and the 4 kept files match the repo source byte for byte. Two subagent reviews (correctness, security): no confirmed defects; both noted that writing through $(...) rewrote trailing newlines, reverted to the direct sed redirect (no new logic, no re-review). harness-verify all gates passed.",
-      "execution_summary": {
-        "run_id": "e6c10a0f-28840495d2",
-        "output_tokens": 27029,
-        "wall_time_ms": 2917159,
-        "active_turn_time_ms": 1924654,
-        "subagents": 2,
-        "subagent_output_tokens": 6664
-      }
     },
     {
       "id": "feat-102",
@@ -151,7 +130,15 @@
         "all harness gates pass"
       ],
       "verification": "bash scripts/tests/test_kiro_prompts.sh && bash scripts/harness-verify.sh",
-      "evidence": "Deleted the 11 pack prompts; agents/kiro/prompts keeps brainstorming, debug, experiment-iteration, tdd. Tests first: the retired-prompt checks for install and uninstall failed before RETIRED_KIRO_PROMPTS existed; all pass after. install.sh on this host left exactly those 4 in ~/.kiro/prompts. docs/migration.md updated. Two subagent reviews (correctness, security): no confirmed defects. Follow-up: drop RETIRED_KIRO_PROMPTS once every host has run install.sh, so a user prompt later named review.md or jira.md is not deleted. harness-verify all gates passed."
+      "evidence": "Deleted the 11 pack prompts; agents/kiro/prompts keeps brainstorming, debug, experiment-iteration, tdd. Tests first: the retired-prompt checks for install and uninstall failed before RETIRED_KIRO_PROMPTS existed; all pass after. install.sh on this host left exactly those 4 in ~/.kiro/prompts. docs/migration.md updated. Two subagent reviews (correctness, security): no confirmed defects. Follow-up: drop RETIRED_KIRO_PROMPTS once every host has run install.sh, so a user prompt later named review.md or jira.md is not deleted. harness-verify all gates passed.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-4b9d98da02",
+        "output_tokens": 6073,
+        "wall_time_ms": 697390,
+        "active_turn_time_ms": null,
+        "subagents": 2,
+        "subagent_output_tokens": 5486
+      }
     },
     {
       "id": "feat-105",

@@ -1,0 +1,26 @@
+{
+  "features": [
+    {
+      "id": "feat-101",
+      "name": "kiro prompts install only for skills in the global kiro dir",
+      "description": "Host audit 2026-10-23: 11 of 15 ~/.kiro/prompts files pointed at ~/.kiro/skills/<group>/SKILL.md for groups feat-090 moved into per-repo packs, so /audit, /jira, /intake and others read a missing file. install.sh now copies a prompt only when every SKILL.md it names exists after store-packs, and removes a stale copy of one that does not.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "a prompt whose SKILL.md is missing is not installed, and an old copy is removed",
+        "a prompt whose SKILL.md exists, or that names none, is installed",
+        "on this host every ~/.kiro/prompts file points at an existing SKILL.md after install.sh"
+      ],
+      "verification": "bash scripts/tests/test_kiro_prompts.sh && bash scripts/harness-verify.sh",
+      "evidence": "Tests first: the missing-skill and skipped-output cases failed on the old install_kiro_prompts; 9 checks pass after, also under /bin/bash 3.2. install.sh now calls it after store-packs. On this host install.sh printed 4 files installed and the 11 pack prompts skipped; every ~/.kiro/prompts file now names an existing SKILL.md, and the 4 kept files match the repo source byte for byte. Two subagent reviews (correctness, security): no confirmed defects; both noted that writing through $(...) rewrote trailing newlines, reverted to the direct sed redirect (no new logic, no re-review). harness-verify all gates passed.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-28840495d2",
+        "output_tokens": 27029,
+        "wall_time_ms": 2917159,
+        "active_turn_time_ms": 1924654,
+        "subagents": 2,
+        "subagent_output_tokens": 6664
+      }
+    }
+  ]
+}
