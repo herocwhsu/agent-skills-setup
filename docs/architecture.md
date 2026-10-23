@@ -42,34 +42,41 @@ flowchart TD
   - Format standards: Format A (subcommand routing) and Format B (topic routing).
 - **Registry:** `registry.txt` enumerates all bundled and external skill sources, mapping group names to source URLs or local paths.
   - Supports commit SHA pinning (`owner/repo@<commit-sha>`) to prevent silent upstream drift.
-- **Distribution:** `scripts/install.sh` symlinks local skill groups directly into active agent skill directories (e.g. `~/.claude/skills/`, `~/.gemini/skills/`), allowing immediate edits during development without manual copying.
+- **Distribution:** `scripts/install.sh` symlinks local skill groups into each selected agent's skill directory (`~/.claude/skills/`, `~/.codex/skills/`, `~/.kiro/skills/`, and `~/.gemini/antigravity-cli/skills/` for agy, a link to `~/.gemini/config/skills/`), so edits take effect without copying. Only the `core` pack in `config/skill-packs.json` stays there; every other pack moves to `~/.agent-skills-setup/pack-skills/<agent>/` and is linked into the repos that list it (see 2.5).
 
 ### 2.3 Verification & Guardrails Subsystem
 - **On-Demand Entrypoint:** `scripts/harness-verify.sh` runs all repository gates (the Stop hooks below plus `hook-wiring-guard.sh`) and returns a single unified exit code (0 for pass, 1 for fail).
 - **Stop / SubagentStop Hooks:** Located in `harness/guards/` (with `.claude/hooks` symlink compatibility). Prevent agents from ending a turn or exiting subagents in an inconsistent state:
   - `registry-guard.sh`: Enforces `registry.txt` syntax, path resolution, and type tags.
-  - `types-guard.sh`: Whole-repo `mypy` type validation against `.python-version` (3.14.7). Fails loud on version drift or broken `.venv`.
+  - `types-guard.sh`: Whole-repo `mypy` type validation against `.python-version` (3.14.9). Fails loud on version drift or broken `.venv`.
   - `tests-guard.sh`: Delegates to `scripts/run-tests.sh` to run the full test suite.
   - `skill-paths-guard.sh`: Blocks skill shell recipes that build a repo path from an undefined variable, and `SKILL.md` frontmatter that is not strict YAML.
   - `bash-compat-guard.sh`: Blocks Bash 4+ constructs (`mapfile`/`readarray`, `declare -A`, `;&`) in any `*.sh`; `bash -n` and shellcheck accept them under Bash 5.
   - `credential-backend-guard.sh`: Checks that every credential dispatch in `scripts/credentials/_store.sh` handles every storage backend.
   - `state-layer-guard.sh`: Ensures repository state artifacts (`init.sh`, `feature_list.json`, `PROGRESS.md`) exist and parse.
   - `runtime-drift-guard.sh`: Blocks when the flat runtime copies under `~/.agent-skills-setup` (from `runtime_files` in `scripts/_lib.sh`) differ from the repo.
-  - `secret-scan.sh`: Scans for committed secrets (gitleaks) and vulnerable dependencies (osv-scanner).
+  - Secret scan: the shared template `templates/hooks/common/secret-scan.sh`, not a copy. It runs gitleaks over a copy of the files git would commit, and osv-scanner; this repo's wiring and `harness-verify.sh` set `SECRET_SCAN_SCOPE=tree` (scan every run, not only turns that changed something) and `OSV_SCOPE=recursive` (every manifest, Python included).
   - `commit-evidence.sh` (Stop only): Surfaces the commit range once so the main agent checks subagent work; not a validator, so not run by `harness-verify.sh`.
 - **Harness-verify only:** `hook-wiring-guard.sh` checks that every shipped `hook.json` would work once installed (known event names, existing targets, `${AGENT_SKILLS_DIR}` paths). Not wired as a Stop hook.
 - **Other agents:** `.agents/hooks.json` (AGY) and `.codex/hooks.json` (Codex CLI) wire the same edit-time checks plus `stop-verify.sh`, which runs `harness-verify.sh` and answers in each agent's Stop hook format. During an outside-agent review (`OUTSIDE_AGENT_PURPOSE=review`, set by `outside-agent.sh`) it and `agent-hook.sh` skip the gates: the agy allowlist keeps the reviewer read-only, and the gates would only fail on the uncommitted change under review.
 - **Tool-Event Hooks:** Immediate feedback hooks wired in `.claude/settings.json`:
   - `precommit-sh-check.sh` (PreToolUse on Bash): Validates shell scripts before commit commands.
-  - `sh-check.sh` & `py-check.sh` (PostToolUse on Edit/Write): Immediate syntax and lint checks on touched shell/Python files.
+  - `templates/hooks/common/sh-check.sh` (with `SH_CHECK_SEVERITY=error`, since the tree carries warning-level shellcheck findings) and `templates/hooks/python/py-check.sh` (PostToolUse on Edit/Write): syntax and shellcheck checks on touched shell and Python files. Codex reaches them through `templates/hooks/common/agent-hook.sh`, which splits an `apply_patch` into one call per file.
 - **Hook Exit Protocol:** Stop hooks exit with status code **2** to block agent turn termination and surface stdout/stderr directly into agent context.
 
 - **Outside agents:** `scripts/outside-agent.sh` (logic in `scripts/outside_agent.py`) picks a working outside CLI agent per call from the per-machine `~/.agent-skills-setup/outside-agents.conf`. Reviews run once per branch and scale with risk: none, one fresh-context subagent, or two subagents with different focuses for high-risk changes; an outside agent is optional and never holds the commit. Flow charts are in the README's "Outside Agents" section.
 
+### 2.5 Two-Layer Harness (this repo and the repos it serves)
+- **Layer 1, this repo:** the source of the rules, skills and shared hooks above, plus its own gates in `harness/guards/`.
+- **Layer 2, target repos** (hangar, atelier), listed one path per line in `~/.agent-skills-setup/target-repos.txt`. Each has an `agent-harness.json` naming its state files, verify commands, hooks (a template under `templates/hooks/<stack>/` or a repo-local file, on `edit`, `stop` or `start`) and `skill_packs`.
+- **`scripts/harness_adapter.py`:** `check` validates a repo's `agent-harness.json`; `drift` reports a hook copy that differs from its template outside the repo config block; `sync` copies the listed templates and `agent-hook.sh` into the repo's `.claude/hooks/`, writes its Claude, Codex and agy hook wiring, links its pack skills, and records the installed commit in `harness.version`; `sync-all`, run by `scripts/update.sh`, syncs every registered repo. It never commits.
+- **Runtime directory `~/.agent-skills-setup/`:** `install.sh` copies the files in `RUNTIME_FILES` (`scripts/_gate_names.py`) there, among them `hooks/global-hook.sh`, `hooks/preflight.sh`, `hooks/sh-check.sh` and `hooks/secret-scan.sh`, and records the installed commit in `harness-version.json`. `runtime-drift-guard.sh` blocks when a copy differs from the repo.
+- **Global hooks:** each agent's user settings run `hooks/global-hook.sh` on edit, stop and (Claude only) session start, so every repo gets sh-check, secret-scan and preflight. A repo that wires a hook of the same name keeps its own and the global one is skipped. Preflight prints a short state brief and warns when a session starts in a folder above registered repos, whose hooks then do not load.
+
 ### 2.4 State Management & Session Continuity
 - **Startup Entrypoint:** `init.sh` builds `.venv` from `requirements-dev.txt` when it is missing (refusing a `python3` that differs from `.python-version`), then executes `scripts/harness-verify.sh`.
 - **System of Record Artifacts:**
-  - `feature_list.json`: Structured JSON catalog of all repository capabilities, statuses (`done`, `in-progress`, `planned`), dependencies, and test evidence.
+  - `feature_list.json`: Structured JSON catalog of all repository capabilities, statuses (`planned`, `in_progress`, `completed`), dependencies, and test evidence.
   - `PROGRESS.md`: Human- and agent-readable log detailing current focus, resolved findings, and immediate next steps.
   - `AGENTS.md`: Repository-specific agent instructions, execution boundaries, and definition of done.
 
@@ -85,7 +92,7 @@ flowchart TD
 ├── init.sh                    # One-command harness startup & verification
 ├── pyproject.toml             # Python project manifest & build configuration
 ├── requirements-dev.txt       # Frozen development dependencies
-├── .python-version            # Pinned runtime version (3.14.7)
+├── .python-version            # Pinned runtime version (3.14.9)
 ├── agents/                    # Rules and agent-specific adapters
 │   ├── kiro/                  # Kiro IDE workflow prompts
 │   │   └── prompts/
@@ -96,12 +103,15 @@ flowchart TD
 │   ├── architecture.md        # Canonical system architecture (this document)
 │   └── harness-creator/       # Harness engineering training records & audits
 ├── harness/
-│   └── guards/                # Universal verification guard scripts & tests
+│   └── guards/                # This repo's own gates & their tests
 ├── templates/
-│   └── hooks/                 # Template hooks distributed to agent environments
+│   └── hooks/                 # Shared hooks: common/, global/, per stack (go, js, k8s, python)
 ├── .claude/
 │   ├── hooks -> ../harness/guards # Symlink adapter for Claude Code compatibility
 │   └── settings.json          # Permissions & hook registrations
+├── .agents/hooks.json         # agy hook wiring
+├── .codex/hooks.json          # Codex hook wiring
+├── config/skill-packs.json    # Which skills are core (global) and which are per-repo packs
 ├── scripts/                   # CLI tools, installer, test runners, validators
 │   ├── harness-verify.sh      # Unified verification gate runner
 │   ├── install.sh             # Main installer and symlinker
@@ -120,7 +130,7 @@ flowchart TD
    - Prohibited: Bash 4+ features (`declare -A`, `mapfile`, `readarray`, `;&`).
 
 2. **Isolated Tooling & Zero Version Drift:**
-   - Python code must execute under Python 3.14.7.
+   - Python code must execute under Python 3.14.9.
    - Verification guards (`types-guard.sh`, `run-tests.sh`) resolve tools through `.venv/bin/` and fail loud if `.venv` exists but is broken or does not match `.python-version`. They fall back to ambient `python3`/`mypy` only when no `.venv` directory exists (CI runs that way); `init.sh` builds `.venv` first, so the fallback is not the contributor path.
 
 3. **Defensive Boundary Restrictions:**
@@ -138,7 +148,8 @@ flowchart TD
 Decisions behind the current structure. Details of each change live in `feature_list.json`, its archive, and git history.
 
 - **Guards in `harness/guards/`, not `.claude/hooks/`.** Antigravity, Codex and plain git all run the same guards, so they cannot sit in a Claude-specific hidden folder. `.claude/hooks` stays as a symlink to keep Claude working.
-- **Consumer hook templates in `templates/hooks/`.** They are copied into other repos and must not be confused with this repo's own active guards.
+- **Shared hooks in `templates/hooks/`, called in place here.** Other repos get copies through `harness_adapter.py sync`; this repo is their source, so it calls them directly and keeps no copy (feat-105). Its stricter checks come from env-var knobs (`SH_CHECK_SEVERITY`, `SECRET_SCAN_SCOPE`, `OSV_SCOPE`) whose defaults leave every other repo unchanged. `harness/guards/` holds only gates specific to this repo.
+- **Pack skills load per repo.** Only core skills sit in each agent's global skill directory; the rest load where `agent-harness.json` lists their pack, which cut hangar's skill list from about 2,380 to 1,158 tokens (feat-090).
 - **Kiro prompts under `agents/kiro/`.** Agent-specific files live under `agents/`, not at the repo root.
 - **Python files are snake_case.** Kebab-case names such as `credential-backend-check.py` cannot be imported, which broke IDE inspection and linting.
 - **Completed features are archived** under `docs/archive/features/` and listed in `archive_references`, because a 500-line `feature_list.json` cost about 1,400 tokens on every state-layer read.

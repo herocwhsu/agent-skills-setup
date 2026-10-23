@@ -132,13 +132,13 @@
         "feat-104",
         "feat-105"
       ],
-      "status": "planned",
+      "status": "completed",
       "acceptance_criteria": [
         "every path, version and status value in architecture.md exists in the repo or host as written",
         "the two-layer harness has its own section"
       ],
-      "verification": "",
-      "evidence": ""
+      "verification": "bash scripts/harness-verify.sh",
+      "evidence": "Fixed 3.14.7 to 3.14.9 (3 places), ~/.gemini/skills to the real per-agent dirs, statuses to planned/in_progress/completed, the deleted harness/guards hooks to the templates with their knobs; added section 2.5 (two-layer harness: target-repos.txt, agent-harness.json, harness_adapter check/drift/sync/sync-all, runtime dir, global hooks, packs) and layout rows for .agents, .codex, config/skill-packs.json. A script checked every backticked path: all exist in the repo or under ~, except runtime-relative names (hooks/*.sh, harness-version.json), target-repo files and generic or example names. Docs only, no review."
     },
     {
       "id": "feat-107",
