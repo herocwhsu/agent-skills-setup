@@ -152,6 +152,10 @@ agent_skills_dir() {
   esac
 }
 
+# Prompts this repo once shipped and deleted (feat-104): install and uninstall
+# still remove them, since hosts that installed them keep the old copies.
+RETIRED_KIRO_PROMPTS="apidog audit create-story-tasks fetch-jira-story intake jira-subtasks jira plan-story release review testing"
+
 # install_kiro_prompts <repo_dir>
 #   Copy agents/kiro/prompts/*.md to ~/.kiro/prompts/, substituting <user> with $USER.
 #   Idempotent: copies every file in agents/kiro/prompts/, overwriting old versions.
@@ -163,7 +167,8 @@ install_kiro_prompts() {
   local target="$HOME/.kiro/prompts"
   [[ -d "$src" ]] || return 0
   mkdir -p "$target"
-  local count=0 skipped=""
+  local count=0 skipped="" retired
+  for retired in $RETIRED_KIRO_PROMPTS; do rm -f "$target/$retired.md"; done
   for f in "$src"/*.md; do
     [[ -f "$f" ]] || continue
     local name dest skill missing=0
@@ -193,7 +198,8 @@ uninstall_kiro_prompts() {
   local target="$HOME/.kiro/prompts"
   [[ -d "$src" ]] || return 0
   [[ -d "$target" ]] || return 0
-  local count=0
+  local count=0 retired
+  for retired in $RETIRED_KIRO_PROMPTS; do rm -f "$target/$retired.md"; done
   for f in "$src"/*.md; do
     [[ -f "$f" ]] || continue
     local dest="$target/$(basename "$f")"

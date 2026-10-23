@@ -57,18 +57,26 @@ check "skipped prompt named in the output" "true" "$([[ "$out" == *"pack.md"* ]]
 HOME="$MOCK_HOME" uninstall_kiro_prompts "$MOCK_REPO" >/dev/null
 rm -f "$MOCK_REPO/agents/kiro/prompts/"{core,pack}.md
 
+# Prompts deleted from the repo are still removed from hosts that installed them.
+echo "old" > "$MOCK_HOME/.kiro/prompts/audit.md"
+HOME="$MOCK_HOME" install_kiro_prompts "$MOCK_REPO" >/dev/null
+check "install removes a retired prompt" "false" "$([[ -e "$MOCK_HOME/.kiro/prompts/audit.md" ]] && echo true || echo false)"
+echo "old" > "$MOCK_HOME/.kiro/prompts/plan-story.md"
+HOME="$MOCK_HOME" uninstall_kiro_prompts "$MOCK_REPO" >/dev/null
+check "uninstall removes a retired prompt" "false" "$([[ -e "$MOCK_HOME/.kiro/prompts/plan-story.md" ]] && echo true || echo false)"
+
 # Real repository installation test into mock HOME, with every skill the prompts name
 for skill in $(grep -ohE '\.kiro/skills/[^/]+/SKILL\.md' "$REPO_DIR"/agents/kiro/prompts/*.md | sort -u); do
   mkdir -p "$MOCK_HOME/$(dirname "$skill")"; touch "$MOCK_HOME/$skill"
 done
 HOME="$MOCK_HOME" install_kiro_prompts "$REPO_DIR" >/dev/null
 installed_count=$(find "$MOCK_HOME/.kiro/prompts" -name "*.md" | wc -l | tr -d ' ')
-check "all 15 repository kiro prompts installed" "15" "$installed_count"
+check "all 4 repository kiro prompts installed" "4" "$installed_count"
 
 # Real repository uninstallation test from mock HOME
 HOME="$MOCK_HOME" uninstall_kiro_prompts "$REPO_DIR" >/dev/null
 remaining_count=$(find "$MOCK_HOME/.kiro/prompts" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-check "all 15 repository kiro prompts uninstalled" "0" "$remaining_count"
+check "all 4 repository kiro prompts uninstalled" "0" "$remaining_count"
 
 if [[ "$fails" -eq 0 ]]; then
   echo "ALL TESTS PASSED"

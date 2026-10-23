@@ -144,14 +144,14 @@
       "dependencies": [
         "feat-101"
       ],
-      "status": "planned",
+      "status": "completed",
       "acceptance_criteria": [
         "agents/kiro/prompts holds only prompts whose skill is core",
         "uninstall still removes old copies of the deleted prompts from ~/.kiro/prompts",
         "all harness gates pass"
       ],
-      "verification": "",
-      "evidence": ""
+      "verification": "bash scripts/tests/test_kiro_prompts.sh && bash scripts/harness-verify.sh",
+      "evidence": "Deleted the 11 pack prompts; agents/kiro/prompts keeps brainstorming, debug, experiment-iteration, tdd. Tests first: the retired-prompt checks for install and uninstall failed before RETIRED_KIRO_PROMPTS existed; all pass after. install.sh on this host left exactly those 4 in ~/.kiro/prompts. docs/migration.md updated. Two subagent reviews (correctness, security): no confirmed defects. Follow-up: drop RETIRED_KIRO_PROMPTS once every host has run install.sh, so a user prompt later named review.md or jira.md is not deleted. harness-verify all gates passed."
     },
     {
       "id": "feat-105",
