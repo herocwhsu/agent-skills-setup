@@ -22,7 +22,7 @@
 
 ### What's In Progress
 
-- Nothing active (WIP=0). feat-101 (kiro prompts only for skills in the global dir; 11 pointed at pack skills) done 2026-10-23; before it feat-100 (preflight warns above registered repos). Next: feat-102 (remove ~/.gemini/skills and Gemini CLI on this host; agy reads ~/.gemini/config/skills).
+- Nothing active (WIP=0). feat-101 (kiro prompts only for skills in the global dir; 11 pointed at pack skills) done 2026-10-23; before it feat-100 (preflight warns above registered repos). feat-102 done too: ~/.gemini/skills (Gemini CLI only, unmanaged since 2026-07-04) backed up to ~/.agent-skills-setup/backup/ and removed, Gemini CLI uninstalled; agy reads ~/.gemini/config/skills, unaffected. Other hosts: check ~/.kiro/prompts (rerun install.sh) and ~/.gemini/skills by hand. Codex not installed here; its dirs stay (owner decision 2026-10-23).
 - Planned 2026-10-23, from hangar's four-run vm1 reboot (hangar PROGRESS "In flight"): feat-097 handover-script contract, feat-098 cleanup steps name their cause, feat-099 failed gates print a diagnosis, feat-100 preflight warns above several repos (done). Start each in a session launched in this repo.- Follow-up: `harness/guards/secret-scan.sh`, this repo's own whole-tree gate, still runs gitleaks `--no-git` over ignored files; apply the same copy if it gets slow or noisy.
 
 ### What's Next

@@ -157,14 +157,14 @@
       "name": "remove the unmanaged ~/.gemini/skills and Gemini CLI from this host",
       "description": "Host audit 2026-10-23: ~/.gemini/skills (last written 2026-07-04, nothing in this repo writes it) is read only by Gemini CLI 0.65.0, which loaded July superpowers copies and every pack skill globally. agy reads ~/.gemini/config/skills (antigravity-cli/skills links to it), so it is unaffected. Owner chose: back up and remove the dir, uninstall Gemini CLI; leave the rest of ~/.gemini (agy shares it). Other hosts: check by hand, no install-time deletion.",
       "dependencies": [],
-      "status": "planned",
+      "status": "completed",
       "acceptance_criteria": [
         "~/.gemini/skills gone, backup tarball kept",
         "gemini not on PATH",
         "agy still lists its 17 core skills"
       ],
-      "verification": "",
-      "evidence": ""
+      "verification": "test ! -e ~/.gemini/skills && ! command -v gemini && agy -p 'List the names of the agent skills available to you'",
+      "evidence": "Host action, no repo code. Before: gemini skills list showed ~/.gemini/skills (July superpowers copies plus every pack skill); agy listed 19 skills from ~/.gemini/config/skills. Backed up to ~/.agent-skills-setup/backup/gemini-skills-2026-10-23.tar.gz (169 entries, 17 SKILL.md), removed the dir, npm uninstall -g @google/gemini-cli (0.65.0). After: ~/.gemini/skills gone, gemini not on PATH, agy lists the same 19 skills (2 builtin, 17 core). The rest of ~/.gemini (oauth, settings, config) kept for agy. Not done: other hosts, checked by hand; codex kept as is (owner decision)."
     }
   ]
 }
