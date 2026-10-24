@@ -56,6 +56,10 @@
 
 ## Decisions Made
 
+- **Sessions here commit only in this repo (owner, 2026-10-24):** never commit or push in
+  hangar, atelier or another target repo; when a template change matters there, tell the owner.
+  Each target's own session syncs, reviews and commits harness updates (feat-108 makes sync pull-based).
+  Why: on 10-23 and 10-24 commits made here collided with sessions and jobs in hangar's main checkout.
 - **Hermes configs stay (owner, 2026-10-21):** `skills/infra/kiro-gateway` keeps its
   `~/.hermes` configs for other hosts.
 - **A fresh context makes a reviewer independent (owner, 2026-10-20):** whatever its model

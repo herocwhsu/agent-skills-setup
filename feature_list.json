@@ -155,6 +155,21 @@
         "subagents": 5,
         "subagent_output_tokens": 47051
       }
+    },
+    {
+      "id": "feat-108",
+      "name": "target repos pull harness updates; sync-all writes no tracked files",
+      "description": "Found 2026-10-24: sessions here committed synced hooks inside hangar/atelier main checkouts while their sessions and jobs worked there (10-23 collision; 10-24 ahead 1/behind 1). sync-all keeps only the host-local pack links (ignored via .git/info/exclude); hooks, wiring and the version stamp are no longer written by update.sh or the weekly job. New `harness_adapter.py sync --dry-run <repo>` lists what sync would change, on the same code path as sync. Preflight shows it ('harness behind: N files; run sync here and commit'); the weekly job reports 'behind by N' instead of syncing and alerting on a dirty tree. Replaces hangar's request to commit and push from a throwaway worktree (hangar PROGRESS 'In flight', docs/sessions.md).",
+      "dependencies": [],
+      "status": "planned",
+      "acceptance_criteria": [
+        "update.sh/sync-all leaves a target repo's git status clean (only excluded pack links change)",
+        "sync --dry-run lists the same changes sync makes, and writes nothing (fixture test)",
+        "preflight in a target that is behind prints the file count and the sync command",
+        "the weekly report shows 'behind by N' and no longer flags uncommitted files after a sync"
+      ],
+      "verification": "",
+      "evidence": ""
     }
   ]
 }
