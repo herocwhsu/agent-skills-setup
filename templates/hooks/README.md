@@ -55,6 +55,8 @@ common/
   pr-guard.sh         Stop — verify open PR CI checks to completion (blocks on failure)
   grype-guard.sh      Stop — CVE scan on filesystem / images (HIGH+ with fixes)
   sh-check.sh         PostToolUse *.sh — bash -n + shellcheck -x (CI severity)
+  handover-guard.sh   PostToolUse scripts/handover/*.sh — log, no typed secret, Rollback:/Resume: headers,
+                      marker file (blocks); `--all` checks every one, for the repo's init.sh
 
 python/
   py-check.sh         PostToolUse *.py — ast.parse syntax gate (blocks)

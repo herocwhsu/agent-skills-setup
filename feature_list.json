@@ -41,12 +41,12 @@
       "name": "handover scripts follow a checked contract",
       "description": "Owner-run handover scripts live in the repo and a checker requires a log file, no typed secret (-K), a recorded rollback run and resumable steps. Found 2026-10-23: hangar's finish script took four runs.",
       "dependencies": [],
-      "status": "planned",
+      "status": "completed",
       "acceptance_criteria": [
         "a script with -K, no log or no recorded rollback is blocked; a compliant one passes"
       ],
-      "verification": "",
-      "evidence": ""
+      "verification": "bash scripts/tests/test_handover_guard.sh",
+      "evidence": "templates/hooks/common/handover-guard.sh: edit hook on scripts/handover/*.sh and --all for init.sh; blocks typed secrets (-K incl. bundles, ansible -k/-J, --ask-*pass, ASK_PASS=true, read -s), no log, no '# Rollback:', no '# Resume:' or no tested-and-written marker file. scripts/tests/test_handover_guard.sh 49/49 (bash 3.2); hangar's patch-and-reboot-confirm.sh passes; 11 gates OK. Three review rounds (2 subagents each) found 16 static-check misses, all fixed test-first; known misses listed in the guard header. Owner decisions 2026-10-24: edit hook + verify, Rollback = header line, Resume = header + marker file."
     },
     {
       "id": "feat-098",
