@@ -31,10 +31,14 @@ was synced to, its state files, its verify commands, and its hooks in wiring ord
 each `{"template": "<stack>/<file>"}` or `{"local": "<path>"}` with `"event": "edit"` or
 `"stop"`. Then:
 
-- `python3 scripts/harness_adapter.py register <repo>` once per machine; `update.sh`
-  then runs `sync-all`, which copies each listed template into `.claude/hooks/`
-  (keeping the copy's repo config block), copies `agent-hook.sh`, writes the hook
-  wiring for claude, codex and agy, and sets `harness.version`. It never commits.
+- `python3 scripts/harness_adapter.py register <repo>` once per machine. The repo's
+  own session runs `python3 <harness>/scripts/harness_adapter.py sync <repo>`, which
+  copies each listed template into `.claude/hooks/` (keeping the copy's repo config
+  block), copies `agent-hook.sh`, writes the hook wiring for claude, codex and agy,
+  and sets `harness.version`; it reviews and commits the result. sync never commits.
+  `update.sh` runs `sync-all`, which only links each repo's pack skills and reports
+  what it is behind by; preflight shows the same at session start (`sync --dry-run`).
+  Sessions in this repo never commit in a target repo (decision of 2026-10-24).
 - A template copy may differ from its template only inside its repo config block.
   `harness-drift.sh` blocks an edit that changes anything else; change the template
   here and sync instead.

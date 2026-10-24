@@ -29,10 +29,19 @@ elif [[ -z "$src" || ! -f "$src/scripts/harness_adapter.py" ]]; then
 else
   python3 "$src/scripts/harness_adapter.py" check "$REPO_ROOT" \
     --templates "$src/templates/hooks" 2>&1 | sed 's/^ *OK  */  /; s/^ *FAIL */  WARN /'
-  if ! out=$(python3 "$src/scripts/harness_adapter.py" drift "$REPO_ROOT" --templates "$src/templates/hooks" 2>&1); then
-    while IFS= read -r line; do echo "  WARN $line"; done <<< "$out"
+  # update.sh no longer writes this repo's tracked files (feat-108): say what is
+  # behind, and this repo's session syncs, reviews and commits it.
+  # Match the adapter's whole line: a refusal can echo repo-controlled text.
+  out=$(python3 "$src/scripts/harness_adapter.py" sync "$REPO_ROOT" --dry-run \
+    --templates "$src/templates/hooks" 2>&1) && rc=0 || rc=$?
+  if [[ $rc -eq 0 && "$out" == "  $REPO_ROOT: behind by "* && "$out" != *$'\n'* ]]; then
+    echo "  WARN harness ${out#"  $REPO_ROOT: "}" | sed 's/; run harness_adapter.py sync in that repo and commit$//'
+    echo "    sync here, review and commit: python3 $src/scripts/harness_adapter.py sync $REPO_ROOT"
+  elif [[ $rc -eq 0 && "$out" == "  $REPO_ROOT: up to date" ]]; then
+    echo "  harness files: up to date"
   else
-    echo "  hook drift: none"
+    echo "  WARN sync status not checked:"
+    while IFS= read -r line; do echo "    ${line#  }"; done <<< "$out"
   fi
 fi
 

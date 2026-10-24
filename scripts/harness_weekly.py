@@ -36,11 +36,8 @@ RISKY_RE = re.compile(
     r"|scripts/(install|uninstall|update|_lib|setup-[^/]*)\.sh$|scripts/_settings_merge\.py$"
     r"|scripts/harness_adapter\.py$)|(^|/)migrations/"
 )
-# Files harness_adapter.py sync writes; any other change is the owner's own work.
-SYNC_OWNED_RE = re.compile(
-    r"^(\.claude/hooks/|\.claude/settings\.json$|\.codex/hooks\.json$|\.agents/hooks\.json$"
-    r"|agent-harness\.json$)"
-)
+# sync-all's line for a target whose tracked harness files are older than the install.
+BEHIND_RE = re.compile(r"^\s+(\S+): (?:.*; )?behind by (\d+) files?: ")
 BOT_RE = re.compile(r"\[bot\]$|^renovate", re.IGNORECASE)
 # A review counts for a commit when it ran in the same repo within this window
 # after it: the rules ask for one review per branch before finishing, not per commit.
@@ -236,18 +233,11 @@ def _review_section(repos: list[Path], runtime: Path, since: datetime.datetime) 
     ]
 
 
-def _uncommitted(repo: Path) -> list[str]:
-    """Changed files sync wrote. sync never commits, so a template change shows here."""
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(repo), "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout
-    except (OSError, subprocess.CalledProcessError):
-        return []
-    return [p for p in (ln[3:] for ln in out.splitlines() if ln.strip()) if SYNC_OWNED_RE.match(p)]
+def _behind(log: str) -> dict[str, int]:
+    """{repo name: files} from sync-all's output; it writes no tracked file (feat-108)."""
+    return {
+        Path(m.group(1)).name: int(m.group(2)) for m in map(BEHIND_RE.match, log.splitlines()) if m
+    }
 
 
 def _registered(runtime: Path) -> list[Path]:
@@ -283,6 +273,7 @@ def run(
 ) -> tuple[str, list[str]]:
     audit_fn = audit_fn or (lambda r: repo_audit.audit(r, Path.home(), HARNESS / "templates/hooks"))
     found = update_regressions(update_log, update_rc)
+    behind = _behind(update_log)
     for repo in _registered(runtime):
         if not repo.is_dir():
             found.append(f"{repo.name}: registered but missing at {repo}")
@@ -296,13 +287,17 @@ def run(
         prev = _previous(audits, today)
         audits.mkdir(parents=True, exist_ok=True)
         (audits / f"{today}.json").write_text(json.dumps(cur, indent=2) + "\n")
-        found += repo_regressions(repo.name, prev, cur, _last_verify(runtime, repo.name))
-        dirty = _uncommitted(repo)
-        if dirty:
-            found.append(
-                f"{repo.name}: uncommitted changes after sync, commit or revert them: "
-                + ", ".join(dirty[:10])
+        regressions = repo_regressions(repo.name, prev, cur, _last_verify(runtime, repo.name))
+        if repo.name in behind:
+            # a hook older than its template is the same finding, said once
+            drifted = f"{repo.name}: hook drifted from its template: "
+            regressions = [r for r in regressions if not r.startswith(drifted)]
+            n = behind[repo.name]
+            regressions.append(
+                f"{repo.name}: harness behind by {n} file{'' if n == 1 else 's'}; "
+                "run harness_adapter.py sync in that repo and commit"
             )
+        found += regressions
     table = repo_trend.render(
         runtime / "audits", runtime, days, today=datetime.date.fromisoformat(today)
     )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -21,6 +22,8 @@ def _setup(tmp_path: Path) -> tuple[Path, Path, Path]:
     repo, templates, runtime = tmp_path / "repo", tmp_path / "templates", tmp_path / "runtime"
     (templates / "common").mkdir(parents=True)
     (templates / "common/sh-check.sh").write_text("#!/bin/bash\n")
+    (templates / "python").mkdir()
+    (templates / "python/sh-check.sh").write_text("#!/bin/bash\n")  # same name, other stack
     (repo / ".claude/hooks").mkdir(parents=True)
     (repo / ".claude/hooks/full-validate.sh").write_text("#!/bin/bash\n")
     (repo / "AGENTS.md").write_text("x")
@@ -84,6 +87,11 @@ def _broken(change: Any) -> dict[str, Any]:
         (lambda d: d["hooks"][1].update(local=".claude/hooks/gone.sh"), "gone.sh"),
         (lambda d: d["state_files"].append("PROGRESS.md"), "PROGRESS.md"),
         (lambda d: d["harness"].pop("version"), "harness"),
+        # both would be copied to .claude/hooks/sh-check.sh, each sync undoing the other
+        (
+            lambda d: d["hooks"].append({"template": "python/sh-check.sh", "event": "stop"}),
+            "share the file name sh-check.sh",
+        ),
     ],
 )
 def test_each_problem_is_reported(tmp_path: Path, change: Any, needle: str) -> None:
@@ -312,6 +320,202 @@ def test_register_and_sync_all(tmp_path: Path) -> None:
     assert report[str(tmp_path / "gone")] == "missing"
 
 
+def _tree(repo: Path) -> dict[str, str]:
+    return {
+        str(p.relative_to(repo)): (os.readlink(p) if p.is_symlink() else p.read_text())
+        for p in sorted(repo.rglob("*"))
+        if (p.is_file() or p.is_symlink()) and ".git/" not in str(p.relative_to(repo)) + "/"
+    }
+
+
+def test_sync_dry_run_lists_what_sync_writes_and_writes_nothing(tmp_path: Path) -> None:
+    # Preflight and sync-all report what a target is behind by; the target's own
+    # session runs the real sync. Both must agree on the list.
+    repo, templates, runtime = _sync_setup(tmp_path)
+    (runtime / ha.PACK_STORE / "claude/linear").mkdir(parents=True)
+    d = json.loads((repo / ha.FILENAME).read_text())
+    d["skill_packs"] = ["tracking"]
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    before = _tree(repo)
+    planned = ha.sync(repo, templates=templates, runtime=runtime, dry_run=True)
+    assert _tree(repo) == before
+    assert planned == [
+        ".claude/hooks/sh-check.sh",
+        ".claude/hooks/agent-hook.sh",
+        ".claude/settings.json",
+        ".codex/hooks.json",
+        ".agents/hooks.json",
+        ha.FILENAME,
+    ]
+    real = ha.sync(repo, templates=templates, runtime=runtime)
+    assert [c for c in real if "/skills/" not in c] == planned  # pack links are host-local
+    assert ha.sync(repo, templates=templates, runtime=runtime, dry_run=True) == []
+
+
+@pytest.mark.parametrize(
+    "link",
+    [
+        ".claude",
+        ".codex",
+        ".agents",
+        ".claude/hooks/agent-hook.sh",
+        ha.FILENAME,
+        ".claude/skills",
+        ".kiro/skills",
+    ],
+)
+def test_sync_refuses_a_path_that_leads_out_of_the_repo(tmp_path: Path, link: str) -> None:
+    # Preflight prints the sync command in any clone with agent-harness.json; a
+    # committed symlink must not let sync write the owner's ~/.claude or dotfiles.
+    repo, templates, runtime = _sync_setup(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    d = json.loads((repo / ha.FILENAME).read_text())
+    d["hooks"] = [h for h in d["hooks"] if "template" in h]  # check() already refuses a local one
+    d["skill_packs"] = ["tracking"]  # pack links are written too
+    (repo / ha.FILENAME).write_text(json.dumps(d))
+    (runtime / ha.PACK_STORE / "claude/linear").mkdir(parents=True)
+    target = repo / link
+    if link.endswith("/skills"):
+        (outside / "d").mkdir()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to(outside / "d")
+    elif link == ha.FILENAME:
+        (outside / "x.json").write_text(target.read_text())
+        target.unlink()
+        target.symlink_to(outside / "x.json")
+    else:
+        if target.is_dir():
+            shutil.copytree(target, outside / "d")
+            shutil.rmtree(target)
+            target.symlink_to(outside / "d")
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.symlink_to(outside / "dotfile")
+    before = sorted(str(p) for p in outside.rglob("*"))
+    for dry in (True, False):
+        with pytest.raises(ha.AdapterError, match="outside the repo"):
+            ha.sync(repo, templates=templates, runtime=runtime, dry_run=dry)
+    assert sorted(str(p) for p in outside.rglob("*")) == before
+    assert not (outside / "dotfile").exists()
+
+
+def test_sync_all_links_nothing_outside_a_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # sync-all runs unattended; it must refuse before linking, not after.
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    a, _, templates, runtime = _two_repos(tmp_path / "ws")
+    d = json.loads((a / ha.FILENAME).read_text())
+    d["hooks"] = [h for h in d["hooks"] if "template" in h]  # check() already refuses a local one
+    (a / ha.FILENAME).write_text(json.dumps(d))
+    outside = tmp_path / "outside"
+    shutil.copytree(a / ".claude", outside)
+    shutil.rmtree(a / ".claude")
+    (a / ".claude").symlink_to(outside)
+    before = sorted(str(p) for p in outside.rglob("*"))
+    report = ha.sync_all(templates=templates, runtime=runtime)
+    assert report[str(a)].startswith("error: ") and "outside the repo" in report[str(a)]
+    assert sorted(str(p) for p in outside.rglob("*")) == before
+
+
+def test_sync_refuses_another_name_for_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # On a case-insensitive volume (macOS default) .GIT is .git; the check goes by file
+    # identity, not spelling. Simulated here: this host's volume is case-sensitive.
+    repo, templates, runtime = _sync_setup(tmp_path)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    (repo / "GITALIAS").mkdir()
+    (repo / ".claude/hooks/agent-hook.sh").symlink_to("../../GITALIAS/config")
+    real = os.path.samefile
+    alias, git = (repo / "GITALIAS").resolve(), (repo / ".git").resolve()
+
+    def same(a: Any, b: Any) -> bool:
+        if {Path(a).resolve(), Path(b).resolve()} == {alias, git}:
+            return True
+        return real(a, b)
+
+    monkeypatch.setattr(ha.os.path, "samefile", same)
+    for dry in (True, False):
+        with pytest.raises(ha.AdapterError, match="outside the repo"):
+            ha.sync(repo, templates=templates, runtime=runtime, dry_run=dry)
+    assert not (repo / "GITALIAS/config").exists()
+
+
+def test_sync_refuses_a_symlink_into_git(tmp_path: Path) -> None:
+    # .git/config is inside the repo folder but not repo content: overwriting it
+    # silently drops the remotes.
+    repo, templates, runtime = _sync_setup(tmp_path)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    config = (repo / ".git/config").read_text()
+    (repo / ".claude/hooks/agent-hook.sh").symlink_to("../../.git/config")
+    for dry in (True, False):
+        with pytest.raises(ha.AdapterError, match="outside the repo"):
+            ha.sync(repo, templates=templates, runtime=runtime, dry_run=dry)
+    assert (repo / ".git/config").read_text() == config
+
+
+def test_sync_dry_run_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo, templates, runtime = _sync_setup(tmp_path)
+    before = _tree(repo)
+    args = [
+        "sync",
+        str(repo),
+        "--dry-run",
+        "--templates",
+        str(templates),
+        "--runtime",
+        str(runtime),
+    ]
+    assert ha.main(args) == 0
+    assert _tree(repo) == before
+    assert "behind by 6 files: .claude/hooks/sh-check.sh" in capsys.readouterr().out
+
+
+def _committed(repo: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "-c",
+            "user.email=t@example.com",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-qm",
+            "base",
+        ],
+        check=True,
+    )
+
+
+def test_sync_all_writes_no_tracked_file_and_reports_what_is_behind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # On 2026-10-23 and 10-24 synced copies left in a target's main checkout were
+    # committed from this repo while that repo's own sessions worked there.
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    a, b, templates, runtime = _two_repos(tmp_path / "ws")
+    for repo in (a, b):
+        _committed(repo)
+    report = ha.sync_all(templates=templates, runtime=runtime)
+    for repo in (a, b):
+        status = subprocess.run(
+            ["git", "-C", str(repo), "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        assert status == "", status
+    assert os.readlink(a / ".claude/skills/linear") == str(
+        runtime / ha.PACK_STORE / "claude/linear"
+    )
+    assert "behind by 6 files: .claude/hooks/sh-check.sh" in report[str(a)]
+    assert "harness_adapter.py sync" in report[str(a)]
+
+
 def test_drift_covers_the_agent_hook_wrapper(tmp_path: Path) -> None:
     repo, templates, runtime = _sync_setup(tmp_path)
     ha.sync(repo, templates=templates, runtime=runtime)
@@ -443,8 +647,11 @@ def test_store_pack_skills_leaves_a_same_name_skill_the_install_did_not_put_ther
     (skills / "testing").symlink_to(tmp_path / "other/testing")  # another tool's link
     (skills / "review").symlink_to(repo / "skills/x/review")
     moved = ha.store_pack_skills(
-        skills, store, {"audit", "testing", "review"},
-        installed={"review", "testing"}, repo_dir=repo,
+        skills,
+        store,
+        {"audit", "testing", "review"},
+        installed={"review", "testing"},
+        repo_dir=repo,
     )
     assert moved == ["review"]
     assert (skills / "audit/SKILL.md").read_text() == "mine"
@@ -452,7 +659,9 @@ def test_store_pack_skills_leaves_a_same_name_skill_the_install_did_not_put_ther
     assert not (store / "audit").exists() and not (store / "testing").exists()
 
 
-@pytest.mark.parametrize("rel", [".claude/settings.json", ".codex/hooks.json", ".agents/hooks.json"])
+@pytest.mark.parametrize(
+    "rel", [".claude/settings.json", ".codex/hooks.json", ".agents/hooks.json"]
+)
 def test_sync_refuses_to_overwrite_a_malformed_agent_file(tmp_path: Path, rel: str) -> None:
     repo, templates, runtime = _sync_setup(tmp_path)
     ha.sync(repo, templates=templates, runtime=runtime)
@@ -463,7 +672,9 @@ def test_sync_refuses_to_overwrite_a_malformed_agent_file(tmp_path: Path, rel: s
     assert (repo / rel).read_text() == bad
 
 
-@pytest.mark.parametrize("raw", [b"\xff\xfe{\x00}\x00", b'["keep me"]\n'], ids=["utf16", "not-object"])
+@pytest.mark.parametrize(
+    "raw", [b"\xff\xfe{\x00}\x00", b'["keep me"]\n'], ids=["utf16", "not-object"]
+)
 def test_sync_refuses_an_agent_file_it_cannot_read_as_an_object(tmp_path: Path, raw: bytes) -> None:
     repo, templates, runtime = _sync_setup(tmp_path)
     ha.sync(repo, templates=templates, runtime=runtime)

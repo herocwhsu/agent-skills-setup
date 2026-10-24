@@ -72,8 +72,9 @@ else
 fi
 
 # Target repos (hangar, atelier, ...) carry copies of templates/hooks and wiring
-# generated from their agent-harness.json; bring each registered one up to the
-# commit just installed. Changes are left uncommitted for review in that repo.
+# generated from their agent-harness.json. sync-all links their pack skills and
+# reports what each is behind by; it writes none of their tracked files, so that
+# repo's own session syncs, reviews and commits (feat-108).
 echo ""
 echo "==> Syncing target repos (harness_adapter.py sync-all)..."
 python3 "$REPO_DIR/scripts/harness_adapter.py" sync-all \

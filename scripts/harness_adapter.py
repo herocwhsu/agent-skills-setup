@@ -8,15 +8,17 @@ templates/hooks/<stack>/ or a repo-local file, run on `edit`, `stop` or `start` 
 
 Usage: harness_adapter.py check <repo> [--templates DIR] [--runtime DIR]
        harness_adapter.py drift <repo> [--templates DIR] [--file PATH]
-       harness_adapter.py sync <repo> | register <repo> | sync-all
+       harness_adapter.py sync <repo> [--dry-run] | register <repo> | sync-all
 check exits 0 when the file is valid, 2 with one line per problem otherwise; the
 version is reported against <runtime>/harness-version.json and never fails.
 drift exits 2 when a listed template hook (.claude/hooks/<name>) differs from
 its template outside the repo config block, the only part a repo may edit.
 sync copies the listed template hooks (keeping each copy's config block) and
 agent-hook.sh into .claude/hooks, writes the hook wiring for claude, codex and agy,
-and sets harness.version to the installed commit. It never commits. register adds
-a repo to <runtime>/target-repos.txt; sync-all (run by update.sh) syncs each one.
+and sets harness.version to the installed commit. It never commits; --dry-run lists
+what it would write. register adds a repo to <runtime>/target-repos.txt; sync-all
+(run by update.sh) only links each one's packs and reports what it is behind by:
+the repo's own session runs sync there and commits.
 global-wiring --agent <claude|codex|gemini> [--hooks-dir DIR] prints the user-level
 hook settings that run <runtime>/hooks/global-hook.sh, for install.sh to merge.
 store-packs --agent A --skills-dir DIR moves the skills of every pack but core from
@@ -118,6 +120,15 @@ def _check_hooks(hooks: list[Any], repo: Path, templates: Path, problems: list[s
         target = _inside(base, rel) if isinstance(rel, str) else None
         if target is None or not target.is_file():
             problems.append(f"{where}: {kind} {rel!r} is not a file under {base}")
+    # Every template is copied to .claude/hooks/<name>; two with one name undo each other.
+    seen: dict[str, str] = {Path(WRAPPER).name: WRAPPER}
+    for h in hooks:
+        rel = h.get("template") if isinstance(h, dict) else None
+        if not isinstance(rel, str):
+            continue
+        first = seen.setdefault(Path(rel).name, rel)
+        if first != rel:
+            problems.append(f"templates {first!r} and {rel!r} share the file name {Path(rel).name}")
 
 
 def _version_status(data: dict[str, Any], runtime: Path) -> str:
@@ -228,12 +239,17 @@ def _merged(template: str, copy: str | None) -> str:
     return template.replace(ours, theirs, 1) if ours and theirs else template
 
 
-def _write_if_changed(path: Path, text: str, changes: list[str], repo: Path) -> None:
+def _write_if_changed(
+    path: Path, text: str, changes: list[str], repo: Path, dry_run: bool = False
+) -> None:
     try:
         if path.read_text(encoding="utf-8") == text:
             return
     except OSError:
         pass
+    if dry_run:
+        changes.append(str(path.relative_to(repo)))
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     changes.append(str(path.relative_to(repo)))
@@ -461,13 +477,57 @@ def _dump(data: Any) -> str:
     return json.dumps(data, indent=2) + "\n"
 
 
-def sync(repo: Path, templates: Path, runtime: Path) -> list[str]:
-    """Bring a target repo's hook copies and wiring up to the installed harness."""
+def _refuse_escapes(repo: Path, paths: list[Path]) -> None:
+    """Stop before writing when a path leads outside the repo, or into .git, through a symlink.
+
+    Preflight suggests sync in any clone with agent-harness.json, and a clone can commit
+    .claude -> ~/.claude or a hook copy -> .git/config.
+    """
+    git = repo / ".git"
+
+    def in_git(path: Path) -> bool:
+        # By file identity, not spelling: on a case-insensitive volume .GIT is .git.
+        for q in (path, *path.parents):
+            if q == repo or not q.is_relative_to(repo):
+                return False
+            if q.exists() and git.exists() and os.path.samefile(q, git):
+                return True
+        return False
+
+    bad = [
+        str(p.relative_to(repo))
+        for p in paths
+        if not p.resolve().is_relative_to(repo) or in_git(p.resolve())
+    ]
+    if bad:
+        raise AdapterError(
+            f"{', '.join(bad)} leads outside the repo (or into .git) through a symlink"
+        )
+
+
+def sync(repo: Path, templates: Path, runtime: Path, dry_run: bool = False) -> list[str]:
+    """Bring a target repo's hook copies and wiring up to the installed harness.
+
+    dry_run lists the tracked files sync would write and writes nothing, pack links included.
+    """
     repo = repo.resolve()
     result = check(repo, templates=templates, runtime=runtime)
     if result.problems or result.data is None:
         raise AdapterError(f"{repo / FILENAME}: " + "; ".join(result.problems))
     data = result.data
+    hooks_dir = repo / ".claude/hooks"
+    rels = [h["template"] for h in data["hooks"] if "template" in h] + [WRAPPER]
+    _refuse_escapes(
+        repo,
+        [hooks_dir / Path(r).name for r in rels]
+        + [
+            repo / ".claude/settings.json",
+            repo / ".codex/hooks.json",
+            repo / ".agents/hooks.json",
+            repo / FILENAME,
+        ]
+        + [repo / rel for rel in REPO_SKILL_DIRS],
+    )
     # Read every agent file before writing any: a malformed one must stop sync
     # with nothing half-applied.
     settings = repo / ".claude/settings.json"
@@ -475,29 +535,28 @@ def sync(repo: Path, templates: Path, runtime: Path) -> list[str]:
     codex = _load_json(repo / ".codex/hooks.json")
     agy_file = _load_json(repo / ".agents/hooks.json")
     changes: list[str] = []
-    hooks_dir = repo / ".claude/hooks"
-    for rel in [h["template"] for h in data["hooks"] if "template" in h] + [WRAPPER]:
+    for rel in rels:
         copy = hooks_dir / Path(rel).name
         current = copy.read_text(encoding="utf-8") if copy.is_file() else None
-        _write_if_changed(
-            copy, _merged((templates / rel).read_text(encoding="utf-8"), current), changes, repo
-        )
+        merged = _merged((templates / rel).read_text(encoding="utf-8"), current)
+        _write_if_changed(copy, merged, changes, repo, dry_run)
 
     wiring = _wiring(data["hooks"])
     # The Claude file's "hooks" belong to agent-harness.json entirely (the repo
     # declares every Claude hook there); its other keys are kept.
     if claude.get("hooks") != wiring["claude"]:
         claude["hooks"] = wiring["claude"]
-        _write_if_changed(settings, _dump(claude), changes, repo)
+        _write_if_changed(settings, _dump(claude), changes, repo, dry_run)
     # Replace only what sync owns (codex's "hooks", agy's harness-* groups) and
     # keep the rest of each file.
     codex["hooks"] = wiring["codex"]["hooks"]
-    _write_if_changed(repo / ".codex/hooks.json", _dump(codex), changes, repo)
+    _write_if_changed(repo / ".codex/hooks.json", _dump(codex), changes, repo, dry_run)
     agy = {k: v for k, v in agy_file.items() if k not in AGY_GROUPS}
     agy.update(wiring["agy"])
-    _write_if_changed(repo / ".agents/hooks.json", _dump(agy), changes, repo)
+    _write_if_changed(repo / ".agents/hooks.json", _dump(agy), changes, repo, dry_run)
     committed = bool(changes)  # pack links and info/exclude are not committed files
-    _link_pack_skills(repo, data, runtime, changes)
+    if not dry_run:
+        _link_pack_skills(repo, data, runtime, changes)
 
     try:
         installed = json.loads((runtime / "harness-version.json").read_text()).get("short")
@@ -507,8 +566,28 @@ def sync(repo: Path, templates: Path, runtime: Path) -> list[str]:
     # uncommitted change after every unattended update.sh.
     if installed and committed and data["harness"]["version"] != installed:
         data["harness"]["version"] = installed
-        _write_if_changed(repo / FILENAME, _dump(data), changes, repo)
+        _write_if_changed(repo / FILENAME, _dump(data), changes, repo, dry_run)
     return changes
+
+
+def link_packs(repo: Path, templates: Path, runtime: Path) -> list[str]:
+    """Only the pack links: host-local and kept out of git, so no tracked file changes."""
+    repo = repo.resolve()
+    result = check(repo, templates=templates, runtime=runtime)
+    if result.problems or result.data is None:
+        raise AdapterError(f"{repo / FILENAME}: " + "; ".join(result.problems))
+    _refuse_escapes(repo, [repo / rel for rel in REPO_SKILL_DIRS])
+    changes: list[str] = []
+    _link_pack_skills(repo, result.data, runtime, changes)
+    return changes
+
+
+def behind(changes: list[str]) -> str:
+    n = len(changes)
+    return (
+        f"behind by {n} file{'' if n == 1 else 's'}: {', '.join(changes)}; "
+        "run harness_adapter.py sync in that repo and commit"
+    )
 
 
 def register(repo: Path, templates: Path, runtime: Path) -> None:
@@ -544,10 +623,13 @@ def _shared_parent(repos: list[Path]) -> Path | None:
 
 
 def sync_all(templates: Path, runtime: Path) -> dict[str, str]:
-    """Sync each registered repo: {path: 'missing' | 'up to date' | changes | error}.
+    """Link each registered repo's packs and say what it is behind by.
 
-    Then link the packs any of them lists into their shared parent folder, so a
-    session started there (e.g. ~/projects) sees them too.
+    {path: 'missing' | 'up to date' | links and/or 'behind by N files' | error}. It writes
+    no tracked file: each repo's own session runs sync, reviews and commits (feat-108;
+    on 2026-10-23 copies left in hangar's main checkout were committed from here while
+    its own sessions worked there). Then it links the packs any of them lists into their
+    shared parent folder, so a session started there (e.g. ~/projects) sees them too.
     """
     path = runtime / REGISTRY
     report: dict[str, str] = {}
@@ -561,17 +643,19 @@ def sync_all(templates: Path, runtime: Path) -> dict[str, str]:
             report[entry] = "missing"
             continue
         try:
-            changes = sync(Path(entry), templates=templates, runtime=runtime)
+            links = link_packs(Path(entry), templates=templates, runtime=runtime)
+            planned = sync(Path(entry), templates=templates, runtime=runtime, dry_run=True)
         except AdapterError as e:
             report[entry] = f"error: {e}"
             continue
-        report[entry] = ", ".join(changes) if changes else "up to date"
+        parts = ([", ".join(links)] if links else []) + ([behind(planned)] if planned else [])
+        report[entry] = "; ".join(parts) or "up to date"
         synced.append(Path(entry))
         data = json.loads((Path(entry) / FILENAME).read_text(encoding="utf-8"))
         packs.update(data.get("skill_packs", []))
     ws = _shared_parent(synced)
     if ws is not None:
-        changes = []
+        changes: list[str] = []
         _link_pack_skills(ws, {"skill_packs": sorted(packs)}, runtime, changes)
         report[str(ws)] = "workspace: " + (", ".join(changes) if changes else "up to date")
     return report
@@ -633,6 +717,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--skills-dir", type=Path, default=None)
     ap.add_argument("--installed", type=Path, default=None)
     ap.add_argument("--repo-dir", type=Path, default=None)
+    ap.add_argument("--dry-run", action="store_true", help="sync: list, write nothing")
     args = ap.parse_args(argv)
     runtime = args.runtime or _runtime_dir()
     if args.command == "store-packs":
@@ -679,6 +764,9 @@ def main(argv: list[str] | None = None) -> int:
             if args.command == "register":
                 register(args.repo, templates=args.templates, runtime=runtime)
                 print(f"  registered {args.repo.resolve()}")
+            elif args.dry_run:
+                planned = sync(args.repo, templates=args.templates, runtime=runtime, dry_run=True)
+                print(f"  {args.repo}: {behind(planned) if planned else 'up to date'}")
             else:
                 changes = sync(args.repo, templates=args.templates, runtime=runtime)
                 print(f"  {args.repo}: {', '.join(changes) if changes else 'up to date'}")

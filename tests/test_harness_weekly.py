@@ -119,21 +119,30 @@ def test_real_audit_shape_reports_a_drifted_hook(tmp_path: Path) -> None:
     assert hw.repo_regressions("r", None, cur, None) == ["r: hook drifted from its template: x.sh"]
 
 
-def test_run_flags_a_repo_left_with_uncommitted_changes(tmp_path: Path) -> None:
-    # sync never commits: a template change leaves the copies for someone to review
+def test_run_reports_a_repo_behind_the_harness_instead_of_its_drifted_hooks(
+    tmp_path: Path,
+) -> None:
+    # sync-all no longer writes a target's tracked files; a template change shows as
+    # "behind" until that repo's own session syncs and commits it.
     runtime, repo = _runtime(tmp_path)
     _git(repo, "init", "-q")
-    _commit(repo, "AGENTS.md", "2026-10-18T10:00:00+08:00")
     _commit(repo, ".claude/hooks/x.sh", "2026-10-18T10:00:00+08:00")
-    # the owner's own work in progress is not sync's and is not reported
-    (repo / "AGENTS.md").write_text("owner editing")
-    (repo / "notes.txt").write_text("new")
-    (repo / ".claude/hooks/x.sh").write_text("edited by sync")
+    (repo / ".claude/hooks/x.sh").write_text("left uncommitted by a session")
+    log = UPDATE_OK.replace(
+        "  /r/hangar: up to date",
+        "  /r/hangar: behind by 2 files: .claude/hooks/x.sh, agent-harness.json; "
+        "run harness_adapter.py sync in that repo and commit",
+    )
     _, found = hw.run(
-        runtime, UPDATE_OK, 0, today="2026-10-19", audit_fn=lambda r: _audit(4100), extra_repos=()
+        runtime,
+        log,
+        0,
+        today="2026-10-19",
+        audit_fn=lambda r: _audit(4100, ("x.sh",)),
+        extra_repos=(),
     )
     assert found == [
-        "hangar: uncommitted changes after sync, commit or revert them: .claude/hooks/x.sh"
+        "hangar: harness behind by 2 files; run harness_adapter.py sync in that repo and commit"
     ]
 
 
