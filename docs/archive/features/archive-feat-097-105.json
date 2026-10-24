@@ -1,0 +1,50 @@
+{
+  "features": [
+    {
+      "id": "feat-097",
+      "name": "handover scripts follow a checked contract",
+      "description": "Owner-run handover scripts live in the repo and a checker requires a log file, no typed secret (-K), a recorded rollback run and resumable steps. Found 2026-10-23: hangar's finish script took four runs.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "a script with -K, no log or no recorded rollback is blocked; a compliant one passes"
+      ],
+      "verification": "bash scripts/tests/test_handover_guard.sh",
+      "evidence": "templates/hooks/common/handover-guard.sh: edit hook on scripts/handover/*.sh and --all for init.sh; blocks typed secrets (-K incl. bundles, ansible -k/-J, --ask-*pass, ASK_PASS=true, read -s), no log, no '# Rollback:', no '# Resume:' or no tested-and-written marker file. scripts/tests/test_handover_guard.sh 49/49 (bash 3.2); hangar's patch-and-reboot-confirm.sh passes; 11 gates OK. Three review rounds (2 subagents each) found 16 static-check misses, all fixed test-first; known misses listed in the guard header. Owner decisions 2026-10-24: edit hook + verify, Rollback = header line, Resume = header + marker file.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-098222de36",
+        "output_tokens": 45506,
+        "wall_time_ms": 89545214,
+        "active_turn_time_ms": 3104913,
+        "subagents": 6,
+        "subagent_output_tokens": 39978
+      }
+    },
+    {
+      "id": "feat-105",
+      "name": "this repo uses its own hook templates",
+      "description": "Owner chose 2026-10-23, after two subagent checks: harness/guards and templates/hooks both carry secret-scan.sh, sh-check.sh and py-check.sh. Option (c): this repo is the template source, so its Claude, agy and codex wiring and harness-verify.sh call templates/hooks/... directly (codex edits through agent-hook.sh; agy calls the templates directly, which read its payload); the three copies in harness/guards are deleted. No agent-harness.json or sync, so hangar and atelier are untouched. This repo's stricter needs come from env-var knobs the templates read, defaults unchanged: shellcheck severity error (59 of 150 .sh files fail at default), whole-tree secret scan (the template skips a turn with no change), recursive osv (the template scans npm lockfiles only; py-guard cannot audit requirements-dev.txt).",
+      "dependencies": [
+        "feat-107"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "harness/guards holds no sh-check.sh, py-check.sh or secret-scan.sh; every wiring and harness-verify.sh call the templates",
+        "with no knob set, each template behaves as before (hangar, atelier and the global hook unchanged)",
+        "this repo still blocks a shellcheck error, a secret in any file git would commit, a vulnerable Python dependency, and a bad Codex apply_patch edit; it does not block existing warning-level shellcheck findings",
+        "the secret-scan gate reports OK, not SKIP, on a clean tree",
+        "all harness gates pass"
+      ],
+      "verification": "bash scripts/tests/test_shared_hook_templates.sh && bash harness/guards/tests/test_sh_check.sh && bash harness/guards/tests/test_py_check.sh && bash scripts/harness-verify.sh && .venv/bin/python scripts/gate_experiment.py",
+      "evidence": "Tests first: knob cases in test_shared_hook_templates.sh (60/0 after), the retargeted guard tests' wiring and fail-open cases (sh 23/0, py 21/0), two gate_experiment tests (37/0). Templates read SH_CHECK_SEVERITY, SECRET_SCAN_SCOPE=tree, OSV_SCOPE=recursive; unset, default behavior unchanged (sh-check also fails open on unparseable input). This repo's Claude/agy/codex wiring and harness-verify.sh call templates/hooks directly; harness/guards/{sh-check,py-check,secret-scan}.sh deleted. Live: the secret-scan gate reports OK (gitleaks, osv) on this repo, a planted certifi==2026.7.22 gives PYSEC-2026-4320 and exit 2. gate_experiment.py needed two fixes to run at all (runtime files in subfolders; PYTHONUSERBASE so the bare python3 keeps its user-site pytest/lxml under the redirected HOME); then baseline clean and all 12 planted defects caught by their expected gate, secret scan 'needed'. Two earlier baseline runs failed the tests gate intermittently, cause not found (flaky-test list in PROGRESS). Two subagent reviews (correctness, security): no confirmed defects; env prefixes reach the hooks under each agent and bash 3.2; the global hook still skips its copies here. Known gap kept: an untracked nested git repo is not secret-scanned (git lists it as a directory; same in hangar/atelier since feat-096). docs/architecture.md left for feat-106.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-b522547cd0",
+        "output_tokens": 39117,
+        "wall_time_ms": 5097376,
+        "active_turn_time_ms": 5680821,
+        "subagents": 2,
+        "subagent_output_tokens": 28438
+      }
+    }
+  ]
+}
