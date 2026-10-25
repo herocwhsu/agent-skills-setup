@@ -49,7 +49,15 @@
         "a cleanup step without a cause reference is flagged"
       ],
       "verification": "bash scripts/tests/test_handover_guard.sh",
-      "evidence": "templates/hooks/common/handover-guard.sh: in scripts/handover/*.sh a cleanup step (kubectl delete, rollout restart, rm -r in any flag order, docker rm; continued lines joined, last line included) needs '# cause: <feat-NNN|ABC-123|#12|URL|PROGRESS>' directly above or trailing; the error names the line. Owner choice 2026-10-25: extend handover-guard. scripts/tests/test_handover_guard.sh 83/83 (bash 3.2); hangar's script passes; 11 gates OK. Three review rounds (2 subagents each) found flag orders, quoted trailing causes, $( ), 'because:', continuation, a quadratic comment strip (128 s on 160 KB, now ~1 s) and name=value paths, all fixed test-first. Known limits in the guard header."
+      "evidence": "templates/hooks/common/handover-guard.sh: in scripts/handover/*.sh a cleanup step (kubectl delete, rollout restart, rm -r in any flag order, docker rm; continued lines joined, last line included) needs '# cause: <feat-NNN|ABC-123|#12|URL|PROGRESS>' directly above or trailing; the error names the line. Owner choice 2026-10-25: extend handover-guard. scripts/tests/test_handover_guard.sh 83/83 (bash 3.2); hangar's script passes; 11 gates OK. Three review rounds (2 subagents each) found flag orders, quoted trailing causes, $( ), 'because:', continuation, a quadratic comment strip (128 s on 160 KB, now ~1 s) and name=value paths, all fixed test-first. Known limits in the guard header.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-3663c18adf",
+        "output_tokens": 31103,
+        "wall_time_ms": 57241524,
+        "active_turn_time_ms": 3216708,
+        "subagents": 4,
+        "subagent_output_tokens": 43738
+      }
     },
     {
       "id": "feat-106",
