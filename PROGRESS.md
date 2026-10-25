@@ -23,6 +23,7 @@
 ### What's In Progress
 
 - Nothing active (WIP=0). feat-101 (kiro prompts only for skills in the global dir; 11 pointed at pack skills) done 2026-10-23; before it feat-100 (preflight warns above registered repos). feat-102 done too: ~/.gemini/skills (Gemini CLI only, unmanaged since 2026-07-04) backed up to ~/.agent-skills-setup/backup/ and removed, Gemini CLI uninstalled; agy reads ~/.gemini/config/skills, unaffected. Other hosts: check ~/.kiro/prompts (rerun install.sh) and ~/.gemini/skills by hand. Codex not installed here; its dirs stay (owner decision 2026-10-23). Planned from the 2026-10-23 architecture review, in this order: feat-103 lecture runners out of scripts/ and orphans deleted (done), feat-104 delete the pack kiro prompts (done; drop RETIRED_KIRO_PROMPTS in _lib.sh once every host reran install.sh), feat-107 py-guard pip-audit flag and agent-hook Codex move targets (done, synced to atelier and hangar), feat-105 this repo calls the templates directly (done, option c, env-var knobs; gap: an untracked nested git repo is not secret-scanned), feat-106 architecture.md rewrite (done). Flaky under load (passed 3/3 alone, failed while subagents ran): scripts/tests/test_init_sh.sh "pip never started" (twice on 2026-10-23) and test_outside_agent.py SIGTERM returncode -15; on 2026-10-24 also test_outside_agent.py::test_run_one_marks_the_purpose_for_the_agents_hooks (10 s timeout, 1.9 s alone), and scripts/tests/test_run_tests_parallel.sh case 13 (counts every xargs -P 2 --worker on the machine, so a concurrent run trips it; fix: count only under its fixture dir).
+- feat-098 done 2026-10-25: handover-guard also needs a '# cause:' on each delete/restart step in scripts/handover/*.sh. feat-099 moved to hangar (see Decisions Made). Planned queue in this repo is empty.
 - feat-108 done 2026-10-24: update.sh/sync-all no longer write target repos' tracked files; each target's session runs `harness_adapter.py sync .` (preflight shows when it is behind) and commits. hangar's PROGRESS 'In flight' still asks for a worktree push; its next session should replace that with a pointer to feat-108.
 - Planned 2026-10-23, from hangar's four-run vm1 reboot (hangar PROGRESS "In flight"): feat-097 handover-script contract (done 2026-10-24: templates/hooks/common/handover-guard.sh; next: wire it into hangar, edit hook + `--all` in init.sh, from a worktree of origin/main), feat-098 cleanup steps name their cause, feat-099 failed gates print a diagnosis, feat-100 preflight warns above several repos (done). Start each in a session launched in this repo.
 
@@ -57,6 +58,10 @@
 
 ## Decisions Made
 
+- **feat-099 moves to hangar (owner, 2026-10-25):** failed checks printing reason, message and
+  events per object is Kubernetes-specific and only hangar's playbooks need it; sync delivers hooks,
+  not helper scripts. hangar's own session builds it there (its H-001 playbook loops on
+  `kubectl get ... -o name`). Dropped from this repo's feature_list.json.
 - **Sessions here commit only in this repo (owner, 2026-10-24):** never commit or push in
   hangar, atelier or another target repo; when a template change matters there, tell the owner.
   Each target's own session syncs, reviews and commits harness updates (feat-108 makes sync pull-based).

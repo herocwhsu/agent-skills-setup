@@ -3,7 +3,7 @@
 # scripts in scripts/handover/ to their contract: a log file, no typed secret,
 # a stated rollback, and a resume path backed by a marker file. Edit mode reads
 # Claude's hook input; --all checks every handover script for a repo's init.sh.
-# shellcheck disable=SC2016  # the sed patterns match literal $vars in the script under test
+# shellcheck disable=SC2016,SC1003  # literal $vars and trailing backslashes in the script under test
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -86,7 +86,7 @@ for line in 'ansible-playbook site.yml -bK' 'ansible-playbook site.yml -kK' \
   { compliant; echo "$line"; } > "$F"
   case_blocks "typed secret blocked: $line" "$F" "typed secret"
 done
-for line in 'sudo -K' 'curl -K "$HOME/.curlrc" https://example.com' 'rm -rf "$tmp"' \
+for line in 'sudo -K' 'curl -K "$HOME/.curlrc" https://example.com' 'rm -rf "$tmp"  # cause: feat-097' \
             'kill -KILL "$pid"' 'pkill -SIGKILL -f myapp' 'read -r kb _ < <(du -sk "$dir")' \
             'curl -fsS -K "$cfg" https://example.com'; do
   { compliant; echo "$line"; } > "$F"
@@ -154,6 +154,65 @@ fi
 rm -rf "$REPO/scripts/handover"
 out=$(cd "$REPO" && bash "$GUARD" --all 2>&1); rc=$?
 if [[ $rc -eq 0 ]]; then ok "--all passes a repo without scripts/handover/"; else bad "--all passes a repo without scripts/handover/" "exit $rc: $out"; fi
+
+# feat-098: a step that deletes or restarts things to clear a symptom names its root
+# cause (2026-10-23: "delete dead pods" hid hangar's graceful-shutdown bug).
+mkdir -p "$REPO/scripts/handover"
+for line in 'kubectl delete pod -n app web-0' 'kubectl -n app rollout restart deploy/web' \
+            'rm -rf "$cache_dir"' 'docker rm -f old' 'rm -f -r "$cache"' 'rm -v -rf "$d"' \
+            'rm --force --recursive "$cache"' 'out=$(rm -rf "$cache")'; do
+  { compliant; echo "$line"; } > "$F"
+  case_blocks "cleanup without a cause is blocked: $line" "$F" "cause"
+  { compliant; echo '# cause: feat-097 (shutdown leftovers)'; echo "$line"; } > "$F"
+  r=$(edit "$F")
+  if [[ "${r%% *}" == 0 ]]; then ok "cause on the line above: $line"; else bad "cause on the line above: $line" "$r"; fi
+done
+for ref in 'H-001' '#42' 'https://github.com/o/r/issues/7' 'PROGRESS.md In flight'; do
+  { compliant; echo "kubectl delete pod x  # cause: $ref"; } > "$F"
+  r=$(edit "$F")
+  if [[ "${r%% *}" == 0 ]]; then ok "trailing cause accepted: $ref"; else bad "trailing cause accepted: $ref" "$r"; fi
+done
+for line in "rm -rf \"\$tmp\"  # cause: feat-097 (the pod's leftovers)" \
+            'kubectl delete pod x  # cause: feat-097, see "PROGRESS"'; do
+  { compliant; echo "$line"; } > "$F"
+  r=$(edit "$F")
+  if [[ "${r%% *}" == 0 ]]; then ok "trailing cause with a quote: $line"; else bad "trailing cause with a quote: $line" "$r"; fi
+done
+{ compliant; printf '%s\n' 'kubectl -n app \' '  delete pod web-0'; } > "$F"
+case_blocks "a step continued over two lines is still a step" "$F" "cause"
+{ compliant; printf '%s\n' 'kubectl delete pod x \'; } > "$F"
+case_blocks "a continued step on the last line is still checked" "$F" "cause"
+{ compliant; printf '%s\n' 'echo hi \ ' 'kubectl delete pod x'; } > "$F"
+r=$(edit "$F")
+if [[ "$r" == *"line $(( $(compliant | wc -l) + 2 ))"* ]]; then ok "'\\ ' does not continue a line"; else bad "'\\ ' does not continue a line" "$r"; fi
+{ compliant; printf 'echo x '; head -c 320000 /dev/zero | tr '\0' x; echo; } > "$F"
+start=$(date +%s); edit "$F" >/dev/null; secs=$(( $(date +%s) - start ))
+if [[ $secs -le 5 ]]; then ok "a long line with no quote is checked fast (${secs}s)"; else bad "a long line with no quote is checked fast" "${secs}s"; fi
+{ compliant; for _ in $(seq 1 40000); do echo 'echo aaaaaaaaaaaaaaaaaaaa \'; done; echo 'true'; } > "$F"
+start=$(date +%s); edit "$F" >/dev/null; secs=$(( $(date +%s) - start ))
+if [[ $secs -le 5 ]]; then ok "many continued lines are checked fast (${secs}s)"; else bad "many continued lines are checked fast" "${secs}s"; fi
+# A path whose first part looks like name=value is still read as a file by awk.
+mkdir -p "$REPO/a=b/scripts/handover"
+{ compliant; echo 'kubectl delete pod x'; } > "$REPO/a=b/scripts/handover/d.sh"
+r=$(cd "$REPO" && printf '{"tool_input":{"file_path":"a=b/scripts/handover/d.sh"}}' | bash "$GUARD" 2>&1 >/dev/null); rc=$?
+if [[ $rc -eq 2 && "$r" == *cause* ]]; then ok "a name=value path is still checked"; else bad "a name=value path is still checked" "exit $rc: $r"; fi
+rm -rf "$REPO/a=b"
+{ compliant; echo '# because: see PROGRESS'; echo 'kubectl delete pod x'; } > "$F"
+case_blocks "'because:' is not 'cause:'" "$F" "cause"
+# One long line full of ' #' must not stall the guard (review 2026-10-25: 128 s).
+{ compliant; printf 'echo x'; for _ in $(seq 1 40000); do printf ' #a'; done; printf '"\n'; } > "$F"
+start=$(date +%s); edit "$F" >/dev/null; secs=$(( $(date +%s) - start ))
+if [[ $secs -le 5 ]]; then ok "a long line full of ' #' is checked fast (${secs}s)"; else bad "a long line full of ' #' is checked fast" "${secs}s"; fi
+{ compliant; echo '# cause: flaky'; echo 'kubectl delete pod x'; } > "$F"
+case_blocks "a cause with no reference is blocked" "$F" "cause"
+{ compliant; echo '# cause: feat-097'; echo 'echo unrelated'; echo 'kubectl delete pod x'; } > "$F"
+case_blocks "a cause must sit directly above the step" "$F" "cause"
+{ compliant; echo 'rm -f "$done_file"'; } > "$F"
+r=$(edit "$F")
+if [[ "${r%% *}" == 0 ]]; then ok "removing a marker file is not a cleanup step"; else bad "removing a marker file is not a cleanup step" "$r"; fi
+{ compliant; echo 'kubectl delete pod x'; } > "$F"
+r=$(edit "$F")
+if [[ "$r" == *"line $(( $(compliant | wc -l) + 1 ))"* ]]; then ok "names the line number"; else bad "names the line number" "$r"; fi
 
 echo "handover-guard: $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

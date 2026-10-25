@@ -44,24 +44,12 @@
       "dependencies": [
         "feat-097"
       ],
-      "status": "planned",
+      "status": "completed",
       "acceptance_criteria": [
         "a cleanup step without a cause reference is flagged"
       ],
-      "verification": "",
-      "evidence": ""
-    },
-    {
-      "id": "feat-099",
-      "name": "failed gates print a diagnosis",
-      "description": "A shared helper makes a failing check print reason, message and recent events per object, not only names. Found 2026-10-23: hangar's playbook printed pod names for 10 minutes.",
-      "dependencies": [],
-      "status": "planned",
-      "acceptance_criteria": [
-        "a failing check prints reason and message per object; hangar H-001 uses it"
-      ],
-      "verification": "",
-      "evidence": ""
+      "verification": "bash scripts/tests/test_handover_guard.sh",
+      "evidence": "templates/hooks/common/handover-guard.sh: in scripts/handover/*.sh a cleanup step (kubectl delete, rollout restart, rm -r in any flag order, docker rm; continued lines joined, last line included) needs '# cause: <feat-NNN|ABC-123|#12|URL|PROGRESS>' directly above or trailing; the error names the line. Owner choice 2026-10-25: extend handover-guard. scripts/tests/test_handover_guard.sh 83/83 (bash 3.2); hangar's script passes; 11 gates OK. Three review rounds (2 subagents each) found flag orders, quoted trailing causes, $( ), 'because:', continuation, a quadratic comment strip (128 s on 160 KB, now ~1 s) and name=value paths, all fixed test-first. Known limits in the guard header."
     },
     {
       "id": "feat-106",
