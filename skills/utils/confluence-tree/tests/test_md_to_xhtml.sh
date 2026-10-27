@@ -126,5 +126,15 @@ python3 "$CONV" --md-file "$TMP/hr.md" --out "$TMP/hr.xml"
 grep -q '<hr/>' "$TMP/hr.xml" || { cat "$TMP/hr.xml"; echo "FAIL test 9: hr not emitted"; exit 1; }
 echo "OK test 9"
 
+# --- Test 10: * and _ inside code spans stay literal; placeholder-like text is not swapped ---
+cat > "$TMP/code.md" <<'MD'
+Use `a*b*c` and `x_y_z` with **bold** and *em*, plus __CODE_SPAN_0__ and `real`.
+MD
+python3 "$CONV" --md-file "$TMP/code.md" --out "$TMP/code.xml"
+for want in '<code>a*b*c</code>' '<code>x_y_z</code>' '<strong>bold</strong>' '<em>em</em>' 'plus __CODE_SPAN_0__ and <code>real</code>'; do
+  grep -qF -- "$want" "$TMP/code.xml" || { cat "$TMP/code.xml"; echo "FAIL test 10: missing $want"; exit 1; }
+done
+echo "OK test 10"
+
 echo ""
 echo "All md_to_xhtml tests passed."

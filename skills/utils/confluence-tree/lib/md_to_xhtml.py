@@ -152,6 +152,14 @@ def render_inline(text: str) -> str:
     # Escape XML-significant chars in the raw text first. Subsequent regex
     # substitutions emit XHTML tags whose `<` and `>` must remain literal.
     raw = sax.escape(text)
+    # Extract code spans and protect them so * and _ inside code spans are not parsed as emphasis
+    code_spans: list[str] = []
+
+    def save_code(m: re.Match) -> str:
+        code_spans.append(m.group(1))
+        return f"\x00{len(code_spans) - 1}\x00"
+
+    raw = re.sub(r"`([^`]+)`", save_code, raw)
     # images (must come before links — `![...](url)` would otherwise match the link regex)
     raw = re.sub(r"!\[([^\]]*)\]\(\./([^)]+)\)", lambda m: _image_xml(m.group(1), m.group(2)), raw)
     raw = re.sub(
@@ -162,7 +170,8 @@ def render_inline(text: str) -> str:
     # bold (must come before italic so `**x**` is not parsed as `*<em>x</em>*`)
     raw = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", raw)
     raw = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", raw)
-    raw = re.sub(r"`([^`]+)`", lambda m: f"<code>{m.group(1)}</code>", raw)
+    for idx, c in enumerate(code_spans):
+        raw = raw.replace(f"\x00{idx}\x00", f"<code>{c}</code>")
     return raw
 
 
