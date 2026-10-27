@@ -895,7 +895,7 @@ alias_pins_all_families_test() {
   local missing=""
   for want in "ANTHROPIC_MODEL=claude-sonnet-5.5 " \
               "ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-5.5 " \
-              "ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-4.5 "; do
+              "ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-sonnet-5.5 "; do
     grep -q -- "$want" <<<"$line" || missing="$missing [$want]"
   done
   if [[ -z "$missing" ]]; then

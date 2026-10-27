@@ -404,7 +404,7 @@ sync_hermes_env_key() {
 health_probe() {
   command -v curl &>/dev/null || { echo "curl not found — skipping health probe." >&2; return 0; }
   local key; key="$(read_proxy_key)" || true
-  local body='{"model":"claude-haiku-4-5","max_tokens":16,"messages":[{"role":"user","content":"ping"},{"role":"system","content":"be terse"}]}'
+  local body='{"model":"claude-sonnet-5.5","max_tokens":16,"messages":[{"role":"user","content":"ping"},{"role":"system","content":"be terse"}]}'
   # Poll: the app has a blocking startup (token refresh, account init) and does
   # not bind its port for several seconds after `docker run -d` returns. Retry
   # while the connection is refused (HTTP 000), but fail FAST on any real HTTP
@@ -540,7 +540,7 @@ cmd_setup_alias() {
   local rc; rc=$(rc_file_path)
   local read_cmd; read_cmd=$(store_proxy_key)
   write_managed_line "$rc" "claude-kiro" \
-    "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_MODEL=claude-sonnet-5.5 ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-5.5 ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5.5 ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-4.5 ANTHROPIC_API_KEY=${read_cmd} claude'"
+    "alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_MODEL=claude-sonnet-5.5 ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-5.5 ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5.5 ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-sonnet-5.5 ANTHROPIC_API_KEY=${read_cmd} claude'"
   write_managed_line "$rc" "hermes-kiro" \
     "alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=${read_cmd} hermes --provider anthropic --model claude-sonnet-5.5'"
   echo "Reconciled claude-kiro/hermes-kiro in $rc. Activate: source $rc"
