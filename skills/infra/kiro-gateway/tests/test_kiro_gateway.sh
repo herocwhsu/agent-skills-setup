@@ -671,7 +671,8 @@ EOF
   # app crash-loops with "No Kiro credentials". The `! grep host-path` clause is
   # the discriminating assertion that catches that regression.
   if [[ -f "$envf" ]] && grep -q "^PROXY_API_KEY=test-key-123$" "$envf" \
-     && grep -q "^FIRST_TOKEN_TIMEOUT=120$" "$envf" \
+     && grep -q "^FIRST_TOKEN_TIMEOUT=240$" "$envf" \
+     && grep -q "^STREAMING_READ_TIMEOUT=600$" "$envf" \
      && grep -q "^SQLITE_READONLY=true$" "$envf" \
      && grep -q "^FAKE_REASONING=false$" "$envf" \
      && grep -q "^KIRO_CLI_DB_FILE=/home/kiro/.local/share/kiro-cli/data.sqlite3$" "$envf" \

@@ -365,8 +365,8 @@ render_env_file() {
   # (breaking auth and the DB path). --env-file reads the whole post-`=` line
   # verbatim, so spaces in the DB path (…/Application Support/…) are preserved.
   # FIRST_TOKEN_TIMEOUT: gateway default (15) 500s high-effort/large-prompt
-  # calls (e.g. Claude Code subagents) before first token; 120 avoids it and
-  # stays below STREAMING_READ_TIMEOUT (300).
+  # calls (e.g. Claude Code subagents) before first token; 240 covers slow
+  # replies and stays below STREAMING_READ_TIMEOUT (600).
   # SQLITE_READONLY: the kiro-cli data dir is bind-mounted :ro (see
   # start_container), so the gateway's post-refresh write-back to that DB can
   # never succeed. Left unset, every refresh logs two WARNINGs whose text
@@ -379,7 +379,7 @@ render_env_file() {
   # gateway passes on as an empty 200 reply. Upstream default is enabled.
   # umask scoped to a subshell so it doesn't leak to the rest of the script.
   ( umask 077
-    printf 'PROXY_API_KEY=%s\nKIRO_CLI_DB_FILE=%s\nFIRST_TOKEN_TIMEOUT=120\nSQLITE_READONLY=true\nFAKE_REASONING=false\n' "$key" "$db" > "$envf" )
+    printf 'PROXY_API_KEY=%s\nKIRO_CLI_DB_FILE=%s\nFIRST_TOKEN_TIMEOUT=240\nSTREAMING_READ_TIMEOUT=600\nSQLITE_READONLY=true\nFAKE_REASONING=false\n' "$key" "$db" > "$envf" )
   chmod 600 "$envf"
   echo "Rendered $envf (chmod 600)"
   sync_hermes_env_key "$key"
