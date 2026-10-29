@@ -48,7 +48,7 @@ flowchart TD
 - **On-Demand Entrypoint:** `scripts/harness-verify.sh` runs all repository gates (the Stop hooks below plus `hook-wiring-guard.sh`) and returns a single unified exit code (0 for pass, 1 for fail).
 - **Stop / SubagentStop Hooks:** Located in `harness/guards/` (with `.claude/hooks` symlink compatibility). Prevent agents from ending a turn or exiting subagents in an inconsistent state:
   - `registry-guard.sh`: Enforces `registry.txt` syntax, path resolution, and type tags.
-  - `types-guard.sh`: Whole-repo `mypy` type validation against `.python-version` (3.14.9). Fails loud on version drift or broken `.venv`.
+  - `types-guard.sh`: Whole-repo `mypy` type validation against `.python-version` (3.14.10). Fails loud on version drift or broken `.venv`.
   - `tests-guard.sh`: Delegates to `scripts/run-tests.sh` to run the full test suite.
   - `skill-paths-guard.sh`: Blocks skill shell recipes that build a repo path from an undefined variable, and `SKILL.md` frontmatter that is not strict YAML.
   - `bash-compat-guard.sh`: Blocks Bash 4+ constructs (`mapfile`/`readarray`, `declare -A`, `;&`) in any `*.sh`; `bash -n` and shellcheck accept them under Bash 5.
@@ -92,7 +92,7 @@ flowchart TD
 ├── init.sh                    # One-command harness startup & verification
 ├── pyproject.toml             # Python project manifest & build configuration
 ├── requirements-dev.txt       # Frozen development dependencies
-├── .python-version            # Pinned runtime version (3.14.9)
+├── .python-version            # Pinned runtime version (3.14.10)
 ├── agents/                    # Rules and agent-specific adapters
 │   ├── kiro/                  # Kiro IDE workflow prompts
 │   │   └── prompts/
@@ -130,7 +130,7 @@ flowchart TD
    - Prohibited: Bash 4+ features (`declare -A`, `mapfile`, `readarray`, `;&`).
 
 2. **Isolated Tooling & Zero Version Drift:**
-   - Python code must execute under Python 3.14.9.
+   - Python code must execute under Python 3.14.10.
    - Verification guards (`types-guard.sh`, `run-tests.sh`) resolve tools through `.venv/bin/` and fail loud if `.venv` exists but is broken or does not match `.python-version`. They fall back to ambient `python3`/`mypy` only when no `.venv` directory exists (CI runs that way); `init.sh` builds `.venv` first, so the fallback is not the contributor path.
 
 3. **Defensive Boundary Restrictions:**
