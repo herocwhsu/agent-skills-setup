@@ -540,6 +540,7 @@ only print what changed.
 ```bash
 outside-agent.sh run --purpose review --from claude -- "Review this diff: ..."
 outside-agent.sh run --purpose delegate --from claude --allow-edits --cwd ~/repo -- "..."
+outside-agent.sh run --purpose review --from gemini --model claude-opus-5-5 --effort high -- "..."
 outside-agent.sh status          # conf plus any rate-limit or login penalties
 outside-agent.sh reset kiro      # clear a penalty early (kind, group, or all)
 outside-agent.sh init --force    # re-detect and rewrite the conf
@@ -566,6 +567,12 @@ flowchart TD
 On exit 0, a successful answer counts only when the output is not itself a short
 status message such as `Not logged in` or `Usage limit reached`. An answer that just
 mentions "quota" or "401" is still an answer.
+
+`--model` picks one of agy's models (`agy models`: Gemini 3.8 Flash, Gemini 4 Argon,
+Claude Opus and Sonnet 5.5, GPT-OSS 120B) and tries agy only; with no agy in the conf it
+exits 2. `--effort` (low, medium, high) needs `--model` and must match a level the name
+already ends in, or agy refuses it. The run log records the model and the family its
+name implies (`claude-`, `gpt-`, `gemini-`), not agy's own gemini.
 
 ### Review flow
 

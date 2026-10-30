@@ -386,7 +386,27 @@ _AGY_REVIEW_OLD_REGEX = (
 )
 
 
-def build_argv(name: str, prompt: str, purpose: str, allow_edits: bool) -> list[str]:
+# agy serves other families too (agy models, 1.4.11): the family follows the model name.
+MODEL_RE = re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$")
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
+_MODEL_FAMILIES = (("claude-", "claude"), ("gpt-", "openai"), ("gemini-", "gemini"))
+
+
+def model_family(model: str) -> str:
+    return next((f for p, f in _MODEL_FAMILIES if model.startswith(p)), "unknown")
+
+
+def build_argv(
+    name: str,
+    prompt: str,
+    purpose: str,
+    allow_edits: bool,
+    model: str | None = None,
+    effort: str | None = None,
+) -> list[str]:
+    # agy rejects an --effort that differs from the level a model name ends in, so a
+    # chosen model gets --effort only when one was asked for.
+    chosen = ["--model", model, *(["--effort", effort] if effort else [])] if model else []
     if name == "claude-kiro":
         if purpose == "review":
             argv = [
@@ -419,6 +439,8 @@ def build_argv(name: str, prompt: str, purpose: str, allow_edits: bool) -> list[
             argv = [name, "exec", "--skip-git-repo-check", "-s", "workspace-write", prompt]
         else:
             argv = [name, "exec", "--skip-git-repo-check", "-s", "read-only", prompt]
+    elif purpose == "review" and model:
+        argv = ["agy", *chosen, "-p", f"{AGY_REVIEW_NOTE}\n\n{prompt}"]
     elif purpose == "review":
         # Headless agy refuses any tool outside the allowlist in its settings.json
         # (written by `outside-agent.sh allow-agy`) and then ends the run with no output, so the prompt steers it
@@ -433,17 +455,24 @@ def build_argv(name: str, prompt: str, purpose: str, allow_edits: bool) -> list[
             f"{AGY_REVIEW_NOTE}\n\n{prompt}",
         ]
     elif purpose == "investigate":
-        argv = ["agy", "--dangerously-skip-permissions", "-p", prompt]
+        argv = ["agy", "--dangerously-skip-permissions", *chosen, "-p", prompt]
     else:
         perm = ["--mode", "accept-edits" if allow_edits else "plan"]
-        argv = ["agy", "--dangerously-skip-permissions", *perm, "-p", prompt]
+        argv = ["agy", "--dangerously-skip-permissions", *perm, *chosen, "-p", prompt]
     if KINDS[name].group == "kiro":
         return [_shell(), "-i", "-c", shlex.join(argv)]
     return argv
 
 
 def run_one(
-    name: str, prompt: str, purpose: str, allow_edits: bool, timeout: int, cwd: str | None
+    name: str,
+    prompt: str,
+    purpose: str,
+    allow_edits: bool,
+    timeout: int,
+    cwd: str | None,
+    model: str | None = None,
+    effort: str | None = None,
 ) -> tuple[str, str]:
     env = dict(os.environ)
     env["OUTSIDE_AGENT_PURPOSE"] = purpose
@@ -453,7 +482,7 @@ def run_one(
     # Own session so a timeout can kill grandchildren that would otherwise hold the pipes open.
     try:
         proc = subprocess.Popen(
-            build_argv(name, prompt, purpose, allow_edits),
+            build_argv(name, prompt, purpose, allow_edits, model, effort),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             stdin=subprocess.DEVNULL,
@@ -623,12 +652,13 @@ def _log_outside_run(
     exit_code: int,
     independent: bool,
     cwd: str | None = None,
+    model: str | None = None,
 ) -> None:
     """Log outside agent run to runtime state and repo telemetry."""
     ts = datetime.now(UTC).isoformat()
     repo_root = _repo_root(cwd)
 
-    entry = {
+    entry: dict[str, Any] = {
         "timestamp": ts,
         "agent": name,
         "family": family,
@@ -639,6 +669,8 @@ def _log_outside_run(
         "repo": repo_root,
         "session_id": _session_id(),
     }
+    if model:
+        entry["model"] = model
     line = json.dumps(entry) + "\n"
 
     # 1. Runtime state directory (~/.agent-skills-setup/state/outside-agent-runs.jsonl)
@@ -669,13 +701,14 @@ def _log_attempt(
     duration_ms: int,
     reason: str | None = None,
     cwd: str | None = None,
+    model: str | None = None,
 ) -> None:
     """Record one attempt (any result) in the runtime state log. Never raises."""
-    entry = {
+    entry: dict[str, Any] = {
         "timestamp": datetime.now(UTC).isoformat(),
         "attempt": True,
         "agent": name,
-        "family": KINDS[name].family,
+        "family": model_family(model) if model else KINDS[name].family,
         "purpose": purpose,
         "caller_family": caller_family,
         "result": result,
@@ -685,6 +718,8 @@ def _log_attempt(
     }
     if reason:
         entry["reason"] = reason
+    if model:
+        entry["model"] = model
     try:
         log = runtime_dir() / "state" / "outside-agent-runs.jsonl"
         log.parent.mkdir(parents=True, exist_ok=True)
@@ -701,6 +736,12 @@ def cmd_run(a: argparse.Namespace) -> int:
     if a.cwd and not os.path.isdir(a.cwd):
         _say(f"--cwd {a.cwd} is not a directory")
         return 2
+    if a.effort and not a.model:
+        _say("--effort needs --model")
+        return 2
+    if a.model is not None and not MODEL_RE.match(a.model):
+        _say(f"--model {a.model!r}: use a name from `agy models` (a-z, 0-9, '.', '-')")
+        return 2
     if a.timeout is None:
         a.timeout = default_timeout(a.purpose)
     try:
@@ -708,6 +749,13 @@ def cmd_run(a: argparse.Namespace) -> int:
     except ConfError as e:
         _say(str(e))
         return 2
+    if a.model:
+        # Only agy takes a model name; another agent would silently run its own default.
+        if "agy" not in conf:
+            _say(f"--model needs agy in {conf_path()}")
+            return 2
+        conf = ["agy"]
+    model = a.model
     state = load_state()
     now = _now()
     order, skipped = order_candidates(conf, state, now, a.purpose, a.from_)
@@ -723,17 +771,26 @@ def cmd_run(a: argparse.Namespace) -> int:
         if KINDS[name].group in limited:
             notes.append(f"{name}(rate_limit, shared quota)")
             _log_attempt(
-                name, a.purpose, a.from_, "skipped", 0, "shared quota rate limited", cwd=a.cwd
+                name,
+                a.purpose,
+                a.from_,
+                "skipped",
+                0,
+                "shared quota rate limited",
+                cwd=a.cwd,
+                model=model,
             )
             continue
         why = precheck(name, env)
         if why:
             notes.append(f"{name}(precheck: {why})")
-            _log_attempt(name, a.purpose, a.from_, "skipped", 0, why, cwd=a.cwd)
+            _log_attempt(name, a.purpose, a.from_, "skipped", 0, why, cwd=a.cwd, model=model)
             continue
         started = time.monotonic()
         try:
-            cls, out = run_one(name, prompt, a.purpose, a.allow_edits, a.timeout, a.cwd)
+            cls, out = run_one(
+                name, prompt, a.purpose, a.allow_edits, a.timeout, a.cwd, model, a.effort
+            )
         except BaseException:
             _log_attempt(
                 name,
@@ -742,6 +799,7 @@ def cmd_run(a: argparse.Namespace) -> int:
                 "interrupted",
                 int((time.monotonic() - started) * 1000),
                 cwd=a.cwd,
+                model=model,
             )
             raise
         elapsed_ms = int((time.monotonic() - started) * 1000)
@@ -758,22 +816,26 @@ def cmd_run(a: argparse.Namespace) -> int:
             elapsed_ms,
             error_reason(out) if result == "error" else None,
             cwd=a.cwd,
+            model=model,
         )
         if cls == "ok":
             print(out)
             if state["auth"].pop(name, None) is not None:
                 save_state(state)
-            used = f"used={name} skipped={','.join(notes) or '-'}"
+            used = (
+                f"used={name}{f' model={model}' if model else ''} skipped={','.join(notes) or '-'}"
+            )
             # Owner decision 2026-10-20: a fresh context makes a reviewer independent,
             # whatever its model family.
             _log_outside_run(
                 name=name,
-                family=KINDS[name].family,
+                family=model_family(model) if model else KINDS[name].family,
                 purpose=a.purpose,
                 caller_family=a.from_,
                 exit_code=0,
                 independent=True,
                 cwd=a.cwd,
+                model=model,
             )
             _say(used)
             return 0
@@ -958,6 +1020,8 @@ def main(argv: list[str]) -> int:
     )
     r.add_argument("--cwd")
     r.add_argument("--allow-edits", action="store_true")
+    r.add_argument("--model", help="agy model from `agy models`; runs agy only")
+    r.add_argument("--effort", choices=EFFORTS, help="agy effort; needs --model")
     r.add_argument(
         "--rubric",
         action="store_true",

@@ -147,6 +147,21 @@
       ],
       "verification": ".venv/bin/pytest tests/test_outside_agent.py && bash scripts/harness-verify.sh",
       "evidence": "Added '--purpose investigate' profile supporting unprompted network & inspection access; claude-kiro uses safe tool allowlisting for review ('Bash(git *),Bash(cat *),Bash(grep *),Read,Glob,Grep') and investigate ('Bash,Read,Glob,Grep') avoiding auto-mode 402 errors; codex-kiro uses '-s danger-full-access' for investigate and '-s read-only' for review; agy review allowlist expanded to include find, which, stat, file, and 2>&1; candidate tool denials cascade to subsequent candidates; secret-scan skips for both review and investigate. 213 unit tests passed, all 11 harness gates passed."
+    },
+    {
+      "id": "feat-110",
+      "name": "outside-agent run picks agy's model and effort",
+      "description": "Owner request 2026-10-30: raise outside agents on Gemini 3.8 Flash, Gemini 4 Argon, Opus 5.5 or GPT through agy. agy 1.4.11 serves gemini-3.8-flash, gemini-4-argon, claude-opus-5-5, claude-sonnet-5-5 (low/medium/high) and gpt-oss-120b (medium); --effort must match a suffixed name. `outside-agent.sh run` had no way to choose: review pinned gemini-4-argon-high, delegate took agy's default, and every agy row was logged as family gemini.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "run --model <name> [--effort <level>] passes them to agy for review and delegate, and tries agy only",
+        "--effort without --model, a name outside [a-z0-9.-], or --model with no agy in the conf exits 2 without running an agent",
+        "the run log names the model and the family it implies (claude-, gpt-, gemini-)",
+        "without --model the argv is unchanged"
+      ],
+      "verification": ".venv/bin/python -m pytest -q tests/test_outside_agent.py",
+      "evidence": "scripts/outside_agent.py: run --model (MODEL_RE [a-z0-9][a-z0-9.-]{0,63}) and --effort (low..max, needs --model); with --model the conf narrows to agy (exit 2 if absent); review keeps the allowlist path (no skip-permissions, note prepended), delegate adds the model after its permission flags; --effort passed only when given, as agy rejects a level that differs from the name's. Attempt and run rows carry model and model_family (claude-/gpt-/gemini-, else unknown); stderr says used=agy model=X. Tests first: 22 new cases failed, 227 pass after; mypy clean. Live: review via claude-opus-5-5 --effort medium answered (logged family claude); gemini-4-argon-low --effort high exited 2. Found while testing: agy delegates in this repo time out because agy runs the repo's Stop hook gates (~100 s) after answering (PROGRESS Blockers). Reviews: two subagents (correctness, security): no confirmed defects. README documents --model."
     }
   ]
 }

@@ -23,6 +23,7 @@
 ### What's In Progress
 
 - Nothing active (WIP=0). feat-109 done 2026-11-04 (outside-agent investigation profile, tool-level permission resilience, allowlist expansion, candidate cascade fallback); before it feat-108 done 2026-10-24, feat-098 done 2026-10-25.
+- feat-110 done 2026-10-30: `outside-agent.sh run --model <agy model> [--effort]` runs agy only on that model (Gemini 3.8 Flash, Gemini 4 Argon, Claude Opus/Sonnet 5.5, GPT-OSS 120B); the log records the model and its family. Open: the shipped rules (agents/engineering-rules.md:77) still say "agy reviews on Gemini 3.8 Flash High" while 987b146 pinned gemini-4-argon-high; fixing it needs install-agents-md.sh (ask the owner). Planned queue in this repo is empty.
 
 ### What's Next
 
@@ -52,6 +53,13 @@
   `outside-agent.sh`'s 110s default `--timeout`. On 2026-10-12, 9 runs took 7-15s in every condition
   (see queue item 3). If it recurs, record the time and whether `agy` was cold. For a review that may
   fall through to `agy`, pass `--timeout 900`.
+  **One cause found 2026-10-30:** in this repo agy runs `.agents/hooks.json`'s Stop hook
+  (`stop-verify.sh`, the full gates, ~100 s) after its answer, so every agy delegate run here hit the
+  100-110 s timeout (any model; 7 s from a scratch dir; agy's cli.log: "custom stop hook ...
+  harness-verify ... signal: terminated"). Running the gates after a delegate is by design
+  (stop-verify.sh skips them only for reviews; test_agent_hook.sh pins it), so the 110 s delegate
+  default is too short here: delegate to agy with `--timeout 300`, or `--cwd` outside this repo for a
+  question that edits nothing.
 
 ## Decisions Made
 

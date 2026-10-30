@@ -192,6 +192,43 @@ def test_build_argv_agy_review_is_held_by_its_allowlist_not_skipped():
     assert "--dangerously-skip-permissions" in delegate and delegate[-1] == "p"
 
 
+def test_build_argv_agy_review_takes_a_chosen_model_and_effort():
+    review = oa.build_argv("agy", "p", "review", False, model="claude-opus-5-5", effort="high")
+    assert review[review.index("--model") + 1] == "claude-opus-5-5"
+    assert review[review.index("--effort") + 1] == "high"
+    assert "--dangerously-skip-permissions" not in review
+    assert review[-2] == "-p" and "do not run tests" in review[-1]
+
+
+def test_build_argv_agy_model_without_effort_passes_no_effort():
+    # agy rejects --effort high next to a name ending in another level (gemini-4-argon-low).
+    review = oa.build_argv("agy", "p", "review", False, model="gemini-4-argon-low")
+    assert "--effort" not in review
+    assert review[review.index("--model") + 1] == "gemini-4-argon-low"
+
+
+def test_build_argv_agy_delegate_takes_a_chosen_model():
+    d = oa.build_argv("agy", "p", "delegate", True, model="gpt-oss-120b", effort="medium")
+    assert "--dangerously-skip-permissions" in d and d[-2:] == ["-p", "p"]
+    assert d[d.index("--model") + 1] == "gpt-oss-120b"
+    assert d[d.index("--effort") + 1] == "medium"
+
+
+@pytest.mark.parametrize(
+    "model,family",
+    [
+        ("claude-opus-5-5-high", "claude"),
+        ("claude-sonnet-5-5", "claude"),
+        ("gpt-oss-120b-medium", "openai"),
+        ("gemini-3.8-flash-low", "gemini"),
+        ("gemini-4-argon", "gemini"),
+        ("my-custom-model", "unknown"),
+    ],
+)
+def test_model_family_follows_the_name(model, family):
+    assert oa.model_family(model) == family
+
+
 def test_run_one_agy_denial_reports_its_stderr(stubenv):
     bin_, _ = stubenv
     _stub(
@@ -766,6 +803,67 @@ def _run_agy(stubenv, body: str, *extra: str):
     return r, _attempts(home)
 
 
+def test_cli_model_runs_agy_only_with_that_model(stubenv, monkeypatch):
+    bin_, home = stubenv
+    monkeypatch.setenv("OUTSIDE_AGENT_SKIP_KEYCHAIN", "1")
+    _stub(bin_, "claude", "touch " + str(home / "claude-called") + "; echo FROM-CLAUDE")
+    _stub(bin_, "agy", 'printf "%s\\n" "$@" > ' + str(home / "agy-argv") + "; echo FROM-AGY")
+    _conf(home, "claude", "agy")
+    r = cli(
+        "run", "--purpose", "delegate", "--from", "gemini",
+        "--model", "claude-opus-5-5", "--effort", "high", "--", "p",
+    )  # fmt: skip
+    assert r.returncode == 0 and r.stdout.strip() == "FROM-AGY", r.stderr
+    assert not (home / "claude-called").exists()
+    argv = (home / "agy-argv").read_text().splitlines()
+    assert argv[argv.index("--model") + 1] == "claude-opus-5-5"
+    assert argv[argv.index("--effort") + 1] == "high"
+    assert "used=agy" in r.stderr and "model=claude-opus-5-5" in r.stderr
+    rows = [
+        json.loads(x)
+        for x in (oa.runtime_dir() / "state" / "outside-agent-runs.jsonl").read_text().splitlines()
+    ]
+    assert {(x["agent"], x["family"], x["model"]) for x in rows} == {
+        ("agy", "claude", "claude-opus-5-5")
+    }
+
+
+def test_cli_model_without_agy_in_conf_exits_2(stubenv, monkeypatch):
+    bin_, home = stubenv
+    monkeypatch.setenv("OUTSIDE_AGENT_SKIP_KEYCHAIN", "1")
+    _stub(bin_, "claude", "touch " + str(home / "called") + "; echo OK")
+    _conf(home, "claude")
+    r = cli(
+        "run", "--purpose", "review", "--from", "gemini", "--model", "gemini-4-argon", "--", "p"
+    )
+    assert r.returncode == 2 and "--model needs agy" in r.stderr
+    assert not (home / "called").exists()
+
+
+@pytest.mark.parametrize(
+    "extra,msg",
+    [
+        (["--effort", "high"], "--effort needs --model"),
+        (["--model", "-x"], "--model"),
+        (["--model", "a b"], "--model"),
+        (["--model", "../x"], "--model"),
+        (["--model", "Gemini"], "--model"),
+        (["--model", "gemini-4-argon", "--effort", "huge"], "--effort"),
+    ],
+)
+def test_cli_bad_model_or_effort_exits_2_without_running(stubenv, extra, msg):
+    _, home = stubenv
+    r, att = _run_agy(stubenv, "touch " + str(home / "called") + "; echo OK", *extra)
+    assert r.returncode == 2 and msg in r.stderr
+    assert not (home / "called").exists() and att == []
+
+
+def test_cli_without_model_logs_no_model(stubenv):
+    r, att = _run_agy(stubenv, "echo OK")
+    assert r.returncode == 0 and "model" not in att[0] and att[0]["family"] == "gemini"
+    assert "model=" not in r.stderr
+
+
 def test_attempt_logged_for_success_with_duration(stubenv):
     r, att = _run_agy(stubenv, "echo OK")
     assert r.returncode == 0
@@ -888,7 +986,7 @@ def test_attempt_logged_for_shared_quota_skip(stubenv, monkeypatch):
     monkeypatch.setattr(oa, "precheck", lambda name, env: None)
     calls: list[str] = []
 
-    def fake_run_one(name, prompt, purpose, allow_edits, timeout, cwd):
+    def fake_run_one(name, prompt, purpose, allow_edits, timeout, cwd, model=None, effort=None):
         calls.append(name)
         return "rate_limit", "usage limit reached"
 
@@ -901,6 +999,8 @@ def test_attempt_logged_for_shared_quota_skip(stubenv, monkeypatch):
         cwd=None,
         allow_edits=False,
         rubric=False,
+        model=None,
+        effort=None,
     )
     assert oa.cmd_run(args) == 2
     assert calls == ["claude-kiro"]
