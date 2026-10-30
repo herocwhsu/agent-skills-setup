@@ -1360,6 +1360,14 @@ def _agy_allows(cmd):
     return False
 
 
+def test_agy_review_note_steers_alternation_to_a_form_the_allowlist_takes():
+    # 2026-10-30: a Flash review ended with no answer on grep -rn "a\|b" (4 of 19 agy reviews
+    # ended on a refused command); the note names the form that passes.
+    assert "grep -e a -e b" in oa.AGY_REVIEW_NOTE
+    assert _agy_allows("grep -rn -e caller_family -e family scripts/trace_evaluation.py")
+    assert not _agy_allows('grep -rn "caller_family\\|family" scripts/trace_evaluation.py')
+
+
 def test_agy_review_commands_stay_inside_the_repo():
     for ok in (
         "cat scripts/outside_agent.py",

@@ -308,6 +308,7 @@ AGY_REVIEW_NOTE = (
     "They take plain or quoted arguments, short flags and `--`; git also takes --stat, "
     "--name-only, --format=..., --unified=... style options; any of them may pipe into grep, "
     "head, tail or wc. grep, cat, head, tail, ls, wc, find, which, stat, file take no long options (no --include). "
+    "To search for several patterns use grep -e a -e b, not \\| or | inside quotes. "
     "No argument may start with /, ~ or =, or use .. as a path part; a quoted argument may "
     "not start with - or contain .. anywhere; no globs. Any other command, $ or backtick, "
     "or path outside the repository is refused and "
