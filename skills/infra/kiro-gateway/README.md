@@ -48,8 +48,11 @@ bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh setup-alias
 `claude-kiro` is a shell alias that launches Claude Code with the gateway as its backend. The proxy key is read from keychain at runtime:
 
 ```bash
-alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null) claude'
+alias claude-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_MODEL=claude-sonnet-5.5 ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-5.5 ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5.5 ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-sonnet-5.5 ANTHROPIC_API_KEY=$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null) claude'
+alias hermes-kiro='ANTHROPIC_BASE_URL=http://localhost:7788 ANTHROPIC_API_KEY=$(security find-generic-password -s "agent-skills-setup:kiro-gateway" -a "proxy-key" -w 2>/dev/null) hermes --provider anthropic --model claude-sonnet-5.5'
 ```
+
+All model slots are pinned because the gateway lists ids that answer HTTP 400 for this subscription (`claude-haiku-4.5`, `claude-sonnet-5`, `auto-kiro`). The haiku slot uses `claude-sonnet-5.5`. `setup-alias` writes both aliases; re-run it instead of copying them by hand.
 
 On Linux, `secret-tool` is used instead of `security`. On headless Linux, the key falls back to `$KIRO_PROXY_KEY` set in `~/.zshrc.local`.
 
@@ -108,6 +111,8 @@ codex-kiro exec "reply with OK"
 | Host port | `127.0.0.1:7788` |
 | Container port | `8000` |
 | Volume | `<kiro-data-dir> → /home/kiro/.local/share/kiro-cli` (read-only) |
+| Volume | `$HOME/kiro-gateway-logs → /app/debug_logs` |
+| Env file | `$HOME/.env.kiro-gateway`, rendered by `init` and `update`: `PROXY_API_KEY`, `KIRO_CLI_DB_FILE`, `FIRST_TOKEN_TIMEOUT=240`, `STREAMING_READ_TIMEOUT=600`, `SQLITE_READONLY=true`, `FAKE_REASONING=false`. Docker binds it when the container is created, so a change needs stop, rm and `init` |
 | Restart | `unless-stopped` |
 
 Data dir by platform:
@@ -153,3 +158,5 @@ build path (linked vs. cloned) and the current image tag.
 **"docker: command not found"** — Install Docker Desktop (macOS) or `docker-ce` (Linux).
 
 **"no previous version recorded"** — `rollback` requires at least one prior `update`. There is no version before the first SHA-tagged build.
+
+**"previous image kiro-gateway:<sha> not present on this host"** — the state file names a previous SHA whose image was removed (for example by `docker image prune`). `status` still advertises that rollback. Rebuild the image from the fork at that commit, or edit `previous=` out of the state file; `rollback` cannot work until one of these is done.
