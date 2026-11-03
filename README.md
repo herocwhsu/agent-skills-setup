@@ -572,7 +572,9 @@ mentions "quota" or "401" is still an answer.
 Claude Opus and Sonnet 5.5, GPT-OSS 120B) and tries agy only; with no agy in the conf it
 exits 2. `--effort` (low, medium, high) needs `--model` and must match a level the name
 already ends in, or agy refuses it. The run log records the model and the family its
-name implies (`claude-`, `gpt-`, `gemini-`), not agy's own gemini.
+name implies (`claude-`, `gpt-`, `gemini-`), not agy's own gemini. Reviews without
+`--model` run on `gemini-3.8-flash-high`; pass `--model gemini-4-argon-high` for hard
+decisions, investigation and plans.
 
 ### Review flow
 

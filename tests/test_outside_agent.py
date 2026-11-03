@@ -183,7 +183,7 @@ def test_build_argv_agy_review_is_held_by_its_allowlist_not_skipped():
     review = oa.build_argv("agy", "p", "review", False)
     assert "--dangerously-skip-permissions" not in review
     assert "--mode" not in review
-    assert review[review.index("--model") + 1] == "gemini-4-argon-high"
+    assert review[review.index("--model") + 1] == "gemini-3.8-flash-high"
     assert review[-2] == "-p" and review[-1].endswith("\n\np")
     assert "do not run tests" in review[-1]
     assert "inside this repository" in review[-1]

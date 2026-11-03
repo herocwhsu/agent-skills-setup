@@ -23,7 +23,7 @@
 ### What's In Progress
 
 - Nothing active (WIP=0). feat-109 done 2026-11-04 (outside-agent investigation profile, tool-level permission resilience, allowlist expansion, candidate cascade fallback); before it feat-108 done 2026-10-24, feat-098 done 2026-10-25.
-- feat-110 done 2026-10-30: `outside-agent.sh run --model <agy model> [--effort]` runs agy only on that model (Gemini 3.8 Flash, Gemini 4 Argon, Claude Opus/Sonnet 5.5, GPT-OSS 120B); the log records the model and its family. Open: the shipped rules (agents/engineering-rules.md:77) still say "agy reviews on Gemini 3.8 Flash High" while 987b146 pinned gemini-4-argon-high; fixing it needs install-agents-md.sh (ask the owner). Planned queue in this repo is empty.
+- feat-110 done 2026-10-30: `outside-agent.sh run --model <agy model> [--effort]` runs agy only on that model (Gemini 3.8 Flash, Gemini 4 Argon, Claude Opus/Sonnet 5.5, GPT-OSS 120B); the log records the model and its family. Review pin back on gemini-3.8-flash-high 2026-11-03 (see Decisions), matching the shipped rules. Planned queue in this repo is empty.
 
 ### What's Next
 
@@ -62,6 +62,10 @@
   question that edits nothing.
 
 ## Decisions Made
+
+- **agy model by task (owner, 2026-11-03):** reviews run on Gemini 3.8 Flash High (the
+  default pin); Gemini 4 Argon (`--model gemini-4-argon-high`) is for hard decisions,
+  investigation and planning. Supersedes the 2026-10-29 Argon review pin (987b146).
 
 - **feat-099 moves to hangar (owner, 2026-10-25):** failed checks printing reason, message and
   events per object is Kubernetes-specific and only hangar's playbooks need it; sync delivers hooks,

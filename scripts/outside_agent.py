@@ -297,8 +297,9 @@ def _perm(name: str, purpose: str, allow_edits: bool) -> list[str]:
     return ["--mode", "accept-edits" if edit else "plan"]
 
 
-# Pinned by the owner (2026-10-29): Gemini Pro 4.0 Argon High
-AGY_REVIEW_MODEL = "gemini-4-argon-high"
+# Pinned by the owner (2026-11-03): Flash High for reviews; Gemini 4 Argon is chosen with
+# --model for hard decisions, investigation and plans.
+AGY_REVIEW_MODEL = "gemini-3.8-flash-high"
 AGY_REVIEW_NOTE = (
     "The test and gate output is in this prompt: do not run tests, gates, or install, update "
     "or sync scripts. Read code with your file viewing and search tools, on files inside this "
