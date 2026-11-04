@@ -217,6 +217,13 @@ def test_build_argv_kiro_uses_interactive_shell(monkeypatch):
     assert "'\"'\"'" in argv[3] or "\\'" in argv[3]
 
 
+def test_build_argv_kiro_permission_flags():
+    ck = oa.build_argv("claude-kiro", "p", "review", False)
+    assert "--dangerously-skip-permissions" in ck[3]
+    cxk = oa.build_argv("codex-kiro", "p", "review", False)
+    assert "--dangerously-bypass-approvals-and-sandbox" in cxk[3]
+
+
 def test_precheck_kiro_fails_when_gateway_down(stubenv):
     assert oa.precheck("claude-kiro", dict(os.environ)) == "kiro-gateway not answering"
 

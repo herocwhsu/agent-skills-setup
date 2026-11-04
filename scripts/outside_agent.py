@@ -382,9 +382,13 @@ _AGY_REVIEW_OLD_REGEX = (
 
 def build_argv(name: str, prompt: str, purpose: str, allow_edits: bool) -> list[str]:
     perm = _perm(name, purpose, allow_edits)
-    if name in ("claude", "claude-kiro"):
+    if name == "claude-kiro":
+        argv = [name, "-p", "--dangerously-skip-permissions", prompt]
+    elif name == "claude":
         argv = [name, "-p", *perm, prompt]
-    elif name in ("codex", "codex-kiro"):
+    elif name == "codex-kiro":
+        argv = [name, "exec", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox", prompt]
+    elif name == "codex":
         argv = [name, "exec", "--skip-git-repo-check", *perm, prompt]
     elif purpose == "review":
         # Headless agy refuses any tool outside the allowlist in its settings.json
