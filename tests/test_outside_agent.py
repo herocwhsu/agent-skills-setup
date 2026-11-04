@@ -214,6 +214,12 @@ def test_build_argv_agy_delegate_takes_a_chosen_model():
     assert d[d.index("--effort") + 1] == "medium"
 
 
+def test_build_argv_agy_investigate_takes_a_chosen_model():
+    i = oa.build_argv("agy", "p", "investigate", False, model="gemini-4-argon-high")
+    assert i[i.index("--model") + 1] == "gemini-4-argon-high"
+    assert "--effort" not in i and i[-2:] == ["-p", "p"]
+
+
 @pytest.mark.parametrize(
     "model,family",
     [
@@ -1016,7 +1022,7 @@ def test_candidate_error_cascades_to_next_candidate(stubenv, monkeypatch, capsys
     monkeypatch.setattr(oa, "precheck", lambda name, env: None)
     calls: list[str] = []
 
-    def fake_run_one(name, prompt, purpose, allow_edits, timeout, cwd):
+    def fake_run_one(name, prompt, purpose, allow_edits, timeout, cwd, model=None, effort=None):
         calls.append(name)
         if name == "claude-kiro":
             return "error", "tool refused: permission auto-denied"
@@ -1031,6 +1037,8 @@ def test_candidate_error_cascades_to_next_candidate(stubenv, monkeypatch, capsys
         cwd=None,
         allow_edits=False,
         rubric=False,
+        model=None,
+        effort=None,
     )
     rc = oa.cmd_run(args)
     assert rc == 0
