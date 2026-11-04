@@ -34,56 +34,10 @@
     "docs/archive/features/archive-feat-102-102.json",
     "docs/archive/features/archive-feat-103-103.json",
     "docs/archive/features/archive-feat-104-104.json",
-    "docs/archive/features/archive-feat-097-105.json"
+    "docs/archive/features/archive-feat-097-105.json",
+    "docs/archive/features/archive-feat-098-106.json"
   ],
   "features": [
-    {
-      "id": "feat-098",
-      "name": "a cleanup step names its root cause",
-      "description": "A step that deletes or restarts things to clear a symptom must point to its root cause (feat, issue or PROGRESS entry). Found 2026-10-23: 'delete dead pods' hid hangar's graceful-shutdown bug.",
-      "dependencies": [
-        "feat-097"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "a cleanup step without a cause reference is flagged"
-      ],
-      "verification": "bash scripts/tests/test_handover_guard.sh",
-      "evidence": "templates/hooks/common/handover-guard.sh: in scripts/handover/*.sh a cleanup step (kubectl delete, rollout restart, rm -r in any flag order, docker rm; continued lines joined, last line included) needs '# cause: <feat-NNN|ABC-123|#12|URL|PROGRESS>' directly above or trailing; the error names the line. Owner choice 2026-10-25: extend handover-guard. scripts/tests/test_handover_guard.sh 83/83 (bash 3.2); hangar's script passes; 11 gates OK. Two review rounds (2 subagents each; round 2's security result arrived after its fixes and led to a third fix pass) found flag orders, quoted trailing causes, $( ), 'because:', continuation, a quadratic comment strip (128 s on 160 KB, now ~1 s) and name=value paths, all fixed test-first. Known limits in the guard header.",
-      "execution_summary": {
-        "run_id": "e6c10a0f-3663c18adf",
-        "output_tokens": 31103,
-        "wall_time_ms": 57241524,
-        "active_turn_time_ms": 3216708,
-        "subagents": 4,
-        "subagent_output_tokens": 43738
-      }
-    },
-    {
-      "id": "feat-106",
-      "name": "architecture.md matches the two-layer harness",
-      "description": "architecture.md says Python 3.14.7, ~/.gemini/skills, statuses done/in-progress, and leaves out agent-harness.json, skill packs, global hooks, the runtime dir and target-repos.txt. Rewrite after feat-103 to feat-105 so it describes the final layout once.",
-      "dependencies": [
-        "feat-103",
-        "feat-104",
-        "feat-105"
-      ],
-      "status": "completed",
-      "acceptance_criteria": [
-        "every path, version and status value in architecture.md exists in the repo or host as written",
-        "the two-layer harness has its own section"
-      ],
-      "verification": "bash scripts/harness-verify.sh",
-      "evidence": "Fixed 3.14.7 to 3.14.9 (3 places), ~/.gemini/skills to the real per-agent dirs, statuses to planned/in_progress/completed, the deleted harness/guards hooks to the templates with their knobs; added section 2.5 (two-layer harness: target-repos.txt, agent-harness.json, harness_adapter check/drift/sync/sync-all, runtime dir, global hooks, packs) and layout rows for .agents, .codex, config/skill-packs.json. A script checked every backticked path: all exist in the repo or under ~, except runtime-relative names (hooks/*.sh, harness-version.json), target-repo files and generic or example names. Docs only, no review.",
-      "execution_summary": {
-        "run_id": "e6c10a0f-d32568b116",
-        "output_tokens": 7710,
-        "wall_time_ms": 1218002,
-        "active_turn_time_ms": 219716,
-        "subagents": 0,
-        "subagent_output_tokens": 0
-      }
-    },
     {
       "id": "feat-107",
       "name": "py-guard pip-audit runs; agent-hook checks Codex move targets",
@@ -161,7 +115,15 @@
         "without --model the argv is unchanged"
       ],
       "verification": ".venv/bin/python -m pytest -q tests/test_outside_agent.py",
-      "evidence": "scripts/outside_agent.py: run --model (MODEL_RE [a-z0-9][a-z0-9.-]{0,63}) and --effort (low..max, needs --model); with --model the conf narrows to agy (exit 2 if absent); review keeps the allowlist path (no skip-permissions, note prepended), delegate adds the model after its permission flags; --effort passed only when given, as agy rejects a level that differs from the name's. Attempt and run rows carry model and model_family (claude-/gpt-/gemini-, else unknown); stderr says used=agy model=X. Tests first: 22 new cases failed, 227 pass after; mypy clean. Live: review via claude-opus-5-5 --effort medium answered (logged family claude); gemini-4-argon-low --effort high exited 2. Found while testing: agy delegates in this repo time out because agy runs the repo's Stop hook gates (~100 s) after answering (PROGRESS Blockers). Reviews: two subagents (correctness, security): no confirmed defects. README documents --model."
+      "evidence": "scripts/outside_agent.py: run --model (MODEL_RE [a-z0-9][a-z0-9.-]{0,63}) and --effort (low..max, needs --model); with --model the conf narrows to agy (exit 2 if absent); review keeps the allowlist path (no skip-permissions, note prepended), delegate adds the model after its permission flags; --effort passed only when given, as agy rejects a level that differs from the name's. Attempt and run rows carry model and model_family (claude-/gpt-/gemini-, else unknown); stderr says used=agy model=X. Tests first: 22 new cases failed, 227 pass after; mypy clean. Live: review via claude-opus-5-5 --effort medium answered (logged family claude); gemini-4-argon-low --effort high exited 2. Found while testing: agy delegates in this repo time out because agy runs the repo's Stop hook gates (~100 s) after answering (PROGRESS Blockers). Reviews: two subagents (correctness, security): no confirmed defects. README documents --model.",
+      "execution_summary": {
+        "run_id": "e6c10a0f-de353ecc7c",
+        "output_tokens": 63772,
+        "wall_time_ms": 455920330,
+        "active_turn_time_ms": 51909532,
+        "subagents": 2,
+        "subagent_output_tokens": 7208
+      }
     }
   ]
 }

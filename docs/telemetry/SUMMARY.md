@@ -23,6 +23,8 @@
 | `8b3bd4d` | 2026-10-24 09:02:20 | `claude` | 21 out (agy) | - | ~5,896 tok | 152 lines | 97 lines | 4 (0 act) | **OK** |
 | `6608cc5` | 2026-10-24 13:24:49 | `claude` | 56 out (agy) | - | ~5,528 tok | 130 lines | 102 lines | 3 (0 act) | **OK** |
 | `dbf5697` | 2026-10-25 05:20:11 | `claude` | 29 out (agy) | - | ~5,786 tok | 126 lines | 107 lines | 4 (0 act) | **OK** |
+| `c434f59` | 2026-10-30 12:02:45 | `claude` | 22 out (agy) | - | ~6,602 tok | 149 lines | 114 lines | 5 (0 act) | **WARN** |
 | `9e90d03` | 2026-11-04 07:42:00 | `agy` | 56 out (agy) | - | ~5,789 tok | 152 lines | 104 lines | 5 (0 act) | **OK** |
 
-✅ **Status:** All state layer metrics are within clean-state limits.
+### Actionable Remediation & Suggestions
+- ⚠️ **[ACTION]** State layer tokens exceed 6000 tokens (~6,602 tokens) — context bloat detected.
