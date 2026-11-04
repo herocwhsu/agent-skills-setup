@@ -218,10 +218,37 @@ def test_build_argv_kiro_uses_interactive_shell(monkeypatch):
 
 
 def test_build_argv_kiro_permission_flags():
-    ck = oa.build_argv("claude-kiro", "p", "review", False)
-    assert "--dangerously-skip-permissions" in ck[3]
-    cxk = oa.build_argv("codex-kiro", "p", "review", False)
-    assert "--dangerously-bypass-approvals-and-sandbox" in cxk[3]
+    ck_rev = oa.build_argv("claude-kiro", "p", "review", False)
+    assert "--allowedTools" in ck_rev[3]
+    assert "Bash(git *)" in ck_rev[3]
+    ck_inv = oa.build_argv("claude-kiro", "p", "investigate", False)
+    assert "--allowedTools" in ck_inv[3] and "Bash,Read,Glob,Grep" in ck_inv[3]
+    ck_del = oa.build_argv("claude-kiro", "p", "delegate", True)
+    assert "--dangerously-skip-permissions" in ck_del[3]
+
+    cxk_rev = oa.build_argv("codex-kiro", "p", "review", False)
+    assert "-s read-only" in cxk_rev[3]
+    cxk_inv = oa.build_argv("codex-kiro", "p", "investigate", False)
+    assert "-s danger-full-access" in cxk_inv[3]
+    cxk_del = oa.build_argv("codex-kiro", "p", "delegate", True)
+    assert "-s workspace-write" in cxk_del[3]
+
+
+def test_build_argv_investigate_profile():
+    ck = oa.build_argv("claude-kiro", "p", "investigate", False)
+    assert "Bash,Read,Glob,Grep" in ck[3]
+
+    cxk = oa.build_argv("codex-kiro", "p", "investigate", False)
+    assert "-s danger-full-access" in cxk[3]
+
+    cl = oa.build_argv("claude", "p", "investigate", False)
+    assert "--permission-mode" in cl and "plan" in cl
+
+    cx = oa.build_argv("codex", "p", "investigate", False)
+    assert "-s" in cx and "danger-full-access" in cx
+
+    agy = oa.build_argv("agy", "p", "investigate", False)
+    assert "--dangerously-skip-permissions" in agy and agy[-1] == "p"
 
 
 def test_precheck_kiro_fails_when_gateway_down(stubenv):
@@ -883,6 +910,40 @@ def test_attempt_logged_for_shared_quota_skip(stubenv, monkeypatch):
     ]
 
 
+def test_candidate_error_cascades_to_next_candidate(stubenv, monkeypatch, capsys):
+    bin_, home = stubenv
+    _conf(home, "claude-kiro", "codex-kiro")
+    monkeypatch.setattr(oa, "precheck", lambda name, env: None)
+    calls: list[str] = []
+
+    def fake_run_one(name, prompt, purpose, allow_edits, timeout, cwd):
+        calls.append(name)
+        if name == "claude-kiro":
+            return "error", "tool refused: permission auto-denied"
+        return "ok", "success from codex-kiro"
+
+    monkeypatch.setattr(oa, "run_one", fake_run_one)
+    args = argparse.Namespace(
+        purpose="investigate",
+        from_="gemini",
+        prompt="diagnose issue",
+        timeout=5,
+        cwd=None,
+        allow_edits=False,
+        rubric=False,
+    )
+    rc = oa.cmd_run(args)
+    assert rc == 0
+    assert calls == ["claude-kiro", "codex-kiro"]
+    captured = capsys.readouterr()
+    assert "success from codex-kiro" in captured.out
+    assert "used=codex-kiro skipped=claude-kiro(error)" in captured.err
+    assert [(a["agent"], a["result"]) for a in _attempts(home)] == [
+        ("claude-kiro", "error"),
+        ("codex-kiro", "ok"),
+    ]
+
+
 def test_error_attempt_records_a_bounded_scrubbed_reason(stubenv):
     r, att = _run_agy(
         stubenv,
@@ -919,6 +980,7 @@ def test_reason_is_single_line_and_bounded(stubenv, junk):
 def test_review_default_timeout_is_longer_than_delegate(stubenv):
     assert oa.default_timeout("review") > oa.default_timeout("delegate") == 110
     assert oa.default_timeout("review") == 1200
+    assert oa.default_timeout("investigate") == 1200
 
 
 def test_explicit_timeout_wins_over_the_purpose_default(stubenv):
@@ -927,6 +989,15 @@ def test_explicit_timeout_wins_over_the_purpose_default(stubenv):
     _conf(home, "agy")
     r = cli("run", "--purpose", "review", "--from", "claude", "--timeout", "1", "--", "p")
     assert "agy(timeout after 1s)" in r.stderr
+
+
+def test_cli_accepts_investigate_purpose(stubenv):
+    bin_, home = stubenv
+    _stub(bin_, "agy", "echo OK")
+    _conf(home, "agy")
+    r = cli("run", "--purpose", "investigate", "--from", "claude", "--", "check status")
+    assert r.returncode == 0
+    assert "OK" in r.stdout
 
 
 _REASON_SHAPE = re.compile(
@@ -1210,9 +1281,20 @@ def test_agy_review_commands_stay_inside_the_repo():
         "git log main...HEAD --oneline",
         "git show HEAD:scripts/install.sh | head -20",
         "git diff --stat | tail -1",
+        "find scripts -type f",
+        "which python",
+        "stat scripts/outside_agent.py",
+        "file scripts/install.sh",
+        "git log -n 5 2>&1",
+        "cat scripts/outside_agent.py 2>&1",
+        "find . -name '*.py' | grep outside",
     ):
         assert _agy_allows(ok), ok
     for bad in (
+        "find /etc -name passwd",
+        "find .. -type f",
+        "stat /etc/hosts",
+        "file /bin/sh",
         "cat /etc/hosts",
         "cat '/etc/hosts'",
         'cat "/etc/hosts"',

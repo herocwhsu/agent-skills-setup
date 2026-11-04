@@ -29,8 +29,8 @@ changed_paths() {
 
 # SECRET_SCAN_SCOPE=tree (env) scans every run, for a repo whose verify gate must
 # check a clean tree too.
-if [[ "${OUTSIDE_AGENT_PURPOSE:-}" == review ]]; then
-  echo "  SKIP  outside-agent review is read-only"
+if [[ "${OUTSIDE_AGENT_PURPOSE:-}" == review || "${OUTSIDE_AGENT_PURPOSE:-}" == investigate ]]; then
+  echo "  SKIP  outside-agent ${OUTSIDE_AGENT_PURPOSE} is read-only"
   exit 0
 fi
 

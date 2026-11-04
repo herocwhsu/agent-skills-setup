@@ -46,6 +46,10 @@ FAMILIES = ("claude", "openai", "gemini")
 AUTH_RE = re.compile(r"not logged in|\b401\b|unauthorized|/login", re.I)
 RATE_RE = re.compile(r"usage limit|quota|limit reached", re.I)
 RESET_RE = re.compile(r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?)")
+TOOL_DENIAL_RE = re.compile(
+    r"tool required.*permission|auto-denied|cannot prompt for|requires approval|approval required|tool refused",
+    re.I,
+)
 # On rc 0 a real answer can mention "quota" or "401", so only a short output that
 # is itself a known status message counts; keywords elsewhere in it never do.
 RC0_AUTH_RE = re.compile(r"^(not logged in(\W+please run /login)?|please run /login)\W*$", re.I)
@@ -64,7 +68,7 @@ DELEGATE_TIMEOUT = 110
 
 def default_timeout(purpose: str) -> int:
     """agy reviews of real diffs took 590 to 1048 s (2026-10-18); delegated work stays short."""
-    return REVIEW_TIMEOUT if purpose == "review" else DELEGATE_TIMEOUT
+    return REVIEW_TIMEOUT if purpose in ("review", "investigate") else DELEGATE_TIMEOUT
 
 
 # A status number only counts right after a status word, and only for codes a client really sees; a bare
@@ -77,7 +81,7 @@ _REASON_STATUS = re.compile(
 # Only failures that reach error_reason: classify() already turns quota, usage-limit and login messages
 # into rate_limit or auth, and those results carry no reason.
 _REASON_PHRASES = (
-    ("tool refused", re.compile(r"auto-denied|cannot prompt for", re.I)),
+    ("tool refused", re.compile(r"auto-denied|cannot prompt for|tool required.*permission", re.I)),
     ("too many requests", re.compile(r"too ?many ?requests", re.I)),
     ("rate limit", re.compile(r"rate[-_ ]?limit", re.I)),
     ("request too large", re.compile(r"request (?:is )?too large|payload too large", re.I)),
@@ -299,10 +303,11 @@ AGY_REVIEW_NOTE = (
     "The test and gate output is in this prompt: do not run tests, gates, or install, update "
     "or sync scripts. Read code with your file viewing and search tools, on files inside this "
     "repository only. Shell commands allowed: git status, git log, git diff, git show, "
-    "git ls-files, git blame, git rev-parse, git merge-base, grep, cat, head, tail, ls, wc. "
+    "git ls-files, git blame, git rev-parse, git merge-base, grep, cat, head, tail, ls, wc, "
+    "find, which, stat, file. "
     "They take plain or quoted arguments, short flags and `--`; git also takes --stat, "
     "--name-only, --format=..., --unified=... style options; any of them may pipe into grep, "
-    "head, tail or wc. grep, cat, head, tail, ls and wc take no long options (no --include). "
+    "head, tail or wc. grep, cat, head, tail, ls, wc, find, which, stat, file take no long options (no --include). "
     "No argument may start with /, ~ or =, or use .. as a path part; a quoted argument may "
     "not start with - or contain .. anywhere; no globs. Any other command, $ or backtick, "
     "or path outside the repository is refused and "
@@ -355,8 +360,8 @@ _GIT_VALUED = "format|pretty|unified|since|until|author|max-count|diff-filter"
 # (agy 1.4.3, 2026-10-20), so every command is allowed only with listed flags.
 AGY_REVIEW_ALLOW = (
     rf"command(regex:^git (status|log|diff|show|ls-files|blame|rev-parse|merge-base)( +({_ARG}|--"
-    rf"|--({_GIT_LONG})|--({_GIT_VALUED})=([A-Za-z0-9_./~^:@+,%=-]*|{_QUOTED})))*{_PIPE}$)",
-    rf"command(regex:^(grep|cat|head|tail|ls|wc)( +({_ARG}|--))*{_PIPE}$)",
+    rf"|--({_GIT_LONG})|--({_GIT_VALUED})=([A-Za-z0-9_./~^:@+,%=-]*|{_QUOTED})))*{_PIPE}( +2>&1)?$)",
+    rf"command(regex:^(grep|cat|head|tail|ls|wc|find|which|stat|file)( +({_ARG}|--))*{_PIPE}( +2>&1)?$)",
 )
 # Rules earlier versions of allow-agy wrote; allow-agy removes them.
 AGY_REVIEW_RETIRED = tuple(
@@ -377,19 +382,43 @@ _AGY_REVIEW_OLD_REGEX = (
     "command(regex:^git (log|diff|show|ls-files|blame)(",
     "command(regex:^git (status|log|diff|show|ls-files|blame|rev-parse|merge-base)(",
     "command(regex:^(grep|cat|head|tail|ls|wc)(",
+    "command(regex:^(grep|cat|head|tail|ls|wc|find|which|stat|file)(",
 )
 
 
 def build_argv(name: str, prompt: str, purpose: str, allow_edits: bool) -> list[str]:
-    perm = _perm(name, purpose, allow_edits)
     if name == "claude-kiro":
-        argv = [name, "-p", "--dangerously-skip-permissions", prompt]
+        if purpose == "review":
+            argv = [
+                name,
+                "--allowedTools",
+                "Bash(git *),Bash(cat *),Bash(grep *),Read,Glob,Grep",
+                "-p",
+                prompt,
+            ]
+        elif purpose == "investigate":
+            argv = [name, "--allowedTools", "Bash,Read,Glob,Grep", "-p", prompt]
+        elif allow_edits:
+            argv = [name, "-p", "--dangerously-skip-permissions", prompt]
+        else:
+            argv = [name, "--allowedTools", "Bash,Read,Glob,Grep", "-p", prompt]
     elif name == "claude":
-        argv = [name, "-p", *perm, prompt]
+        mode = "acceptEdits" if (purpose == "delegate" and allow_edits) else "plan"
+        argv = [name, "-p", "--permission-mode", mode, prompt]
     elif name == "codex-kiro":
-        argv = [name, "exec", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox", prompt]
+        if purpose == "investigate":
+            argv = [name, "exec", "--skip-git-repo-check", "-s", "danger-full-access", prompt]
+        elif purpose == "delegate" and allow_edits:
+            argv = [name, "exec", "--skip-git-repo-check", "-s", "workspace-write", prompt]
+        else:
+            argv = [name, "exec", "--skip-git-repo-check", "-s", "read-only", prompt]
     elif name == "codex":
-        argv = [name, "exec", "--skip-git-repo-check", *perm, prompt]
+        if purpose == "investigate":
+            argv = [name, "exec", "--skip-git-repo-check", "-s", "danger-full-access", prompt]
+        elif purpose == "delegate" and allow_edits:
+            argv = [name, "exec", "--skip-git-repo-check", "-s", "workspace-write", prompt]
+        else:
+            argv = [name, "exec", "--skip-git-repo-check", "-s", "read-only", prompt]
     elif purpose == "review":
         # Headless agy refuses any tool outside the allowlist in its settings.json
         # (written by `outside-agent.sh allow-agy`) and then ends the run with no output, so the prompt steers it
@@ -403,7 +432,10 @@ def build_argv(name: str, prompt: str, purpose: str, allow_edits: bool) -> list[
             "-p",
             f"{AGY_REVIEW_NOTE}\n\n{prompt}",
         ]
+    elif purpose == "investigate":
+        argv = ["agy", "--dangerously-skip-permissions", "-p", prompt]
     else:
+        perm = ["--mode", "accept-edits" if allow_edits else "plan"]
         argv = ["agy", "--dangerously-skip-permissions", *perm, "-p", prompt]
     if KINDS[name].group == "kiro":
         return [_shell(), "-i", "-c", shlex.join(argv)]
@@ -756,6 +788,9 @@ def cmd_run(a: argparse.Namespace) -> int:
             record(state, name, cls, now + AUTH_DEMOTE)
             save_state(state)
         elif cls == "error":
+            if TOOL_DENIAL_RE.search(out):
+                _say(f"{name} tool permission denied, trying next candidate:\n{out.strip()}")
+                continue
             if not out.strip():
                 _say(f"{name} returned no output, stopping")
             else:
@@ -913,13 +948,13 @@ def main(argv: list[str]) -> int:
     p = _Parser(prog="outside-agent.sh")
     sub = p.add_subparsers(dest="cmd", required=True, parser_class=_Parser)
     r = sub.add_parser("run")
-    r.add_argument("--purpose", choices=("delegate", "review"), required=True)
+    r.add_argument("--purpose", choices=("delegate", "review", "investigate"), required=True)
     r.add_argument("--from", dest="from_", choices=FAMILIES, required=True)
     r.add_argument(
         "--timeout",
         type=_positive_int,
         default=None,
-        help=f"seconds per agent (default {REVIEW_TIMEOUT} for review, {DELEGATE_TIMEOUT} for delegate)",
+        help=f"seconds per agent (default {REVIEW_TIMEOUT} for review/investigate, {DELEGATE_TIMEOUT} for delegate)",
     )
     r.add_argument("--cwd")
     r.add_argument("--allow-edits", action="store_true")

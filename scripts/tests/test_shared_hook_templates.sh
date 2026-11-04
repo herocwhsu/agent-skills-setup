@@ -386,6 +386,13 @@ else
   bad "secret-scan skips during outside-agent review" "rc=$rc out=$r"
 fi
 
+r=$(cd "$DIRTY" && printf '{}' | OUTSIDE_AGENT_PURPOSE=investigate PATH="$STUBS:$PATH" bash "$HOOKS_SRC/common/secret-scan.sh" 2>&1); rc=$?
+if [[ $rc -eq 0 && "$r" == *"outside-agent investigate is read-only"* ]]; then
+  ok "secret-scan skips during outside-agent investigate"
+else
+  bad "secret-scan skips during outside-agent investigate" "rc=$rc out=$r"
+fi
+
 OSVSTUB="$TMPDIR/osvstub"; mkdir -p "$OSVSTUB"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$OSVSTUB/gitleaks"
 # shellcheck disable=SC2016  # the stub's own $* must stay unexpanded
