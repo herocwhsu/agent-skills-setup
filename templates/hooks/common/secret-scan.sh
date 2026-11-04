@@ -29,6 +29,11 @@ changed_paths() {
 
 # SECRET_SCAN_SCOPE=tree (env) scans every run, for a repo whose verify gate must
 # check a clean tree too.
+if [[ "${OUTSIDE_AGENT_PURPOSE:-}" == review ]]; then
+  echo "  SKIP  outside-agent review is read-only"
+  exit 0
+fi
+
 if [[ "${SECRET_SCAN_SCOPE:-turn}" != tree && -z "$(changed_paths "$RELEVANT_RE")" ]]; then
   echo "  SKIP  turn changed nothing in scope"
   exit 0
