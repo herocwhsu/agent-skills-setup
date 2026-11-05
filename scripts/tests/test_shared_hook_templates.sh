@@ -387,10 +387,10 @@ else
 fi
 
 r=$(cd "$DIRTY" && printf '{}' | OUTSIDE_AGENT_PURPOSE=investigate PATH="$STUBS:$PATH" bash "$HOOKS_SRC/common/secret-scan.sh" 2>&1); rc=$?
-if [[ $rc -eq 0 && "$r" == *"outside-agent investigate is read-only"* ]]; then
-  ok "secret-scan skips during outside-agent investigate"
+if [[ $rc -eq 2 && "$r" == *STUB-RAN-gitleaks* ]]; then
+  ok "secret-scan still scans an outside-agent investigate, which can write"
 else
-  bad "secret-scan skips during outside-agent investigate" "rc=$rc out=$r"
+  bad "secret-scan still scans an outside-agent investigate, which can write" "rc=$rc out=$r"
 fi
 
 OSVSTUB="$TMPDIR/osvstub"; mkdir -p "$OSVSTUB"

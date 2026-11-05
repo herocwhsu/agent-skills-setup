@@ -27,13 +27,14 @@ changed_paths() {
   } | grep -E "$re" | sort -u || true
 }
 
-# SECRET_SCAN_SCOPE=tree (env) scans every run, for a repo whose verify gate must
-# check a clean tree too.
-if [[ "${OUTSIDE_AGENT_PURPOSE:-}" == review || "${OUTSIDE_AGENT_PURPOSE:-}" == investigate ]]; then
-  echo "  SKIP  outside-agent ${OUTSIDE_AGENT_PURPOSE} is read-only"
+# Only review: an investigate run has full write access, so it can leave a secret behind.
+if [[ "${OUTSIDE_AGENT_PURPOSE:-}" == review ]]; then
+  echo "  SKIP  outside-agent review is read-only"
   exit 0
 fi
 
+# SECRET_SCAN_SCOPE=tree (env) scans every run, for a repo whose verify gate must
+# check a clean tree too.
 if [[ "${SECRET_SCAN_SCOPE:-turn}" != tree && -z "$(changed_paths "$RELEVANT_RE")" ]]; then
   echo "  SKIP  turn changed nothing in scope"
   exit 0
