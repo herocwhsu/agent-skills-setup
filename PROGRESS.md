@@ -48,6 +48,12 @@
 
 - **`_lib.sh` pip step on Homebrew Python (PEP 668) [RESOLVED in feat-043]:** Replaced `--break-system-packages` with isolated runtime venv (`~/.agent-skills-setup/venv`) and automatic `site-packages` discovery.
 
+- **OPEN: outside-agent reviews can write, yet skip the secret scan (found 2026-11-05, from 9e90d03):**
+  secret-scan.sh and stop-verify.sh skip `review` as read-only, but AGY_REVIEW_ALLOW accepts
+  `find . -exec <cmd> ';'` and `find . -delete` (installed in ~/.gemini/antigravity-cli/settings.json;
+  a live `-exec touch` created a file), and claude-kiro's review `Bash(git *)` passes
+  `git diff --output=f`, `git apply` and `git commit`. Tighten both; rerun `allow-agy` for the agy rule.
+
 - **`agy` latency is intermittent (2026-10-08, cause unconfirmed):** a trivial
   `agy --dangerously-skip-permissions -p` prompt took 221s once from the Claude Code session, above
   `outside-agent.sh`'s 110s default `--timeout`. On 2026-10-12, 9 runs took 7-15s in every condition
