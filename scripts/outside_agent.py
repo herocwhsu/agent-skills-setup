@@ -288,15 +288,6 @@ def precheck(name: str, env: dict[str, str]) -> str | None:
     return None
 
 
-def _perm(name: str, purpose: str, allow_edits: bool) -> list[str]:
-    edit = allow_edits and purpose == "delegate"
-    if name.startswith("claude"):
-        return ["--permission-mode", "acceptEdits" if edit else "plan"]
-    if name.startswith("codex"):
-        return ["-s", "workspace-write" if edit else "read-only"]
-    return ["--mode", "accept-edits" if edit else "plan"]
-
-
 # Pinned by the owner (2026-11-03): Flash High for reviews; Gemini 4 Argon is chosen with
 # --model for hard decisions, investigation and plans.
 AGY_REVIEW_MODEL = "gemini-3.8-flash-high"
