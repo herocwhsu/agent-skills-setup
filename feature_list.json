@@ -35,32 +35,10 @@
     "docs/archive/features/archive-feat-103-103.json",
     "docs/archive/features/archive-feat-104-104.json",
     "docs/archive/features/archive-feat-097-105.json",
-    "docs/archive/features/archive-feat-098-106.json"
+    "docs/archive/features/archive-feat-098-106.json",
+    "docs/archive/features/archive-feat-107-107.json"
   ],
   "features": [
-    {
-      "id": "feat-107",
-      "name": "py-guard pip-audit runs; agent-hook checks Codex move targets",
-      "description": "Found by the feat-105 subagent check 2026-10-23. templates/hooks/python/py-guard.sh passes -q to pip-audit, which 2.10.1 rejects (exit 2), so every run with a requirements.txt reports vulnerable deps and blocks: atelier is affected. templates/hooks/common/agent-hook.sh splits a Codex apply_patch per file but skips '*** Move to:' lines, so a broken file renamed in the patch is not checked. Fix both in the template and atelier's (and hangar's) copies.",
-      "dependencies": [],
-      "status": "completed",
-      "acceptance_criteria": [
-        "py-guard runs pip-audit without an unknown flag and blocks only on real findings",
-        "a Codex patch moving a broken .sh to a new name is checked and blocked through agent-hook.sh",
-        "atelier and hangar copies match the templates outside their config block",
-        "all harness gates pass"
-      ],
-      "verification": "bash scripts/tests/test_agent_hook.sh && bash scripts/tests/test_shared_hook_templates.sh && bash scripts/harness-verify.sh",
-      "evidence": "Tests first: the Move-to case (test_agent_hook.sh) and a pip-audit stub that rejects -q like 2.10.1 failed on the old templates; 14 and 54 pass after. py-guard now runs pip-audit with --progress-spinner off and blocks only when the output names known vulnerabilities; a run that cannot audit (offline, unresolvable pin) prints SKIP with pip's ERROR line. Real pip-audit 2.10.1: certifi==2026.7.22 gives PYSEC-2026-4320 and exit 1, 2026.10.19 exit 0. agent-hook.sh also passes '*** Move to:' targets to the wrapped hook. Reviews: two subagents (correctness, security), no confirmed defects; they disagreed on blocking when pip-audit fails (fail-closed vs findings only), resolved for the acceptance wording, findings only, and re-reviewed: no confirmed defects. Trade-off kept: one unresolvable pin turns the audit into a visible SKIP for that app. atelier and hangar copies synced after this commit.",
-      "execution_summary": {
-        "run_id": "e6c10a0f-3d82aa8d69",
-        "output_tokens": 27523,
-        "wall_time_ms": 3901130,
-        "active_turn_time_ms": 2976002,
-        "subagents": 5,
-        "subagent_output_tokens": 47051
-      }
-    },
     {
       "id": "feat-108",
       "name": "target repos pull harness updates; sync-all writes no tracked files",
@@ -137,7 +115,15 @@
         "allow-agy replaces the installed find/file rule and is idempotent"
       ],
       "verification": ".venv/bin/python -m pytest -q tests/test_outside_agent.py",
-      "evidence": "scripts/outside_agent.py: find and file each get a command(regex:...) rule of listed flags (_FIND_FLAGS; file -[bhiLz]); the general rule keeps grep/cat/head/tail/ls/wc/which/stat; claude-kiro review --allowedTools enumerates _REVIEW_GIT (shared with the agy git rule) and adds --disallowedTools 'Bash(git *--out*)'. Live 2026-11-12: agy 1.5.3 refused find . -exec touch zz ';' (no file) and ran find . -name a -type f; Claude Code 2.1.322 wrote q1 under Bash(git diff *) without the deny and refused --output=, quote-split (--ou''tput=, '--'output=, --\\output=), > redirects, ; touch and | tee with it. install.sh: 3 rules added, 1 removed. 234 tests passed, 1 skipped; all 11 harness gates passed. Two fresh-context reviewers (correctness, security): no confirmed defects; the quote-split concern was tested live and denied."
+      "evidence": "scripts/outside_agent.py: find and file each get a command(regex:...) rule of listed flags (_FIND_FLAGS; file -[bhiLz]); the general rule keeps grep/cat/head/tail/ls/wc/which/stat; claude-kiro review --allowedTools enumerates _REVIEW_GIT (shared with the agy git rule) and adds --disallowedTools 'Bash(git *--out*)'. Live 2026-11-12: agy 1.5.3 refused find . -exec touch zz ';' (no file) and ran find . -name a -type f; Claude Code 2.1.322 wrote q1 under Bash(git diff *) without the deny and refused --output=, quote-split (--ou''tput=, '--'output=, --\\output=), > redirects, ; touch and | tee with it. install.sh: 3 rules added, 1 removed. 234 tests passed, 1 skipped; all 11 harness gates passed. Two fresh-context reviewers (correctness, security): no confirmed defects; the quote-split concern was tested live and denied.",
+      "execution_summary": {
+        "run_id": "1591f604-6a8e6dcd99",
+        "output_tokens": 28296,
+        "wall_time_ms": 72052891,
+        "active_turn_time_ms": 653322,
+        "subagents": 2,
+        "subagent_output_tokens": 17264
+      }
     }
   ]
 }
