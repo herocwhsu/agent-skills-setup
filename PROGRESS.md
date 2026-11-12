@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-22
+**Last Updated:** 2026-11-12
 **Active Feature:** none
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
@@ -22,6 +22,7 @@
 
 ### What's In Progress
 
+- feat-111 done 2026-11-12: outside-agent reviews can no longer write (agy find/file take listed flags only; claude-kiro review allows eight read-only git subcommands and denies `--out`), so the secret-scan and Stop-gate skip for reviews holds.
 - Nothing active (WIP=0). feat-109 done 2026-11-04 (outside-agent investigation profile, tool-level permission resilience, allowlist expansion, candidate cascade fallback); before it feat-108 done 2026-10-24, feat-098 done 2026-10-25.
 - feat-110 done 2026-10-30: `outside-agent.sh run --model <agy model> [--effort]` runs agy only on that model (Gemini 3.8 Flash, Gemini 4 Argon, Claude Opus/Sonnet 5.5, GPT-OSS 120B); the log records the model and its family. Review pin back on gemini-3.8-flash-high 2026-11-03 (see Decisions), matching the shipped rules. Planned queue in this repo is empty.
 
@@ -47,12 +48,6 @@
 ## Blockers / Risks
 
 - **`_lib.sh` pip step on Homebrew Python (PEP 668) [RESOLVED in feat-043]:** Replaced `--break-system-packages` with isolated runtime venv (`~/.agent-skills-setup/venv`) and automatic `site-packages` discovery.
-
-- **OPEN: outside-agent reviews can write, yet skip the secret scan (found 2026-11-05, from 9e90d03):**
-  secret-scan.sh and stop-verify.sh skip `review` as read-only, but AGY_REVIEW_ALLOW accepts
-  `find . -exec <cmd> ';'` and `find . -delete` (installed in ~/.gemini/antigravity-cli/settings.json;
-  a live `-exec touch` created a file), and claude-kiro's review `Bash(git *)` passes
-  `git diff --output=f`, `git apply` and `git commit`. Tighten both; rerun `allow-agy` for the agy rule.
 
 - **`agy` latency is intermittent (2026-10-08, cause unconfirmed):** a trivial
   `agy --dangerously-skip-permissions -p` prompt took 221s once from the Claude Code session, above

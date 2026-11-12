@@ -263,7 +263,14 @@ def test_build_argv_kiro_uses_interactive_shell(monkeypatch):
 def test_build_argv_kiro_permission_flags():
     ck_rev = oa.build_argv("claude-kiro", "p", "review", False)
     assert "--allowedTools" in ck_rev[3]
-    assert "Bash(git *)" in ck_rev[3]
+    # Bash(git *) passed git apply, git commit and git diff --output=f (2026-11-05).
+    assert "Bash(git *)" not in ck_rev[3]
+    for sub in ("status", "log", "diff", "show", "ls-files", "blame", "rev-parse", "merge-base"):
+        assert f"Bash(git {sub} *)" in ck_rev[3], sub
+    # Claude Code 2.1.322 ran `git diff --output=q1` under Bash(git diff *) and refused it
+    # with this deny rule (live, 2026-11-12); git also takes --output on log, show, blame.
+    assert "--disallowedTools 'Bash(git *--out*)'" in ck_rev[3]
+    assert ck_rev[3].index("--disallowedTools") < ck_rev[3].index(" -p ")
     ck_inv = oa.build_argv("claude-kiro", "p", "investigate", False)
     assert "--allowedTools" in ck_inv[3] and "Bash,Read,Glob,Grep" in ck_inv[3]
     ck_del = oa.build_argv("claude-kiro", "p", "delegate", True)
@@ -1366,6 +1373,38 @@ def _agy_allows(cmd):
         elif cmd == body or cmd.startswith(body + " "):
             return True
     return False
+
+
+def test_agy_review_find_and_file_cannot_write_or_run_commands():
+    # 2026-11-05: `find . -exec touch x ';'` created a file in a review, live; `file -C -m x`
+    # writes x.mgc (macOS file 5.x).
+    for ok in (
+        "find scripts -type f",
+        "find . -name '*.py' -maxdepth 2",
+        "find . -name x -o -name y -print",
+        "find tests -mtime -1 -type f",
+        "find . -path './.venv' -prune -o -name '*.sh' -print",
+        "find -L scripts -type l",
+        "file scripts/install.sh",
+        "file -b scripts/install.sh",
+        "file -bi scripts/install.sh",
+    ):
+        assert _agy_allows(ok), ok
+    for bad in (
+        "find . -exec touch x ';'",
+        "find . -execdir touch x +",
+        "find . -ok rm x ';'",
+        "find . -okdir rm x ';'",
+        "find . -delete",
+        "find . -name x -delete",
+        "find . -fprint x",
+        "find . -fprintf x '%p'",
+        "find . -fls x",
+        "file -C -m x",
+        "file -C",
+        "file -bC -m x",
+    ):
+        assert not _agy_allows(bad), bad
 
 
 def test_agy_review_note_steers_alternation_to_a_form_the_allowlist_takes():

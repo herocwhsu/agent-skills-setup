@@ -92,7 +92,9 @@ Checked 2026-10-01 with a canary word in a throwaway repo:
   `git status`/`log`/`diff`/`show`/`ls-files`/`blame`/`rev-parse`/`merge-base` through one
   `command(regex:...)` rule that admits only listed flags (`--output=<file>` makes them write,
   and a deny rule `command(regex:.*--output.*)` did not stop it, agy 1.4.3, 2026-10-20), and
-  `grep`, `cat`, `head`, `tail`, `ls`, `wc` through a second one; both allow pipes into
+  `grep`, `cat`, `head`, `tail`, `ls`, `wc`, `which`, `stat` through a second one, and `find`
+  and `file` through one each that admits only listed flags (`find -exec`/`-delete` and
+  `file -C` write; a live `find . -exec touch` did, 2026-11-05); all allow pipes into
   grep/head/tail/wc and quoting that expands nothing. No argument may start with `/`, `~` or
   `=` (zsh, which agy runs commands in, expands `=ls` to `/bin/ls`), have a `..` path part, or
   hold a glob; a quoted one may not start with `-` (`'--output=x'` reaches git as the flag) or

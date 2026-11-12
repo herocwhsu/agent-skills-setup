@@ -124,6 +124,20 @@
         "subagents": 2,
         "subagent_output_tokens": 7208
       }
+    },
+    {
+      "id": "feat-111",
+      "name": "outside-agent reviews cannot write: find, file and claude-kiro git tightened",
+      "description": "Open item found 2026-11-05: secret-scan.sh and stop-verify.sh skip review runs as read-only, but agy's AGY_REVIEW_ALLOW passed find . -exec <cmd> ';' and find . -delete (a live -exec touch wrote a file), macOS file -C -m x writes x.mgc, and claude-kiro's review Bash(git *) passed git apply, git commit and git diff --output=f.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "agy review rules refuse find -exec/-execdir/-ok/-okdir/-delete/-fprint/-fprintf/-fls and file -C, and still take read-only find and file forms",
+        "claude-kiro review allows only git status/log/diff/show/ls-files/blame/rev-parse/merge-base and denies any git command containing --out",
+        "allow-agy replaces the installed find/file rule and is idempotent"
+      ],
+      "verification": ".venv/bin/python -m pytest -q tests/test_outside_agent.py",
+      "evidence": "scripts/outside_agent.py: find and file each get a command(regex:...) rule of listed flags (_FIND_FLAGS; file -[bhiLz]); the general rule keeps grep/cat/head/tail/ls/wc/which/stat; claude-kiro review --allowedTools enumerates _REVIEW_GIT (shared with the agy git rule) and adds --disallowedTools 'Bash(git *--out*)'. Live 2026-11-12: agy 1.5.3 refused find . -exec touch zz ';' (no file) and ran find . -name a -type f; Claude Code 2.1.322 wrote q1 under Bash(git diff *) without the deny and refused --output=, quote-split (--ou''tput=, '--'output=, --\\output=), > redirects, ; touch and | tee with it. install.sh: 3 rules added, 1 removed. 234 tests passed, 1 skipped; all 11 harness gates passed. Two fresh-context reviewers (correctness, security): no confirmed defects; the quote-split concern was tested live and denied."
     }
   ]
 }

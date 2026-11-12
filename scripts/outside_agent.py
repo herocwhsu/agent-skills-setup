@@ -300,6 +300,9 @@ AGY_REVIEW_NOTE = (
     "They take plain or quoted arguments, short flags and `--`; git also takes --stat, "
     "--name-only, --format=..., --unified=... style options; any of them may pipe into grep, "
     "head, tail or wc. grep, cat, head, tail, ls, wc, find, which, stat, file take no long options (no --include). "
+    "find takes only -name -iname -path -ipath -type -maxdepth -mindepth -mtime -mmin -newer "
+    "-size -empty -print -print0 -prune -not -o -a -depth -L -H -P (no -exec or -delete); "
+    "file takes only -b -h -i -L -z. "
     "To search for several patterns use grep -e a -e b, not \\| or | inside quotes. "
     "No argument may start with /, ~ or =, or use .. as a path part; a quoted argument may "
     "not start with - or contain .. anywhere; no globs. Any other command, $ or backtick, "
@@ -348,13 +351,22 @@ _GIT_LONG = (
     "|short|porcelain|branch|show-toplevel|abbrev-ref|git-dir|is-ancestor|fork-point|verify"
 )
 _GIT_VALUED = "format|pretty|unified|since|until|author|max-count|diff-filter"
+# find and file take only listed flags: `find . -exec touch x ';'` wrote in a review (live,
+# 2026-11-05), as do -delete, -ok, -fprint; `file -C -m x` writes x.mgc.
+_FIND_FLAGS = (
+    "name|iname|path|ipath|type|maxdepth|mindepth|mtime|mmin|newer|size|empty"
+    "|print|print0|prune|not|o|a|and|or|depth|L|H|P"
+)
 # Prefix rules took any argument and any pipe (`git status | cat /etc/hosts` ran), and a
 # prefix rule would let `git diff --output=<file>` write while a deny rule did not stop it
 # (agy 1.4.3, 2026-10-20), so every command is allowed only with listed flags.
+_REVIEW_GIT = ("status", "log", "diff", "show", "ls-files", "blame", "rev-parse", "merge-base")
 AGY_REVIEW_ALLOW = (
-    rf"command(regex:^git (status|log|diff|show|ls-files|blame|rev-parse|merge-base)( +({_ARG}|--"
+    rf"command(regex:^git ({'|'.join(_REVIEW_GIT)})( +({_ARG}|--"
     rf"|--({_GIT_LONG})|--({_GIT_VALUED})=([A-Za-z0-9_./~^:@+,%=-]*|{_QUOTED})))*{_PIPE}( +2>&1)?$)",
-    rf"command(regex:^(grep|cat|head|tail|ls|wc|find|which|stat|file)( +({_ARG}|--))*{_PIPE}( +2>&1)?$)",
+    rf"command(regex:^(grep|cat|head|tail|ls|wc|which|stat)( +({_ARG}|--))*{_PIPE}( +2>&1)?$)",
+    rf"command(regex:^(find)( +({_WORD}|{_SAFE_QUOTED}|-[0-9]+|-({_FIND_FLAGS})))*{_PIPE}( +2>&1)?$)",
+    rf"command(regex:^(file)( +({_WORD}|{_SAFE_QUOTED}|-[bhiLz]+|--))*{_PIPE}( +2>&1)?$)",
 )
 # Rules earlier versions of allow-agy wrote; allow-agy removes them.
 AGY_REVIEW_RETIRED = tuple(
@@ -405,7 +417,10 @@ def build_argv(
             argv = [
                 name,
                 "--allowedTools",
-                "Bash(git *),Bash(cat *),Bash(grep *),Read,Glob,Grep",
+                ",".join(f"Bash(git {c} *)" for c in _REVIEW_GIT)
+                + ",Bash(cat *),Bash(grep *),Read,Glob,Grep",
+                "--disallowedTools",
+                "Bash(git *--out*)",
                 "-p",
                 prompt,
             ]
