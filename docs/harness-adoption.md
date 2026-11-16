@@ -116,13 +116,14 @@ From each vendor's docs, checked 2026-10-18 (not run live; codex is not installe
 | Agent | In a repo | For the user | Source |
 |---|---|---|---|
 | Claude Code | `.claude/skills/` | `~/.claude/skills/` | Claude Code docs |
-| Codex | `.agents/skills/` in the launch dir, its parent, and the repo root | `~/.agents/skills/` | learn.chatgpt.com/docs/build-skills |
+| Codex | `.agents/skills/` in the launch dir, its parent, and the repo root | `~/.agents/skills/` and `$CODEX_HOME/skills/` | learn.chatgpt.com/docs/build-skills |
 | agy (CLI) | `.agents/skills/` (`.agent/skills` still read) | `~/.gemini/antigravity-cli/skills/` | antigravity.google/docs/skills |
 | Kiro | `.kiro/skills/` | `~/.kiro/skills/`; the default agent loads both, custom agents need `skill://` resources | kiro.dev/docs/skills |
 
 Codex and agy share `.agents/skills/`, so a repo serves every agent from three
-folders. Open: `agent_skills_dir codex` installs to `~/.codex/skills`, the location an
-older (December 2025) Codex doc gave; the current doc names `~/.agents/skills`.
+folders. `agent_skills_dir codex` installs to `~/.codex/skills`. The current doc names only
+`~/.agents/skills`, but Codex's own source reads both as user roots
+(`codex-rs/ext/skills/src/host_roots_tests.rs`, checked 2026-11-16), so the path stays.
 
 ## Review
 

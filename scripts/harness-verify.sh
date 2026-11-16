@@ -73,7 +73,8 @@ now_ms() {
 
 t_verify_start=$(now_ms)
 GATE_ENTRIES_FILE=$(mktemp -t harness_verify.XXXXXX 2>/dev/null || mktemp)
-trap 'rm -f "$GATE_ENTRIES_FILE"' EXIT
+GATE_LOG_FILE=$(mktemp -t harness_verify_log.XXXXXX 2>/dev/null || mktemp)
+trap 'rm -f "$GATE_ENTRIES_FILE" "$GATE_LOG_FILE"' EXIT
 
 FAILED=""
 SKIPPED=""
@@ -93,6 +94,7 @@ run_gate() {
     fi
     SKIPPED="$SKIPPED $label"
     printf '%s\t%s\t%d\t%d\n' "$label" "SKIP" "0" "$duration_ms" >> "$GATE_ENTRIES_FILE"
+    printf '=== %s: SKIP (missing %s) ===\n' "$label" "$script" >> "$GATE_LOG_FILE"
     return 0
   fi
   local out status
@@ -112,14 +114,23 @@ run_gate() {
 
   # A gate whose tool is absent exits 0 and says SKIP. Reporting that as OK made
   # "all gates passed" true on a machine where mypy never ran.
+  local verdict=FAIL
   if [[ $status -eq 0 ]] && grep -qE '^[[:space:]]*SKIP[[:space:]]' <<<"$out"; then
+    verdict=SKIP
+  elif [[ $status -eq 0 ]]; then
+    verdict=OK
+  fi
+  # Kept whole, whatever is printed: --json prints none of it, and a one-off tests-gate
+  # failure (feat-068) left nothing to read once the console was gone.
+  printf '=== %s: %s (exit %d) ===\n%s\n' "$label" "$verdict" "$status" "$out" >> "$GATE_LOG_FILE"
+  if [[ $verdict == SKIP ]]; then
     if [[ $JSON_OUT -eq 0 ]]; then
       echo "  SKIP  $label ($dur_str)"
       grep -E '^[[:space:]]*SKIP[[:space:]]' <<<"$out" | sed 's/^[[:space:]]*SKIP[[:space:]]*/        /'
     fi
     SKIPPED="$SKIPPED $label"
     printf '%s\t%s\t%d\t%d\n' "$label" "SKIP" "0" "$duration_ms" >> "$GATE_ENTRIES_FILE"
-  elif [[ $status -eq 0 ]]; then
+  elif [[ $verdict == OK ]]; then
     if [[ $JSON_OUT -eq 0 ]]; then
       echo "  OK    $label ($dur_str)"
     fi
@@ -211,7 +222,8 @@ print(json.dumps(report, indent=2))
     printf '%s\n' "$report_json" > "$REPORT_FILE"
   fi
   if [[ $KEEP_LAST -eq 1 ]]; then
-    { mkdir -p "$(dirname "$LAST_REPORT")" && printf '%s\n' "$report_json" > "$LAST_REPORT"; } 2>/dev/null || true
+    { mkdir -p "$(dirname "$LAST_REPORT")" && printf '%s\n' "$report_json" > "$LAST_REPORT" \
+        && cp "$GATE_LOG_FILE" "${LAST_REPORT%.json}.log"; } 2>/dev/null || true
     {
       # One append-only file per month: a short single write is atomic, so concurrent runs need no
       # lock, and nothing is rewritten. Months older than twelve are deleted whole.

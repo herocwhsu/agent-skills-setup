@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Last Updated:** 2026-11-12
+**Last Updated:** 2026-11-16
 **Active Feature:** none
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
@@ -19,31 +19,34 @@
 
 *(Earlier features feat-001 through feat-086 are archived in [docs/progress-archive.md](docs/progress-archive.md); feat-087 to feat-094 in `docs/archive/features/`, feat-095 onward in `feature_list.json`. Per-feature evidence also recorded in `feature_list.json` and `docs/archive/features/`.)*
 
+**Done 2026-11-16:** feat-112: `harness-verify.sh` keeps every gate's output in
+`harness-verify-last.log` beside the last report (under `--json` too). Codex skills path
+checked in Codex's source: it reads `$CODEX_HOME/skills` and `~/.agents/skills`, so the install
+path stays. GitHub runner registrations: 983 offline ones deleted (68 atelier, 915 hangar);
+the one online runner in each repo kept. atelier: firstdigital on react-router 7 (`5f77533`).
+**Rule broken:** `5f77533` and the 11-12 sync `d5e467e` were committed and pushed in atelier from
+this repo's session, against the 2026-10-24 decision below; flagged to the owner, nothing reverted.
+**Done 2026-11-12:** feat-111 (outside-agent reviews cannot write). **Earlier:** feat-110
+(2026-10-30, `run --model/--effort`), feat-109 (2026-11-04), feat-108 (2026-10-24), feat-098 (2026-10-25).
+
 
 ### What's In Progress
 
-- feat-111 done 2026-11-12: outside-agent reviews can no longer write (agy find/file take listed flags only; claude-kiro review allows eight read-only git subcommands and denies `--out`), so the secret-scan and Stop-gate skip for reviews holds.
-- Nothing active (WIP=0). feat-109 done 2026-11-04 (outside-agent investigation profile, tool-level permission resilience, allowlist expansion, candidate cascade fallback); before it feat-108 done 2026-10-24, feat-098 done 2026-10-25.
-- feat-110 done 2026-10-30: `outside-agent.sh run --model <agy model> [--effort]` runs agy only on that model (Gemini 3.8 Flash, Gemini 4 Argon, Claude Opus/Sonnet 5.5, GPT-OSS 120B); the log records the model and its family. Review pin back on gemini-3.8-flash-high 2026-11-03 (see Decisions), matching the shipped rules. Planned queue in this repo is empty.
+- Nothing active (WIP=0). Planned queue in this repo is empty.
 
 ### What's Next
 
 **Prioritized Technical Queue (WIP=1):**
-0. **Two-layer harness, T2-T15 done** (hook sync, version, `agent-harness.json`, preflight, global hooks, skill packs, cross-repo telemetry): [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md), D1-D11. The global rules, with the repo-workflow rule, are deployed (2026-10-18; redeployed 2026-10-19 with the review-output rule), and hangar (`2fef197`) and atelier dropped their duplicate Startup and End of Session wording. Also: atelier's react-router exceptions expire 2027-01-18; the real fix is react-router 7.
+0. **Two-layer harness, T2-T15 done** (hook sync, version, `agent-harness.json`, preflight, global hooks, skill packs, cross-repo telemetry): [the design](docs/superpowers/specs/2026-10-17-two-layer-harness-design.md), D1-D11. The global rules, with the repo-workflow rule, are deployed (2026-10-18; redeployed 2026-10-19 with the review-output rule), and hangar (`2fef197`) and atelier dropped their duplicate Startup and End of Session wording.
    - *Metric caveat:* feat-075's run record (`5a0ad1e4-ec73a5038f`, 1.3M output tokens, ~17 days) covers this whole long session from its start (hangar UPS work included), because the session had no earlier record. Start each T-task in a fresh session, or mark the window at activation, so its record measures only that task.
-1. **Save gate output to a file inside `harness-verify.sh`** (only if the one-off 94/1 tests-gate failure from feat-068 comes back; it did not in six reruns). Until then, run it as `bash scripts/harness-verify.sh > file 2>&1`.
-2. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
-3. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
+1. **Run the benchmark when a harness change needs measuring.** `telemetry_benchmark.py run --runs 5` on the old and the new commit with the same `--model`, then `compare`. A clean tree is needed (a `-dirty` commit is not comparable). It costs about 50 sessions for 5 tasks x 5 runs x 2 versions.
+2. **Rerun `scripts/gate_experiment.py` before changing any gate** and read `docs/stories/run-telemetry/gate-necessity.md`. The first run (2026-10-13) recommends removing nothing.
 
 - **Review of 2026-10-18's work (f0e08e1..9675bee + hangar, atelier):** fresh-context subagent found 9 defects, all confirmed and fixed (2243f9b, hangar 2c30578); the outside review was **not independent**: agy timed out at 1500s on the ~6,600-line diff and outside-agent fell back to claude (exit 3). Its 3 confirmed findings fixed in 48127c6. Next time review per repo or per feature so agy can finish.
 - **Second outside review, split in five parts (2026-10-18):** C (weekly), D (hangar), E (atelier) ran on agy, independent; A (hooks) and B (adapter, install) timed out at 1200s on agy and fell back to claude, **not independent**. Findings fixed with failing tests first: ts-guard passed `-q`, which ESLint 9 rejects (exit 2, so every frontend turn was blocked); now `--quiet`, errors only, as ESLint 9 counts warnings against `--max-warnings` even with `--quiet` (atelier has 6 warnings, 0 errors). `store-packs` moves only names this install put there, and links only into this repo's `skills/` (a user's own `review/` was moved, then deleted by uninstall). A malformed `.claude/settings.json`, `.codex/hooks.json` or `.agents/hooks.json` stops sync instead of being overwritten. Global wiring prunes an old `global-hook.sh` entry whose command changed, so it cannot run twice. `record_harness_version` no longer fails an install. Not changed: sync owns the Claude `hooks` key by design (comment fixed). agy now reviews at `--effort high` (2026-10-19; delegate keeps the default): high finished a small review in 213 s, medium 274 s, while the default printed its answer and then hung until the 300 s timeout, so agy's own time varies more than effort does. The review default timeout is now 1200 s (was 300): real agy reviews took 590 to 1048 s, three more timed out at 1200 to 1500 s. Timed run on 01bc362 (high, stream-json, 2026-10-19): 1028 s, exited right after its answer (no hang); 777 s in 74 model turns, 242 s in 72 tools (commands 152 s, waits 81 s); it also ran the fast suite it was not asked for and spent a dozen turns waiting on tests; the answer began at 912 s. It found the non-object JSON root defect that 8e4765c fixed. Re-review: agy (independent) found nothing; the subagent found the install list shared by all agents (claude installing `audit` made codex's own `audit/` look installed: moved, then deleted), fixed with a per-agent list; the prune marker is now this runtime's own path (another harness repo's global hook stays); sync reads every agent file before writing any, a blank file counts as empty, and a non-UTF-8 or non-object file stops sync too (third pass).
 - **Live-run each agent's hooks after a wiring change**, not only replays from the repo root: replays missed both agy bugs in feat-087. A live agy run in a scratch clone (`agy -p ... --mode accept-edits`) is enough; a codex one when codex is installed.
 
-- **Codex user skills path:** `agent_skills_dir codex` installs to `~/.codex/skills`; current Codex docs read `~/.agents/skills` (docs/harness-adoption.md). Codex is not installed here; check on a host that has it before changing the path.
-
-**Pending Owner Decisions (Blocked on Human):**
-- **firstdigital-economics:** Decide whether to create private remote GitHub repo or remain local.
-- **Handy branch:** synced with upstream and pushed 2026-10-22 (fork `main` and `local/zh-tw-default`); owner to test the build at the Mac before this is closed.
+**Pending Owner Decisions (Blocked on Human):** none.
 
 ## Blockers / Risks
 
@@ -63,6 +66,10 @@
   question that edits nothing.
 
 ## Decisions Made
+
+- **firstdigital-economics stays local (owner, 2026-11-16):** no remote GitHub repo until it is planned.
+- **Handy branch test skipped (owner, 2026-11-16):** closed without the Mac build test; the fork's
+  `main` and `local/zh-tw-default` stay as pushed 2026-10-22.
 
 - **agy model by task (owner, 2026-11-03):** reviews run on Gemini 3.8 Flash High (the
   default pin); Gemini 4 Argon (`--model gemini-4-argon-high`) is for hard decisions,

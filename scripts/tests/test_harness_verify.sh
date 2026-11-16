@@ -325,6 +325,39 @@ else
   bad "six runs finishing together keep all six lines and leave nothing behind" "lines=$good stray=$stray"
 fi
 
+# --- every gate's own output is kept next to the report, even under --json, which prints none of
+# it: a one-off tests-gate failure (feat-068) left no output to read ---
+LAST_LOG="${HARNESS_VERIFY_LAST_REPORT%.json}.log"
+stub_gates 0 1 0
+rm -f "$LAST_LOG"
+HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" --json >/dev/null 2>&1 || true
+if [[ -f "$LAST_LOG" ]] && grep -q "a test failed loudly" "$LAST_LOG" && grep -q "registry says hi" "$LAST_LOG" \
+   && grep -qE "^=== tests: FAIL \(exit 1" "$LAST_LOG"; then
+  ok "each gate's output is kept in the last log, under --json too"
+else
+  bad "each gate's output is kept in the last log, under --json too" "$(head -8 "$LAST_LOG" 2>/dev/null)"
+fi
+# A gate whose tool is absent exits 0 and says SKIP: the log must say SKIP as the report does, and
+# a missing gate script still gets its line.
+stub_gates 0 0 0
+printf '#!/usr/bin/env bash\necho "  SKIP  mypy not installed"\nexit 0\n' > "$TMPDIR/hooks/types-guard.sh"
+rm -f "$TMPDIR/hooks/runtime-drift-guard.sh"
+HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 || true
+if grep -q "^=== types: SKIP (exit 0) ===" "$LAST_LOG" && ! grep -q "^=== types: OK" "$LAST_LOG" \
+   && grep -q "^=== runtime drift: SKIP (missing " "$LAST_LOG"; then
+  ok "the last log labels a skipped or missing gate SKIP, as the report does"
+else
+  bad "the last log labels a skipped or missing gate SKIP, as the report does" "$(grep '^===' "$LAST_LOG")"
+fi
+
+stub_gates 0 0 0
+HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >/dev/null 2>&1 || true
+if grep -q "^=== tests: OK" "$LAST_LOG" && ! grep -q "FAIL" "$LAST_LOG"; then
+  ok "the next run replaces the last log"
+else
+  bad "the next run replaces the last log" "$(head -5 "$LAST_LOG")"
+fi
+
 # --- an unwritable state dir neither stalls nor prints ---
 SECONDS=0
 HARNESS_VERIFY_LAST_REPORT="/proc/nope/x/last.json" HARNESS_HOOKS_DIR="$TMPDIR/hooks" bash "$SCRIPT" >"$TMPDIR/out.slow" 2>&1 || true
