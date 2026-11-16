@@ -26,6 +26,9 @@ path stays. GitHub runner registrations: 983 offline ones deleted (68 atelier, 9
 the one online runner in each repo kept. atelier: firstdigital on react-router 7 (`5f77533`).
 **Rule broken:** `5f77533` and the 11-12 sync `d5e467e` were committed and pushed in atelier from
 this repo's session, against the 2026-10-24 decision below; flagged to the owner, nothing reverted.
+Verified on b185390: `gate_experiment.py` caught all 12 planted defects at their expected gate
+(5 needed, 6 possibly redundant only because tests also catch them; remove nothing, as on 2026-10-13);
+a live agy run in a clone wrote `declare -A` and the Stop hook blocked it on bash compat.
 **Done 2026-11-12:** feat-111 (outside-agent reviews cannot write). **Earlier:** feat-110
 (2026-10-30, `run --model/--effort`), feat-109 (2026-11-04), feat-108 (2026-10-24), feat-098 (2026-10-25).
 
