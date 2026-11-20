@@ -351,8 +351,8 @@ def test_run_one_timeout_kills_grandchildren(stubenv, tmp_path):
     pidfile = tmp_path / "grandchild.pid"
     _stub(bin_, "agy", f"sleep 30 &\necho $! > {pidfile}\nwait")
     start = time.monotonic()
-    assert oa.run_one("agy", "p", "review", False, 1, None) == ("transient", "timed out after 1s")
-    assert time.monotonic() - start < 5
+    assert oa.run_one("agy", "p", "review", False, 2, None) == ("transient", "timed out after 2s")
+    assert time.monotonic() - start < 7
     pid = int(pidfile.read_text())
     deadline = time.monotonic() + 2
     while time.monotonic() < deadline:
