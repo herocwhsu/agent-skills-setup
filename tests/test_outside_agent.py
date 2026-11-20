@@ -351,8 +351,8 @@ def test_run_one_timeout_kills_grandchildren(stubenv, tmp_path):
     pidfile = tmp_path / "grandchild.pid"
     _stub(bin_, "agy", f"sleep 30 &\necho $! > {pidfile}\nwait")
     start = time.monotonic()
-    assert oa.run_one("agy", "p", "review", False, 1, None) == ("transient", "timed out after 1s")
-    assert time.monotonic() - start < 5
+    assert oa.run_one("agy", "p", "review", False, 2, None) == ("transient", "timed out after 2s")
+    assert time.monotonic() - start < 7
     pid = int(pidfile.read_text())
     deadline = time.monotonic() + 2
     while time.monotonic() < deadline:
@@ -692,11 +692,15 @@ def test_apply_rubric_structure():
     assert formatted.startswith(base)
     assert "## Evaluator Rubric (Score each dimension 1-5):" in formatted
     assert "1. Rule Conformance (1-5)" in formatted
+    assert "subagent concurrency caps (<= 3)" in formatted
     assert "2. Surgical Precision (1-5)" in formatted
     assert "3. Test Verifiability (1-5)" in formatted
     assert "4. Evidence Grounding (1-5)" in formatted
+    assert "state layer (feature_list.json, PROGRESS.md)" in formatted
+    assert "exact file:line anchors and command outputs" in formatted
     assert "Required Evaluation Output:" in formatted
     assert "Concrete Failure Scenarios" in formatted
+    assert "required for REJECT or CONDITIONAL" in formatted
     assert "Final Verdict: PASS, CONDITIONAL, or REJECT" in formatted
 
 

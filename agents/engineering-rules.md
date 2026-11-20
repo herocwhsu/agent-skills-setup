@@ -71,6 +71,10 @@ You are an expert AI software engineer. You must adhere to the following 12 core
 ### Subagent verification
 - After any subagent dispatch, run `git log --oneline <base>..HEAD` and `git show --stat <sha>` for each commit before marking tasks complete.
 - Verify diffs and tests directly. Do not trust verbose subagent summaries.
+- Concurrency limit: Unless a specialized skill explicitly defines a dedicated fan-out batch (e.g. audit/spec), keep total concurrent active subagents per milestone or task <= 3.
+- Review composition & ratio: For dual-review workflows, target a 1:1 balance between an inner subagent and an outside agent (typically 1 inner + 1 outside, <= 2 total, scaled per the risk tiers in Reviewing below). Because outside agents are optional and run asynchronously (see Outside agents below), a fresh-context inner subagent remains the primary synchronous verification.
+- Model tiering & diversity: Inner subagents should use a higher capability tier than the coordinator where applicable (e.g. Pro tier in Antigravity, Opus in Claude) for reasoning-heavy verification or red-teaming. When an outside agent is used for reviews, outside-agent.sh prioritizes a different model family to reduce shared vendor blind spots.
+- Evidence over assertion: Subagent reports must prioritize empirical evidence over assertions. Reviews and evaluations must cite specific file:line links, command exit summaries, and concrete failing test scenarios or inputs for any identified defect before failing a check.
 
 ### Outside agents
 - Delegating: use your own subagent first. For an outside agent, run `~/.agent-skills-setup/outside-agent.sh run --purpose delegate --from <claude|openai|gemini> -- "<prompt>"`, where `--from` is your own model family. Give your shell tool a timeout longer than --timeout (default 110s).
