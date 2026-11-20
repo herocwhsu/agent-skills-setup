@@ -692,11 +692,15 @@ def test_apply_rubric_structure():
     assert formatted.startswith(base)
     assert "## Evaluator Rubric (Score each dimension 1-5):" in formatted
     assert "1. Rule Conformance (1-5)" in formatted
+    assert "subagent concurrency caps (<= 3)" in formatted
     assert "2. Surgical Precision (1-5)" in formatted
     assert "3. Test Verifiability (1-5)" in formatted
     assert "4. Evidence Grounding (1-5)" in formatted
+    assert "state layer (feature_list.json, PROGRESS.md)" in formatted
+    assert "exact file:line anchors and command outputs" in formatted
     assert "Required Evaluation Output:" in formatted
     assert "Concrete Failure Scenarios" in formatted
+    assert "required for REJECT or CONDITIONAL" in formatted
     assert "Final Verdict: PASS, CONDITIONAL, or REJECT" in formatted
 
 
