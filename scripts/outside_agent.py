@@ -137,15 +137,15 @@ def error_reason(out: str) -> str:
 
 
 EVALUATOR_RUBRIC = """## Evaluator Rubric (Score each dimension 1-5):
-1. Rule Conformance (1-5): Adherence to Karpathy's 12 rules and repo invariants.
+1. Rule Conformance (1-5): Adherence to Karpathy's 12 rules, repo invariants, and subagent concurrency caps (<= 3).
 2. Surgical Precision (1-5): Minimal necessary diff without refactoring adjacent code.
 3. Test Verifiability (1-5): Automated tests verify business intent, not just trivial mocks.
-4. Evidence Grounding (1-5): Verifiable proof in state layer (feature_list.json, PROGRESS.md).
+4. Evidence Grounding (1-5): Verifiable proof in state layer (feature_list.json, PROGRESS.md) citing exact file:line anchors and command outputs.
 
 Required Evaluation Output:
 - Dimension Scores (1-5 for each dimension with concise rationale)
-- Identified Risks / Blind Spots / Regressions
-- Concrete Failure Scenarios (inputs or conditions where the solution fails)
+- Identified Risks / Blind Spots / Regressions (cite specific file:line paths)
+- Concrete Failure Scenarios (inputs or conditions where the solution fails; required for REJECT or CONDITIONAL)
 - Final Verdict: PASS, CONDITIONAL, or REJECT"""
 
 

@@ -124,6 +124,21 @@
         "subagents": 3,
         "subagent_output_tokens": 11957
       }
+    },
+    {
+      "id": "feat-113",
+      "name": "subagent governance, concurrency limits and structured evidence rubrics",
+      "description": "Reconcile subagent concurrency limit (<= 3), review ratio (1:1 dual review), model tiering, and empirical evidence schemas into engineering rules; augment EVALUATOR_RUBRIC in outside_agent.py with concrete failure scenarios and file:line evidence.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "agents/engineering-rules.md specifies concurrency limit <= 3, 1:1 dual-review target, model tiering, and empirical evidence over assertions",
+        "scripts/outside_agent.py EVALUATOR_RUBRIC requires concrete failure scenarios for REJECT/CONDITIONAL and exact file:line anchors",
+        "tests/test_outside_agent.py validates all rubric clauses",
+        "all 4 agent host files (~/.claude/CLAUDE.md, ~/.gemini/GEMINI.md, ~/.codex/AGENTS.md, ~/.kiro/steering/engineering-rules.md) synchronized cleanly"
+      ],
+      "verification": "bash scripts/harness-verify.sh",
+      "evidence": "agents/engineering-rules.md: subagent verification updated with concurrency limit, review composition, model tiering, and evidence over assertion; scripts/outside_agent.py: EVALUATOR_RUBRIC updated; tests/test_outside_agent.py: test_apply_rubric_structure verifies new rubric clauses; install-agents-md.sh deployed to all 4 hosts; harness-verify passed all 11 gates."
     }
   ]
 }
