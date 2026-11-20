@@ -138,7 +138,7 @@
         "all 4 agent host files (~/.claude/CLAUDE.md, ~/.gemini/GEMINI.md, ~/.codex/AGENTS.md, ~/.kiro/steering/engineering-rules.md) synchronized cleanly"
       ],
       "verification": "bash scripts/harness-verify.sh",
-      "evidence": "agents/engineering-rules.md: subagent verification updated with concurrency limit, review composition, model tiering, and evidence over assertion; scripts/outside_agent.py: EVALUATOR_RUBRIC updated; tests/test_outside_agent.py: test_apply_rubric_structure verifies new rubric clauses; install-agents-md.sh deployed to all 4 hosts; harness-verify passed all 11 gates."
+      "evidence": "Commit 8e12bc2: agents/engineering-rules.md subagent verification updated with concurrency limit, review composition, model tiering, and evidence over assertion; scripts/outside_agent.py EVALUATOR_RUBRIC updated; tests/test_outside_agent.py: test_apply_rubric_structure failed first on missing state layer assertion (AssertionError: assert 'state layer' in text), then passed; commit 2207655: increased grandchild timeout tolerance to 2s for parallel test runs; install-agents-md.sh deployed to all 4 hosts; harness-verify passed all 11 gates. Outside agent (claude-kiro) verified."
     }
   ]
 }
