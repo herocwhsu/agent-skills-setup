@@ -60,6 +60,13 @@ grep -q 'two fresh-context subagents in parallel' "$RULES" && grep -q 'is option
   && grep -q 'do not hold the commit for it' "$RULES" && ! grep -q 'that subagent plus an outside agent' "$RULES" \
   && ok "high-risk review is two subagents; the outside agent never holds the commit" \
   || bad "high-risk review is two subagents; the outside agent never holds the commit" "missing"
+grep -q 'concurrent active subagents per milestone or task <= 3' "$RULES" \
+  && grep -q 'Evidence over assertion' "$RULES" \
+  && ok "subagent rules carry the concurrency cap and evidence over assertion" \
+  || bad "subagent rules carry the concurrency cap and evidence over assertion" "missing"
+! grep -Eq '1:1|1 inner \+ 1 outside|higher capability tier than the coordinator' "$RULES" \
+  && ok "no 1:1 inner/outside review ratio and no model-tier rule" \
+  || bad "no 1:1 inner/outside review ratio and no model-tier rule" "present"
 grep -q 'cumulative diff' "$RULES" \
   && ok "review rule names its trigger (once per branch, on the cumulative diff)" \
   || bad "review rule names its trigger (once per branch, on the cumulative diff)" "missing"

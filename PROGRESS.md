@@ -19,7 +19,7 @@
 
 *(Earlier features feat-001 through feat-086 are archived in [docs/progress-archive.md](docs/progress-archive.md); feat-087 to feat-094 in `docs/archive/features/`, feat-095 onward in `feature_list.json`. Per-feature evidence also recorded in `feature_list.json` and `docs/archive/features/`.)*
 
-**Done 2026-11-20:** feat-113: subagent governance, concurrency limits (<= 3), 1:1 dual review composition, model tiering (Pro tier for inner reviews), and empirical evidence schemas formalised in `agents/engineering-rules.md`; `EVALUATOR_RUBRIC` in `scripts/outside_agent.py` updated with concrete failure scenarios and file:line evidence; `tests/test_outside_agent.py` updated with tests that failed first. Clean deployment across all 4 host environments via `install-agents-md.sh`. All 11 gates pass.
+**Done 2026-11-20:** feat-113: subagent concurrency cap (<= 3) and evidence over assertion added to `agents/engineering-rules.md` (a 1:1 inner/outside review ratio and a model-tier rule were dropped: they contradicted the 2026-10-20 owner decision); `EVALUATOR_RUBRIC` in `scripts/outside_agent.py` requires concrete failure scenarios and file:line evidence; text-presence tests for both. Open after merge: run `scripts/install.sh` (runtime drift) and, once approved, `scripts/install-agents-md.sh` (host files do not carry the new rules yet).
 **Done 2026-11-16:** feat-112: `harness-verify.sh` keeps every gate's output in
 `harness-verify-last.log` beside the last report (under `--json` too). Codex skills path
 checked in Codex's source: it reads `$CODEX_HOME/skills` and `~/.agents/skills`, so the install
