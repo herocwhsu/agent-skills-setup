@@ -122,6 +122,16 @@ check "surrounding whitespace in the marker is ignored"        "$A" "$(resolve "
 # without a marker. HOME is redirected: install_runtime_dir writes to
 # $HOME/.agent-skills-setup and would otherwise overwrite the real one.
 
+# stub_other_runtime_files <dir>  an empty file for every runtime_files entry not created yet,
+# so a file added to the list does not break trees that only care about the marker
+stub_other_runtime_files() {
+  local d="$1" src _
+  while read -r src _; do
+    mkdir -p "$d/$(dirname "$src")"
+    [[ -e "$d/$src" ]] || : > "$d/$src"
+  done < <(bash -c 'source "$0" >/dev/null 2>&1; runtime_files' "$REPO_DIR/scripts/_lib.sh")
+}
+
 # fake_src <dir> <id|->   a tree install_runtime_dir can be pointed at
 fake_src() {
   local d="$1" id="$2"
@@ -133,6 +143,7 @@ fake_src() {
   mkdir -p "$d/templates/hooks/global" "$d/templates/hooks/common"
   : > "$d/templates/hooks/global/global-hook.sh"
   for h in agent-hook sh-check secret-scan preflight; do : > "$d/templates/hooks/common/$h.sh"; done
+  stub_other_runtime_files "$d"
   [[ "$id" == "-" ]] || printf '%s\n' "$id" > "$d/.skills-repo-id"
 }
 
@@ -200,6 +211,7 @@ full_src() {
   mkdir -p "$d/templates/hooks/global" "$d/templates/hooks/common"
   : > "$d/templates/hooks/global/global-hook.sh"
   for h in agent-hook sh-check secret-scan preflight; do : > "$d/templates/hooks/common/$h.sh"; done
+  stub_other_runtime_files "$d"
   [[ "$id" == "-" ]] || printf '%s\n' "$id" > "$d/.skills-repo-id"
 }
 

@@ -31,6 +31,14 @@ while IFS=' ' read -r type id subpath_or_empty; do
   esac
 done < "$REPO_DIR/registry.txt"
 
+CVE_AUDIT_RT="$(skills_runtime_dir "$REPO_DIR")/cve-audit"
+if [[ -f "$CVE_AUDIT_RT/setup.py" ]]; then
+  echo ""
+  echo "==> Removing cve-audit permission entries that setup installed..."
+  python3 "$CVE_AUDIT_RT/setup.py" remove-permissions --runtime-dir "$CVE_AUDIT_RT" \
+    || echo "  WARNING: cve-audit permission removal failed; check ~/.codex/rules/cve-audit.rules"
+fi
+
 echo ""
 echo "==> Removing per-agent skills from registry.txt..."
 
