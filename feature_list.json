@@ -120,7 +120,15 @@
         "tests/test_outside_agent.py asserts the rubric text carries each clause; scripts/tests/test_engineering_rules_scope.sh asserts the rules text"
       ],
       "verification": "bash scripts/harness-verify.sh",
-      "evidence": "Rules text: cap and evidence rule added; the 1:1 ratio and model-tier bullets dropped (contradicted the 2026-10-20 owner decision). test_engineering_rules_scope.sh failed first (14/1), then 15/0. test_apply_rubric_structure failed first on 'subagent concurrency caps (<= 3)' against main; text assertions only. pytest test_outside_agent 234 passed; mypy clean; worktree gates: 9 OK, types skipped (mypy run by hand), runtime drift fails until scripts/install.sh runs after merge. install-agents-md.sh not run; host files lack the new rules."
+      "evidence": "Rules text: cap and evidence rule added; the 1:1 ratio and model-tier bullets dropped (contradicted the 2026-10-20 owner decision). test_engineering_rules_scope.sh failed first (14/1), then 15/0. test_apply_rubric_structure failed first on 'subagent concurrency caps (<= 3)' against main; text assertions only. pytest test_outside_agent 234 passed; mypy clean; worktree gates: 9 OK, types skipped (mypy run by hand), runtime drift fails only until install.sh. After the fast-forward to main: install.sh and install-agents-md.sh run, 11 gates passed in the pre-push hook, all four host files carry the cap and evidence rules.",
+      "execution_summary": {
+        "run_id": "dee5121c-8db959bd95",
+        "output_tokens": 22995,
+        "wall_time_ms": 480096093,
+        "active_turn_time_ms": 972997,
+        "subagents": 2,
+        "subagent_output_tokens": 10732
+      }
     }
   ]
 }
