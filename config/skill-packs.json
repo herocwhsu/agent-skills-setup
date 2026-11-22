@@ -1,7 +1,7 @@
 {
   "_comment": "core stays in every agent's global skills; other packs are opt-in per repo through agent-harness.json skill_packs. A global skill no pack names stays global. Read by scripts/harness_adapter.py and scripts/repo_audit.py. infra is core: its skills are host tools (ups, tmux-yank, kiro-gateway) that their instructions call by the global path.",
   "core": [
-    "brainstorming", "dispatching-parallel-agents", "executing-plans",
+    "brainstorming", "cve-audit", "dispatching-parallel-agents", "executing-plans",
     "experiment-iteration", "finishing-a-development-branch", "infra", "receiving-code-review",
     "requesting-code-review", "spec-workflow", "subagent-driven-development",
     "systematic-debugging", "test-driven-development", "using-git-worktrees",

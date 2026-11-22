@@ -61,6 +61,7 @@ plugin-optional  anthropics/knowledge-work-plugins  product-management
 
 local  apidog
 local  audit
+local  cve-audit
 local  external
 local  infra
 local  intake

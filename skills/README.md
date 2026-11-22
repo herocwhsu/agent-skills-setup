@@ -5,8 +5,8 @@ Custom agent skills managed by this repo. Each group follows the
 Gemini, and Codex.
 
 Skills are **two-level**: a group owns `SKILL.md` (the entry point the agent reads),
-and each subcommand under it owns an `IMPL.md` recipe. There are currently 16 groups
-and 46 subcommands.
+and each subcommand under it owns an `IMPL.md` recipe. There are currently 17 groups
+and 49 subcommands.
 
 ```
 skills/
@@ -47,6 +47,7 @@ Not part of the spec-gated workflow; these run on their own.
 | [infra](infra/SKILL.md) | `kiro-gateway` `host-optimization` `apidog-mcp` `tmux-yank` `ups` | Local infrastructure behind Claude Code and Kiro workflows |
 | [utils](utils/SKILL.md) | `polish-input` `confluence-tree` `skill-eval` `change-eval` | Cross-cutting helpers that belong to no single gate |
 | [sre-migration](sre-migration/SKILL.md) | `scaffold` `draft` `lint` `ticket` | Scaffold a data-correction tool and gate its Migration Execution ticket before filing |
+| [cve-audit](cve-audit/SKILL.md) | `assess` `doctor` `setup` | Read-only evidence chain from a CVE to EKS image, node, and host verdicts |
 | [ai-stack](ai-stack/SKILL.md) | `baml` `langgraph` `memu` `ai-hedge-fund` | Reference material for adding AI/LLM features to a service |
 | [experiment-iteration](experiment-iteration/SKILL.md) | — | Hypothesis → experiment → learning loops for exploratory work |
 
