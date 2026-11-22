@@ -19,7 +19,7 @@
 
 *(Earlier features feat-001 through feat-086 are archived in [docs/progress-archive.md](docs/progress-archive.md); feat-087 to feat-094 in `docs/archive/features/`, feat-095 onward in `feature_list.json`. Per-feature evidence also recorded in `feature_list.json` and `docs/archive/features/`.)*
 
-**Done 2026-11-20:** feat-113: subagent cap (<= 3) and evidence-over-assertion in `agents/engineering-rules.md`; rubric in `scripts/outside_agent.py` asks for failure scenarios and file:line. Open after merge: `scripts/install.sh`, then (with approval) `scripts/install-agents-md.sh`.
+**Done 2026-11-20:** feat-113: subagent cap (<= 3) and evidence-over-assertion in `agents/engineering-rules.md`; rubric in `scripts/outside_agent.py` asks for failure scenarios and file:line. Merged to main 2026-11-22 (via fast-forward push); `install.sh` and `install-agents-md.sh` run, all four host files carry the rules. The cve-audit spec and plan live on branch `docs/cve-audit-skill` (no PR yet).
 **Done 2026-11-16:** feat-112: `harness-verify.sh` keeps every gate's output in
 `harness-verify-last.log` beside the last report (under `--json` too). Codex skills path
 checked in Codex's source: it reads `$CODEX_HOME/skills` and `~/.agents/skills`, so the install
