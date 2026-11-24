@@ -500,3 +500,37 @@ def test_real_rewrites_still_pass_the_guard(prompt, fixed):
     assert code == 0
     assert out == prompt
     assert f"[polish] {fixed}" in err
+
+
+def _fake_runtime_python(tmp_path, body: str):
+    marker = Path(__file__).resolve().parents[4] / ".skills-repo-id"
+    repo_id = marker.read_text().split("\n")[0].strip()
+    py = tmp_path / "home" / f".{repo_id}" / "venv" / "bin" / "python"
+    py.parent.mkdir(parents=True)
+    py.write_text(f"#!/bin/sh\n{body}\n")
+    py.chmod(0o755)
+    return py
+
+
+def test_runs_under_runtime_venv_interpreter(tmp_path):
+    # A Homebrew bump of `python3` leaves the venv's compiled wheels unloadable
+    # (anthropic -> jiter), so the hook must hand off to the venv's own python.
+    marker = tmp_path / "reexec"
+    _fake_runtime_python(tmp_path, f'echo "$POLISH_REEXEC" > {marker}\nexec {sys.executable} "$@"')
+    out, _, code = run_polish("i want add new feature")
+    assert (out, code) == ("i want add new feature", 0)
+    assert marker.read_text().strip() == "1"
+
+
+def test_no_reexec_loop_when_already_handed_off(tmp_path):
+    marker = tmp_path / "reexec"
+    _fake_runtime_python(tmp_path, f"echo hit >> {marker}\nexit 1")
+    out, _, code = run_polish("hello there", {"POLISH_REEXEC": "1"})
+    assert (out, code) == ("hello there", 0)
+    assert not marker.exists()
+
+
+def test_broken_runtime_python_falls_back_to_current_interpreter(tmp_path):
+    _fake_runtime_python(tmp_path, "exit 1").unlink()
+    out, _, code = run_polish("hello there")
+    assert (out, code) == ("hello there", 0)

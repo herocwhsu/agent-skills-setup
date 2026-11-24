@@ -131,6 +131,19 @@
         "subagents": 3,
         "subagent_output_tokens": 28168
       }
+    },
+    {
+      "id": "feat-115",
+      "name": "polish-input hands off to the runtime venv interpreter",
+      "description": "A Homebrew bump of python3 (3.14 to 3.15) left the venv's compiled wheels (anthropic -> jiter) unloadable under the hook's bare python3, so every prompt logged no-change. polish.py now re-execs under ~/.<repo-id>/venv/bin/python once (POLISH_REEXEC guards a loop) and falls back to the current interpreter if that python is missing.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "With a runtime venv python present, the hook runs under it exactly once",
+        "POLISH_REEXEC set, or no usable venv python, leaves the hook on the current interpreter and still fails open"
+      ],
+      "verification": "pytest skills/utils/polish-input/tests",
+      "evidence": "New tests failed first (no hand-off), then 63 passed. Live hook under python3 3.15.2 turned 'i want add new feature for login' into a polished line, where before it returned no-change. mypy clean. Not fixed: the engine-error hint is deduped by reason hash, so the Oct 22 marker hid this recurrence; deferred."
     }
   ]
 }

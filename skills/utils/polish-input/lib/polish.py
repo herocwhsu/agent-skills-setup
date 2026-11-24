@@ -57,6 +57,27 @@ def _add_runtime_site_packages() -> None:
                     site.addsitedir(str(sp))
 
 
+def _reexec_in_runtime_venv() -> None:
+    """Hand off to the runtime venv's own interpreter.
+
+    The SDKs there hold compiled wheels (anthropic -> jiter). After a Homebrew bump of
+    `python3` the hook's interpreter no longer matches them and the import fails, which
+    reads as "no-change". POLISH_REEXEC stops a second hand-off.
+    """
+    if os.environ.get("POLISH_REEXEC"):
+        return
+    rt_dir = Path.home() / f".{_repo_id(__file__)}"
+    for venv_name in ("venv", ".venv"):
+        py = rt_dir / venv_name / "bin" / "python"
+        if py.exists() and Path(sys.prefix) != rt_dir / venv_name:
+            os.environ["POLISH_REEXEC"] = "1"
+            try:
+                os.execv(str(py), [str(py), *sys.argv])
+            except OSError:
+                return
+
+
+_reexec_in_runtime_venv()
 _add_runtime_site_packages()
 
 MAX_LEN = 4000
