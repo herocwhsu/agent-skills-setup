@@ -67,6 +67,22 @@ types for external sources: `github`, `github-skill`, `plugin`, `plugin-optional
 [external-source examples](../README.md#add-an-external-skill-or-claude-code-plugin)
 cover the first four; `npm` and `pip` install a published package as a skill.
 
+## Recipes and agent paths
+
+A recipe's shell block must not name one agent's skills directory. `~/.claude/skills/...`
+works on Claude Code and fails on Codex, Kiro and Antigravity, which keep the same skills
+under their own directories. Resolve the skill's location instead:
+
+```bash
+source ~/.agent-skills-setup/lib.sh
+DIR=$(find_skill_dir infra/ups) || exit 1
+bash "$DIR/lib/ups.sh" status
+```
+
+`skill-paths-guard.sh` blocks a fenced shell block that names `~/.claude/skills` (or the
+`.codex`, `.kiro`, `.gemini/antigravity-cli` equivalents). Prose and per-agent config files
+such as `~/.claude/settings.json` are not checked.
+
 ## Naming
 
 - Lowercase with hyphens: `host-optimization` ✓

@@ -14,12 +14,14 @@ Manages the kiro-gateway Docker container: builds a SHA-tagged image locally fro
 bash scripts/install.sh
 ```
 
-Adds `~/.claude/skills/infra/kiro-gateway/` (and `~/.kiro/skills/infra/kiro-gateway/` if kiro is selected) as a symlink into this repo.
+Adds `infra/kiro-gateway/` under the skills directory of each selected agent (`~/.claude/skills/`, `~/.kiro/skills/`, `~/.codex/skills/`, `~/.gemini/antigravity-cli/skills/`) as a symlink into this repo. The commands below find it with `find_skill_dir`, so they work whichever agent is installed.
 
 After installing, set up the `claude-kiro` shell alias:
 
 ```bash
-bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh setup-alias
+source ~/.agent-skills-setup/lib.sh
+KG=$(find_skill_dir infra/kiro-gateway) || exit 1
+bash "$KG/lib/kiro-gateway.sh" setup-alias
 source ~/.zshrc  # or ~/.bash_profile / ~/.bashrc
 ```
 
@@ -36,11 +38,13 @@ Tell your AI agent: "set up kiro-gateway" / "update kiro-gateway" / "rollback ki
 Or run directly:
 
 ```bash
-bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh init
-bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh update
-bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh rollback
-bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh status
-bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh setup-alias
+source ~/.agent-skills-setup/lib.sh
+KG=$(find_skill_dir infra/kiro-gateway) || exit 1
+bash "$KG/lib/kiro-gateway.sh" init
+bash "$KG/lib/kiro-gateway.sh" update
+bash "$KG/lib/kiro-gateway.sh" rollback
+bash "$KG/lib/kiro-gateway.sh" status
+bash "$KG/lib/kiro-gateway.sh" setup-alias
 ```
 
 ## The claude-kiro alias
@@ -57,7 +61,7 @@ All model slots are pinned because the gateway lists ids that answer HTTP 400 fo
 On Linux, `secret-tool` is used instead of `security`. On headless Linux, the key falls back to `$KIRO_PROXY_KEY` set in `~/.zshrc.local`.
 
 **Workflow:**
-1. `bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh init` — start the container
+1. `bash "$(find_skill_dir infra/kiro-gateway)/lib/kiro-gateway.sh" init` — start the container
 2. `claude-kiro` — launch Claude Code through the gateway
 
 ## The codex-kiro alias
@@ -73,7 +77,9 @@ alias codex-kiro='KIRO_PROXY_KEY=$(security find-generic-password -s "agent-skil
 Set it up with:
 
 ```bash
-bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh setup-codex
+source ~/.agent-skills-setup/lib.sh
+KG=$(find_skill_dir infra/kiro-gateway) || exit 1
+bash "$KG/lib/kiro-gateway.sh" setup-codex
 source ~/.zshrc
 ```
 

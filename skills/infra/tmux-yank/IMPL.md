@@ -16,7 +16,8 @@ Ask Claude to:
 
 Claude will call:
 ```bash
-bash ~/.claude/skills/infra/tmux-yank/lib/tmux-yank.sh
+source ~/.agent-skills-setup/lib.sh
+bash "$(find_skill_dir infra/tmux-yank)/lib/tmux-yank.sh"
 ```
 
 ## What it does (in order)

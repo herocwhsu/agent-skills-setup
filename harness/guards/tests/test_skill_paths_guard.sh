@@ -13,6 +13,7 @@ REPO_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 HOOK="$REPO_DIR/.claude/hooks/skill-paths-guard.sh"
 CHECKER="$REPO_DIR/scripts/skill_path_var_check.py"
 FM_CHECKER="$REPO_DIR/scripts/skill_frontmatter_check.py"
+AP_CHECKER="$REPO_DIR/scripts/skill_agent_path_check.py"
 [[ -f "$HOOK" ]]    || { echo "FAIL: hook not found at $HOOK"; exit 1; }
 [[ -f "$CHECKER" ]] || { echo "FAIL: checker not found at $CHECKER"; exit 1; }
 
@@ -34,6 +35,7 @@ fixture() {
   mkdir -p "$d/skills/grp/sub" "$d/scripts"
   cp "$CHECKER" "$d/scripts/skill_path_var_check.py"
   cp "$FM_CHECKER" "$d/scripts/skill_frontmatter_check.py"
+  cp "$AP_CHECKER" "$d/scripts/skill_agent_path_check.py"
   printf '%s\n' "$body" > "$d/skills/grp/sub/IMPL.md"
   echo "$d"
 }
@@ -100,7 +102,7 @@ out=$(run_hook "$d") && code=0 || code=$?
 # $HOME is always set, and a path under it is the runtime dir, not the repo.
 d=$(fixture home '```bash
 source "$HOME/.agent-skills-setup/lib.sh"
-cat "$HOME/.claude/skills/apidog/SKILL.md"
+cat "$HOME/.agent-skills-setup/config.sh"
 ```')
 out=$(run_hook "$d") && code=0 || code=$?
 [[ $code -eq 0 ]] \
@@ -143,6 +145,52 @@ out=$(run_hook "$d") && code=0 || code=$?
 [[ $code -eq 0 ]] \
   && ok "quoted frontmatter value passes" \
   || bad "quoted frontmatter value passes" "exit $code, out: $out"
+
+# --- agent-specific skills paths -----------------------------------------
+# A recipe naming ~/.claude/skills works on Claude Code and fails on the other
+# three agents, so the guard blocks it and points at find_skill_dir.
+for form in '~/.claude/skills/infra/ups/lib/ups.sh' '$HOME/.codex/skills/infra/ups/lib/ups.sh' \
+            '${HOME}/.kiro/skills/infra/ups/lib/ups.sh' '$HOME/.gemini/antigravity-cli/skills/infra/ups/lib/ups.sh'; do
+  d=$(fixture "ap_bad_$RANDOM" "\`\`\`bash
+bash $form status
+\`\`\`")
+  out=$(run_hook "$d") && code=0 || code=$?
+  if [[ $code -eq 2 && "$out" == *find_skill_dir* ]]; then ok "agent skills path blocks with exit 2: ${form%%/infra*}"
+  else bad "agent skills path blocks with exit 2: ${form%%/infra*}" "exit $code, out: $out"; fi
+done
+
+d=$(fixture ap_good '```bash
+source ~/.agent-skills-setup/lib.sh
+DIR=$(find_skill_dir infra/ups) || exit 1
+bash "$DIR/lib/ups.sh" status
+```')
+out=$(run_hook "$d") && code=0 || code=$?
+[[ $code -eq 0 ]] \
+  && ok "find_skill_dir recipe passes" \
+  || bad "find_skill_dir recipe passes" "exit $code, out: $out"
+
+d=$(fixture ap_prose 'Installed at ~/.claude/skills/infra/ups when Claude Code is selected.')
+out=$(run_hook "$d") && code=0 || code=$?
+[[ $code -eq 0 ]] \
+  && ok "an agent skills path in prose is not flagged" \
+  || bad "an agent skills path in prose is not flagged" "exit $code, out: $out"
+
+d=$(fixture ap_settings '```bash
+python3 -c "import json,os; json.load(open(os.path.expanduser(\"~/.claude/settings.json\")))"
+cat ~/.claude/settings.json
+```')
+out=$(run_hook "$d") && code=0 || code=$?
+[[ $code -eq 0 ]] \
+  && ok "an agent config file path is not flagged" \
+  || bad "an agent config file path is not flagged" "exit $code, out: $out"
+
+d=$(fixture ap_cli '```bash
+bash ~/.claude/skills/infra/ups/lib/ups.sh
+```')
+python3 "$AP_CHECKER" "$d/skills" >/dev/null 2>&1 && code=0 || code=$?
+[[ $code -eq 1 ]] \
+  && ok "agent-path checker exits 1 (CLI)" \
+  || bad "agent-path checker exits 1 (CLI)" "exit $code"
 
 # --- 8. the real tree passes -------------------------------------------
 out=$(bash "$HOOK" 2>&1) && code=0 || code=$?

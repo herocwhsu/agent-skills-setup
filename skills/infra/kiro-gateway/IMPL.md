@@ -20,7 +20,8 @@ Ask Claude to:
 
 Claude will call:
 ```bash
-bash ~/.claude/skills/infra/kiro-gateway/lib/kiro-gateway.sh <subcommand>
+source ~/.agent-skills-setup/lib.sh
+bash "$(find_skill_dir infra/kiro-gateway)/lib/kiro-gateway.sh" <subcommand>
 ```
 
 ## Subcommands

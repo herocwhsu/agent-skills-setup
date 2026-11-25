@@ -132,6 +132,20 @@
         "subagents": 0,
         "subagent_output_tokens": 0
       }
+    },
+    {
+      "id": "feat-116",
+      "name": "Skill recipes find their own directory on any agent",
+      "description": "Six recipe files named ~/.claude/skills, which fails on Codex, Kiro and Antigravity. lib.sh gains find_skill_dir <group>/<sub>; infra (ups, tmux-yank, kiro-gateway), confluence-tree and skill-eval use it; skill-paths-guard blocks a fenced shell block that names one agent's skills dir.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "find_skill_dir resolves a skill installed under any one of the four agent dirs, honours CODEX_HOME, and returns 1 when absent",
+        "skill-paths-guard exits 2 on ~/.claude, $HOME/.codex, ${HOME}/.kiro and $HOME/.gemini/antigravity-cli skills paths in shell blocks, and passes prose, config files and find_skill_dir recipes",
+        "No recipe under skills/ names an agent's skills directory"
+      ],
+      "verification": "bash scripts/harness-verify.sh",
+      "evidence": "Tests failed first (find_skill_dir missing, hook not wired), then passed; the guard found exactly the six files three investigators had listed. Runtime lib.sh synced; recipe resolves under claude, codex and kiro layouts. Not changed: upload_resume.py's hard-coded path (verified harmless, the script dir is already on sys.path); apidog-mcp has no Codex or Antigravity MCP target (config formats unverified); polish-input and prose wording."
     }
   ]
 }

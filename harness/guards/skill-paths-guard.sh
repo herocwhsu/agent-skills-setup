@@ -2,8 +2,9 @@
 # skill-paths-guard.sh — Stop/SubagentStop hook: block completion if a skill's
 # shell recipe builds a repo path from a variable it never defines. Such a path
 # expands to /scripts/... and cannot exist, so the recipe is dead as written
-# while still reading as if it works. Also blocks a SKILL.md whose frontmatter
-# is not valid YAML. Exit 2 blocks; exit 0 allows.
+# while still reading as if it works. Also blocks a recipe that hard-codes one
+# agent's skills dir (~/.claude/skills), which fails on the other agents, and a
+# SKILL.md whose frontmatter is not valid YAML. Exit 2 blocks; exit 0 allows.
 #
 # Whole-repo rather than PostToolUse: the check reads every *.md under skills/
 # in one pass (~50ms), and a per-edit run would re-scan the tree on every
@@ -18,6 +19,14 @@ REPO_DIR="${SKILL_PATHS_GUARD_REPO_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 if ! out=$(python3 "$REPO_DIR/scripts/skill_path_var_check.py" "$REPO_DIR/skills" 2>&1); then
   {
     echo "Blocked: a skill shell block references an undefined repo path variable:"
+    printf '%s\n' "$out"
+  } >&2
+  exit 2
+fi
+
+if ! out=$(python3 "$REPO_DIR/scripts/skill_agent_path_check.py" "$REPO_DIR/skills" 2>&1); then
+  {
+    echo "Blocked: a skill shell block names one agent's skills directory (fails on the other agents):"
     printf '%s\n' "$out"
   } >&2
   exit 2

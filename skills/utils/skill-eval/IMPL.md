@@ -53,12 +53,9 @@ Save the message window to a plain text file, e.g. `/tmp/eval-transcript.txt`.
 ### Step 2 — Run the check script
 
 ```bash
-python3 ~/.claude/skills/utils/skill-eval/lib/check_transcript.py <skill-name-prefix> /tmp/eval-transcript.txt
+source ~/.agent-skills-setup/lib.sh
+python3 "$(find_skill_dir utils/skill-eval)/lib/check_transcript.py" <skill-name-prefix> /tmp/eval-transcript.txt
 ```
-
-(or the matching path for another agent — `~/.kiro/skills/...`,
-`~/.codex/skills/...` — all resolve to the same file via the symlink into
-`agent-skills-setup`.)
 
 Where `<skill-name-prefix>` is the marker prefix, e.g. `DOMAIN_NOTES` for
 `repo/domain-notes`. The script (`lib/check_transcript.py`) does three

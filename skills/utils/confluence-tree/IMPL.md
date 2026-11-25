@@ -84,14 +84,12 @@ keychain via `require_secret`.
 
 ## Workflow: tree-fetch
 
-> **Note:** The bash recipes below assume Claude Code (`$HOME/.claude/skills/utils/confluence-tree`). On Antigravity CLI, Kiro, or Codex, change `SKILL_DIR` to the matching path (e.g., `$HOME/.gemini/antigravity-cli/skills/utils/confluence-tree`).
-
 Argument: the source page ID. Output lands at `./docs/confluence/<YYYY-MM-DD>-<page-id>/` relative to the user's CWD.
 
 ```bash
-SKILL_DIR="$HOME/.claude/skills/utils/confluence-tree"
-
 source ~/.agent-skills-setup/lib.sh
+SKILL_DIR=$(find_skill_dir utils/confluence-tree) || exit 1
+
 load_config || exit 1
 [[ -z "${CONFLUENCE_HOST:-}" ]] && { echo "ERROR: CONFLUENCE_HOST not in config.sh — run: bash scripts/credentials/service.sh confluence add" >&2; exit 1; }
 
@@ -117,9 +115,9 @@ echo "Edit the markdown files, then run /confluence-tree-upload to push to a new
 Arguments: the local tree directory (produced by tree-fetch and optionally edited), the destination parent page ID, and the destination space key. The upload runs in two passes — stub creation, then content + attachments + diagrams — and aborts before pass 2 if any stub fails.
 
 ```bash
-SKILL_DIR="$HOME/.claude/skills/utils/confluence-tree"
-
 source ~/.agent-skills-setup/lib.sh
+SKILL_DIR=$(find_skill_dir utils/confluence-tree) || exit 1
+
 load_config || exit 1
 [[ -z "${CONFLUENCE_HOST:-}" ]] && { echo "ERROR: CONFLUENCE_HOST not in config.sh" >&2; exit 1; }
 
@@ -151,7 +149,8 @@ unset _PASS
 Dry-run via `tree_upload.py --dry-run`. No network operations, no credentials needed — confirms which `wiki://page/<title>` links would resolve against the local manifest versus pass through unchanged.
 
 ```bash
-SKILL_DIR="$HOME/.claude/skills/utils/confluence-tree"
+source ~/.agent-skills-setup/lib.sh
+SKILL_DIR=$(find_skill_dir utils/confluence-tree) || exit 1
 
 LOCAL_DIR="$1"
 NEW_PARENT="$2"

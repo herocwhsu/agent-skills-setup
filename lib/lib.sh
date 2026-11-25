@@ -110,6 +110,26 @@ find_html2md() {
 }
 
 # ---------------------------------------------------------------------------
+# find_skill_dir <group>/<subcommand>
+#   Echo the installed directory of a skill subcommand from whichever agent
+#   skills dir has it, so a recipe never names one agent's path. The dirs are
+#   symlinks into this repo, so any hit is the same tree.
+#   Returns 1 with stderr message if not found anywhere.
+# ---------------------------------------------------------------------------
+find_skill_dir() {
+  local d
+  for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "${CODEX_HOME:-$HOME/.codex}/skills" "$HOME/.gemini/antigravity-cli/skills"; do
+    if [[ -d "$d/$1" ]]; then
+      echo "$d/$1"
+      return 0
+    fi
+  done
+  echo "ERROR: skill '$1' not found in any agent skills directory." >&2
+  echo "  Run: bash scripts/install.sh" >&2
+  return 1
+}
+
+# ---------------------------------------------------------------------------
 # _skills_repo_id <dir>
 #   Echo the repo identity recorded in <dir>/.skills-repo-id, or nothing.
 #   Whitespace-stripped first line only, so a stray newline cannot break a match.

@@ -23,7 +23,8 @@ Manage UPS power protection via NUT (Network UPS Tools).
 The agent runs:
 
 ```bash
-bash ~/.claude/skills/infra/ups/lib/ups.sh <subcommand>
+source ~/.agent-skills-setup/lib.sh
+bash "$(find_skill_dir infra/ups)/lib/ups.sh" <subcommand>
 ```
 
 ## Implementation files
