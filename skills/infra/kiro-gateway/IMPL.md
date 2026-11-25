@@ -21,7 +21,8 @@ Ask Claude to:
 Claude will call:
 ```bash
 source ~/.agent-skills-setup/lib.sh
-bash "$(find_skill_dir infra/kiro-gateway)/lib/kiro-gateway.sh" <subcommand>
+SKILL_DIR=$(find_skill_dir infra/kiro-gateway) || exit 1
+bash "$SKILL_DIR/lib/kiro-gateway.sh" <subcommand>
 ```
 
 ## Subcommands

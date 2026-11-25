@@ -56,6 +56,11 @@ h="$TMP/home-partial"
 mkdir -p "$h/.claude/skills/infra"
 check "group dir without the subcommand does not match" "|1" "$(run_find "$h" infra/ups)"
 
+h="$TMP/home-args"
+mkdir -p "$h/.claude/skills/a/b"
+check "empty argument is rejected, not the skills root" "|1" "$(run_find "$h" "")"
+check "'..' in the argument is rejected" "|1" "$(run_find "$h" a/b/../..)"
+
 if [[ "$fails" -gt 0 ]]; then
   echo "$fails test(s) failed"
   exit 1

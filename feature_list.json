@@ -145,7 +145,7 @@
         "No recipe under skills/ names an agent's skills directory"
       ],
       "verification": "bash scripts/harness-verify.sh",
-      "evidence": "Tests failed first (find_skill_dir missing, hook not wired), then passed; the guard found exactly the six files three investigators had listed. Runtime lib.sh synced; recipe resolves under claude, codex and kiro layouts. Not changed: upload_resume.py's hard-coded path (verified harmless, the script dir is already on sys.path); apidog-mcp has no Codex or Antigravity MCP target (config formats unverified); polish-input and prose wording."
+      "evidence": "Tests failed first (find_skill_dir missing, hook not wired), then passed; the guard found exactly the six files three investigators had listed. Two fresh reviewers (correctness; portability and security) confirmed no blocking defect; their findings were fixed test-first: the guard now scans every fenced block (zsh, console, untagged, ~~~) and the $CODEX_HOME and \"$HOME\"/ forms, names an unreadable .md instead of crashing, find_skill_dir rejects an empty or '..' argument, recipes use '|| exit 1'. upload_resume.py now uses its own dir (it was harmless, verified). Runtime lib.sh synced; /bin/bash 3.2 and python 3.9.6 pass. Open: apidog-mcp has no Codex or Antigravity MCP target (formats unverified); older checkers still traceback on an undecodable .md."
     }
   ]
 }

@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-SKILL_DIR = Path.home() / ".claude/skills/utils/confluence-tree/lib"
+SKILL_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SKILL_DIR))
 
 import md_to_xhtml

@@ -12,8 +12,9 @@ fails on the others with "No such file", which reads as a broken skill rather
 than a wrong path. A recipe finds its own directory with `find_skill_dir` from
 lib.sh instead.
 
-Only fenced shell blocks are checked: prose that says where a skill is installed
-is documentation, not something an agent executes. Only the skills directories
+Only fenced blocks are checked, whatever their language tag (an agent runs zsh,
+console and untagged blocks too): prose that says where a skill is installed is
+documentation, not something an agent executes. Only the skills directories
 are matched: `~/.claude/settings.json` is a real per-agent config file that a
 recipe may legitimately address.
 """
@@ -22,16 +23,17 @@ import re
 import sys
 from pathlib import Path
 
-BLOCK = re.compile(r"```(?:bash|sh|shell)\n(.*?)```", re.S)
+BLOCK = re.compile(r"^[ \t]*(```|~~~)[^\n]*\n(.*?)^[ \t]*\1", re.S | re.M)
 AGENT_SKILLS_PATH = re.compile(
-    r"(?:\$\{?HOME\}?|~)/\.(?:claude|kiro|codex|gemini)/(?:antigravity-cli/)?skills\b"
+    r"(?:\$\{?HOME\}?\"?|~)/\.(?:claude|kiro|codex|gemini)/(?:antigravity-cli/)?skills\b"
+    r"|\$\{?CODEX_HOME\b[^}\s\"]*\}?/skills\b"
 )
 
 
 def findings_for(text: str) -> list[str]:
     """Each distinct agent skills path used inside a shell block, in order of first use."""
     hits: list[str] = []
-    for block in BLOCK.findall(text):
+    for _fence, block in BLOCK.findall(text):
         for m in AGENT_SKILLS_PATH.finditer(block):
             if m.group(0) not in hits:
                 hits.append(m.group(0))
@@ -50,7 +52,13 @@ def main() -> int:
 
     total = 0
     for path in sorted(root.rglob("*.md")):
-        for hit in findings_for(path.read_text(encoding="utf-8")):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError) as e:
+            total += 1
+            print(f"  UNREADABLE  {path}: {type(e).__name__}")
+            continue
+        for hit in findings_for(text):
             total += 1
             print(f"  AGENT-PATH  {path}: {hit} is one agent's skills directory")
 

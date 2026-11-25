@@ -118,6 +118,10 @@ find_html2md() {
 # ---------------------------------------------------------------------------
 find_skill_dir() {
   local d
+  if [[ -z "$1" || "$1" == *..* ]]; then
+    echo "ERROR: find_skill_dir needs <group>/<subcommand>, got '$1'." >&2
+    return 1
+  fi
   for d in "$HOME/.kiro/skills" "$HOME/.claude/skills" "${CODEX_HOME:-$HOME/.codex}/skills" "$HOME/.gemini/antigravity-cli/skills"; do
     if [[ -d "$d/$1" ]]; then
       echo "$d/$1"

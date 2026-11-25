@@ -24,7 +24,8 @@ The agent runs:
 
 ```bash
 source ~/.agent-skills-setup/lib.sh
-bash "$(find_skill_dir infra/ups)/lib/ups.sh" <subcommand>
+SKILL_DIR=$(find_skill_dir infra/ups) || exit 1
+bash "$SKILL_DIR/lib/ups.sh" <subcommand>
 ```
 
 ## Implementation files

@@ -192,6 +192,40 @@ python3 "$AP_CHECKER" "$d/skills" >/dev/null 2>&1 && code=0 || code=$?
   && ok "agent-path checker exits 1 (CLI)" \
   || bad "agent-path checker exits 1 (CLI)" "exit $code"
 
+# Same defect in a fence an agent also runs: zsh, console, untagged, ~~~.
+for fence in 'zsh' 'console' '' ; do
+  d=$(fixture "ap_fence_$RANDOM" "\`\`\`$fence
+cd ~/.claude/skills/infra/ups
+\`\`\`")
+  out=$(run_hook "$d") && code=0 || code=$?
+  [[ $code -eq 2 ]] \
+    && ok "agent skills path in a '${fence:-untagged}' fence blocks" \
+    || bad "agent skills path in a '${fence:-untagged}' fence blocks" "exit $code, out: $out"
+done
+d=$(fixture ap_tilde '~~~bash
+cd ~/.claude/skills/infra/ups
+~~~')
+out=$(run_hook "$d") && code=0 || code=$?
+[[ $code -eq 2 ]] && ok "agent skills path in a ~~~ fence blocks" || bad "agent skills path in a ~~~ fence blocks" "exit $code, out: $out"
+
+for form in '"$HOME"/.claude/skills/infra/ups/lib/ups.sh' '"$CODEX_HOME/skills/infra/ups/lib/ups.sh"' \
+            '${CODEX_HOME:-$HOME/.codex}/skills/infra/ups/lib/ups.sh'; do
+  d=$(fixture "ap_form_$RANDOM" "\`\`\`bash
+bash $form
+\`\`\`")
+  out=$(python3 "$AP_CHECKER" "$d/skills" 2>&1) && code=0 || code=$?
+  [[ $code -eq 1 && "$out" == *AGENT-PATH* ]] \
+    && ok "agent skills path form is flagged: ${form:0:28}" \
+    || bad "agent skills path form is flagged: ${form:0:28}" "exit $code, out: $out"
+done
+
+# An unreadable file must be named as such, not crash with a traceback.
+d=$(fixture ap_binary 'plain')
+printf '\xff\xfe not utf-8' > "$d/skills/grp/sub/BAD.md"
+out=$(python3 "$AP_CHECKER" "$d/skills" 2>&1) && code=0 || code=$?
+if [[ $code -eq 1 && "$out" == *UNREADABLE* && "$out" != *Traceback* ]]; then ok "an undecodable .md is named unreadable"
+else bad "an undecodable .md is named unreadable" "exit $code, out: $out"; fi
+
 # --- 8. the real tree passes -------------------------------------------
 out=$(bash "$HOOK" 2>&1) && code=0 || code=$?
 [[ $code -eq 0 ]] \

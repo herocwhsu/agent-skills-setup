@@ -54,7 +54,8 @@ Save the message window to a plain text file, e.g. `/tmp/eval-transcript.txt`.
 
 ```bash
 source ~/.agent-skills-setup/lib.sh
-python3 "$(find_skill_dir utils/skill-eval)/lib/check_transcript.py" <skill-name-prefix> /tmp/eval-transcript.txt
+SKILL_DIR=$(find_skill_dir utils/skill-eval) || exit 1
+python3 "$SKILL_DIR/lib/check_transcript.py" <skill-name-prefix> /tmp/eval-transcript.txt
 ```
 
 Where `<skill-name-prefix>` is the marker prefix, e.g. `DOMAIN_NOTES` for
