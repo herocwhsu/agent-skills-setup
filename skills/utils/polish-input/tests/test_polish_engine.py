@@ -373,3 +373,22 @@ def test_polish_wraps_input_as_data_and_strips_tags(monkeypatch):
     result = polish_engine.polish("i want add login", [_fake_provider()])
     assert result == "I want to add a login."
     assert fake._last_messages.last_call["messages"][0]["content"] == "<text>i want add login</text>"
+
+
+def test_same_engine_error_logs_again_after_a_day(monkeypatch, tmp_path):
+    # An Oct 22 marker for the jiter ImportError hid its recurrence on Nov 24.
+    state = tmp_path / "state"
+    monkeypatch.setenv("POLISH_STATE_DIR", str(state))
+    sys.modules.pop("polish_engine", None)
+    import polish_engine
+
+    log = state / "debug.log"
+    polish_engine.write_engine_error_hint_once("sdk broke")
+    polish_engine.write_engine_error_hint_once("sdk broke")
+    assert log.read_text().count("sdk broke") == 1
+
+    marker = next(state.glob(".engine-error-*"))
+    old = marker.stat().st_mtime - 2 * 86400
+    os.utime(marker, (old, old))
+    polish_engine.write_engine_error_hint_once("sdk broke")
+    assert log.read_text().count("sdk broke") == 2

@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Last Updated:** 2026-11-24
+**Last Updated:** 2026-11-25
 **Active Feature:** none
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
@@ -19,7 +19,7 @@
 
 *(Earlier features feat-001 through feat-086 are archived in [docs/progress-archive.md](docs/progress-archive.md); feat-087 to feat-094 in `docs/archive/features/`, feat-095 onward in `feature_list.json`. Per-feature evidence also recorded in `feature_list.json` and `docs/archive/features/`.)*
 
-**Done 2026-11-24:** feat-115: polish-input re-execs under the runtime venv's python. After python3 moved to 3.15 the venv's 3.14 wheels (anthropic -> jiter) failed to load and every prompt logged `no-change`. Open: the engine-error hint is deduped by reason hash, so the Oct 22 marker hid the recurrence.
+**Done 2026-11-24:** feat-115: polish-input re-execs under the runtime venv's python. After python3 moved to 3.15 the venv's 3.14 wheels (anthropic -> jiter) failed to load and every prompt logged `no-change`. The engine-error marker now expires after a day, so a recurring error is logged again.
 **Done 2026-11-22:** feat-114: cve-audit skill on main, pushed 2026-11-23, installed. Gaps: see the plan's Delivery status.
 **Done 2026-11-20:** feat-113: subagent cap (<= 3) and evidence-over-assertion in `agents/engineering-rules.md`; rubric in `scripts/outside_agent.py` asks for failure scenarios and file:line. Merged to main 2026-11-22 (via fast-forward push); `install.sh` and `install-agents-md.sh` run, all four host files carry the rules. The cve-audit spec and plan are now on main (feat-114).
 **Done 2026-11-16:** feat-112: `harness-verify.sh` keeps every gate's output in

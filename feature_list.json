@@ -119,10 +119,11 @@
       "status": "completed",
       "acceptance_criteria": [
         "With a runtime venv python present, the hook runs under it exactly once",
-        "POLISH_REEXEC set, or no usable venv python, leaves the hook on the current interpreter and still fails open"
+        "POLISH_REEXEC set, or no usable venv python, leaves the hook on the current interpreter and still fails open",
+        "The same engine error is logged again once its marker is a day old"
       ],
       "verification": "pytest skills/utils/polish-input/tests",
-      "evidence": "New tests failed first (no hand-off), then 63 passed. Live hook under python3 3.15.2 turned 'i want add new feature for login' into a polished line, where before it returned no-change. mypy clean. Not fixed: the engine-error hint is deduped by reason hash, so the Oct 22 marker hid this recurrence; deferred.",
+      "evidence": "New tests failed first (no hand-off), then 63 passed. Live hook under python3 3.15.2 turned 'i want add new feature for login' into a polished line, where before it returned no-change. mypy clean. The engine-error marker now expires after a day (the Oct 22 marker had hidden this recurrence); its test failed first, 64 passed.",
       "execution_summary": {
         "run_id": "60275bbc-31af28b0af",
         "output_tokens": 15930,
