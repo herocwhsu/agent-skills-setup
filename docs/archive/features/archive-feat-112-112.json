@@ -1,0 +1,26 @@
+{
+  "features": [
+    {
+      "id": "feat-112",
+      "name": "harness-verify keeps every gate's output in a last-run log",
+      "description": "Queue item since feat-068: a one-off tests-gate failure left no output to read. harness-verify.sh printed a failing gate's output only to the console, and --json printed none of it.",
+      "dependencies": [],
+      "status": "completed",
+      "acceptance_criteria": [
+        "each gate's raw output, with its label, the same OK/SKIP/FAIL verdict as the JSON report and its exit code, is written to harness-verify-last.log next to harness-verify-last.json, also under --json; a missing gate script gets a SKIP line",
+        "the next run replaces the log",
+        "an unwritable or disabled last-report path changes neither the exit code nor the console output"
+      ],
+      "verification": "bash scripts/tests/test_harness_verify.sh",
+      "evidence": "scripts/harness-verify.sh: run_gate computes one verdict (OK, SKIP when a passing gate prints SKIP, FAIL) used for the console, the report and the log; it appends '=== <label>: <verdict> (exit N) ===' and the gate's output to a temp log, copied to ${LAST_REPORT%.json}.log with the kept report (same || true guard). gitleaks runs with --redact, so the log holds no raw secret; the log is 0600. test_harness_verify.sh: 3 new cases, each failed first (the SKIP case after a fresh-context reviewer found the log said OK for a skipped gate), then 35 passed, 0 failed, also under /bin/bash 3.2. Security reviewer: no defects.",
+      "execution_summary": {
+        "run_id": "1591f604-b13f3665f1",
+        "output_tokens": 54799,
+        "wall_time_ms": 340346809,
+        "active_turn_time_ms": 5381182,
+        "subagents": 3,
+        "subagent_output_tokens": 11957
+      }
+    }
+  ]
+}
