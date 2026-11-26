@@ -45,6 +45,22 @@ else
   fi
 fi
 
+# A red CI run is invisible until someone looks: four pushes in a row failed on
+# Linux while every local gate passed. Warn only; skip quietly when gh, a
+# timeout command, a workflows dir or a branch is missing, or the call fails.
+if [[ $in_repo -eq 1 && -d .github/workflows ]] && command -v gh >/dev/null 2>&1; then
+  tmo=$(command -v timeout || command -v gtimeout || true)
+  branch=$(git symbolic-ref --short -q HEAD || true)
+  if [[ -n "$tmo" && -n "$branch" ]]; then
+    ci=$("$tmo" 8 gh run list --branch "$branch" --limit 10 --json status,conclusion,displayTitle \
+      -q '[.[] | select(.status == "completed")][0] | "\(.conclusion)\t\(.displayTitle)"' 2>/dev/null) || ci=""
+    if [[ "$ci" == failure$'\t'* ]]; then
+      echo "  WARN CI failed on $branch: $(printf %s "${ci#*$'\t'}" | tr -cd "[:print:]")"
+      echo "    see: gh run list --branch $branch --limit 3; gh run view --log-failed"
+    fi
+  fi
+fi
+
 echo "== state brief (PROGRESS.md) =="
 if [[ ! -f PROGRESS.md ]]; then
   echo "  no PROGRESS.md"

@@ -84,6 +84,26 @@ before=$(cat "$R/.claude/hooks/x.sh")
 if [[ "$before" == "echo changed" && ! -e "$R/.claude/hooks/agent-hook.sh" ]]; then
   ok "preflight writes nothing"; else bad "preflight writes nothing" "hook now: $before"; fi
 
+# CI status: a red latest run on this branch is a warning, never a block.
+FB="$TMP/fakebin"; mkdir -p "$FB" "$R/.github/workflows"
+git -C "$R" checkout -q -b main 2>/dev/null || true
+fakegh() { printf '#!/usr/bin/env bash\n%s\n' "$1" > "$FB/gh"; chmod +x "$FB/gh"; }
+runci() { OUT=$( cd "$R" && PATH="$FB:$PATH" HOME="$TMP/nohome" bash "$PRE" < /dev/null 2>&1 ); RC=$?; }
+fakegh 'printf "failure\tfix the thing\n"'
+runci
+has "red CI: warns" "WARN CI failed on main"
+has "red CI: names the run" "fix the thing"
+if [[ $RC -eq 0 ]]; then ok "red CI: still exits 0"; else bad "red CI: still exits 0" "rc=$RC"; fi
+fakegh 'printf "success\tfine\n"'
+runci; hasnt "green CI: silent" "WARN CI"
+fakegh 'exit 1'
+runci; hasnt "gh error: silent" "WARN CI"
+fakegh 'printf "failure\tx\n"'
+rm -rf "$R/.github"
+runci; hasnt "no workflows dir: no CI check" "WARN CI"
+mkdir -p "$R/.github/workflows"; rm "$FB/gh"
+runci; hasnt "no gh: silent" "WARN CI"
+
 # Started above registered repos: their hooks do not load, so say which repos.
 P="$TMP/parent"; mkdir -p "$P/hangar" "$P/atelier" "$P/other"
 git -C "$P/hangar" init -q; git -C "$P/atelier" init -q
