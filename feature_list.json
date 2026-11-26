@@ -133,6 +133,23 @@
         "subagents": 3,
         "subagent_output_tokens": 11735
       }
+    },
+    {
+      "id": "feat-117",
+      "name": "cve-audit collects exposure, worker AMI metadata and image-index children",
+      "description": "Wires the six tested but unused helpers into the collector. Pods join to workers, EC2 discovery adds the managed-resource retry, exposure counts load balancers with healthy workload targets, and an ECR image index resolves to the child digest per live architecture. Facts go to a per-environment context shown as counts; shards and verdicts are unchanged.",
+      "dependencies": [
+        "feat-114"
+      ],
+      "status": "completed",
+      "acceptance_criteria": [
+        "Spec cases 1-4 and 7 pass through the collector with synthetic fixtures",
+        "Exposure never changes a verdict; a failed read is a recorded skip",
+        "A live architecture with no child image leaves the parent unscanned and the artifact INCONCLUSIVE",
+        "The report carries counts only: no instance, AMI, IP, ARN or digest"
+      ],
+      "verification": "bash scripts/harness-verify.sh",
+      "evidence": "New tests failed first (12 red), then 481 skill tests pass; mypy clean. Mutation checks on the workload filter, unscanned parent, managed retry (both triggers), scheme count and arch selection: the first run left two survivors, both closed with tests. A first-pass bug (an unjoinable parent was scanned and could read PATCHED) was caught by a test and fixed. AWS shapes follow the CLI docs and ran only against synthetic fixtures; not run on a real account. Not reviewed by fresh subagents yet."
     }
   ]
 }

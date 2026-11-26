@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Last Updated:** 2026-11-25
+**Last Updated:** 2026-11-26
 **Active Feature:** none
 **Harness lectures:** 1–15 closed (`docs/harness-creator/lecture-0N/summary.md`).
 - Lecture 10 (why end-to-end testing changes results) closed: e2e_runner ported (5/5 tests), review feedback promotion documented.
@@ -19,6 +19,7 @@
 
 *(Earlier features feat-001 through feat-086 are archived in [docs/progress-archive.md](docs/progress-archive.md); feat-087 to feat-094 in `docs/archive/features/`, feat-095 onward in `feature_list.json`. Per-feature evidence also recorded in `feature_list.json` and `docs/archive/features/`.)*
 
+**Done 2026-11-26:** feat-117: cve-audit collects exposure, worker AMI metadata, pod-to-worker joins and image-index children, shown as counts (synthetic fixtures only, no real AWS account yet).
 **Done 2026-11-25:** feat-116: recipes find their skill dir with `find_skill_dir` (lib.sh) instead of `~/.claude/skills`; skill-paths-guard blocks the old form. Open: `apidog-mcp` documents MCP setup for Claude and Kiro only (Codex, Antigravity targets unverified).
 **Done 2026-11-24:** feat-115: polish-input re-execs under the runtime venv's python. After python3 moved to 3.15 the venv's 3.14 wheels (anthropic -> jiter) failed to load and every prompt logged `no-change`. The engine-error marker now expires after a day, so a recurring error is logged again.
 **Done 2026-11-22:** feat-114: cve-audit skill on main, pushed 2026-11-23, installed. Gaps: see the plan's Delivery status.
