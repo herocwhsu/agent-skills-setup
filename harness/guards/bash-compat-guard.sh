@@ -42,11 +42,28 @@ while IFS= read -r f; do
 done < <(find "$REPO_DIR" \( -name .git -o -name .venv -o -name node_modules \) -prune \
            -o -type f -name '*.sh' -print | sort)
 
-if [[ -n "$hits" || -n "$pyhits" ]]; then
+# `stat -f` is filesystem status on Linux: it exits 0 and prints junk, so it must
+# come after a GNU `stat -c` on the same line, never first or alone. Four CI runs
+# failed on this while macOS passed.
+stathits=""
+while IFS= read -r f; do
+  if h=$(grep -nE '(^|[;&|({$`[:space:]])stat[[:space:]]+-f' "$f" \
+         | grep -vE '^[0-9]+:[[:space:]]*#' \
+         | grep -vE 'stat[[:space:]]+-c.*stat[[:space:]]+-f'); then
+    stathits="$stathits$(printf '%s\n' "$h" | sed "s|^|  ${f#"$REPO_DIR"/}:|")"$'\n'
+  fi
+done < <(find "$REPO_DIR" \( -name .git -o -name .venv -o -name node_modules \) -prune \
+           -o -type f -name '*.sh' -print | sort)
+
+if [[ -n "$hits" || -n "$pyhits" || -n "$stathits" ]]; then
   {
     if [[ -n "$hits" ]]; then
       echo "Blocked: Bash 4+ constructs abort under macOS /bin/bash 3.2 (see docs/incident-rules.md Shell Portability):"
       printf '%s' "$hits"
+    fi
+    if [[ -n "$stathits" ]]; then
+      echo "Blocked: BSD-only stat -f without a preceding GNU stat -c (Linux CI prints junk; use stat -c '%a' f 2>/dev/null || stat -f '%Lp' f):"
+      printf '%s' "$stathits"
     fi
     if [[ -n "$pyhits" ]]; then
       echo "Blocked: indented python -c body (IndentationError on Python <= 3.13; start it at column 0):"

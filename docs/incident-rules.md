@@ -8,7 +8,7 @@ matches the edit you are about to make.
 
 *Source:* `init-repo.sh` shipped `;&` for months and aborted on every macOS run while CI (bash 5) stayed green. *Applies:* any `*.sh` edit. *Expires:* already enforced by `bash-compat-guard.sh`; delete if the floor moves to bash 5.
 
-Shared scripts must be portable across macOS default `/bin/bash` (3.2) and Linux (Bash 5+). Avoid Bash 4+ features (`;&`, `mapfile`, `declare -A`) or use standard POSIX `sh`.
+Shared scripts must be portable across macOS default `/bin/bash` (3.2) and Linux (Bash 5+). Avoid Bash 4+ features (`;&`, `mapfile`, `declare -A`) or use standard POSIX `sh`. Read file modes with `stat -c '%a' f 2>/dev/null || stat -f '%Lp' f`, GNU first: on Linux `stat -f` is filesystem status, exits 0 and prints junk, so a BSD-first fallback never falls back (CI failed on four pushes in a row, 2026-11-23 to 2026-11-26; `bash-compat-guard.sh` blocks it).
 
 ## Skills symlinks
 

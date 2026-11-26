@@ -84,6 +84,15 @@ expect_pass  "column-0 python3 -c body passes" "$(tree pycol s/a.sh 'for f in x;
 expect_pass  "one-line python3 -c passes"      "$(tree pyone s/a.sh 'python3 -c "import sys; print(1)"\n')"
 expect_pass  "python3 heredoc passes"          "$(tree pyhd s/a.sh "python3 - <<'X'\n  import sys\nX\n")"
 
+# --- BSD-first stat -----------------------------------------------------------
+# On Linux `stat -f` is filesystem status: it exits 0 and prints junk, so a
+# `stat -f ... || stat -c ...` fallback never runs and CI fails while macOS passes.
+expect_block "stat -f alone blocks"      "$(tree statf1 s/a.sh 'm=$(stat \055f %%Lp "$f")\n')"
+expect_block "stat -f before -c blocks"  "$(tree statf2 s/a.sh 'm=$(stat \055f %%Lp "$f" || stat -c %%a "$f")\n')"
+expect_pass  "stat -c before -f passes"  "$(tree statf3 s/a.sh 'm=$(stat -c %%a "$f" 2>/dev/null || stat \055f %%Lp "$f")\n')"
+expect_pass  "stat -c alone passes"      "$(tree statf4 s/a.sh 'm=$(stat -c %%a "$f")\n')"
+expect_pass  "stat -f in a comment passes" "$(tree statf5 s/a.sh '# stat \055f is BSD only\n')"
+
 # --- the real tree passes --------------------------------------------------
 out=$(bash "$HOOK" 2>&1) && code=0 || code=$?
 [[ $code -eq 0 ]] \
