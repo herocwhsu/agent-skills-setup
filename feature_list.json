@@ -149,7 +149,7 @@
         "The report carries counts only: no instance, AMI, IP, ARN or digest"
       ],
       "verification": "bash scripts/harness-verify.sh",
-      "evidence": "New tests failed first (12 red), then 481 skill tests pass; mypy clean. Mutation checks on the workload filter, unscanned parent, managed retry (both triggers), scheme count and arch selection: the first run left two survivors, both closed with tests. A first-pass bug (an unjoinable parent was scanned and could read PATCHED) was caught by a test and fixed. AWS shapes follow the CLI docs and ran only against synthetic fixtures; not run on a real account. Not reviewed by fresh subagents yet."
+      "evidence": "New tests failed first (12 red), then 487 skill tests pass; mypy clean. Mutation checks on the workload filter, unscanned parent, managed retry (both triggers), scheme count, arch selection, caps and the unknown-architecture guard all killed after two survivors were closed with tests. A first-pass bug (an unjoinable parent was scanned and could read PATCHED) was caught by a test. Two fresh reviewers (correctness; security and privacy): no leak or argv defect. Fixed test-first: an index with no known live architecture vanished without a skip, workers hidden from EC2 or without an instance id were not recorded, pending pods inflated the worker count, and three resource limits (child images 16, target groups 20 per load balancer, RecursionError on a nested manifest). AWS shapes follow the CLI docs and ran only against synthetic fixtures; not run on a real account. Known and accepted: describe-instances lists the whole region (a 5 MB cap drops metadata with a recorded skip); IP matching ignores overlapping VPC CIDRs."
     }
   ]
 }
