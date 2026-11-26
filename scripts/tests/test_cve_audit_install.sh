@@ -33,7 +33,7 @@ for f in aws_eks collector evidence kube providers report safe_runtime; do
 done
 [[ -f "$CA/setup.py" ]] && ok "runtime has setup.py" || bad "runtime lacks setup.py"
 
-check "cve-audit runtime dir is 0700" "700" "$(stat -f '%Lp' "$CA" 2>/dev/null || stat -c '%a' "$CA")"
+check "cve-audit runtime dir is 0700" "700" "$(stat -c '%a' "$CA" 2>/dev/null || stat -f '%Lp' "$CA")"
 
 mismatch=""
 while read -r src dst; do
